@@ -33,7 +33,7 @@ public class ClaudeKit {
     public static final String SERVER = "kuador";
 
     /** Herramientas del tablero que usa un subagente (la cola la consulta el comando, no el subagente). */
-    private static final List<String> SUBAGENT_TOOLS = List.of("ver_issue", "instrucciones_rol", "tomar", "comentar", "entregar", "devolver",
+    private static final List<String> SUBAGENT_TOOLS = List.of("ver_issue", "instrucciones_rol", "tomar", "comentar", "estimar", "entregar", "devolver",
             "consultar", "leer_documento", "escribir_documento");
 
     public record KitFile(String path, String content) {}

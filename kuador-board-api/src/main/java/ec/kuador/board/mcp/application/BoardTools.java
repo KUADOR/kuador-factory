@@ -80,6 +80,9 @@ public class BoardTools {
                 "Devuelve el issue a una etapa anterior porque falta algo de ella (p. ej. QA encontró fallas). Explica qué hay que corregir.",
                 Map.of("clave", KEY, "agente", AGENT, "columna", "Clave de la columna a la que vuelve (p. ej. DEVELOPMENT).",
                         "motivo", "Qué hay que corregir, con evidencia."), List.of("clave", "agente", "columna", "motivo"), this::sendBack);
+        register("estimar", "Estimar", false,
+                "Pone los story points del issue (1, 2, 3, 5, 8 o 13). Solo si todavía no tiene: nunca cambia una estimación de una persona.",
+                Map.of("clave", KEY, "agente", AGENT, "puntos", "Story points: 1, 2, 3, 5, 8 o 13."), List.of("clave", "agente", "puntos"), this::estimate);
         register("consultar", "Consultar a una persona", false,
                 "Necesitas una decisión que no te corresponde: deja la pregunta y el issue pasa a la persona que lo supervisa.",
                 Map.of("clave", KEY, "agente", AGENT, "pregunta", "La decisión que necesitas, con las opciones si las hay."),
@@ -250,6 +253,23 @@ public class BoardTools {
         Progress p = issues.sendBack(c.key(), required(a, "columna").toUpperCase(Locale.ROOT), reason, agent.id());
         work.finished(agent.id(), c.key(), "Devolvió a " + p.statusName() + ": " + reason);
         return progress(p, c.key() + " volvió a «" + p.statusName() + "».");
+    }
+
+    private static final List<Integer> POINTS = List.of(1, 2, 3, 5, 8, 13);
+
+    private Object estimate(Map<String, String> a, UUID person) {
+        IssueContext c = ownIssue(a, person);
+        MemberView agent = agent(a);
+        int points;
+        try {
+            points = Integer.parseInt(required(a, "puntos").strip());
+        } catch (NumberFormatException e) {
+            throw new ToolException("«puntos» debe ser un número: 1, 2, 3, 5, 8 o 13.");
+        }
+        if (!POINTS.contains(points)) throw new ToolException("Usa la escala 1, 2, 3, 5, 8 o 13.");
+        boolean set = issues.setStoryPointsIfEmpty(c.key(), points, agent.id());
+        return Map.of("ok", set, "mensaje", set ? c.key() + " quedó en " + points + " puntos."
+                : c.key() + " ya tenía " + c.storyPoints() + " puntos: no se cambian. Si crees que no corresponde, dilo en un comentario.");
     }
 
     private Object ask(Map<String, String> a, UUID person) {

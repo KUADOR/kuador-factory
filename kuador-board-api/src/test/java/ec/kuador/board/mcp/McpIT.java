@@ -148,6 +148,10 @@ class McpIT {
         assertThat(call("GET", "/api/agents/runs?issueKey=" + key, null, owner).body().get(0).get("status").asString())
                 .as("el tablero ve que el agente está trabajando").isEqualTo("RUNNING");
         tool(runner, "comentar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "texto", "Historia y criterios listos."), false);
+        assertThat(tool(runner, "estimar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "puntos", "4"), true).asString()).contains("escala");
+        assertThat(tool(runner, "estimar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "puntos", "5"), false).get("ok").asBoolean()).isTrue();
+        assertThat(tool(runner, "estimar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "puntos", "8"), false).get("ok").asBoolean())
+                .as("no pisa una estimación").isFalse();
         assertThat(tool(runner, "escribir_documento", Map.of("clave", key, "agente", "PRODUCT_OWNER", "tipo", "SPEC", "contenido", "# Spec"), true)
                 .asString()).contains("no tiene metodología");
         JsonNode delivered = tool(runner, "entregar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "comentario", "Listo para aprobar."), false);

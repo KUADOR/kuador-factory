@@ -158,11 +158,14 @@ Decidido el 2026-11-10:
    (asigna a un agente, o lleva el issue a una etapa que cubren agentes, p. ej. al aprobar una puerta)
    lo supervisa; los agentes lo heredan por la cadena y solo los agentes de esa persona lo atienden
    (cada suscripción sirve solo a su dueño). Herramientas: `pendientes`, `ver_issue`,
-   `instrucciones_rol`, `tomar`, `comentar`, `entregar`, `devolver`, `consultar`, `leer_documento`,
+   `instrucciones_rol`, `tomar`, `comentar`, `estimar`, `entregar`, `devolver`, `consultar`, `leer_documento`,
    `escribir_documento`. **Kit** (página Claude Code o `GET /api/claude-kit.zip`): `.mcp.json` (tablero +
    servidores del catálogo elegidos, todo con variables de entorno), un subagente por rol que pide su
    manual vigente con `instrucciones_rol`, y el comando `/pendientes`. El trabajo en Claude Code queda
    como ejecución `claude-code` (el tablero muestra al agente trabajando). Los clientes también comentan.
+   Probada con Claude Code real (2026-11-10): `/pendientes` en modo `-p`, el subagente del PO tomó un
+   issue SDD, escribió la spec (v1→v3), consultó dos veces a la persona y al final estimó y entregó a
+   Aprobación (~75 s y 5 turnos por vuelta).
 3. **Proyecto nuevo con sus bases:** GitHub App, repos de plantilla, flujo de git protegido, archivos
    para agentes y varios repos por proyecto.
 4. **PO y Arquitecto vía MCP:** se reutilizan las reglas de hoy (comentar, spec, plan, devolver).

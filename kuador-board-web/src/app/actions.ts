@@ -33,6 +33,7 @@ import type {
   Issue,
   IssueInput,
   IssueStatus,
+  KitFile,
   Member,
   MemberAccess,
   MemberKind,
@@ -101,6 +102,22 @@ export async function grantAccessAction(memberId: string, email: string, passwor
 
 export async function createAgentTokenAction(memberId: string, name: string): Promise<ActionResult<IssuedToken>> {
   return run(() => boardApi.createAgentToken(memberId, name), "/team");
+}
+
+export async function createRunnerTokenAction(name: string): Promise<ActionResult<IssuedToken>> {
+  return run(() => boardApi.createRunnerToken(name), "/claude-code");
+}
+
+export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.revokeRunnerToken(tokenId), "/claude-code");
+}
+
+export async function claudeKitAction(mcp: string[]): Promise<ActionResult<KitFile[]>> {
+  return run(() => boardApi.claudeKit(mcp));
+}
+
+export async function superviseIssueAction(projectKey: string, key: string): Promise<ActionResult<Issue>> {
+  return run(() => boardApi.supervise(key), `/projects/${projectKey}`);
 }
 
 export async function revokeAgentTokenAction(tokenId: string): Promise<ActionResult<void>> {

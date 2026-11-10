@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookMarked, Building2, LogOut, Plus, Users } from "lucide-react";
+import { BookMarked, Building2, LogOut, Plus, SquareTerminal, Users } from "lucide-react";
 import { clsx } from "clsx";
 
 import { logoutAction } from "@/app/actions";
@@ -84,6 +84,9 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
               </NavLink>
               <NavLink href="/catalog" active={path.startsWith("/catalog")}>
                 <BookMarked className="size-4 shrink-0" aria-hidden /> Catálogo
+              </NavLink>
+              <NavLink href="/claude-code" active={path.startsWith("/claude-code")}>
+                <SquareTerminal className="size-4 shrink-0" aria-hidden /> Claude Code
               </NavLink>
             </>
           )}

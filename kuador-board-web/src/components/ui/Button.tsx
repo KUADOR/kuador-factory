@@ -21,6 +21,8 @@ type Props = {
   label?: string;
   loading?: boolean;
   href?: string;
+  /** Con {@code href}: descarga un archivo (enlace normal, sin navegación del cliente). */
+  download?: boolean;
   className?: string;
   children?: React.ReactNode;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children">;
@@ -32,7 +34,7 @@ const TONE: Record<ButtonTone, { severity?: "secondary" | "danger"; variant?: "t
   danger: { severity: "danger", variant: "outlined" },
 };
 
-export function Button({ tone = "secondary", size = "md", icon: Icon, iconOnly, label, loading, href, className, children, disabled, ...rest }: Props) {
+export function Button({ tone = "secondary", size = "md", icon: Icon, iconOnly, label, loading, href, download, className, children, disabled, ...rest }: Props) {
   const content = (
     <>
       {loading ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : Icon && <Icon className="size-4 shrink-0" aria-hidden />}
@@ -47,6 +49,13 @@ export function Button({ tone = "secondary", size = "md", icon: Icon, iconOnly, 
     title: iconOnly ? label : undefined,
     className: clsx("k-button", className),
   };
+  if (href && download) {
+    return (
+      <PrimeButton as="a" href={href} download {...common}>
+        {content}
+      </PrimeButton>
+    );
+  }
   if (href) {
     return (
       <PrimeButton as={Link} href={href} {...common}>

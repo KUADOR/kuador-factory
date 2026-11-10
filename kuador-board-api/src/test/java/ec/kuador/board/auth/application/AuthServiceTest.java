@@ -172,6 +172,11 @@ class AuthServiceTest {
     }
 
     static class FakeTokens implements AccessTokenRepository {
+        @Override
+        public List<AccessToken> findActiveRunnerTokens(UUID memberId) {
+            return store.values().stream().filter(t -> t.memberId().equals(memberId) && t.kind() == TokenKind.RUNNER && t.revokedAt() == null).toList();
+        }
+
         final Map<UUID, AccessToken> store = new HashMap<>();
         public Optional<AccessToken> findByHash(String h) { return store.values().stream().filter(t -> t.tokenHash().equals(h)).findFirst(); }
         public Optional<AccessToken> findById(UUID id) { return Optional.ofNullable(store.get(id)); }

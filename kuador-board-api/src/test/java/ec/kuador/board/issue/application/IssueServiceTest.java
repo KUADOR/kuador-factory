@@ -242,6 +242,9 @@ class IssueServiceTest {
         public void saveAll(List<Issue> list) { list.forEach(this::save); }
         public void delete(Issue issue) { store.remove(issue.id()); }
         private final List<Comment> comments = new ArrayList<>();
+        public List<Issue> findBySupervisor(UUID supervisorId) {
+            return store.values().stream().filter(i -> supervisorId.equals(i.supervisorId())).sorted(java.util.Comparator.comparing(Issue::key)).toList();
+        }
         public List<Comment> findComments(Issue issue) { return comments.stream().filter(c -> c.issueId().equals(issue.id())).toList(); }
         public Comment saveComment(Comment comment) { comments.add(comment); return comment; }
     }

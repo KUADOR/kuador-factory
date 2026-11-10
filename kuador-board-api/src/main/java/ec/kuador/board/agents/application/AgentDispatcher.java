@@ -1,5 +1,6 @@
 package ec.kuador.board.agents.application;
 
+import ec.kuador.board.agents.domain.AgentRun;
 import ec.kuador.board.agents.domain.AgentRunRepository;
 import ec.kuador.board.issue.IssueAssigned;
 import ec.kuador.board.shared.tenant.TenantContext;
@@ -48,7 +49,8 @@ class AgentDispatcher implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         var now = clock.instant();
         TenantContext.asRoot(() -> tx.execute(s -> {
-            runs.findStuck(now).forEach(r -> {
+            // Las ejecuciones en Claude Code siguen vivas en la máquina de su persona: no se tocan.
+            runs.findStuck(now).stream().filter(r -> !AgentRun.LOCAL.equals(r.model())).forEach(r -> {
                 runs.save(r.failed("La API se reinició mientras el agente trabajaba. Vuelve a asignarle el issue para reintentar.", now));
                 log.warn("Ejecución {} del agente en {} marcada como interrumpida", r.id(), r.issueKey());
             });

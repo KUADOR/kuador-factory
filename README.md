@@ -246,6 +246,10 @@ estado de cada documento. El tablero **escribe archivos pero no hace commits**: 
 | GET · PUT | `/api/workspace` | Espacio actual / nombre, descripción, `brandColor` y `logo` (data URL; solo personas) |
 | POST | `/api/signup/code` · `/api/signup/verify` · `/api/signup/workspace` | Alta pública: pedir código, verificarlo (`signupToken`), crear el espacio |
 | GET | `/api/signup/slug?name=` | Identificador libre sugerido para un nombre |
+| POST | `/mcp` | Servidor MCP del tablero (JSON-RPC). Solo con la conexión de Claude Code de una persona (`kfr_…`) |
+| GET · POST · DELETE | `/api/auth/runner-tokens` | Conexiones de Claude Code de quien pide (el secreto se ve una vez) |
+| GET | `/api/claude-kit` · `/api/claude-kit.zip?mcp=CONTEXT7` | Kit para el repo: `.mcp.json`, subagentes por rol y comando `/pendientes` |
+| POST | `/api/issues/{key}/supervise` | Quien llama pasa a supervisar el issue (sus agentes lo atienden) |
 | PUT | `/api/members/{id}/access` | Nivel de acceso de una persona `{access: EDIT\|VIEW}` (solo personas que editan; nadie cambia el suyo; siempre queda alguien que edita) |
 | PUT | `/api/projects/{key}/stages` | Etapas `{stages: [{column, roles, gate, approvers, rejectTo}], maxRework}` (solo personas) |
 | POST | `/api/issues/{key}/take` · `/deliver` · `/review` | Tomar de la etapa / entregar `{comment?}` / cerrar una puerta `{approve, comment}` (solo personas aprobadoras) |
@@ -306,3 +310,11 @@ MCP · 5 desarrollo y QA · 6 release.
 > Antes de exponer la API fuera de `127.0.0.1`: ponla detrás de HTTPS, deshabilita Swagger en
 > producción y usa una contraseña inicial fuerte. Si hay varias instancias, mueve el bloqueo de login
 > (hoy en memoria) a la base o a Redis.
+
+## Agentes en Claude Code (Fase 2)
+
+1. En el tablero, **Claude Code → Crear conexión**. Guarda el token en tu shell: `export KUADOR_TOKEN=kfr_…` (nunca en el repo).
+2. Descarga el kit en la raíz del repo (botón o `curl -H "Authorization: Bearer $KUADOR_TOKEN" "$KUADOR_URL/api/claude-kit.zip" -o kit.zip && unzip -o kit.zip`).
+3. `unset ANTHROPIC_API_KEY` (si está definida, Claude Code cobra a la API en vez de a tu plan), abre `claude`, aprueba el servidor `kuador` y escribe `/pendientes`.
+
+Solo se atienden los issues que tú supervisas: los que asignaste a un agente o llevaste a una etapa que cubren agentes. Las puertas siguen siendo de las personas.

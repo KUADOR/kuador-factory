@@ -162,11 +162,14 @@ export function Switch({
   onChange,
   label,
   disabled,
+  hideLabel = false,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
   disabled?: boolean;
+  /** El texto queda solo para lectores de pantalla (cuando ya se lee al lado del interruptor). */
+  hideLabel?: boolean;
 }) {
   return (
     <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-fg">
@@ -175,7 +178,7 @@ export function Switch({
           <ToggleSwitch.Handle />
         </ToggleSwitch.Control>
       </ToggleSwitch.Root>
-      {label}
+      {!hideLabel && label}
     </label>
   );
 }

@@ -24,6 +24,8 @@ interface SpringDataIssueRepository extends JpaRepository<IssueEntity, UUID> {
 
     List<IssueEntity> findByProjectKey(String projectKey);
 
+    List<IssueEntity> findBySupervisorIdOrderByProjectKeyAscPositionAsc(UUID supervisorId);
+
     List<IssueEntity> findByProjectKeyAndStatusOrderByPosition(String projectKey, String status);
 
     @Query("select coalesce(max(i.position) + 1, 0) from IssueEntity i where i.projectKey = :projectKey and i.status = :status")
@@ -80,6 +82,11 @@ class JpaIssueRepository implements IssueRepository {
     @Override
     public List<Issue> findColumn(String projectKey, String status) {
         return jpa.findByProjectKeyAndStatusOrderByPosition(projectKey, status).stream().map(IssueEntity::toDomain).toList();
+    }
+
+    @Override
+    public List<Issue> findBySupervisor(UUID supervisorId) {
+        return jpa.findBySupervisorIdOrderByProjectKeyAscPositionAsc(supervisorId).stream().map(IssueEntity::toDomain).toList();
     }
 
     @Override

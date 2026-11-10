@@ -13,6 +13,7 @@ import ec.kuador.board.member.MemberApi;
 import ec.kuador.board.member.MemberView;
 import ec.kuador.board.shared.error.ConflictException;
 import ec.kuador.board.shared.error.DomainException;
+import ec.kuador.board.shared.error.ForbiddenException;
 import ec.kuador.board.shared.error.NotFoundException;
 import ec.kuador.board.shared.tenant.TenantContext;
 import java.time.Clock;
@@ -120,13 +121,16 @@ public class AuthService implements AuthApi {
             AccessToken token = found.get();
             Optional<MemberView> member = members.find(token.memberId())
                     .filter(m -> m.workspaceId().equals(token.workspaceId()))
-                    .filter(m -> m.agent() == (token.kind() == TokenKind.AGENT));
+                    .filter(m -> m.agent() == (token.kind() == TokenKind.AGENT))
+                    // Una conexión de Claude Code deja de valer si su persona pasa a solo lectura.
+                    .filter(m -> token.kind() != TokenKind.RUNNER || !m.viewOnly());
             if (member.isEmpty()) return Optional.<AuthenticatedMember>empty();
             if (token.lastUsedAt() == null || token.lastUsedAt().plus(TOUCH_EVERY).isBefore(now)) {
                 tokens.save(token.touch(now));
             }
             MemberView m = member.get();
-            return Optional.of(new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), token.id(), m.viewOnly()));
+            return Optional.of(new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), token.id(), m.viewOnly(),
+                    token.kind() == TokenKind.RUNNER));
         }));
     }
 
@@ -218,6 +222,37 @@ public class AuthService implements AuthApi {
         AccessToken token = tokens.findById(tokenId)
                 .filter(t -> t.kind() == TokenKind.AGENT && t.workspaceId().equals(workspace))
                 .orElseThrow(() -> new NotFoundException("No existe el token " + tokenId + "."));
+        tokens.save(token.revoke(clock.instant()));
+    }
+
+    // ---- Conexiones de Claude Code (una persona, sus agentes) ----
+
+    /** Emite la conexión de Claude Code de quien pide; el secreto se muestra una sola vez. */
+    @Transactional
+    public IssuedToken createRunnerToken(AuthenticatedMember who, String name) {
+        if (who.agent() || who.runner()) throw new ForbiddenException("Solo una persona puede conectar su Claude Code.");
+        if (who.viewOnly()) throw new ForbiddenException("Con acceso de solo lectura no se pueden poner agentes a trabajar.");
+        if (name == null || name.isBlank() || name.length() > 80) {
+            throw new DomainException("Ponle un nombre a la conexión (máximo 80 caracteres), por ejemplo \"MacBook de Diego\".");
+        }
+        Instant now = clock.instant();
+        String secret = Tokens.newSecret(TokenKind.RUNNER);
+        AccessToken saved = tokens.save(new AccessToken(UUID.randomUUID(), who.workspaceId(), who.memberId(), TokenKind.RUNNER, name.strip(),
+                Tokens.hash(secret), now, null, null, null));
+        return new IssuedToken(secret, saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AccessToken> runnerTokens(AuthenticatedMember who) {
+        return tokens.findActiveRunnerTokens(who.memberId());
+    }
+
+    /** Cada persona revoca solo sus propias conexiones. */
+    @Transactional
+    public void revokeRunnerToken(AuthenticatedMember who, UUID tokenId) {
+        AccessToken token = tokens.findById(tokenId)
+                .filter(t -> t.kind() == TokenKind.RUNNER && t.memberId().equals(who.memberId()))
+                .orElseThrow(() -> new NotFoundException("No existe la conexión " + tokenId + "."));
         tokens.save(token.revoke(clock.instant()));
     }
 }

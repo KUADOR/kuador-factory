@@ -16,6 +16,15 @@ public record AgentRun(
         SKIPPED
     }
 
+    /** Modelo de las ejecuciones que corren en el Claude Code de una persona (no en el servidor). */
+    public static final String LOCAL = "claude-code";
+
+    public static AgentRun startLocal(UUID agentId, String issueKey, String projectKey, UUID supervisorId, Instant now) {
+        // Sin evento que la dispare: su propio identificador ocupa el lugar (la columna es única y obligatoria).
+        return new AgentRun(UUID.randomUUID(), agentId, issueKey, projectKey, UUID.randomUUID(), supervisorId, Status.RUNNING, LOCAL, null, null,
+                null, null, now, null);
+    }
+
     public static AgentRun start(UUID agentId, String issueKey, String projectKey, UUID eventId, UUID requestedBy, Instant now) {
         return new AgentRun(UUID.randomUUID(), agentId, issueKey, projectKey, eventId, requestedBy, Status.RUNNING, null, null, null,
                 null, null, now, null);

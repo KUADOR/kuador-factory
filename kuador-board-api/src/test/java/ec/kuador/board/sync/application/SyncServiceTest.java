@@ -62,7 +62,7 @@ class SyncServiceTest {
         };
         InMemoryProjects projects = new InMemoryProjects();
         projects.add("KUA", "SOFTWARE", "SDD");
-        IssueApi issues = new IssueApi() {
+        IssueApi issues = new ec.kuador.board.testing.IssueApiStub() {
             public Optional<IssueRef> find(String key) { return Optional.of(new IssueRef(key, "KUA", 1, "x")); }
             public IssueRef createForImport(String projectKey, String title, UUID actor) {
                 createdIssues.add(title);

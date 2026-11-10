@@ -44,7 +44,7 @@ class DocumentServiceTest {
         projectApi.add("ODD", "SOFTWARE", "ODD");
         projectApi.add("NUE", "SOFTWARE", null);
         projectApi.add("VEN", "SALES", null);
-        IssueApi issueApi = new IssueApi() {
+        IssueApi issueApi = new ec.kuador.board.testing.IssueApiStub() {
             public Optional<IssueRef> find(String key) {
                 return switch (key) {
                     case "KUA-8" -> Optional.of(new IssueRef("KUA-8", "KUA", 8, "Prueba de eventos"));

@@ -42,6 +42,11 @@ public class InMemoryMembers implements MemberApi {
     }
 
     @Override
+    public List<MemberView> agents() {
+        return all.values().stream().filter(MemberView::agent).toList();
+    }
+
+    @Override
     public MemberView setAccess(UUID memberId, ec.kuador.board.member.MemberAccess access, UUID actorId) {
         throw new UnsupportedOperationException();
     }

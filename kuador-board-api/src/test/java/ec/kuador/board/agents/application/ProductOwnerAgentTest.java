@@ -70,7 +70,7 @@ class ProductOwnerAgentTest {
             public String unavailableReason() { return "falta ANTHROPIC_API_KEY"; }
             public Result propose(PoContext c) { seen.add(c); return modelBehaviour.apply(c); }
         };
-        IssueApi issues = new IssueApi() {
+        IssueApi issues = new ec.kuador.board.testing.IssueApiStub() {
             public Optional<IssueRef> find(String k) { return Optional.empty(); }
             public IssueRef createForImport(String p, String t, UUID a) { throw new UnsupportedOperationException(); }
             public Optional<IssueContext> context(String k) { return Optional.ofNullable(issueStore.get(k)); }

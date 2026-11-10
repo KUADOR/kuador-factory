@@ -226,6 +226,8 @@ export interface Issue {
   position: number;
   /** Veces que volvió a una etapa anterior. */
   reworkCount: number;
+  /** Persona que puso a los agentes a trabajar: solo sus agentes, en su Claude Code, lo atienden. */
+  supervisorId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -381,3 +383,12 @@ export interface AgentsStatus {
 }
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+
+/** Conexión de Claude Code de una persona (token que solo abre el servidor MCP del tablero). */
+export type RunnerToken = AgentToken;
+
+/** Archivo del kit para el repositorio (.mcp.json, subagentes, comando /pendientes). */
+export interface KitFile {
+  path: string;
+  content: string;
+}

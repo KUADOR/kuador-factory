@@ -303,7 +303,6 @@ function IssueHistory({ issueKey, members, project }: { issueKey: string; member
 }
 
 function Comments({ issueKey, members }: { issueKey: string; members: Member[] }) {
-  const { canEdit } = useAccess();
   const byId = new Map(members.map((m) => [m.id, m]));
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -358,7 +357,6 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
           </li>
         ))}
       </ol>
-      {canEdit && (
       <div className="flex flex-col gap-2">
         <TextArea
           rows={3}
@@ -380,7 +378,6 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
           </Button>
         </div>
       </div>
-      )}
     </section>
   );
 }

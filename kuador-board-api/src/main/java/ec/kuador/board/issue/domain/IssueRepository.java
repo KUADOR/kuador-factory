@@ -2,6 +2,7 @@ package ec.kuador.board.issue.domain;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /** Puerto de salida: persistencia de issues y comentarios. */
 public interface IssueRepository {
@@ -15,6 +16,9 @@ public interface IssueRepository {
 
     /** Issues de una columna ordenados por posición. */
     List<Issue> findColumn(String projectKey, String status);
+
+    /** Issues que supervisa una persona (en todos los proyectos del espacio). */
+    List<Issue> findBySupervisor(UUID supervisorId);
 
     int nextPosition(String projectKey, String status);
 

@@ -68,6 +68,11 @@ class IssueEntity {
     @Column(name = "rework_count")
     private int reworkCount;
 
+
+    @Column(name = "supervisor_id")
+
+    private UUID supervisorId;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -102,12 +107,15 @@ class IssueEntity {
         labels = new ArrayList<>(issue.labels());
         position = issue.position();
         reworkCount = issue.reworkCount();
+        supervisorId = issue.supervisorId();
         updatedAt = issue.updatedAt();
     }
 
     Issue toDomain() {
-        return new Issue(id, key, projectKey, title, description, type, status, priority, storyPoints, assigneeId,
+        Issue issue = new Issue(id, key, projectKey, title, description, type, status, priority, storyPoints, assigneeId,
                 reporterId, parentKey, labels == null ? List.of() : List.copyOf(labels), position, reworkCount, createdAt, updatedAt);
+        issue.superviseBy(supervisorId);
+        return issue;
     }
 
     UUID id() {

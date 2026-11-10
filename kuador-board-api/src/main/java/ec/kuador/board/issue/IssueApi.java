@@ -32,4 +32,29 @@ public interface IssueApi {
 
     /** Pone los puntos solo si el issue no tenía: nunca pisa una estimación humana. */
     boolean setStoryPointsIfEmpty(String issueKey, int points, UUID actorId);
+
+    // ---- Trabajo de los agentes (servidor MCP) ----
+
+    /** Un issue que espera a los agentes de una persona. {@code agentRoles}: roles de agente que lo cubren. */
+    record QueueItem(
+            String key, String projectKey, String title, String type, String priority, String status, String statusName, boolean gate,
+            List<String> agentRoles, UUID assigneeId, String assigneeName, int reworkCount) {}
+
+    /** Dónde quedó un issue después de una acción. */
+    record Progress(String key, String status, String statusName, UUID assigneeId) {}
+
+    /** Issues que supervisa {@code supervisorId} y esperan a un agente (asignados a uno o por tomar). */
+    List<QueueItem> agentQueue(UUID supervisorId);
+
+    /** Persona que supervisa el trabajo de los agentes en el issue, si hay una. */
+    Optional<UUID> supervisorOf(String issueKey);
+
+    /** Toma el issue de su etapa como {@code agentId} (reglas de etapa de siempre). */
+    Progress takeAs(String issueKey, UUID agentId);
+
+    /** Entrega el issue a la siguiente etapa como {@code agentId}. */
+    Progress deliverAs(String issueKey, String comment, UUID agentId);
+
+    /** Devuelve el issue a una columna anterior con el motivo. */
+    Progress sendBack(String issueKey, String column, String reason, UUID actorId);
 }

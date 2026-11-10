@@ -29,16 +29,25 @@ class BearerTokenFilter extends OncePerRequestFilter {
         this.auth = auth;
     }
 
+    /** Rutas que acepta una conexión de Claude Code. */
+    static boolean runnerPath(HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        return path.equals("/mcp") || path.equals("/api/claude-kit") || path.equals("/api/claude-kit.zip");
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         try {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
             if (header != null && header.regionMatches(true, 0, PREFIX, 0, PREFIX.length())) {
-                auth.authenticate(header.substring(PREFIX.length())).ifPresent(who -> {
-                    var kind = new SimpleGrantedAuthority(who.agent() ? "ROLE_AGENT" : "ROLE_HUMAN");
-                    // ROLE_EDITOR: puede escribir en el tablero. Quien solo mira no lo recibe.
-                    var authorities = who.viewOnly() ? List.of(kind) : List.of(kind, new SimpleGrantedAuthority("ROLE_EDITOR"));
+                auth.authenticate(header.substring(PREFIX.length()))
+                        // La conexión de Claude Code solo abre el servidor MCP y la descarga del kit.
+                        .filter(who -> !who.runner() || runnerPath(request))
+                        .ifPresent(who -> {
+                    var kind = new SimpleGrantedAuthority(who.runner() ? "ROLE_RUNNER" : who.agent() ? "ROLE_AGENT" : "ROLE_HUMAN");
+                    // ROLE_EDITOR: puede escribir en el tablero. Quien solo mira (y la conexión de Claude Code) no lo recibe.
+                    var authorities = who.viewOnly() || who.runner() ? List.of(kind) : List.of(kind, new SimpleGrantedAuthority("ROLE_EDITOR"));
                     SecurityContextHolder.getContext().setAuthentication(
                             UsernamePasswordAuthenticationToken.authenticated(who, null, authorities));
                     TenantContext.set(who.workspaceId());

@@ -97,6 +97,11 @@ class JpaAccessTokenRepository implements AccessTokenRepository {
     }
 
     @Override
+    public List<AccessToken> findActiveRunnerTokens(UUID memberId) {
+        return jpa.findActiveByMember(memberId, TokenKind.RUNNER).stream().map(AccessTokenEntity::toDomain).toList();
+    }
+
+    @Override
     public List<AccessToken> findActiveSessions(UUID memberId) {
         return jpa.findActiveByMember(memberId, TokenKind.SESSION).stream().map(AccessTokenEntity::toDomain).toList();
     }

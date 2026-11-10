@@ -88,6 +88,16 @@ public class MemberService implements MemberApi, CatalogUsage {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<MemberView> agents() {
+        return members.findAll().stream()
+                .filter(m -> m.kind() == MemberKind.AGENT)
+                .sorted(Comparator.comparing(Member::createdAt))
+                .map(MemberService::view)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public MemberView createHuman(String name, String role, String description, String avatarColor) {
         return view(create(name, MemberKind.HUMAN, role, description, avatarColor, MemberAccess.EDIT));

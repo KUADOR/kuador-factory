@@ -151,6 +151,18 @@ Decidido el 2026-11-10:
    «Fábrica de software» (`SOFTWARE_FACTORY`, catálogo v3).
 2. **Servidor MCP del tablero** + comando "trabaja mis pendientes" + subagentes de Claude Code
    generados desde los roles del tablero.
+   ✅ Hecha (2026-11-10). Servidor MCP propio en `/mcp` (streamable HTTP, JSON sin SSE, sin estado;
+   rechaza peticiones con `Origin`). Se entra con la **conexión de Claude Code** de una persona (token
+   `RUNNER`, `kfr_…`): solo abre `/mcp` y el kit, y actúa como los agentes del espacio (`agente` = clave
+   del rol), todo firmado por el agente. **Supervisión:** la persona que pone a trabajar a los agentes
+   (asigna a un agente, o lleva el issue a una etapa que cubren agentes, p. ej. al aprobar una puerta)
+   lo supervisa; los agentes lo heredan por la cadena y solo los agentes de esa persona lo atienden
+   (cada suscripción sirve solo a su dueño). Herramientas: `pendientes`, `ver_issue`,
+   `instrucciones_rol`, `tomar`, `comentar`, `entregar`, `devolver`, `consultar`, `leer_documento`,
+   `escribir_documento`. **Kit** (página Claude Code o `GET /api/claude-kit.zip`): `.mcp.json` (tablero +
+   servidores del catálogo elegidos, todo con variables de entorno), un subagente por rol que pide su
+   manual vigente con `instrucciones_rol`, y el comando `/pendientes`. El trabajo en Claude Code queda
+   como ejecución `claude-code` (el tablero muestra al agente trabajando). Los clientes también comentan.
 3. **Proyecto nuevo con sus bases:** GitHub App, repos de plantilla, flujo de git protegido, archivos
    para agentes y varios repos por proyecto.
 4. **PO y Arquitecto vía MCP:** se reutilizan las reglas de hoy (comentar, spec, plan, devolver).

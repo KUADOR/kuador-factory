@@ -132,8 +132,9 @@ public class IssueService implements IssueApi {
         String column = status == null || status.isBlank() ? project.columns().getFirst().key() : requireColumn(project, status).key();
         int number = projects.allocateIssueNumber(projectKey);
         Instant now = now();
-        Issue issue = issues.save(
-                Issue.create(projectKey, number, details, actorId, column, issues.nextPosition(projectKey, column), now));
+        Issue created = Issue.create(projectKey, number, details, actorId, column, issues.nextPosition(projectKey, column), now);
+        superviseIfPersonHandsToAgents(created, project, actorId);
+        Issue issue = issues.save(created);
         events.publishEvent(new IssueCreated(UUID.randomUUID(), TenantContext.require(), issue.key(), projectKey, actorId, now,
                 issue.title(), issue.type().name(), issue.status(), requireColumn(project, column).category().name()));
         if (issue.assigneeId() != null) {
@@ -149,6 +150,7 @@ public class IssueService implements IssueApi {
         UUID previousAssignee = issue.assigneeId();
         Instant now = now();
         List<FieldChange> changes = issue.edit(details, now);
+        if (!Objects.equals(previousAssignee, issue.assigneeId())) superviseIfPersonHandsToAgents(issue, project(issue.projectKey()), actorId);
         Issue saved = issues.save(issue);
         if (!changes.isEmpty()) {
             events.publishEvent(new IssueUpdated(UUID.randomUUID(), TenantContext.require(), key, issue.projectKey(), actorId, now,
@@ -167,6 +169,7 @@ public class IssueService implements IssueApi {
         UUID previousAssignee = issue.assigneeId();
         Instant now = now();
         issue.assign(memberId, now);
+        superviseIfPersonHandsToAgents(issue, project(issue.projectKey()), actorId);
         Issue saved = issues.save(issue);
         publishAssignmentIfChanged(issue, previousAssignee, actorId, now);
         return saved;
@@ -210,6 +213,7 @@ public class IssueService implements IssueApi {
                 });
             }
         }
+        if (!from.equals(target)) superviseIfPersonHandsToAgents(issue, project, actorId);
         for (int i = 0; i < column.size(); i++) {
             column.get(i).reposition(i);
         }
@@ -293,6 +297,114 @@ public class IssueService implements IssueApi {
             saveComment(issue, actorId, "**Rechazado** por " + person.name() + ": " + comment.strip(), now());
         }
         return move(key, target, Integer.MAX_VALUE, actorId);
+    }
+
+    // ---- Supervisión: qué persona pone a trabajar a los agentes ----
+
+    /**
+     * Cuando una persona le pasa trabajo a los agentes (lo asigna a un agente o lo lleva a una etapa que
+     * cubren agentes), pasa a supervisarlo: solo sus agentes, en su Claude Code, lo atienden. Lo que
+     * hacen los agentes no cambia quién supervisa: se hereda por toda la cadena.
+     */
+    private void superviseIfPersonHandsToAgents(Issue issue, ProjectView project, UUID actorId) {
+        if (actorId == null) return;
+        Optional<MemberView> actor = members.find(actorId);
+        if (actor.isEmpty() || actor.get().agent()) return;
+        boolean toAgent = issue.assigneeId() != null && members.find(issue.assigneeId()).map(MemberView::agent).orElse(false);
+        if (toAgent || (issue.assigneeId() == null && !agentRolesOf(project.stage(issue.status())).isEmpty())) {
+            issue.superviseBy(actorId);
+        }
+    }
+
+    /** Roles de la etapa que cubre algún agente del espacio. */
+    private List<String> agentRolesOf(Optional<StageDef> stage) {
+        if (stage.isEmpty()) return List.of();
+        List<String> agentRoles = members.agents().stream().map(MemberView::role).toList();
+        return stage.get().roles().stream().filter(agentRoles::contains).toList();
+    }
+
+    /** Una persona se encarga de que sus agentes atiendan el issue (p. ej. si lo dejó otra persona). */
+    @Transactional
+    public Issue supervise(String key, UUID actorId) {
+        Issue issue = load(key);
+        MemberView actor = requireMember(actorId);
+        if (actor.agent()) throw new ForbiddenException("Solo una persona supervisa el trabajo de los agentes.");
+        issue.superviseBy(actorId);
+        return issues.save(issue);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UUID> supervisorOf(String issueKey) {
+        return issues.findByKey(issueKey).map(Issue::supervisorId);
+    }
+
+    /**
+     * Cola de los agentes de una persona: los issues que supervisa y que esperan a un agente, ya sea
+     * asignados a uno o sin tomar en una etapa que cubren agentes. No incluye lo terminado ni las
+     * puertas que esperan a una persona.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<QueueItem> agentQueue(UUID supervisorId) {
+        java.util.Map<String, Optional<ProjectView>> byKey = new java.util.HashMap<>();
+        List<QueueItem> queue = new ArrayList<>();
+        for (Issue i : issues.findBySupervisor(supervisorId)) {
+            ProjectView project = byKey.computeIfAbsent(i.projectKey(), projects::find).orElse(null);
+            if (project == null) continue;
+            Optional<ColumnDef> column = project.column(i.status());
+            if (column.isEmpty() || column.get().category() == ec.kuador.board.catalog.ColumnCategory.DONE) continue;
+            Optional<StageDef> stage = project.stage(i.status());
+            Optional<MemberView> assignee = Optional.ofNullable(i.assigneeId()).flatMap(members::find);
+            List<String> roles;
+            if (assignee.isPresent()) {
+                if (!assignee.get().agent()) continue;
+                roles = List.of(assignee.get().role());
+            } else {
+                roles = agentRolesOf(stage);
+                if (roles.isEmpty()) continue;
+            }
+            queue.add(new QueueItem(i.key(), i.projectKey(), i.title(), i.type().name(), i.priority().name(), i.status(), column.get().name(),
+                    stage.map(StageDef::gate).orElse(false), roles, assignee.map(MemberView::id).orElse(null),
+                    assignee.map(MemberView::name).orElse(null), i.reworkCount()));
+        }
+        return queue;
+    }
+
+    @Override
+    @Transactional
+    public Progress takeAs(String issueKey, UUID agentId) {
+        return progress(take(issueKey, agentId));
+    }
+
+    @Override
+    @Transactional
+    public Progress deliverAs(String issueKey, String comment, UUID agentId) {
+        return progress(deliver(issueKey, comment, agentId));
+    }
+
+    /** Devuelve el issue a una etapa anterior con el motivo (p. ej. QA encontró fallas): suma una vuelta atrás. */
+    @Override
+    @Transactional
+    public Progress sendBack(String issueKey, String column, String reason, UUID actorId) {
+        Issue issue = load(issueKey);
+        ProjectView project = project(issue.projectKey());
+        MemberView actor = requireMember(actorId);
+        ColumnDef to = requireColumn(project, column);
+        if (project.indexOf(to.key()) >= project.indexOf(issue.status())) {
+            throw new DomainException("«" + to.name() + "» no está antes de «" + columnName(project, issue.status()) + "»: para avanzar, entrega el issue.");
+        }
+        if (actor.agent() && !actorId.equals(issue.assigneeId())) {
+            throw new ForbiddenException("Un agente solo devuelve los issues que tomó.");
+        }
+        if (reason == null || reason.isBlank()) throw new DomainException("Para devolver un issue, explica qué hay que corregir.");
+        saveComment(issue, actorId, "**Devuelto a " + to.name() + "** por " + actor.name() + ": " + reason.strip(), now());
+        return progress(move(issueKey, to.key(), Integer.MAX_VALUE, actorId));
+    }
+
+    private Progress progress(Issue issue) {
+        String name = projects.find(issue.projectKey()).map(p -> columnName(p, issue.status())).orElse(issue.status());
+        return new Progress(issue.key(), issue.status(), name, issue.assigneeId());
     }
 
     /** Solo una persona cierra una puerta, y si la puerta pide roles, con uno de ellos. */

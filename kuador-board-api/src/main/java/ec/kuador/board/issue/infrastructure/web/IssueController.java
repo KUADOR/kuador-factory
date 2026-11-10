@@ -93,6 +93,12 @@ class IssueController {
     }
 
     /** Cerrar una puerta: aprobar o rechazar (con motivo). Solo personas con el rol aprobador. */
+    /** Quien llama pasa a supervisar el issue: sus agentes, en su Claude Code, lo atienden. */
+    @PostMapping("/api/issues/{key}/supervise")
+    IssueResponse supervise(@PathVariable String key, @AuthenticationPrincipal AuthenticatedMember who) {
+        return IssueResponse.from(service.supervise(key, who.memberId()));
+    }
+
     @PostMapping("/api/issues/{key}/review")
     IssueResponse review(@PathVariable String key, @Valid @RequestBody ReviewRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
         return IssueResponse.from(service.review(key, r.approve(), r.comment(), who.memberId()));
@@ -162,12 +168,12 @@ class IssueController {
     record IssueResponse(
             UUID id, String key, String projectKey, String title, String description, IssueType type,
             String status, Priority priority, Integer storyPoints, UUID assigneeId, UUID reporterId,
-            String parentKey, List<String> labels, int position, int reworkCount, Instant createdAt, Instant updatedAt) {
+            String parentKey, List<String> labels, int position, int reworkCount, UUID supervisorId, Instant createdAt, Instant updatedAt) {
 
         static IssueResponse from(Issue i) {
             return new IssueResponse(i.id(), i.key(), i.projectKey(), i.title(), i.description(), i.type(), i.status(),
                     i.priority(), i.storyPoints(), i.assigneeId(), i.reporterId(), i.parentKey(), i.labels(),
-                    i.position(), i.reworkCount(), i.createdAt(), i.updatedAt());
+                    i.position(), i.reworkCount(), i.supervisorId(), i.createdAt(), i.updatedAt());
         }
     }
 

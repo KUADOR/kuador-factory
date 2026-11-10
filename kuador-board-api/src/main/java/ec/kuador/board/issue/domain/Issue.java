@@ -31,6 +31,8 @@ public final class Issue {
     private int position;
     /** Veces que el issue volvió a una etapa anterior (freno de bucles). */
     private int reworkCount;
+    /** Persona que puso a los agentes a trabajar en el issue: solo sus agentes lo atienden. */
+    private UUID supervisorId;
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -190,4 +192,13 @@ public final class Issue {
     public int position() { return position; }
     public Instant createdAt() { return createdAt; }
     public Instant updatedAt() { return updatedAt; }
+
+    public UUID supervisorId() {
+        return supervisorId;
+    }
+
+    /** Quién supervisa el trabajo de los agentes en este issue (nulo = nadie). */
+    public void superviseBy(UUID personId) {
+        this.supervisorId = personId;
+    }
 }

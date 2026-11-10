@@ -29,9 +29,11 @@ import type {
   Issue,
   IssueInput,
   IssueStatus,
+  KitFile,
   Me,
   Member,
   MemberAccess,
+  RunnerToken,
   MemberKind,
   Project,
   Session,
@@ -70,6 +72,17 @@ async function request<T>(path: string, init?: RequestInit & { anonymous?: boole
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
+export const kitQuery = (mcp: string[]) => new URLSearchParams(mcp.map((k) => ["mcp", k])).toString();
+
+/**
+ * Descarga binaria con la sesión (el .zip del kit). Devuelve la respuesta de la API tal cual para
+ * reenviarla al navegador desde un route handler.
+ */
+export async function fetchWithSession(path: string): Promise<Response> {
+  const token = await getSessionToken();
+  return fetch(`${BASE_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" });
+}
+
 export const boardApi = {
   login: (email: string, password: string) =>
     request<Session>("/api/auth/login", { ...json("POST", { email, password }), anonymous: true }),
@@ -81,6 +94,11 @@ export const boardApi = {
   grantAccess: (memberId: string, email: string, password: string) =>
     request<Account>(`/api/members/${encodeURIComponent(memberId)}/credentials`, json("PUT", { email, password })),
   agentTokens: () => request<AgentToken[]>("/api/auth/tokens"),
+  runnerTokens: () => request<RunnerToken[]>("/api/auth/runner-tokens"),
+  createRunnerToken: (name: string) => request<IssuedToken>("/api/auth/runner-tokens", json("POST", { name })),
+  revokeRunnerToken: (tokenId: string) => request<void>(`/api/auth/runner-tokens/${encodeURIComponent(tokenId)}`, { method: "DELETE" }),
+  claudeKit: (mcp: string[]) => request<KitFile[]>(`/api/claude-kit?${kitQuery(mcp)}`),
+  supervise: (key: string) => request<Issue>(`/api/issues/${encodeURIComponent(key)}/supervise`, { method: "POST" }),
   createAgentToken: (memberId: string, name: string) =>
     request<IssuedToken>(`/api/members/${encodeURIComponent(memberId)}/tokens`, json("POST", { name })),
   revokeAgentToken: (tokenId: string) =>

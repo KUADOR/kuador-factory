@@ -80,6 +80,8 @@ public class ProductOwnerAgent {
         if (event.toAssigneeId() == null) return;
         Optional<MemberView> agent = tx.execute(s -> members.find(event.toAssigneeId())).filter(MemberView::agent);
         if (agent.isEmpty()) return; // asignado a una persona: nada que hacer
+        // El agente se tomó el issue (desde Claude Code, por el servidor MCP): ya está trabajando allí.
+        if (agent.get().id().equals(event.actorId())) return;
 
         AgentRun run = tx.execute(s -> {
             if (runs.existsByTriggerEventId(event.eventId())) return null; // evento reentregado

@@ -49,9 +49,12 @@ class SecurityConfiguration {
                         .requestMatchers("/api/signup/**").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/health", "/v3/api-docs/**", "/swagger-ui/**",
                                 "/swagger-ui.html", "/error").permitAll()
-                        // Lo único que escribe quien solo mira: su sesión, su clave y las puertas donde su rol
-                        // aprueba (el servicio comprueba el rol aprobador).
-                        .requestMatchers(HttpMethod.POST, "/api/auth/logout", "/api/issues/*/review").authenticated()
+                        // Servidor MCP del tablero: solo con la conexión de Claude Code de una persona.
+                        .requestMatchers("/mcp").hasRole("RUNNER")
+                        .requestMatchers(HttpMethod.GET, "/api/claude-kit", "/api/claude-kit.zip").authenticated()
+                        // Lo único que escribe quien solo mira: su sesión, su clave, comentarios y las puertas donde
+                        // su rol aprueba (el servicio comprueba el rol aprobador).
+                        .requestMatchers(HttpMethod.POST, "/api/auth/logout", "/api/issues/*/review", "/api/issues/*/comments").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/projects", "/api/members", "/api/members/*/tokens").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.PUT, "/api/projects/*", "/api/projects/*/columns", "/api/projects/*/methodology",
@@ -62,7 +65,7 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.DELETE, "/api/catalog/**").access(HUMAN_EDITOR)
                         // Sincronizar lee y escribe en el disco del servidor: solo personas que editan.
                         .requestMatchers("/api/projects/*/repository", "/api/projects/*/sync", "/api/projects/*/sync/**").access(HUMAN_EDITOR)
-                        .requestMatchers("/api/members/*/credentials", "/api/auth/accounts", "/api/auth/tokens/**").access(HUMAN_EDITOR)
+                        .requestMatchers("/api/members/*/credentials", "/api/auth/accounts", "/api/auth/tokens/**", "/api/auth/runner-tokens", "/api/auth/runner-tokens/**").access(HUMAN_EDITOR)
                         // Cualquier otra escritura exige acceso de edición (personas o agentes).
                         .requestMatchers(HttpMethod.POST, "/api/**").hasRole("EDITOR")
                         .requestMatchers(HttpMethod.PUT, "/api/**").hasRole("EDITOR")

@@ -86,6 +86,28 @@ class AuthController {
 
     record MemberAccessResponse(UUID id, MemberAccess access) {}
 
+    // ---- Conexiones de Claude Code de quien pide ----
+
+    @GetMapping("/api/auth/runner-tokens")
+    List<TokenResponse> runnerTokens(@AuthenticationPrincipal AuthenticatedMember who) {
+        return auth.runnerTokens(who).stream().map(TokenResponse::from).toList();
+    }
+
+    @PostMapping("/api/auth/runner-tokens")
+    @ResponseStatus(HttpStatus.CREATED)
+    IssuedTokenResponse createRunnerToken(@AuthenticationPrincipal AuthenticatedMember who, @Valid @RequestBody RunnerTokenRequest r) {
+        AuthService.IssuedToken t = auth.createRunnerToken(who, r.name());
+        return new IssuedTokenResponse(t.token(), TokenResponse.from(t.info()));
+    }
+
+    @DeleteMapping("/api/auth/runner-tokens/{tokenId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void revokeRunnerToken(@AuthenticationPrincipal AuthenticatedMember who, @PathVariable UUID tokenId) {
+        auth.revokeRunnerToken(who, tokenId);
+    }
+
+    record RunnerTokenRequest(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 80) String name) {}
+
     // ---- Tokens de agentes ----
 
     @GetMapping("/api/auth/tokens")

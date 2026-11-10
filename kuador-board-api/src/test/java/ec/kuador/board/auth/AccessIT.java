@@ -32,8 +32,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * Acceso de solo lectura por HTTP: un cliente mira el tablero, no puede escribir en él y sí cierra
- * las puertas donde su rol es aprobador.
+ * Acceso de solo lectura por HTTP: un cliente mira el tablero y comenta, no puede cambiar nada y sí
+ * cierra las puertas donde su rol es aprobador.
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
@@ -109,7 +109,9 @@ class AccessIT {
         Reply create = call("POST", "/api/projects/OME/issues", Map.of("title", "Intruso", "type", "TASK"), viewer);
         assertThat(create.status()).isEqualTo(403);
         assertThat(create.body().get("detail").asText()).contains("solo lectura");
-        assertThat(call("POST", "/api/issues/" + other + "/comments", Map.of("body", "hola"), viewer).status()).isEqualTo(403);
+        assertThat(call("POST", "/api/issues/" + other + "/comments", Map.of("body", "¿Esto incluye pagos con tarjeta?"), viewer).status())
+                .as("comentar sí puede").isEqualTo(201);
+        assertThat(call("POST", "/api/auth/runner-tokens", Map.of("name", "PC"), viewer).status()).as("no pone agentes a trabajar").isEqualTo(403);
         assertThat(call("POST", "/api/issues/" + other + "/move", Map.of("status", "QA", "position", 0), viewer).status()).isEqualTo(403);
         assertThat(call("POST", "/api/issues/" + other + "/take", null, viewer).status()).isEqualTo(403);
         assertThat(call("PUT", "/api/projects/OME/stages", Map.of("stages", withClient, "maxRework", 3), viewer).status()).isEqualTo(403);

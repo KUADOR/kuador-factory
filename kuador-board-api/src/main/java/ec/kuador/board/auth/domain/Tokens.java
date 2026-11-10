@@ -17,7 +17,11 @@ public final class Tokens {
     public static String newSecret(TokenKind kind) {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
-        String prefix = kind == TokenKind.AGENT ? "kfa_" : "kfs_";
+        String prefix = switch (kind) {
+            case AGENT -> "kfa_";
+            case RUNNER -> "kfr_";
+            case SESSION -> "kfs_";
+        };
         return prefix + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 

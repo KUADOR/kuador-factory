@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowRight, Check, Hand, Lock, RotateCcw, Undo2 } from "lucide-react";
+import { ArrowRight, Check, Hand, Lock, RotateCcw, SquareTerminal, Undo2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
-import { deliverIssueAction, reviewIssueAction, takeIssueAction } from "@/app/actions";
+import { deliverIssueAction, reviewIssueAction, superviseIssueAction, takeIssueAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/Field";
 import { useAccess } from "@/components/shell/AccessContext";
@@ -26,7 +26,7 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
   const { canEdit } = useAccess();
-  if (!stage && issue.reworkCount === 0) return null;
+  if (!stage && issue.reworkCount === 0 && !issue.supervisorId && assignee?.kind !== "AGENT") return null;
 
   const isHuman = me.kind === "HUMAN";
   const canApprove = !!stage?.gate && isHuman && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
@@ -34,6 +34,10 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
   // Quien solo mira no toma ni entrega: como mucho aprueba o rechaza en su puerta.
   const canTake = canEdit && !issue.assigneeId && (stage?.gate ? covers || canApprove : !stage || stage.roles.length === 0 || covers);
   const mine = issue.assigneeId === me.id;
+  // Trabajo para agentes: asignado a uno, o sin tomar en una etapa que cubre algún agente del equipo.
+  const agentRoles = new Set(members.filter((m) => m.kind === "AGENT").map((m) => m.role));
+  const forAgents = assignee ? assignee.kind === "AGENT" : !!stage && stage.roles.some((r) => agentRoles.has(r));
+  const supervisor = members.find((m) => m.id === issue.supervisorId);
 
   const act = (work: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
     start(async () => {
@@ -70,6 +74,30 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
           {assignee ? <>Lo tiene <span className="font-medium text-fg-strong">{assignee.name}</span></> : stage ? "Sin tomar" : null}
         </span>
       </div>
+
+      {forAgents && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-fg-muted">
+          <SquareTerminal className="size-3.5 text-fg-faint" aria-hidden />
+          {supervisor ? (
+            <span>
+              {supervisor.id === me.id ? (
+                "Lo atienden tus agentes, en tu Claude Code."
+              ) : (
+                <>
+                  Lo atienden los agentes de <span className="font-medium text-fg-strong">{supervisor.name}</span>, en su Claude Code.
+                </>
+              )}
+            </span>
+          ) : (
+            <span>Espera a un agente, pero nadie lo supervisa todavía.</span>
+          )}
+          {canEdit && isHuman && supervisor?.id !== me.id && (
+            <Button size="sm" tone="ghost" loading={pending} onClick={() => act(() => superviseIssueAction(project.key, issue.key), `Tus agentes atenderán ${issue.key}`)}>
+              Que lo atiendan mis agentes
+            </Button>
+          )}
+        </div>
+      )}
 
       {stage && !rejecting && (
         <div className="flex flex-wrap items-center gap-2">

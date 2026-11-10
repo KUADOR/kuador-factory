@@ -29,10 +29,10 @@ class BearerTokenFilter extends OncePerRequestFilter {
         this.auth = auth;
     }
 
-    /** Rutas que acepta una conexión de Claude Code. */
+    /** Rutas que acepta la conexión de agentes locales de una persona. */
     static boolean runnerPath(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        return path.equals("/mcp") || path.equals("/api/claude-kit") || path.equals("/api/claude-kit.zip");
+        return path.equals("/mcp") || path.equals("/api/agent-kit") || path.equals("/api/agent-kit.zip");
     }
 
     @Override
@@ -42,11 +42,11 @@ class BearerTokenFilter extends OncePerRequestFilter {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
             if (header != null && header.regionMatches(true, 0, PREFIX, 0, PREFIX.length())) {
                 auth.authenticate(header.substring(PREFIX.length()))
-                        // La conexión de Claude Code solo abre el servidor MCP y la descarga del kit.
+                        // La conexión de agentes locales solo abre el servidor MCP y la descarga del kit.
                         .filter(who -> !who.runner() || runnerPath(request))
                         .ifPresent(who -> {
                     var kind = new SimpleGrantedAuthority(who.runner() ? "ROLE_RUNNER" : who.agent() ? "ROLE_AGENT" : "ROLE_HUMAN");
-                    // ROLE_EDITOR: puede escribir en el tablero. Quien solo mira (y la conexión de Claude Code) no lo recibe.
+                    // ROLE_EDITOR: puede escribir en el tablero. Quien solo mira (y la conexión de agentes locales) no lo recibe.
                     var authorities = who.viewOnly() || who.runner() ? List.of(kind) : List.of(kind, new SimpleGrantedAuthority("ROLE_EDITOR"));
                     SecurityContextHolder.getContext().setAuthentication(
                             UsernamePasswordAuthenticationToken.authenticated(who, null, authorities));

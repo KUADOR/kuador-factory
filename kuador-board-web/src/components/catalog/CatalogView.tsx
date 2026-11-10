@@ -149,7 +149,7 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
         open={confirming === "restore"}
         onCancel={() => setConfirming(null)}
         title={`¿Restaurar «${draft?.name}»?`}
-        message="Vuelve a los valores con los que viene Kuador Factory. Se pierden los cambios que el equipo le hizo."
+        message="Vuelve a los valores de fábrica del catálogo. Se pierden los cambios que el equipo le hizo."
         confirmLabel="Restaurar"
         pending={pending}
         onConfirm={() =>

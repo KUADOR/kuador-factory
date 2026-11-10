@@ -56,7 +56,7 @@ export function AppShell(props: { me: Me; workspace: Workspace | null; projects:
           ) : (
             <>
               <span aria-hidden className="size-2 rounded-full bg-sol" />
-              <span className="text-[13px] font-semibold text-fg-strong">{nav.workspace?.name ?? "Kuador"}</span>
+              <span className="text-[13px] font-semibold text-fg-strong">{nav.workspace?.name ?? "Tablero"}</span>
             </>
           )}
         </div>

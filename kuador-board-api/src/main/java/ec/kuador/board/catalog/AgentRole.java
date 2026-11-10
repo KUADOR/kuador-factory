@@ -5,7 +5,7 @@ import java.util.UUID;
 
 /**
  * Rol de agente: su manual. {@code instructions} es la base del prompt (también se usa para generar
- * el subagente de Claude Code); {@code tools} las herramientas que puede usar; {@code automation}
+ * las instrucciones de los clientes de IA); {@code tools} las herramientas que puede usar; {@code automation}
  * el comportamiento que el tablero sabe ejecutar para este rol.
  */
 public record AgentRole(

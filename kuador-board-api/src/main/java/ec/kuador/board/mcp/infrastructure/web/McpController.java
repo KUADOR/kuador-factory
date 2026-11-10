@@ -35,7 +35,8 @@ class McpController {
 
     @PostMapping(value = "/mcp", produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<Object> post(@RequestBody String body, @AuthenticationPrincipal AuthenticatedMember who,
-            @RequestHeader(value = HttpHeaders.ORIGIN, required = false) String origin) {
+            @RequestHeader(value = HttpHeaders.ORIGIN, required = false) String origin,
+            @RequestHeader(value = HttpHeaders.USER_AGENT, required = false) String userAgent) {
         if (origin != null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         JsonNode message;
         try {
@@ -43,9 +44,19 @@ class McpController {
         } catch (JacksonException e) {
             return ResponseEntity.badRequest().body(Map.of("jsonrpc", "2.0", "error", Map.of("code", -32700, "message", "JSON inválido.")));
         }
-        return protocol.handle(message, who.memberId())
+        return protocol.handle(message, who.memberId(), client(userAgent))
                 .<ResponseEntity<Object>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.accepted().build());
+    }
+
+    /** Qué cliente de IA llama, para el historial: «claude-code», «codex» o el producto que diga su User-Agent. */
+    static String client(String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) return "mcp";
+        String ua = userAgent.toLowerCase(java.util.Locale.ROOT);
+        if (ua.contains("claude")) return "claude-code";
+        if (ua.contains("codex")) return "codex";
+        String product = ua.split("[/\\s;(]", 2)[0].replaceAll("[^a-z0-9._-]", "");
+        return product.isBlank() ? "mcp" : product.substring(0, Math.min(product.length(), 40));
     }
 
     @GetMapping("/mcp")

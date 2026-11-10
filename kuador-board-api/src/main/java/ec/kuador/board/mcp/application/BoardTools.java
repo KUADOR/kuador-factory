@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Herramientas del servidor MCP. Quien llama es una persona (su conexión de Claude Code) y actúa
+ * Herramientas del servidor MCP. Quien llama es una persona (su conexión de agentes locales) y actúa
  * como uno de los agentes del espacio, que se indica en {@code agente} con la clave de su rol. Todo
  * queda firmado por ese agente. Solo se trabaja sobre los issues que esa persona supervisa.
  */
@@ -42,18 +42,22 @@ public class BoardTools {
     private final CatalogApi catalog;
     private final MemberApi members;
     private final AgentWorkApi work;
+    private final AgentKit kit;
     private final Map<String, Definition> tools = new LinkedHashMap<>();
+    /** Cliente de IA de la llamada en curso (p. ej. «codex»): queda en la ejecución del agente. */
+    private static final ThreadLocal<String> CLIENT = new ThreadLocal<>();
 
     /** Una herramienta y cómo se ejecuta para la persona {@code UUID}. */
     private record Definition(Tool tool, BiFunction<Map<String, String>, UUID, Object> run) {}
 
-    BoardTools(IssueApi issues, ProjectApi projects, DocsApi docs, CatalogApi catalog, MemberApi members, AgentWorkApi work) {
+    BoardTools(IssueApi issues, ProjectApi projects, DocsApi docs, CatalogApi catalog, MemberApi members, AgentWorkApi work, AgentKit kit) {
         this.issues = issues;
         this.projects = projects;
         this.docs = docs;
         this.catalog = catalog;
         this.members = members;
         this.work = work;
+        this.kit = kit;
         register("pendientes", "Mis pendientes", true,
                 "Lista los issues que esperan a tus agentes: los que supervisas y están asignados a un agente o sin tomar en una etapa "
                         + "que cubren agentes. Cada uno trae el subagente que debe atenderlo. Las puertas de aprobación no aparecen: las cierra una persona.",
@@ -107,12 +111,17 @@ public class BoardTools {
         return tools.values().stream().map(Definition::tool).toList();
     }
 
-    /** Ejecuta la herramienta como la persona {@code personId}. */
+    /** Ejecuta la herramienta como la persona {@code personId}, desde el cliente {@code client}. */
     @Transactional
-    public Object call(String name, Map<String, String> args, UUID personId) {
+    public Object call(String name, Map<String, String> args, UUID personId, String client) {
         Definition d = tools.get(name);
         if (d == null) throw new ToolException("No existe la herramienta " + name + ".");
-        return d.run().apply(args, personId);
+        CLIENT.set(client);
+        try {
+            return d.run().apply(args, personId);
+        } finally {
+            CLIENT.remove();
+        }
     }
 
     // ---- Lectura ----
@@ -138,7 +147,7 @@ public class BoardTools {
         m.put("etapa", i.statusName());
         m.put("estado", i.assigneeName() == null ? "por tomar" : "lo tiene " + i.assigneeName());
         m.put("agentes", i.agentRoles());
-        m.put("subagente", ClaudeKit.subagentName(i.agentRoles().getFirst()));
+        m.put("subagente", kit.subagentName(i.agentRoles().getFirst()));
         if (i.reworkCount() > 0) m.put("vueltasAtras", i.reworkCount());
         return m;
     }
@@ -227,7 +236,7 @@ public class BoardTools {
         IssueContext c = ownIssue(a, person);
         MemberView agent = agent(a);
         Progress p = issues.takeAs(c.key(), agent.id());
-        work.started(agent.id(), c.key(), c.projectKey(), person);
+        work.started(agent.id(), c.key(), c.projectKey(), person, CLIENT.get());
         return progress(p, agent.name() + " tomó " + c.key() + ".");
     }
 

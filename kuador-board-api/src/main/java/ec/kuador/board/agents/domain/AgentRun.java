@@ -16,12 +16,18 @@ public record AgentRun(
         SKIPPED
     }
 
-    /** Modelo de las ejecuciones que corren en el Claude Code de una persona (no en el servidor). */
-    public static final String LOCAL = "claude-code";
+    /** Prefijo del «modelo» de las ejecuciones que corren en el cliente de IA de una persona (no en el servidor). */
+    public static final String LOCAL_PREFIX = "local:";
 
-    public static AgentRun startLocal(UUID agentId, String issueKey, String projectKey, UUID supervisorId, Instant now) {
+    /** Corre en la máquina de una persona: {@code local:codex}, {@code local:claude-code}... */
+    public boolean isLocal() {
+        return model != null && (model.startsWith(LOCAL_PREFIX) || model.equals("claude-code"));
+    }
+
+    public static AgentRun startLocal(UUID agentId, String issueKey, String projectKey, UUID supervisorId, String client, Instant now) {
+        String label = LOCAL_PREFIX + (client == null || client.isBlank() ? "mcp" : client);
         // Sin evento que la dispare: su propio identificador ocupa el lugar (la columna es única y obligatoria).
-        return new AgentRun(UUID.randomUUID(), agentId, issueKey, projectKey, UUID.randomUUID(), supervisorId, Status.RUNNING, LOCAL, null, null,
+        return new AgentRun(UUID.randomUUID(), agentId, issueKey, projectKey, UUID.randomUUID(), supervisorId, Status.RUNNING, label.length() > 60 ? label.substring(0, 60) : label, null, null,
                 null, null, now, null);
     }
 

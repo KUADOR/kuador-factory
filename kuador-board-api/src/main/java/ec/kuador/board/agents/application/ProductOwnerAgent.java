@@ -80,7 +80,7 @@ public class ProductOwnerAgent {
         if (event.toAssigneeId() == null) return;
         Optional<MemberView> agent = tx.execute(s -> members.find(event.toAssigneeId())).filter(MemberView::agent);
         if (agent.isEmpty()) return; // asignado a una persona: nada que hacer
-        // El agente se tomó el issue (desde Claude Code, por el servidor MCP): ya está trabajando allí.
+        // El agente se tomó el issue (desde el cliente de IA de una persona, por el servidor MCP): ya está trabajando allí.
         if (agent.get().id().equals(event.actorId())) return;
 
         AgentRun run = tx.execute(s -> {

@@ -107,7 +107,7 @@ export function brandVars(brand: Brand): Record<string, string> {
 
 /** Colores sugeridos en el onboarding (se puede elegir cualquier otro). */
 export const BRAND_PRESETS = [
-  { name: "Sol Kuador", color: "#ffb81c" },
+  { name: "Ámbar", color: "#ffb81c" },
   { name: "Rojo", color: "#e11d48" },
   { name: "Naranja", color: "#f97316" },
   { name: "Verde", color: "#16a34a" },

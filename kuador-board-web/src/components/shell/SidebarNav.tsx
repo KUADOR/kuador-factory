@@ -45,8 +45,7 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
         <Link href="/" className="flex h-16 shrink-0 items-center gap-2.5 border-b border-line px-4">
           <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-sol" />
           <span className="min-w-0">
-            <span className="block truncate text-[13px] font-semibold tracking-tight text-fg-strong">{workspace?.name ?? "Kuador"}</span>
-            <span className="block text-[11px] text-fg-faint">Kuador Factory</span>
+            <span className="block truncate text-[13px] font-semibold tracking-tight text-fg-strong">{workspace?.name ?? "Tablero"}</span>
           </span>
         </Link>
       )}
@@ -85,8 +84,8 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
               <NavLink href="/catalog" active={path.startsWith("/catalog")}>
                 <BookMarked className="size-4 shrink-0" aria-hidden /> Catálogo
               </NavLink>
-              <NavLink href="/claude-code" active={path.startsWith("/claude-code")}>
-                <SquareTerminal className="size-4 shrink-0" aria-hidden /> Claude Code
+              <NavLink href="/agentes-locales" active={path.startsWith("/agentes-locales")}>
+                <SquareTerminal className="size-4 shrink-0" aria-hidden /> Agentes locales
               </NavLink>
             </>
           )}

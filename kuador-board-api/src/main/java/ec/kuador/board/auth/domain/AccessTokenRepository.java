@@ -15,7 +15,7 @@ public interface AccessTokenRepository {
 
     List<AccessToken> findActiveSessions(UUID memberId);
 
-    /** Conexiones de Claude Code vigentes de una persona. */
+    /** Conexiones de agentes locales vigentes de una persona. */
     List<AccessToken> findActiveRunnerTokens(UUID memberId);
 
     AccessToken save(AccessToken token);

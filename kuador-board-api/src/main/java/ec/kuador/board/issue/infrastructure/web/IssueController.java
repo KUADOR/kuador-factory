@@ -93,7 +93,7 @@ class IssueController {
     }
 
     /** Cerrar una puerta: aprobar o rechazar (con motivo). Solo personas con el rol aprobador. */
-    /** Quien llama pasa a supervisar el issue: sus agentes, en su Claude Code, lo atienden. */
+    /** Quien llama pasa a supervisar el issue: sus agentes, en su cliente de IA, lo atienden. */
     @PostMapping("/api/issues/{key}/supervise")
     IssueResponse supervise(@PathVariable String key, @AuthenticationPrincipal AuthenticatedMember who) {
         return IssueResponse.from(service.supervise(key, who.memberId()));

@@ -49,9 +49,9 @@ class SecurityConfiguration {
                         .requestMatchers("/api/signup/**").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/health", "/v3/api-docs/**", "/swagger-ui/**",
                                 "/swagger-ui.html", "/error").permitAll()
-                        // Servidor MCP del tablero: solo con la conexión de Claude Code de una persona.
+                        // Servidor MCP del tablero: solo con la conexión de agentes locales de una persona.
                         .requestMatchers("/mcp").hasRole("RUNNER")
-                        .requestMatchers(HttpMethod.GET, "/api/claude-kit", "/api/claude-kit.zip").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/agent-kit", "/api/agent-kit.zip").authenticated()
                         // Lo único que escribe quien solo mira: su sesión, su clave, comentarios y las puertas donde
                         // su rol aprueba (el servicio comprueba el rol aprobador).
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout", "/api/issues/*/review", "/api/issues/*/comments").authenticated()

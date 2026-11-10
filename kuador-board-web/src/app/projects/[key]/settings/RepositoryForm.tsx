@@ -73,7 +73,7 @@ export function RepositoryForm({ projectKey, link }: { projectKey: string; link:
                 required
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder={github ? "kuador/kuador-api" : "/Users/…/PROYECT_KUADOR/landing/kuador-api"}
+                placeholder={github ? "empresa/proyecto-api" : "/Users/…/proyectos/proyecto-api"}
                 className="font-mono text-xs"
               />
             )}

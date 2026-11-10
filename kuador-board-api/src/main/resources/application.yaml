@@ -42,7 +42,7 @@ springdoc:
     path: /swagger-ui.html
 
 board:
-  # URL con la que Claude Code llega a esta API (va en el .mcp.json del kit como valor por defecto de KUADOR_URL).
+  # URL con la que los clientes de IA (Claude Code, Codex...) llegan a esta API: va en el kit de agentes locales.
   public-url: ${BOARD_PUBLIC_URL:http://localhost:8091}
   agents:
     # Sin clave, los agentes quedan desactivados (cada asignación se registra como SKIPPED).

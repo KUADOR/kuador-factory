@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
-public class WorkspaceService {
+public class WorkspaceService implements ec.kuador.board.workspace.WorkspaceApi {
 
     private final WorkspaceRepository workspaces;
     private final CatalogApi catalog;
@@ -48,6 +48,13 @@ public class WorkspaceService {
     @Transactional(readOnly = true)
     public Workspace current() {
         return workspaces.findById(TenantContext.require()).orElseThrow(() -> new NotFoundException("El espacio de trabajo ya no existe."));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Identity identity() {
+        Workspace w = current();
+        return new Identity(w.slug(), w.name());
     }
 
     /** Nombre, descripción, color base y logo del espacio actual (solo personas). */

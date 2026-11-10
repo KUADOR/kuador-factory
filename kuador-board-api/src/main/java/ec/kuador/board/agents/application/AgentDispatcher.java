@@ -49,8 +49,8 @@ class AgentDispatcher implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         var now = clock.instant();
         TenantContext.asRoot(() -> tx.execute(s -> {
-            // Las ejecuciones en Claude Code siguen vivas en la máquina de su persona: no se tocan.
-            runs.findStuck(now).stream().filter(r -> !AgentRun.LOCAL.equals(r.model())).forEach(r -> {
+            // Las ejecuciones en el cliente de IA de una persona siguen vivas en la máquina de su persona: no se tocan.
+            runs.findStuck(now).stream().filter(r -> !r.isLocal()).forEach(r -> {
                 runs.save(r.failed("La API se reinició mientras el agente trabajaba. Vuelve a asignarle el issue para reintentar.", now));
                 log.warn("Ejecución {} del agente en {} marcada como interrumpida", r.id(), r.issueKey());
             });

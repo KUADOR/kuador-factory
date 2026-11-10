@@ -81,10 +81,10 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
           {supervisor ? (
             <span>
               {supervisor.id === me.id ? (
-                "Lo atienden tus agentes, en tu Claude Code."
+                "Lo atienden tus agentes, en tu cliente de IA."
               ) : (
                 <>
-                  Lo atienden los agentes de <span className="font-medium text-fg-strong">{supervisor.name}</span>, en su Claude Code.
+                  Lo atienden los agentes de <span className="font-medium text-fg-strong">{supervisor.name}</span>, en su cliente de IA.
                 </>
               )}
             </span>

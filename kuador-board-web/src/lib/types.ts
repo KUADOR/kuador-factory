@@ -384,11 +384,20 @@ export interface AgentsStatus {
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
-/** Conexión de Claude Code de una persona (token que solo abre el servidor MCP del tablero). */
+/** Conexión de agentes locales de una persona (token que solo abre el servidor MCP del tablero). */
 export type RunnerToken = AgentToken;
 
-/** Archivo del kit para el repositorio (.mcp.json, subagentes, comando /pendientes). */
+/** Archivo del kit para el repositorio, en el formato del cliente de IA elegido. */
 export interface KitFile {
   path: string;
   content: string;
+}
+
+/** Cliente de IA con kit propio; «mcp» es cualquier otro cliente con MCP. */
+export type AgentClient = "claude-code" | "codex" | "mcp";
+
+/** Cómo se conecta el espacio: servidor MCP (con el nombre de la empresa), variables de entorno y URL. */
+export interface AgentKit {
+  connection: { server: string; tokenVar: string; urlVar: string; url: string };
+  files: KitFile[];
 }

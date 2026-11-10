@@ -246,9 +246,9 @@ estado de cada documento. El tablero **escribe archivos pero no hace commits**: 
 | GET · PUT | `/api/workspace` | Espacio actual / nombre, descripción, `brandColor` y `logo` (data URL; solo personas) |
 | POST | `/api/signup/code` · `/api/signup/verify` · `/api/signup/workspace` | Alta pública: pedir código, verificarlo (`signupToken`), crear el espacio |
 | GET | `/api/signup/slug?name=` | Identificador libre sugerido para un nombre |
-| POST | `/mcp` | Servidor MCP del tablero (JSON-RPC). Solo con la conexión de Claude Code de una persona (`kfr_…`) |
-| GET · POST · DELETE | `/api/auth/runner-tokens` | Conexiones de Claude Code de quien pide (el secreto se ve una vez) |
-| GET | `/api/claude-kit` · `/api/claude-kit.zip?mcp=CONTEXT7` | Kit para el repo: `.mcp.json`, subagentes por rol y comando `/pendientes` |
+| POST | `/mcp` | Servidor MCP del tablero (JSON-RPC). Solo con la conexión de agentes locales de una persona (`kfr_…`) |
+| GET · POST · DELETE | `/api/auth/runner-tokens` | Conexiones de agentes locales de quien pide (el secreto se ve una vez) |
+| GET | `/api/agent-kit?client=claude-code\|codex\|mcp&mcp=CONTEXT7` · `/api/agent-kit.zip` | Kit para el repo en el formato del cliente de IA, con el nombre del espacio |
 | POST | `/api/issues/{key}/supervise` | Quien llama pasa a supervisar el issue (sus agentes lo atienden) |
 | PUT | `/api/members/{id}/access` | Nivel de acceso de una persona `{access: EDIT\|VIEW}` (solo personas que editan; nadie cambia el suyo; siempre queda alguien que edita) |
 | PUT | `/api/projects/{key}/stages` | Etapas `{stages: [{column, roles, gate, approvers, rejectTo}], maxRework}` (solo personas) |
@@ -311,10 +311,15 @@ MCP · 5 desarrollo y QA · 6 release.
 > producción y usa una contraseña inicial fuerte. Si hay varias instancias, mueve el bloqueo de login
 > (hoy en memoria) a la base o a Redis.
 
-## Agentes en Claude Code (Fase 2)
+## Agentes locales (Fase 2)
 
-1. En el tablero, **Claude Code → Crear conexión**. Guarda el token en tu shell: `export KUADOR_TOKEN=kfr_…` (nunca en el repo).
-2. Descarga el kit en la raíz del repo (botón o `curl -H "Authorization: Bearer $KUADOR_TOKEN" "$KUADOR_URL/api/claude-kit.zip" -o kit.zip && unzip -o kit.zip`).
-3. `unset ANTHROPIC_API_KEY` (si está definida, Claude Code cobra a la API en vez de a tu plan), abre `claude`, aprueba el servidor `kuador` y escribe `/pendientes`.
+El servidor MCP del tablero es estándar: sirve cualquier cliente de IA con MCP (Claude Code, Codex, Cursor, OpenCode, Cline…). Todo lleva el nombre del espacio de trabajo, no el del producto: en el espacio `adma`, el servidor se llama `adma` y el token va en `TABLERO_ADMA_TOKEN`.
 
-Solo se atienden los issues que tú supervisas: los que asignaste a un agente o llevaste a una etapa que cubren agentes. Las puertas siguen siendo de las personas.
+1. En el tablero, **Agentes locales → Crear conexión** (una por equipo). Guarda el token en tu shell, nunca en el repo.
+2. Elige tu cliente y descarga el kit en la raíz del repo:
+   - **Claude Code:** `.mcp.json`, un subagente por rol (`.claude/agents/<espacio>-<rol>.md`) y el comando `/pendientes`. Haz `unset ANTHROPIC_API_KEY` para usar tu plan.
+   - **Codex:** `.codex/config.toml` (proyecto de confianza; `bearer_token_env_var`) y `AGENTS.md` con el flujo de trabajo.
+   - **Otro cliente MCP:** `mcp-servidores.json` con URL y cabecera para adaptar, y `AGENTS.md`.
+3. Pide «trabaja mis pendientes». El historial del issue muestra desde qué cliente se trabajó.
+
+Solo se atienden los issues que supervisas: los que asignaste a un agente o llevaste a una etapa que cubren agentes. Las puertas siguen siendo de las personas.

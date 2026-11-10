@@ -303,7 +303,7 @@ public class IssueService implements IssueApi {
 
     /**
      * Cuando una persona le pasa trabajo a los agentes (lo asigna a un agente o lo lleva a una etapa que
-     * cubren agentes), pasa a supervisarlo: solo sus agentes, en su Claude Code, lo atienden. Lo que
+     * cubren agentes), pasa a supervisarlo: solo sus agentes, en su cliente de IA, lo atienden. Lo que
      * hacen los agentes no cambia quién supervisa: se hereda por toda la cadena.
      */
     private void superviseIfPersonHandsToAgents(Issue issue, ProjectView project, UUID actorId) {

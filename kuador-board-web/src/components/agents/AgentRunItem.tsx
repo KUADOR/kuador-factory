@@ -34,11 +34,21 @@ export function AgentRunItem({ run, agentName, showIssue = false }: { run: Agent
       </div>
       {run.summary && <p className="text-fg">{run.summary}</p>}
       {run.error && <p className="text-danger">{run.error}</p>}
-      {run.inputTokens != null && (
+      {run.model?.startsWith("local:") || run.model === "claude-code" ? (
+        <p className="font-mono text-[11px] text-fg-faint">Trabajado en {clientName(run.model)}, en el equipo de quien lo supervisa</p>
+      ) : run.inputTokens != null && (
         <p className="tabular font-mono text-[11px] text-fg-faint">
           {run.model} · {run.inputTokens.toLocaleString("es-EC")} tokens de entrada · {(run.outputTokens ?? 0).toLocaleString("es-EC")} de salida
         </p>
       )}
     </li>
   );
+}
+
+const CLIENT_NAMES: Record<string, string> = { "claude-code": "Claude Code", codex: "Codex", mcp: "un cliente MCP" };
+
+/** «local:codex» → «Codex»; un cliente desconocido se muestra tal cual. */
+function clientName(model: string): string {
+  const id = model.replace(/^local:/, "");
+  return CLIENT_NAMES[id] ?? id;
 }

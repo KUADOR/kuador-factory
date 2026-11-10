@@ -1,4 +1,4 @@
-# Catálogo de fábrica del tablero KUADOR.
+# Catálogo de fábrica: lo que recibe cada espacio de trabajo nuevo.
 #
 # Se copia a cada espacio de trabajo nuevo; después cada espacio lo edita desde el tablero (y puede
 # restaurar cualquier entrada a estos valores). Cambiar de stack, metodología o herramientas no

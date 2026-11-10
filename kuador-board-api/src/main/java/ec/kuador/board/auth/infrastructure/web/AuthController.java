@@ -86,7 +86,7 @@ class AuthController {
 
     record MemberAccessResponse(UUID id, MemberAccess access) {}
 
-    // ---- Conexiones de Claude Code de quien pide ----
+    // ---- Conexiones de agentes locales de quien pide ----
 
     @GetMapping("/api/auth/runner-tokens")
     List<TokenResponse> runnerTokens(@AuthenticationPrincipal AuthenticatedMember who) {

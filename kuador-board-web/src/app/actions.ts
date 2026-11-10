@@ -33,7 +33,8 @@ import type {
   Issue,
   IssueInput,
   IssueStatus,
-  KitFile,
+  AgentClient,
+  AgentKit,
   Member,
   MemberAccess,
   MemberKind,
@@ -105,15 +106,15 @@ export async function createAgentTokenAction(memberId: string, name: string): Pr
 }
 
 export async function createRunnerTokenAction(name: string): Promise<ActionResult<IssuedToken>> {
-  return run(() => boardApi.createRunnerToken(name), "/claude-code");
+  return run(() => boardApi.createRunnerToken(name), "/agentes-locales");
 }
 
 export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.revokeRunnerToken(tokenId), "/claude-code");
+  return run(() => boardApi.revokeRunnerToken(tokenId), "/agentes-locales");
 }
 
-export async function claudeKitAction(mcp: string[]): Promise<ActionResult<KitFile[]>> {
-  return run(() => boardApi.claudeKit(mcp));
+export async function agentKitAction(client: AgentClient, mcp: string[]): Promise<ActionResult<AgentKit>> {
+  return run(() => boardApi.agentKit(client, mcp));
 }
 
 export async function superviseIssueAction(projectKey: string, key: string): Promise<ActionResult<Issue>> {

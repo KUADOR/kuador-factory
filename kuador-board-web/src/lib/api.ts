@@ -29,7 +29,8 @@ import type {
   Issue,
   IssueInput,
   IssueStatus,
-  KitFile,
+  AgentClient,
+  AgentKit,
   Me,
   Member,
   MemberAccess,
@@ -72,7 +73,7 @@ async function request<T>(path: string, init?: RequestInit & { anonymous?: boole
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
-export const kitQuery = (mcp: string[]) => new URLSearchParams(mcp.map((k) => ["mcp", k])).toString();
+export const kitQuery = (client: string, mcp: string[]) => new URLSearchParams([["client", client], ...mcp.map((k) => ["mcp", k])]).toString();
 
 /**
  * Descarga binaria con la sesión (el .zip del kit). Devuelve la respuesta de la API tal cual para
@@ -97,7 +98,7 @@ export const boardApi = {
   runnerTokens: () => request<RunnerToken[]>("/api/auth/runner-tokens"),
   createRunnerToken: (name: string) => request<IssuedToken>("/api/auth/runner-tokens", json("POST", { name })),
   revokeRunnerToken: (tokenId: string) => request<void>(`/api/auth/runner-tokens/${encodeURIComponent(tokenId)}`, { method: "DELETE" }),
-  claudeKit: (mcp: string[]) => request<KitFile[]>(`/api/claude-kit?${kitQuery(mcp)}`),
+  agentKit: (client: AgentClient, mcp: string[]) => request<AgentKit>(`/api/agent-kit?${kitQuery(client, mcp)}`),
   supervise: (key: string) => request<Issue>(`/api/issues/${encodeURIComponent(key)}/supervise`, { method: "POST" }),
   createAgentToken: (memberId: string, name: string) =>
     request<IssuedToken>(`/api/members/${encodeURIComponent(memberId)}/tokens`, json("POST", { name })),

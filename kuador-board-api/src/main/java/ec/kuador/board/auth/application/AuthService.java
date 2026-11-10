@@ -122,7 +122,7 @@ public class AuthService implements AuthApi {
             Optional<MemberView> member = members.find(token.memberId())
                     .filter(m -> m.workspaceId().equals(token.workspaceId()))
                     .filter(m -> m.agent() == (token.kind() == TokenKind.AGENT))
-                    // Una conexión de Claude Code deja de valer si su persona pasa a solo lectura.
+                    // Una conexión de agentes locales deja de valer si su persona pasa a solo lectura.
                     .filter(m -> token.kind() != TokenKind.RUNNER || !m.viewOnly());
             if (member.isEmpty()) return Optional.<AuthenticatedMember>empty();
             if (token.lastUsedAt() == null || token.lastUsedAt().plus(TOUCH_EVERY).isBefore(now)) {
@@ -225,15 +225,15 @@ public class AuthService implements AuthApi {
         tokens.save(token.revoke(clock.instant()));
     }
 
-    // ---- Conexiones de Claude Code (una persona, sus agentes) ----
+    // ---- Conexiones de agentes locales (el cliente de IA de una persona: Claude Code, Codex...) ----
 
-    /** Emite la conexión de Claude Code de quien pide; el secreto se muestra una sola vez. */
+    /** Emite la conexión de agentes locales de quien pide; el secreto se muestra una sola vez. */
     @Transactional
     public IssuedToken createRunnerToken(AuthenticatedMember who, String name) {
-        if (who.agent() || who.runner()) throw new ForbiddenException("Solo una persona puede conectar su Claude Code.");
+        if (who.agent() || who.runner()) throw new ForbiddenException("Solo una persona puede conectar sus agentes locales.");
         if (who.viewOnly()) throw new ForbiddenException("Con acceso de solo lectura no se pueden poner agentes a trabajar.");
         if (name == null || name.isBlank() || name.length() > 80) {
-            throw new DomainException("Ponle un nombre a la conexión (máximo 80 caracteres), por ejemplo \"MacBook de Diego\".");
+            throw new DomainException("Ponle un nombre a la conexión (máximo 80 caracteres), por ejemplo \"Laptop con Codex\".");
         }
         Instant now = clock.instant();
         String secret = Tokens.newSecret(TokenKind.RUNNER);

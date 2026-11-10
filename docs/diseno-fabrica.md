@@ -166,6 +166,11 @@ Decidido el 2026-11-10:
    Probada con Claude Code real (2026-11-10): `/pendientes` en modo `-p`, el subagente del PO tomó un
    issue SDD, escribió la spec (v1→v3), consultó dos veces a la persona y al final estimó y entregó a
    Aprobación (~75 s y 5 turnos por vuelta).
+   **Abierto a cualquier cliente de IA (decisión del usuario):** el kit se elige por cliente (Claude
+   Code, Codex con `.codex/config.toml` + `AGENTS.md`, u otro cliente MCP) y todo lleva el nombre del
+   espacio (servidor `<slug>`, `TABLERO_<SLUG>_TOKEN`, subagentes `<slug>-<rol>`), nunca «Kuador»:
+   cada empresa tiene su propio tablero. La ejecución registra el cliente (`local:<cliente>`, del
+   User-Agent). Codex no se probó en vivo (no está instalado); su formato sale de la documentación oficial.
 3. **Proyecto nuevo con sus bases:** GitHub App, repos de plantilla, flujo de git protegido, archivos
    para agentes y varios repos por proyecto.
 4. **PO y Arquitecto vía MCP:** se reutilizan las reglas de hoy (comentar, spec, plan, devolver).

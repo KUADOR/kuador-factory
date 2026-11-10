@@ -5,34 +5,34 @@ import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
 import { requireEditor } from "@/lib/require-editor";
 
-import { ClaudeCodeSetup } from "./ClaudeCodeSetup";
+import { AgentSetup } from "./AgentSetup";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Claude Code" };
+export const metadata: Metadata = { title: "Agentes locales" };
 
 /** Servidores MCP que el kit trae marcados la primera vez. */
 const DEFAULT_MCP = ["CONTEXT7"];
 
-export default async function ClaudeCodePage() {
+export default async function LocalAgentsPage() {
   await requireEditor();
   let data;
   try {
-    data = await Promise.all([boardApi.runnerTokens(), boardApi.catalog("mcp-servers"), boardApi.claudeKit(DEFAULT_MCP), boardApi.me()]);
+    data = await Promise.all([boardApi.runnerTokens(), boardApi.catalog("mcp-servers"), boardApi.agentKit("claude-code", DEFAULT_MCP), boardApi.me()]);
   } catch (e) {
     return failPage(e);
   }
-  const [tokens, servers, files, me] = data;
+  const [tokens, servers, kit, me] = data;
   return (
     <>
       <PageHeader
-        title="Claude Code"
+        title="Agentes locales"
         width="narrow"
-        description="Tus agentes trabajan en tu Claude Code, con tu suscripción, y solo atienden los issues que tú supervisas."
+        description="Los agentes del equipo trabajan en el cliente de IA de cada persona (Claude Code, Codex u otro con MCP), con su propia cuenta, y solo atienden los issues que esa persona supervisa."
       />
-      <ClaudeCodeSetup
+      <AgentSetup
         tokens={tokens}
         servers={servers}
-        initialFiles={files}
+        initialKit={kit}
         initialMcp={DEFAULT_MCP}
         boardUrl={process.env.BOARD_PUBLIC_API_URL ?? process.env.BOARD_API_URL ?? "http://localhost:8091"}
         personName={me.name}

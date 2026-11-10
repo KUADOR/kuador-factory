@@ -119,7 +119,8 @@ class McpIT {
         JsonNode init = rpc(runner, "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
                 "clientInfo", Map.of("name", "claude-code", "version", "2"))).body().get("result");
         assertThat(init.get("protocolVersion").asString()).isEqualTo("2025-06-18");
-        assertThat(init.get("serverInfo").get("name").asString()).isEqualTo("kuador-board");
+        assertThat(init.get("serverInfo").get("name").asString()).as("se presenta con la empresa, no con el producto").isEqualTo("pi");
+        assertThat(init.get("instructions").asString()).contains("Tablero de Pi");
         assertThat(call("POST", "/mcp", Map.of("jsonrpc", "2.0", "method", "notifications/initialized"), runner).status()).isEqualTo(202);
         List<String> names = new ArrayList<>();
         rpc(runner, "tools/list", Map.of()).body().get("result").get("tools").forEach(t -> names.add(t.get("name").asString()));
@@ -133,7 +134,7 @@ class McpIT {
                 .body().get("key").asString();
         JsonNode queue = tool(runner, "pendientes", Map.of(), false);
         assertThat(queue.get("total").asInt()).isEqualTo(1);
-        assertThat(queue.get("pendientes").get(0).get("subagente").asString()).isEqualTo("kuador-product-owner");
+        assertThat(queue.get("pendientes").get(0).get("subagente").asString()).isEqualTo("pi-product-owner");
         assertThat(tool(otherRunner, "pendientes", Map.of(), false).get("total").asInt()).as("la cola de otra persona").isZero();
 
         JsonNode manual = tool(runner, "instrucciones_rol", Map.of("agente", "PRODUCT_OWNER"), false);
@@ -145,8 +146,9 @@ class McpIT {
         assertThat(tool(runner, "tomar", Map.of("clave", key, "agente", "QA"), true).asString()).contains("cubren");
         assertThat(tool(runner, "tomar", Map.of("clave", key, "agente", "NADIE"), true).asString()).contains("No hay un agente con el rol NADIE");
         tool(runner, "tomar", Map.of("clave", key, "agente", "PRODUCT_OWNER"), false);
-        assertThat(call("GET", "/api/agents/runs?issueKey=" + key, null, owner).body().get(0).get("status").asString())
-                .as("el tablero ve que el agente está trabajando").isEqualTo("RUNNING");
+        JsonNode working = call("GET", "/api/agents/runs?issueKey=" + key, null, owner).body().get(0);
+        assertThat(working.get("status").asString()).as("el tablero ve que el agente está trabajando").isEqualTo("RUNNING");
+        assertThat(working.get("model").asString()).as("y desde qué cliente (el de Java en esta prueba)").isEqualTo("local:java-http-client");
         tool(runner, "comentar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "texto", "Historia y criterios listos."), false);
         assertThat(tool(runner, "estimar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "puntos", "4"), true).asString()).contains("escala");
         assertThat(tool(runner, "estimar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "puntos", "5"), false).get("ok").asBoolean()).isTrue();
@@ -169,17 +171,25 @@ class McpIT {
         comments.forEach(c -> bodies.add(c.get("body").asString()));
         assertThat(bodies).contains("Historia y criterios listos.", "Listo para aprobar.");
 
-        // Kit para el repo: con la misma conexión.
-        Reply zip = call("GET", "/api/claude-kit.zip?mcp=CONTEXT7", null, runner);
+        // Kit para el repo, en el formato de cada cliente y con el nombre de la empresa. Con la misma conexión.
+        Reply zip = call("GET", "/api/agent-kit.zip?client=claude-code&mcp=CONTEXT7", null, runner);
         assertThat(zip.status()).isEqualTo(200);
         List<String> entries = new ArrayList<>();
         try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip.raw()))) {
             for (var e = in.getNextEntry(); e != null; e = in.getNextEntry()) entries.add(e.getName());
         }
-        assertThat(entries).contains(".mcp.json", ".claude/commands/pendientes.md", ".claude/agents/kuador-backend.md", ".claude/agents/kuador-qa.md");
-        JsonNode files = call("GET", "/api/claude-kit?mcp=CONTEXT7", null, owner).body();
-        String mcpJson = files.get(0).get("content").asString();
-        assertThat(mcpJson).contains("${KUADOR_TOKEN}", "/mcp", "context7").doesNotContain(runner);
+        assertThat(entries).contains(".mcp.json", ".claude/commands/pendientes.md", ".claude/agents/pi-backend.md", ".claude/agents/pi-qa.md");
+        JsonNode claude = call("GET", "/api/agent-kit?client=claude-code&mcp=CONTEXT7", null, owner).body();
+        assertThat(claude.get("connection").get("tokenVar").asString()).isEqualTo("TABLERO_PI_TOKEN");
+        String mcpJson = claude.get("files").get(0).get("content").asString();
+        assertThat(mcpJson).contains("\"pi\"", "${TABLERO_PI_TOKEN}", "/mcp", "context7").doesNotContain(runner).doesNotContainIgnoringCase("kuador");
+        JsonNode codex = call("GET", "/api/agent-kit?client=codex", null, owner).body().get("files");
+        assertThat(codex.get(0).get("path").asString()).isEqualTo(".codex/config.toml");
+        assertThat(codex.get(0).get("content").asString()).contains("[mcp_servers.pi]", "bearer_token_env_var = \"TABLERO_PI_TOKEN\"");
+        assertThat(codex.get(1).get("path").asString()).isEqualTo("AGENTS.md");
+        assertThat(codex.get(1).get("content").asString()).contains("# Tablero de Pi", "instrucciones_rol").doesNotContainIgnoringCase("kuador");
+        JsonNode generic = call("GET", "/api/agent-kit?client=mcp", null, owner).body().get("files");
+        assertThat(generic.get(0).get("content").asString()).contains("<valor de TABLERO_PI_TOKEN>");
 
         // Revocar la conexión la deja sin acceso.
         String tokenId = issued.body().get("info").get("id").asString();

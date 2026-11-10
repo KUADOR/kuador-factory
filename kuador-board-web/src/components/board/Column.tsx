@@ -41,6 +41,7 @@ function SortableIssue({
   projectType,
   workingAgent,
   waiting,
+  readOnly,
   onOpen,
 }: {
   issue: Issue;
@@ -49,23 +50,27 @@ function SortableIssue({
   projectType: TypeSource;
   workingAgent: Member | undefined;
   waiting?: string;
+  readOnly?: boolean;
   onOpen: (key: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.key });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.key, disabled: readOnly });
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }} className={isDragging ? "opacity-30" : undefined}>
       {/* dnd-kit aporta role="button" y tabIndex. Enter abre el detalle; Espacio arrastra con teclado. */}
       <div
         {...attributes}
         {...listeners}
+        // En solo lectura no se arrastra, pero la tarjeta sigue abriendo el detalle: no está «deshabilitada».
+        aria-disabled={readOnly ? undefined : attributes["aria-disabled"]}
+        aria-describedby={readOnly ? undefined : attributes["aria-describedby"]}
         onClick={() => onOpen(issue.key)}
         onKeyDown={(e) => {
           if (e.key === "Enter") onOpen(issue.key);
           else listeners?.onKeyDown?.(e);
         }}
         aria-label={`${issue.key}: ${issue.title}`}
-        aria-roledescription="issue arrastrable"
-        className="block w-full cursor-grab touch-manipulation rounded-md active:cursor-grabbing"
+        aria-roledescription={readOnly ? undefined : "issue arrastrable"}
+        className={clsx("block w-full touch-manipulation rounded-md", readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing")}
       >
         <IssueCard issue={issue} assignee={assignee} epicTitle={epicTitle} projectType={projectType} workingAgent={workingAgent} waiting={waiting} />
       </div>
@@ -101,7 +106,8 @@ export function Column({
   roleName: (key: string) => string;
   actions: ColumnActions;
   onOpen: (key: string) => void;
-  onCreate: (status: IssueStatus) => void;
+  /** Sin esta función (solo lectura) la columna no ofrece crear, editar ni arrastrar. */
+  onCreate?: (status: IssueStatus) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: COLUMN_DROP_PREFIX + column.key, disabled: !!blocked });
   const points = issues.reduce((sum, i) => sum + (i.storyPoints ?? 0), 0);
@@ -144,7 +150,7 @@ export function Column({
             }}
           />
         ) : (
-          <h2 className="truncate text-xs font-semibold text-fg-strong" onDoubleClick={() => setRenaming(true)} title="Doble clic para renombrar">
+          <h2 className="truncate text-xs font-semibold text-fg-strong" onDoubleClick={onCreate ? () => setRenaming(true) : undefined} title={onCreate ? "Doble clic para renombrar" : undefined}>
             {column.name}
           </h2>
         )}
@@ -154,6 +160,7 @@ export function Column({
             {points > 0 && <span title="Story points de la columna"> · {points} pts</span>}
           </span>
         )}
+        {onCreate && (
         <span className="ml-auto flex shrink-0">
           <button
             type="button"
@@ -186,6 +193,7 @@ export function Column({
             ]}
           />
         </span>
+        )}
       </header>
       {stage && (stage.gate || stage.roles.length > 0) && (
         <p className="-mt-1.5 flex items-center gap-1.5 truncate px-3 pb-2 text-[11px] text-fg-muted">
@@ -214,6 +222,7 @@ export function Column({
               epicTitle={issue.parentKey ? epics.get(issue.parentKey) : undefined}
               projectType={projectType}
               workingAgent={working.get(issue.key)}
+              readOnly={!onCreate}
               waiting={!issue.assigneeId && stage && (stage.gate || stage.roles.length > 0) ? (stage.gate && stage.roles.length === 0 ? "Por aprobar" : "Por tomar") : undefined}
               onOpen={onOpen}
             />

@@ -1,4 +1,5 @@
 import { boardApi } from "@/lib/api";
+import { requireEditor } from "@/lib/require-editor";
 import { failPage } from "@/lib/page-errors";
 
 import { SettingsNav } from "./SettingsNav";
@@ -6,6 +7,7 @@ import { SettingsNav } from "./SettingsNav";
 /** Configuración del proyecto: menú de secciones a la izquierda y una sección a la vez. */
 export default async function ProjectSettingsLayout({ params, children }: LayoutProps<"/projects/[key]/settings">) {
   const projectKey = (await params).key.toUpperCase();
+  await requireEditor(`/projects/${projectKey}`);
   let project;
   try {
     project = await boardApi.project(projectKey);

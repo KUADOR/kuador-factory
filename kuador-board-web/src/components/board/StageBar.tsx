@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { deliverIssueAction, reviewIssueAction, takeIssueAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/Field";
+import { useAccess } from "@/components/shell/AccessContext";
 import { Badge } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
 import type { Issue, Me, Member, Project } from "@/lib/types";
@@ -24,12 +25,14 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
+  const { canEdit } = useAccess();
   if (!stage && issue.reworkCount === 0) return null;
 
   const isHuman = me.kind === "HUMAN";
   const canApprove = !!stage?.gate && isHuman && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
   const covers = !!stage && stage.roles.length > 0 && stage.roles.includes(me.role);
-  const canTake = !issue.assigneeId && (stage?.gate ? covers || canApprove : !stage || stage.roles.length === 0 || covers);
+  // Quien solo mira no toma ni entrega: como mucho aprueba o rechaza en su puerta.
+  const canTake = canEdit && !issue.assigneeId && (stage?.gate ? covers || canApprove : !stage || stage.roles.length === 0 || covers);
   const mine = issue.assigneeId === me.id;
 
   const act = (work: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
@@ -75,7 +78,7 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
               Tomar
             </Button>
           )}
-          {!stage.gate && (mine || (isHuman && !!issue.assigneeId)) && next && (
+          {canEdit && !stage.gate && (mine || (isHuman && !!issue.assigneeId)) && next && (
             <Button size="sm" tone="primary" icon={ArrowRight} loading={pending} onClick={() => act(() => deliverIssueAction(project.key, issue.key, null), `${issue.key} pasó a ${next.name}`)}>
               Entregar a {next.name}
             </Button>

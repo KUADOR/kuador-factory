@@ -12,8 +12,9 @@ export default async function TeamPage() {
   try {
     data = await Promise.all([
       boardApi.members(),
-      boardApi.accounts(),
-      boardApi.agentTokens(),
+      // Correos y tokens solo los ve quien edita; para quien solo mira, la API responde 403.
+      boardApi.accounts().catch(() => []),
+      boardApi.agentTokens().catch(() => []),
       boardApi.agentsStatus(),
       boardApi.agentRuns({ limit: 100 }),
       boardApi.catalog("roles"),

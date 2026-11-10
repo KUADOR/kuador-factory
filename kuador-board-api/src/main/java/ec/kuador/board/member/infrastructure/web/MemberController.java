@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import ec.kuador.board.member.MemberAccess;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -36,7 +37,7 @@ class MemberController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     MemberResponse create(@Valid @RequestBody CreateMemberRequest r) {
-        return MemberResponse.from(service.create(r.name(), r.kind(), r.role(), r.description(), r.avatarColor()));
+        return MemberResponse.from(service.create(r.name(), r.kind(), r.role(), r.description(), r.avatarColor(), r.access()));
     }
 
     record CreateMemberRequest(
@@ -44,13 +45,15 @@ class MemberController {
             @NotNull MemberKind kind,
             @NotBlank String role,
             @Size(max = 4000) String description,
-            @NotBlank String avatarColor) {}
+            @NotBlank String avatarColor,
+            /** Opcional: por defecto VIEW para clientes y EDIT para el resto. */
+            MemberAccess access) {}
 
     record MemberResponse(
-            UUID id, String name, MemberKind kind, String role, String description, String avatarColor, Instant createdAt) {
+            UUID id, String name, MemberKind kind, String role, String description, String avatarColor, MemberAccess access, Instant createdAt) {
 
         static MemberResponse from(Member m) {
-            return new MemberResponse(m.id(), m.name(), m.kind(), m.role(), m.description(), m.avatarColor(), m.createdAt());
+            return new MemberResponse(m.id(), m.name(), m.kind(), m.role(), m.description(), m.avatarColor(), m.access(), m.createdAt());
         }
     }
 }

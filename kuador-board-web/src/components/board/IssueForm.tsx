@@ -54,6 +54,7 @@ export function IssueForm({
   onSubmit,
   meta,
   below,
+  readOnly = false,
 }: {
   project: Project;
   initial: IssueFormValues;
@@ -68,6 +69,8 @@ export function IssueForm({
   /** Datos de solo lectura al pie de las propiedades (reportado por, fechas). */
   meta?: React.ReactNode;
   below?: React.ReactNode;
+  /** Solo lectura: se ve todo, nada se edita ni se guarda. */
+  readOnly?: boolean;
 }) {
   const software = project.kind === "SOFTWARE";
   const [values, setValues] = useState(initial);
@@ -75,8 +78,8 @@ export function IssueForm({
   // Foco en el título al abrir, solo con mouse o trackpad: en pantallas táctiles abriría el teclado.
   const titleRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (window.matchMedia("(pointer: fine)").matches) titleRef.current?.focus();
-  }, []);
+    if (!readOnly && window.matchMedia("(pointer: fine)").matches) titleRef.current?.focus();
+  }, [readOnly]);
   const set = <K extends keyof IssueFormValues>(key: K, value: IssueFormValues[K]) => setValues((v) => ({ ...v, [key]: value }));
   const dirty = JSON.stringify({ ...values, labels: labelsText }) !== JSON.stringify({ ...initial, labels: initial.labels.join(", ") });
   const newAgent = values.assigneeId !== initial.assigneeId ? members.find((m) => m.id === values.assigneeId && m.kind === "AGENT") : undefined;
@@ -102,7 +105,7 @@ export function IssueForm({
   ];
 
   const main = (
-    <div className="flex min-w-0 flex-col gap-4">
+    <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-4">
       <Field label="Título">
         {(id) => (
           <TextInput
@@ -112,7 +115,7 @@ export function IssueForm({
             ref={titleRef}
             value={values.title}
             onChange={(e) => set("title", e.target.value)}
-            placeholder="¿Qué hay que hacer?"
+            placeholder={readOnly ? undefined : "¿Qué hay que hacer?"}
             className="text-[15px] font-medium"
           />
         )}
@@ -124,21 +127,21 @@ export function IssueForm({
             rows={layout === "detail" ? 7 : 5}
             value={values.description ?? ""}
             onChange={(e) => set("description", e.target.value)}
-            placeholder={software ? "Como … quiero … para …\n\nDado …, cuando …, entonces …" : "Detalles, contacto, próximos pasos…"}
+            placeholder={readOnly ? undefined : software ? "Como … quiero … para …\n\nDado …, cuando …, entonces …" : "Detalles, contacto, próximos pasos…"}
             className="leading-relaxed"
           />
         )}
       </Field>
-    </div>
+    </fieldset>
   );
 
   const properties = (
-    <div className="flex flex-col gap-3.5">
+    <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-3.5">
       <Field label="Estado">
-        {(id) => <SelectInput id={id} size="sm" options={statusOptions} value={values.status} onChange={(v) => v && set("status", v)} />}
+        {(id) => <SelectInput id={id} size="sm" disabled={readOnly} options={statusOptions} value={values.status} onChange={(v) => v && set("status", v)} />}
       </Field>
       <Field label="Responsable">
-        {(id) => <SelectInput id={id} size="sm" filter options={memberOptions} value={values.assigneeId ?? ""} onChange={(v) => set("assigneeId", v || null)} />}
+        {(id) => <SelectInput id={id} size="sm" disabled={readOnly} filter options={memberOptions} value={values.assigneeId ?? ""} onChange={(v) => set("assigneeId", v || null)} />}
       </Field>
       {newAgent && (
         <p className="-mt-1 flex gap-1.5 rounded-md bg-sol/10 px-2.5 py-2 text-[11px] leading-relaxed text-fg">
@@ -149,10 +152,10 @@ export function IssueForm({
         </p>
       )}
       <Field label="Tipo">
-        {(id) => <SelectInput id={id} size="sm" options={typeOptions} value={values.type} onChange={(v) => v && set("type", v)} />}
+        {(id) => <SelectInput id={id} size="sm" disabled={readOnly} options={typeOptions} value={values.type} onChange={(v) => v && set("type", v)} />}
       </Field>
       <Field label="Prioridad">
-        {(id) => <SelectInput id={id} size="sm" options={priorityOptions} value={values.priority} onChange={(v) => v && set("priority", v)} />}
+        {(id) => <SelectInput id={id} size="sm" disabled={readOnly} options={priorityOptions} value={values.priority} onChange={(v) => v && set("priority", v)} />}
       </Field>
       <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3">
         <Field label="Puntos">
@@ -175,7 +178,7 @@ export function IssueForm({
             <SelectInput
               id={id}
               size="sm"
-              disabled={values.type === "EPIC"}
+              disabled={readOnly || values.type === "EPIC"}
               options={epicOptions}
               value={values.type === "EPIC" ? "" : (values.parentKey ?? "")}
               onChange={(v) => set("parentKey", v || null)}
@@ -184,10 +187,10 @@ export function IssueForm({
         </Field>
       </div>
       <Field label="Etiquetas" hint="Separadas por coma.">
-        {(id) => <TextInput id={id} size="sm" value={labelsText} onChange={(e) => setLabelsText(e.target.value)} placeholder="backend, seguridad" />}
+        {(id) => <TextInput id={id} size="sm" value={labelsText} onChange={(e) => setLabelsText(e.target.value)} placeholder={readOnly ? undefined : "backend, seguridad"} />}
       </Field>
       {meta}
-    </div>
+    </fieldset>
   );
 
   return (
@@ -219,6 +222,7 @@ export function IssueForm({
           {below}
         </div>
       )}
+      {!readOnly && (
       <div className="sticky bottom-0 flex items-center gap-3 border-t border-line bg-surface px-5 py-3">
         {error ? (
           <p role="alert" className="min-w-0 flex-1 text-[13px] text-danger">
@@ -231,6 +235,7 @@ export function IssueForm({
           {submitLabel}
         </Button>
       </div>
+      )}
     </form>
   );
 }

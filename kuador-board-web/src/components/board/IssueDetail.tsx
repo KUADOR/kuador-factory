@@ -22,6 +22,7 @@ import { Markdown } from "@/components/docs/Markdown";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialog";
+import { useAccess } from "@/components/shell/AccessContext";
 import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { TextArea } from "@/components/ui/Field";
 import { TypeIcon } from "@/components/ui/IssueIcons";
@@ -58,6 +59,7 @@ export function IssueDetail({
   onClose: () => void;
 }) {
   const byId = new Map(members.map((m) => [m.id, m]));
+  const { canEdit } = useAccess();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -91,8 +93,7 @@ export function IssueDetail({
                 notify.ok("Enlace copiado");
               },
             },
-            "separator",
-            { label: "Eliminar issue", icon: Trash, danger: true, onSelect: () => setConfirming(true) },
+            ...(canEdit ? (["separator", { label: "Eliminar issue", icon: Trash, danger: true, onSelect: () => setConfirming(true) }] as const) : []),
           ]}
         />
       }
@@ -105,6 +106,7 @@ export function IssueDetail({
         epics={epics}
         selfKey={issue.key}
         layout="detail"
+        readOnly={!canEdit}
         submitLabel="Guardar cambios"
         pending={pending}
         error={error}
@@ -301,6 +303,7 @@ function IssueHistory({ issueKey, members, project }: { issueKey: string; member
 }
 
 function Comments({ issueKey, members }: { issueKey: string; members: Member[] }) {
+  const { canEdit } = useAccess();
   const byId = new Map(members.map((m) => [m.id, m]));
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -355,6 +358,7 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
           </li>
         ))}
       </ol>
+      {canEdit && (
       <div className="flex flex-col gap-2">
         <TextArea
           rows={3}
@@ -376,6 +380,7 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
           </Button>
         </div>
       </div>
+      )}
     </section>
   );
 }

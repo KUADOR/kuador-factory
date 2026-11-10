@@ -4,22 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
 
+import { useAccess } from "@/components/shell/AccessContext";
 import type { ProjectKind } from "@/lib/types";
 
 /** Pestañas del proyecto (navegación entre páginas). Documentos y sincronización solo en software. */
 export function ProjectTabs({ projectKey, kind }: { projectKey: string; kind: ProjectKind }) {
   const path = usePathname();
+  const { canEdit } = useAccess();
   const base = `/projects/${projectKey}`;
   const tabs = [
     { href: base, label: "Tablero", exact: true },
     ...(kind === "SOFTWARE"
       ? [
           { href: `${base}/docs`, label: "Documentos" },
-          { href: `${base}/sync`, label: "Repositorio" },
+          ...(canEdit ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
         ]
       : []),
     { href: `${base}/activity`, label: "Actividad" },
-    { href: `${base}/settings`, label: "Configuración" },
+    ...(canEdit ? [{ href: `${base}/settings`, label: "Configuración" }] : []),
   ];
   return (
     <nav aria-label="Secciones del proyecto" className="-mb-px flex gap-5 overflow-x-auto">

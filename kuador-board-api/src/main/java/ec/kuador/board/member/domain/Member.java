@@ -1,5 +1,6 @@
 package ec.kuador.board.member.domain;
 
+import ec.kuador.board.member.MemberAccess;
 import ec.kuador.board.shared.error.DomainException;
 import java.time.Instant;
 import java.util.UUID;
@@ -10,7 +11,8 @@ import java.util.regex.Pattern;
  * {@code description} explica su especialidad; para un agente será la base de su prompt.
  */
 public record Member(
-        UUID id, UUID workspaceId, String name, MemberKind kind, String role, String description, String avatarColor, Instant createdAt) {
+        UUID id, UUID workspaceId, String name, MemberKind kind, String role, String description, String avatarColor, MemberAccess access,
+        Instant createdAt) {
 
     private static final Pattern COLOR = Pattern.compile("^#[0-9a-fA-F]{6}$");
     private static final Pattern ROLE = Pattern.compile("^[A-Z][A-Z0-9_]{1,39}$");
@@ -28,11 +30,24 @@ public record Member(
         if (avatarColor == null || !COLOR.matcher(avatarColor).matches()) {
             throw new DomainException("El color debe tener el formato #RRGGBB.");
         }
+        if (access == null) access = MemberAccess.EDIT;
+        if (kind == MemberKind.AGENT && access != MemberAccess.EDIT) {
+            throw new DomainException("Un agente siempre tiene acceso de edición.");
+        }
         name = name.strip();
     }
 
-    public static Member create(String name, MemberKind kind, String role, String description, String avatarColor, Instant now) {
+    /** Miembro con acceso de edición (compatibilidad). */
+    public Member(UUID id, UUID workspaceId, String name, MemberKind kind, String role, String description, String avatarColor, Instant createdAt) {
+        this(id, workspaceId, name, kind, role, description, avatarColor, MemberAccess.EDIT, createdAt);
+    }
+
+    public static Member create(String name, MemberKind kind, String role, String description, String avatarColor, MemberAccess access, Instant now) {
         // workspaceId lo asigna la persistencia con el espacio en contexto.
-        return new Member(UUID.randomUUID(), null, name, kind, role, description, avatarColor, now);
+        return new Member(UUID.randomUUID(), null, name, kind, role, description, avatarColor, access, now);
+    }
+
+    public Member withAccess(MemberAccess value) {
+        return new Member(id, workspaceId, name, kind, role, description, avatarColor, value, createdAt);
     }
 }

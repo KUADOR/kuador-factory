@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/Section";
 
 import { boardApi } from "@/lib/api";
+import { requireEditor } from "@/lib/require-editor";
 import { failPage } from "@/lib/page-errors";
 
 import { SyncPanel } from "./SyncPanel";
@@ -17,6 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SyncPage({ params }: Props) {
   const projectKey = (await params).key.toUpperCase();
+  await requireEditor(`/projects/${projectKey}`);
   let project, link;
   try {
     [project, link] = await Promise.all([boardApi.project(projectKey), boardApi.repository(projectKey)]);

@@ -1,5 +1,6 @@
 package ec.kuador.board.member.infrastructure.persistence;
 
+import ec.kuador.board.member.MemberAccess;
 import ec.kuador.board.member.domain.Member;
 import ec.kuador.board.member.domain.MemberKind;
 import jakarta.persistence.Column;
@@ -35,6 +36,9 @@ class MemberEntity {
     @Column(name = "avatar_color")
     private String avatarColor;
 
+    @Enumerated(EnumType.STRING)
+    private MemberAccess access;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -48,11 +52,12 @@ class MemberEntity {
         e.role = m.role();
         e.description = m.description();
         e.avatarColor = m.avatarColor();
+        e.access = m.access();
         e.createdAt = m.createdAt();
         return e;
     }
 
     Member toDomain() {
-        return new Member(id, workspaceId, name, kind, role, description, avatarColor, createdAt);
+        return new Member(id, workspaceId, name, kind, role, description, avatarColor, access, createdAt);
     }
 }

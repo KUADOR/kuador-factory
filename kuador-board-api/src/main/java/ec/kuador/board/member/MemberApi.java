@@ -14,6 +14,9 @@ public interface MemberApi {
     /** Personas del equipo, en orden de creación. */
     List<MemberView> humans();
 
+    /** Cambia el acceso de una persona (ver {@link MemberAccess}); {@code actorId} no puede ser ella misma. */
+    MemberView setAccess(UUID memberId, MemberAccess access, UUID actorId);
+
     MemberView createHuman(String name, String role, String description, String avatarColor);
 
     /** Crea un agente; {@code roleKey} debe existir en el catálogo del espacio. */

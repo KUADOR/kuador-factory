@@ -36,9 +36,11 @@ class BearerTokenFilter extends OncePerRequestFilter {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
             if (header != null && header.regionMatches(true, 0, PREFIX, 0, PREFIX.length())) {
                 auth.authenticate(header.substring(PREFIX.length())).ifPresent(who -> {
-                    var authority = new SimpleGrantedAuthority(who.agent() ? "ROLE_AGENT" : "ROLE_HUMAN");
+                    var kind = new SimpleGrantedAuthority(who.agent() ? "ROLE_AGENT" : "ROLE_HUMAN");
+                    // ROLE_EDITOR: puede escribir en el tablero. Quien solo mira no lo recibe.
+                    var authorities = who.viewOnly() ? List.of(kind) : List.of(kind, new SimpleGrantedAuthority("ROLE_EDITOR"));
                     SecurityContextHolder.getContext().setAuthentication(
-                            UsernamePasswordAuthenticationToken.authenticated(who, null, List.of(authority)));
+                            UsernamePasswordAuthenticationToken.authenticated(who, null, authorities));
                     TenantContext.set(who.workspaceId());
                 });
             }

@@ -13,11 +13,14 @@ import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { Badge, Section } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
+import { useAccess } from "@/components/shell/AccessContext";
+import { ACCESS_LABEL, defaultAccessFor } from "@/lib/access";
 import { roleLabel } from "@/lib/labels";
-import type { Account, AgentRole, AgentRun, AgentToken, AgentsStatus, Member, MemberKind } from "@/lib/types";
+import type { Account, AgentRole, AgentRun, AgentToken, AgentsStatus, Member, MemberAccess, MemberKind } from "@/lib/types";
 
 import { AgentTokens } from "./AgentTokens";
 import { HumanAccess } from "./HumanAccess";
+import { ACCESS_CHOICES, MemberAccessPicker } from "./MemberAccessPicker";
 
 type Props = { members: Member[]; accounts: Account[]; tokens: AgentToken[]; status: AgentsStatus; runs: AgentRun[]; roles: AgentRole[] };
 
@@ -25,6 +28,7 @@ type Props = { members: Member[]; accounts: Account[]; tokens: AgentToken[]; sta
 export function TeamView({ members, accounts, tokens, status, runs, roles }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const { me, canEdit } = useAccess();
   const roleOf = (key: string) => roles.find((r) => r.key === key);
   const open = members.find((m) => m.id === openId);
 
@@ -38,9 +42,11 @@ export function TeamView({ members, accounts, tokens, status, runs, roles }: Pro
       <PageHeader
         title="Equipo"
         actions={
-          <Button tone="primary" size="sm" icon={Plus} onClick={() => setAdding(true)}>
-            Agregar miembro
-          </Button>
+          canEdit && (
+            <Button tone="primary" size="sm" icon={Plus} onClick={() => setAdding(true)}>
+              Agregar miembro
+            </Button>
+          )
         }
       />
       <div className="flex flex-col gap-5 px-6 py-6">
@@ -63,6 +69,7 @@ export function TeamView({ members, accounts, tokens, status, runs, roles }: Pro
                       <span className="truncate text-xs text-fg-muted">{m.description}</span>
                       <span className="flex items-center gap-2">
                         {running && <Badge tone="sol">Trabajando en {running.issueKey}</Badge>}
+                        {m.kind === "HUMAN" && m.access === "VIEW" && <Badge tone="neutral">{ACCESS_LABEL.VIEW}</Badge>}
                         {m.kind === "AGENT" && role && role.automation !== "NONE" && (
                           <Badge tone="sol">
                             <Sparkle className="size-3" aria-hidden /> Automatizado
@@ -95,7 +102,7 @@ export function TeamView({ members, accounts, tokens, status, runs, roles }: Pro
               </dd>
             </dl>
             {open.description && <p className="text-[13px] leading-relaxed text-fg">{open.description}</p>}
-            {open.kind === "AGENT" ? (
+            {!canEdit ? null : open.kind === "AGENT" ? (
               <>
                 <AgentAutomation role={roleOf(open.role)} status={status} runs={runs.filter((r) => r.agentId === open.id).slice(0, 5)} />
                 <div className="flex flex-col gap-2">
@@ -104,9 +111,15 @@ export function TeamView({ members, accounts, tokens, status, runs, roles }: Pro
                 </div>
               </>
             ) : (
-              <div className="flex flex-col gap-2">
-                <h3 className="text-xs font-medium text-fg-muted">Acceso al tablero</h3>
-                <HumanAccess memberId={open.id} email={accounts.find((a) => a.memberId === open.id)?.email ?? null} />
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-xs font-medium text-fg-muted">Nivel de acceso</h3>
+                  <MemberAccessPicker key={open.id} memberId={open.id} value={open.access} self={open.id === me?.id} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-xs font-medium text-fg-muted">Acceso al tablero</h3>
+                  <HumanAccess memberId={open.id} email={accounts.find((a) => a.memberId === open.id)?.email ?? null} />
+                </div>
               </div>
             )}
           </div>
@@ -150,6 +163,9 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
   const [name, setName] = useState("");
   const [role, setRole] = useState<string | null>(roles[0]?.key ?? null);
   const [humanRole, setHumanRole] = useState("");
+  // null = el que corresponde al rol (los clientes solo miran) hasta que se elija otro.
+  const [access, setAccess] = useState<MemberAccess | null>(null);
+  const effectiveAccess = access ?? defaultAccessFor(humanRole);
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +184,7 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
             role: kind === "AGENT" ? (role ?? "") : humanRole.trim().toUpperCase(),
             description: (description.trim() || (kind === "AGENT" ? agentRole?.description : "")) ?? null,
             avatarColor: color,
+            ...(kind === "HUMAN" ? { access: effectiveAccess } : {}),
           });
           if (result.ok) {
             notify.ok(`${result.data.name} se unió al equipo`);
@@ -199,6 +216,7 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
           )}
         </Field>
       )}
+      {kind === "HUMAN" && <ChoiceCards name="new-member-access" label="Nivel de acceso" columns={2} value={effectiveAccess} onChange={setAccess} choices={ACCESS_CHOICES} />}
       <Field label="Descripción" hint={kind === "AGENT" ? "Su especialidad: se suma a las instrucciones del rol. Vacía = la del rol." : undefined}>
         {(id) => <TextArea id={id} rows={4} maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>

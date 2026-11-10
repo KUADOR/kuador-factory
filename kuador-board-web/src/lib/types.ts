@@ -195,6 +195,9 @@ export interface Project {
   createdAt: string;
 }
 
+/** EDIT trabaja en el tablero; VIEW solo mira (y cierra las puertas donde su rol aprueba). */
+export type MemberAccess = "EDIT" | "VIEW";
+
 export interface Member {
   id: string;
   name: string;
@@ -202,6 +205,7 @@ export interface Member {
   role: string;
   description: string | null;
   avatarColor: string;
+  access: MemberAccess;
   createdAt: string;
 }
 
@@ -252,6 +256,7 @@ export interface Me {
   kind: MemberKind;
   role: string;
   avatarColor: string;
+  access: MemberAccess;
 }
 
 export interface Session {

@@ -33,6 +33,7 @@ Personas y agentes son miembros del mismo equipo en el mismo tablero: los agente
 - Español (`es-EC`) en toda la interfaz.
 - Catálogo por espacio: plantillas de flujo, metodologías, roles de agentes, servidores MCP; editable solo por personas.
 - Alta de espacios abierta (SaaS) desde el login, con el correo verificado por código.
+- Acceso por persona: «Puede editar» o «Solo lectura». Quien solo mira ve el tablero, los documentos y la actividad sin controles de edición, y aprueba o rechaza solo en las puertas de su rol. Los clientes nacen en solo lectura.
 - Etapas: un issue que llega a una etapa queda sin asignar y lo toma cualquiera con el rol responsable; las puertas las cierra una persona con el rol aprobador. Valen en cualquier tablero, según su configuración.
 
 ## Brand Commitments

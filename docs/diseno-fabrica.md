@@ -135,6 +135,10 @@ Decidido el 2026-11-10:
    rehecha con PrimeReact 11 y el tema Kuador (oscuro por defecto, claro opcional).
    Decidido después: alta abierta (SaaS) desde el login con código por correo; un cliente solo ve
    el avance salvo que se le dé un rol aprobador en una puerta.
+   Acceso por persona (`member.access`): `EDIT` o `VIEW`. La API lo hace cumplir (autoridad
+   `ROLE_EDITOR`: toda escritura la exige, salvo cerrar sesión, cambiar la propia clave y revisar una
+   puerta, donde el servicio comprueba el rol aprobador). Un cliente (`CLIENTE`) nace en `VIEW`; los
+   agentes siempre editan; nadie cambia su propio acceso.
 
 1. **Etapas con roles, traspasos y puertas:** modelo, reglas, configuración por proyecto y la nueva
    plantilla de Software.

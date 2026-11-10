@@ -8,6 +8,7 @@ import { getDocVersionAction, listDocVersionsAction, restoreDocAction, saveDocAc
 import { Markdown } from "@/components/docs/Markdown";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { useAccess } from "@/components/shell/AccessContext";
 import { TextArea, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
 import type { DocumentMeta, DocumentVersionMeta, Member } from "@/lib/types";
@@ -26,6 +27,7 @@ export function DocEditor({
   members: Member[];
 }) {
   const byId = new Map(members.map((m) => [m.id, m]));
+  const { canEdit } = useAccess();
   const [doc, setDoc] = useState(initial);
   const [saved, setSaved] = useState(initialContent);
   const [content, setContent] = useState(initialContent);
@@ -73,6 +75,7 @@ export function DocEditor({
             <Button size="sm" tone="ghost" onClick={() => setViewing(null)} className="ml-auto">
               Volver a la actual
             </Button>
+            {canEdit && (
             <Button
               size="sm"
               tone="primary"
@@ -96,8 +99,9 @@ export function DocEditor({
             >
               Restaurar esta versión
             </Button>
+            )}
           </div>
-        ) : (
+        ) : !canEdit ? null : (
           <div className="flex items-center gap-2">
             <div role="radiogroup" aria-label="Modo" className="inline-flex rounded-md border border-line-strong p-0.5">
               {[
@@ -147,7 +151,7 @@ export function DocEditor({
           </div>
         )}
 
-        {!viewing && (
+        {!viewing && canEdit && (
           <div className="flex flex-wrap items-center gap-2">
             <div className="min-w-48 flex-1">
               <TextInput

@@ -31,6 +31,7 @@ import type {
   IssueStatus,
   Me,
   Member,
+  MemberAccess,
   MemberKind,
   Project,
   Session,
@@ -188,7 +189,10 @@ export const boardApi = {
     role: string;
     description: string | null;
     avatarColor: string;
+    access?: MemberAccess;
   }) => request<Member>("/api/members", json("POST", input)),
+  setMemberAccess: (memberId: string, access: MemberAccess) =>
+    request<{ id: string; access: MemberAccess }>(`/api/members/${encodeURIComponent(memberId)}/access`, json("PUT", { access })),
 
   issues: (projectKey: string) => request<Issue[]>(`/api/projects/${encodeURIComponent(projectKey)}/issues`),
   createIssue: (projectKey: string, input: IssueInput & { status: IssueStatus }) =>

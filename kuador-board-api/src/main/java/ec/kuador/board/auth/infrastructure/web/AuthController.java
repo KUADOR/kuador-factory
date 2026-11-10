@@ -3,6 +3,8 @@ package ec.kuador.board.auth.infrastructure.web;
 import ec.kuador.board.auth.AuthenticatedMember;
 import ec.kuador.board.auth.application.AuthService;
 import ec.kuador.board.auth.domain.AccessToken;
+import ec.kuador.board.member.MemberAccess;
+import ec.kuador.board.member.MemberApi;
 import ec.kuador.board.member.MemberView;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -27,9 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 class AuthController {
 
     private final AuthService auth;
+    private final MemberApi members;
 
-    AuthController(AuthService auth) {
+    AuthController(AuthService auth, MemberApi members) {
         this.auth = auth;
+        this.members = members;
     }
 
     // ---- Sesión ----
@@ -70,6 +74,17 @@ class AuthController {
         return auth.accounts().stream().filter(a -> a.memberId().equals(memberId)).findFirst()
                 .map(a -> new AccountResponse(a.memberId(), a.email())).orElseThrow();
     }
+
+    /** Editar o solo mirar. Solo personas que editan; nadie cambia el suyo propio. */
+    @PutMapping("/api/members/{memberId}/access")
+    MemberAccessResponse setAccess(@PathVariable UUID memberId, @Valid @RequestBody SetAccessRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        MemberView m = members.setAccess(memberId, r.access(), who.memberId());
+        return new MemberAccessResponse(m.id(), m.access());
+    }
+
+    record SetAccessRequest(@jakarta.validation.constraints.NotNull MemberAccess access) {}
+
+    record MemberAccessResponse(UUID id, MemberAccess access) {}
 
     // ---- Tokens de agentes ----
 
@@ -115,9 +130,9 @@ class AuthController {
 
     record CreateTokenRequest(@NotBlank @Size(max = 80) String name) {}
 
-    record MeResponse(UUID id, UUID workspaceId, String name, String kind, String role, String avatarColor) {
+    record MeResponse(UUID id, UUID workspaceId, String name, String kind, String role, String avatarColor, String access) {
         static MeResponse from(MemberView m) {
-            return new MeResponse(m.id(), m.workspaceId(), m.name(), m.agent() ? "AGENT" : "HUMAN", m.role(), m.avatarColor());
+            return new MeResponse(m.id(), m.workspaceId(), m.name(), m.agent() ? "AGENT" : "HUMAN", m.role(), m.avatarColor(), m.access().name());
         }
     }
 

@@ -25,6 +25,7 @@ import { TypeIcon } from "@/components/ui/IssueIcons";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
 import { allowedTypes, typeLabel } from "@/lib/labels";
+import { useAccess } from "@/components/shell/AccessContext";
 import { roleLabel } from "@/lib/labels";
 import type { AgentRole, AgentRun, BoardColumn, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
 
@@ -72,6 +73,7 @@ export function Board({
   initialOpenKey?: string;
 }) {
   const roleName = (key: string) => roleLabel(key, roles.find((r) => r.key === key)?.name);
+  const { canEdit } = useAccess();
   // Estado local para arrastrar sin esperar al servidor; se resincroniza cuando llegan datos nuevos.
   const [source, setSource] = useState({ project, issues });
   const [columns, setColumns] = useState(() => group(project, issues));
@@ -298,9 +300,11 @@ export function Board({
             Limpiar filtros
           </Button>
         )}
-        <Button tone="primary" size="sm" icon={Plus} className="ml-auto" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)}>
-          Crear issue
-        </Button>
+        {canEdit && (
+          <Button tone="primary" size="sm" icon={Plus} className="ml-auto" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)}>
+            Crear issue
+          </Button>
+        )}
       </div>
 
       <DndContext
@@ -332,13 +336,15 @@ export function Board({
               epics={epicTitles}
               working={working}
               onOpen={setOpenKey}
-              onCreate={setCreatingIn}
+              onCreate={canEdit ? setCreatingIn : undefined}
             />
           ))}
-          <AddColumn
-            disabled={project.columns.length >= 12}
-            onAdd={(name) => saveColumns([...project.columns, { key: null, name, category: "IN_PROGRESS" }], `Columna «${name}» agregada`)}
-          />
+          {canEdit && (
+            <AddColumn
+              disabled={project.columns.length >= 12}
+              onAdd={(name) => saveColumns([...project.columns, { key: null, name, category: "IN_PROGRESS" }], `Columna «${name}» agregada`)}
+            />
+          )}
         </div>
         <DragOverlay>
           {activeIssue && (

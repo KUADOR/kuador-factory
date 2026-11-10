@@ -246,6 +246,7 @@ estado de cada documento. El tablero **escribe archivos pero no hace commits**: 
 | GET · PUT | `/api/workspace` | Espacio actual / nombre, descripción, `brandColor` y `logo` (data URL; solo personas) |
 | POST | `/api/signup/code` · `/api/signup/verify` · `/api/signup/workspace` | Alta pública: pedir código, verificarlo (`signupToken`), crear el espacio |
 | GET | `/api/signup/slug?name=` | Identificador libre sugerido para un nombre |
+| PUT | `/api/members/{id}/access` | Nivel de acceso de una persona `{access: EDIT\|VIEW}` (solo personas que editan; nadie cambia el suyo; siempre queda alguien que edita) |
 | PUT | `/api/projects/{key}/stages` | Etapas `{stages: [{column, roles, gate, approvers, rejectTo}], maxRework}` (solo personas) |
 | POST | `/api/issues/{key}/take` · `/deliver` · `/review` | Tomar de la etapa / entregar `{comment?}` / cerrar una puerta `{approve, comment}` (solo personas aprobadoras) |
 | PUT | `/api/projects/{key}` · `/api/projects/{key}/transitions` | Nombre y descripción / reglas `{restricted, allowed: [{from, to}]}` (solo personas) |

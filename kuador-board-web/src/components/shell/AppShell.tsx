@@ -10,6 +10,7 @@ import type { ThemeMode } from "@/theme/theme";
 
 import { LogoMark } from "@/components/workspace/LogoMark";
 
+import { AccessProvider } from "./AccessContext";
 import { SidebarNav } from "./SidebarNav";
 
 /**
@@ -25,6 +26,7 @@ export function AppShell(props: { me: Me; workspace: Workspace | null; projects:
   const setOpen = (value: boolean) => setOpenAt(value ? path : null);
 
   return (
+    <AccessProvider me={props.me}>
     <div className="flex h-dvh">
       <aside className="hidden w-60 shrink-0 border-r border-line bg-rail lg:block">
         <SidebarNav {...nav} />
@@ -61,5 +63,6 @@ export function AppShell(props: { me: Me; workspace: Workspace | null; projects:
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
+    </AccessProvider>
   );
 }

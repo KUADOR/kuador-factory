@@ -17,6 +17,7 @@ export function ChoiceCards<V extends string>({
   value,
   onChange,
   columns = 3,
+  disabled = false,
 }: {
   name: string;
   label: string;
@@ -24,9 +25,10 @@ export function ChoiceCards<V extends string>({
   value: V | null;
   onChange: (value: V) => void;
   columns?: 2 | 3 | 4;
+  disabled?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className={clsx("grid gap-2", { 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" }[columns])}>
+    <div role="radiogroup" aria-label={label} aria-disabled={disabled || undefined} className={clsx("grid gap-2", disabled && "pointer-events-none opacity-60", { 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" }[columns])}>
       {choices.map((c) => {
         const checked = value === c.value;
         return (
@@ -38,7 +40,7 @@ export function ChoiceCards<V extends string>({
             )}
           >
             <span className="flex items-center gap-2 text-[13px] font-medium text-fg-strong">
-              <input type="radio" name={name} value={c.value} checked={checked} onChange={() => onChange(c.value)} className="sr-only" />
+              <input type="radio" name={name} value={c.value} checked={checked} disabled={disabled} onChange={() => onChange(c.value)} className="sr-only" />
               <span aria-hidden className={clsx("grid size-3.5 shrink-0 place-items-center rounded-full border", checked ? "border-sol" : "border-line-hover")}>
                 {checked && <span className="size-1.5 rounded-full bg-sol" />}
               </span>

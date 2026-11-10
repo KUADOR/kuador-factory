@@ -34,6 +34,7 @@ import type {
   IssueInput,
   IssueStatus,
   Member,
+  MemberAccess,
   MemberKind,
   Project,
 } from "@/lib/types";
@@ -339,8 +340,13 @@ export async function createMemberAction(input: {
   role: string;
   description: string | null;
   avatarColor: string;
+  access?: MemberAccess;
 }): Promise<ActionResult<Member>> {
   return run(() => boardApi.createMember(input), "/team");
+}
+
+export async function setMemberAccessAction(memberId: string, access: MemberAccess): Promise<ActionResult<{ id: string; access: MemberAccess }>> {
+  return run(() => boardApi.setMemberAccess(memberId, access), "/team");
 }
 
 // ---- Preferencias de la interfaz ----

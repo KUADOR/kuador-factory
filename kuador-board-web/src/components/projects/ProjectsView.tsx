@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { CreateProjectForm } from "@/components/CreateProjectForm";
+import { useAccess } from "@/components/shell/AccessContext";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Badge, EmptyState } from "@/components/ui/Section";
@@ -15,7 +16,9 @@ import type { Methodology, Project, WorkflowTemplate } from "@/lib/types";
 /** Proyectos del espacio en una tabla; el formulario de alta se abre al costado (también con ?nuevo=1). */
 export function ProjectsView({ projects, templates, methodologies }: { projects: Project[]; templates: WorkflowTemplate[]; methodologies: Methodology[] }) {
   const router = useRouter();
-  const creating = useSearchParams().get("nuevo") === "1";
+  const { canEdit } = useAccess();
+  const asked = useSearchParams().get("nuevo") === "1";
+  const creating = canEdit && asked;
   const setCreating = (open: boolean) => router.replace(open ? "/?nuevo=1" : "/", { scroll: false });
   const templateName = (key: string) => templates.find((t) => t.key === key)?.name ?? key;
   const methodologyName = (key: string | null) => (key ? (methodologies.find((m) => m.key === key)?.key ?? key) : null);
@@ -25,16 +28,22 @@ export function ProjectsView({ projects, templates, methodologies }: { projects:
       <PageHeader
         title="Proyectos"
         actions={
-          <Button tone="primary" size="sm" icon={Plus} onClick={() => setCreating(true)}>
-            Nuevo proyecto
-          </Button>
+          canEdit && (
+            <Button tone="primary" size="sm" icon={Plus} onClick={() => setCreating(true)}>
+              Nuevo proyecto
+            </Button>
+          )
         }
       />
       <div className="px-6 py-6">
         {projects.length === 0 ? (
-          <EmptyState title="Crea el primer proyecto" action={<Button tone="primary" size="sm" icon={Plus} onClick={() => setCreating(true)}>Nuevo proyecto</Button>}>
-            Elige una plantilla del catálogo (software, ventas, tareas o una propia). Las columnas y los tipos de trabajo salen de ahí y se pueden ajustar después.
-          </EmptyState>
+          canEdit ? (
+            <EmptyState title="Crea el primer proyecto" action={<Button tone="primary" size="sm" icon={Plus} onClick={() => setCreating(true)}>Nuevo proyecto</Button>}>
+              Elige una plantilla del catálogo (software, ventas, tareas o una propia). Las columnas y los tipos de trabajo salen de ahí y se pueden ajustar después.
+            </EmptyState>
+          ) : (
+            <EmptyState title="Aún no hay proyectos">Cuando el equipo cree uno, lo verás aquí.</EmptyState>
+          )
         ) : (
           <div className="overflow-hidden rounded-lg border border-line bg-surface">
             <table className="w-full text-left text-[13px]">

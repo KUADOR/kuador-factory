@@ -7,6 +7,7 @@ import { clsx } from "clsx";
 
 import { logoutAction } from "@/app/actions";
 import { Avatar } from "@/components/ui/Avatar";
+import { canEdit } from "@/lib/access";
 import { LogoMark } from "@/components/workspace/LogoMark";
 import type { Me, Project, Workspace } from "@/lib/types";
 import type { ThemeMode } from "@/theme/theme";
@@ -32,6 +33,7 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
 export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspace: Workspace | null; projects: Project[]; theme: ThemeMode }) {
   const path = usePathname();
   const inProject = (key: string) => path === `/projects/${key}` || path.startsWith(`/projects/${key}/`);
+  const editor = canEdit(me);
   return (
     <div className="flex h-full flex-col">
       {workspace?.logo ? (
@@ -55,9 +57,11 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
             <Link href="/" className={clsx("text-[11px] font-medium", path === "/" ? "text-fg-strong" : "text-fg-faint hover:text-fg-strong")}>
               Proyectos
             </Link>
-            <Link href="/?nuevo=1" aria-label="Nuevo proyecto" title="Nuevo proyecto" className="grid size-6 place-items-center rounded text-fg-faint hover:bg-hover hover:text-fg-strong">
-              <Plus className="size-3.5" aria-hidden />
-            </Link>
+            {editor && (
+              <Link href="/?nuevo=1" aria-label="Nuevo proyecto" title="Nuevo proyecto" className="grid size-6 place-items-center rounded text-fg-faint hover:bg-hover hover:text-fg-strong">
+                <Plus className="size-3.5" aria-hidden />
+              </Link>
+            )}
           </div>
           {projects.map((p) => (
             <NavLink key={p.key} href={`/projects/${p.key}`} active={inProject(p.key)}>
@@ -73,19 +77,26 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
           <NavLink href="/team" active={path.startsWith("/team")}>
             <Users className="size-4 shrink-0" aria-hidden /> Equipo
           </NavLink>
-          <NavLink href="/workspace" active={path.startsWith("/workspace")}>
-            <Building2 className="size-4 shrink-0" aria-hidden /> Marca y empresa
-          </NavLink>
-          <NavLink href="/catalog" active={path.startsWith("/catalog")}>
-            <BookMarked className="size-4 shrink-0" aria-hidden /> Catálogo
-          </NavLink>
+          {editor && (
+            <>
+              <NavLink href="/workspace" active={path.startsWith("/workspace")}>
+                <Building2 className="size-4 shrink-0" aria-hidden /> Marca y empresa
+              </NavLink>
+              <NavLink href="/catalog" active={path.startsWith("/catalog")}>
+                <BookMarked className="size-4 shrink-0" aria-hidden /> Catálogo
+              </NavLink>
+            </>
+          )}
         </div>
       </nav>
 
       <div className="flex shrink-0 items-center gap-1 border-t border-line p-2">
         <Link href="/account" className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 hover:bg-hover">
           <Avatar member={me} size="sm" />
-          <span className="truncate text-[13px] text-fg">{me.name}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-[13px] text-fg">{me.name}</span>
+            {!editor && <span className="block text-[11px] text-fg-faint">Solo lectura</span>}
+          </span>
         </Link>
         <ThemeToggle initial={theme} />
         <form action={logoutAction}>

@@ -126,7 +126,7 @@ public class AuthService implements AuthApi {
                 tokens.save(token.touch(now));
             }
             MemberView m = member.get();
-            return Optional.of(new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), token.id()));
+            return Optional.of(new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), token.id(), m.viewOnly()));
         }));
     }
 

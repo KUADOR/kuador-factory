@@ -42,6 +42,11 @@ public class InMemoryMembers implements MemberApi {
     }
 
     @Override
+    public MemberView setAccess(UUID memberId, ec.kuador.board.member.MemberAccess access, UUID actorId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public MemberView createHuman(String name, String role, String description, String avatarColor) {
         return add(new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, name, false, role, avatarColor, description));
     }

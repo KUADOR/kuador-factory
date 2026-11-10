@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { createDocAction } from "@/app/actions";
+import { useAccess } from "@/components/shell/AccessContext";
 import { Button } from "@/components/ui/Button";
 import type { DocumentKind } from "@/lib/types";
 
 /** Crea el documento desde su plantilla y abre el editor. */
-export function CreateDocButton({
+function CreateDocButtonEditor({
   projectKey,
   kind,
   issueKey = null,
@@ -45,4 +46,9 @@ export function CreateDocButton({
       {error && <span className="text-xs text-danger">{error}</span>}
     </span>
   );
+}
+
+/** Crear un documento; quien solo mira no lo ve. */
+export function CreateDocButton(props: React.ComponentProps<typeof CreateDocButtonEditor>) {
+  return useAccess().canEdit ? <CreateDocButtonEditor {...props} /> : null;
 }

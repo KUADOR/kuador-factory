@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T12:00:00Z",
+  "title": "Design System: Kuador Factory",
+  "extensions": {
+    "colorMeta": {
+      "sol": {
+        "role": "primary",
+        "displayName": "Sol ecuatorial",
+        "canonical": "#ffb81c",
+        "tonalRamp": [
+          "#332200",
+          "#553800",
+          "#7d5300",
+          "#a86f00",
+          "#e09a00",
+          "#ffb81c",
+          "#ffd66b",
+          "#fff8e6"
+        ]
+      },
+      "sol-text-dark": {
+        "role": "primary",
+        "displayName": "Sol como texto (oscuro)",
+        "canonical": "#ffc53d",
+        "tonalRamp": [
+          "#332200",
+          "#553800",
+          "#7d5300",
+          "#a86f00",
+          "#e09a00",
+          "#ffc53d",
+          "#ffe08a",
+          "#fff8e6"
+        ]
+      },
+      "sol-text-light": {
+        "role": "primary",
+        "displayName": "Sol como texto (claro)",
+        "canonical": "#8a5a00",
+        "tonalRamp": [
+          "#332200",
+          "#553800",
+          "#7d5300",
+          "#8a5a00",
+          "#a86f00",
+          "#e09a00",
+          "#ffe08a",
+          "#fff8e6"
+        ]
+      },
+      "on-sol": {
+        "role": "neutral",
+        "displayName": "Sobre el sol",
+        "canonical": "#0b1017"
+      },
+      "night-page": {
+        "role": "neutral",
+        "displayName": "Página nocturna",
+        "canonical": "#0a0e14",
+        "tonalRamp": [
+          "#070a0f",
+          "#0a0e14",
+          "#10151d",
+          "#151c26",
+          "#1e2833",
+          "#2a3644",
+          "#4a5461",
+          "#75838f"
+        ]
+      },
+      "night-sunken": {
+        "role": "neutral",
+        "displayName": "Noche hundida",
+        "canonical": "#070a0f"
+      },
+      "night-surface": {
+        "role": "neutral",
+        "displayName": "Superficie nocturna",
+        "canonical": "#10151d"
+      },
+      "night-raised": {
+        "role": "neutral",
+        "displayName": "Noche elevada",
+        "canonical": "#151c26"
+      },
+      "night-hover": {
+        "role": "neutral",
+        "displayName": "Hover nocturno",
+        "canonical": "#1e2833"
+      },
+      "night-line": {
+        "role": "neutral",
+        "displayName": "Línea nocturna",
+        "canonical": "#1e2833"
+      },
+      "night-line-strong": {
+        "role": "neutral",
+        "displayName": "Línea nocturna fuerte",
+        "canonical": "#2a3644"
+      },
+      "night-line-hover": {
+        "role": "neutral",
+        "displayName": "Línea nocturna hover",
+        "canonical": "#4a5461"
+      },
+      "night-fg-strong": {
+        "role": "neutral",
+        "displayName": "Texto fuerte (oscuro)",
+        "canonical": "#ffffff"
+      },
+      "night-fg": {
+        "role": "neutral",
+        "displayName": "Texto (oscuro)",
+        "canonical": "#c6d2db",
+        "tonalRamp": [
+          "#4a5461",
+          "#75838f",
+          "#94a3af",
+          "#aab6c0",
+          "#c6d2db",
+          "#d8e0e6",
+          "#eef2f5",
+          "#ffffff"
+        ]
+      },
+      "night-fg-muted": {
+        "role": "neutral",
+        "displayName": "Texto atenuado (oscuro)",
+        "canonical": "#94a3af"
+      },
+      "night-fg-faint": {
+        "role": "neutral",
+        "displayName": "Texto tenue (oscuro)",
+        "canonical": "#75838f"
+      },
+      "paper-page": {
+        "role": "neutral",
+        "displayName": "Papel frío",
+        "canonical": "#f6f7f9",
+        "tonalRamp": [
+          "#0b1017",
+          "#26313c",
+          "#56626e",
+          "#6f7b87",
+          "#a9b3be",
+          "#d3d9e0",
+          "#e3e7ec",
+          "#f6f7f9"
+        ]
+      },
+      "paper-sunken": {
+        "role": "neutral",
+        "displayName": "Papel hundido",
+        "canonical": "#eef1f4"
+      },
+      "paper-surface": {
+        "role": "neutral",
+        "displayName": "Papel blanco",
+        "canonical": "#ffffff"
+      },
+      "paper-hover": {
+        "role": "neutral",
+        "displayName": "Hover papel",
+        "canonical": "#eef1f4"
+      },
+      "paper-line": {
+        "role": "neutral",
+        "displayName": "Línea papel",
+        "canonical": "#e3e7ec"
+      },
+      "paper-line-strong": {
+        "role": "neutral",
+        "displayName": "Línea papel fuerte",
+        "canonical": "#d3d9e0"
+      },
+      "paper-line-hover": {
+        "role": "neutral",
+        "displayName": "Línea papel hover",
+        "canonical": "#a9b3be"
+      },
+      "paper-fg-strong": {
+        "role": "neutral",
+        "displayName": "Tinta fuerte",
+        "canonical": "#0b1017"
+      },
+      "paper-fg": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "#26313c"
+      },
+      "paper-fg-muted": {
+        "role": "neutral",
+        "displayName": "Tinta atenuada",
+        "canonical": "#56626e"
+      },
+      "paper-fg-faint": {
+        "role": "neutral",
+        "displayName": "Tinta tenue",
+        "canonical": "#6f7b87"
+      },
+      "ok-dark": {
+        "role": "semantic",
+        "displayName": "Hecho (oscuro)",
+        "canonical": "#34d399"
+      },
+      "ok-light": {
+        "role": "semantic",
+        "displayName": "Hecho (claro)",
+        "canonical": "#0e7a55"
+      },
+      "danger-dark": {
+        "role": "semantic",
+        "displayName": "Peligro (oscuro)",
+        "canonical": "#ff6b78"
+      },
+      "danger-light": {
+        "role": "semantic",
+        "displayName": "Peligro (claro)",
+        "canonical": "#c42b40"
+      },
+      "info-dark": {
+        "role": "semantic",
+        "displayName": "Azul Pacífico",
+        "canonical": "#8fb4ff"
+      },
+      "info-light": {
+        "role": "semantic",
+        "displayName": "Azul Pacífico (claro)",
+        "canonical": "#2f5fc4"
+      },
+      "warn-dark": {
+        "role": "semantic",
+        "displayName": "Advertencia (oscuro)",
+        "canonical": "#ff8a4c"
+      },
+      "warn-light": {
+        "role": "semantic",
+        "displayName": "Advertencia (claro)",
+        "canonical": "#b4501a"
+      },
+      "epic-dark": {
+        "role": "semantic",
+        "displayName": "Épica (oscuro)",
+        "canonical": "#c4a7ff"
+      },
+      "epic-light": {
+        "role": "semantic",
+        "displayName": "Épica (claro)",
+        "canonical": "#6f4bc9"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Título de página",
+        "purpose": "H1 de PageHeader; cumbre de la jerarquía (no hay display)."
+      },
+      "title": {
+        "displayName": "Título de sección",
+        "purpose": "Section, nombre de columna (12 px), SidePanel (500)."
+      },
+      "body": {
+        "displayName": "Cuerpo",
+        "purpose": "Tamaño base del body y contenido de diálogos."
+      },
+      "body-compact": {
+        "displayName": "Cuerpo compacto",
+        "purpose": "Navegación, pestañas, título de tarjeta, descripciones."
+      },
+      "label": {
+        "displayName": "Etiqueta",
+        "purpose": "Etiqueta de Field, ayudas y errores."
+      },
+      "caption": {
+        "displayName": "Leyenda",
+        "purpose": "Badges, etiquetas de issue, encabezados de grupo, WorkingLine."
+      },
+      "mono-key": {
+        "displayName": "Clave mono",
+        "purpose": "Claves (KUA-12), rutas, contadores y story points con números tabulares."
+      },
+      "prose": {
+        "displayName": "Prosa de documento",
+        "purpose": "Markdown de documentos (.doc-prose); comentarios en 13 px / 1.55."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float-dark",
+        "value": "0 2px 6px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.35)",
+        "purpose": "Capas flotantes en .app-dark: tarjeta arrastrada, menús, paneles, diálogos, login."
+      },
+      {
+        "name": "float-light",
+        "value": "0 1px 2px rgb(11 16 23 / 0.06), 0 4px 12px rgb(11 16 23 / 0.06)",
+        "purpose": "Capas flotantes en claro."
+      },
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid #ffb81c; outline-offset: 2px",
+        "purpose": "Foco visible global (:focus-visible) y focusRing del preset."
+      }
+    ],
+    "motion": [
+      {
+        "name": "color-transition",
+        "value": "transition-colors (150ms, ease de Tailwind)",
+        "purpose": "Hover de tarjetas, columnas y ChoiceCards."
+      },
+      {
+        "name": "agent-pulse",
+        "value": "animate-pulse; motion-reduce:animate-none",
+        "purpose": "Punto de presencia de WorkingLine; estático con prefers-reduced-motion."
+      },
+      {
+        "name": "drag-tilt",
+        "value": "rotate(1.5deg) + shadow-float + border sol",
+        "purpose": "Tarjeta de issue mientras se arrastra."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ],
+    "theming": {
+      "default": "dark",
+      "darkSelector": ".app-dark",
+      "cookie": "kuador_theme",
+      "source": "src/theme/kuador-preset.ts (light-dark) + src/app/globals.css (--k-* en :root y .app-dark)"
+    }
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "La acción principal de la vista; una por pantalla.",
+      "html": "<button class=\"ds-btn-primary\">Crear</button>",
+      "css": ".ds-btn-primary { background: var(--k-sol); color: var(--k-on-sol); border: 1px solid var(--k-sol); border-radius: 6px; padding: 0.5rem 1rem; font: 500 0.875rem/1.2 Archivo, ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background-color 150ms, border-color 150ms; } .ds-btn-primary:hover { background: var(--k-sol-soft); border-color: var(--k-sol-soft); } .ds-btn-primary:focus-visible { outline: 2px solid var(--k-sol); outline-offset: 2px; }"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Tono por defecto: contorno neutro.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: var(--k-fg); border: 1px solid var(--k-line-strong); border-radius: 6px; padding: 0.5rem 1rem; font: 500 0.875rem/1.2 Archivo, ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background-color 150ms, border-color 150ms; } .ds-btn-secondary:hover { background: var(--k-hover); border-color: var(--k-line-hover); color: var(--k-fg-strong); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--k-sol); outline-offset: 2px; }"
+    },
+    {
+      "name": "Botón ghost",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acciones de barra o fila; sin borde hasta el hover.",
+      "html": "<button class=\"ds-btn-ghost\">Editar</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: var(--k-fg-muted); border: 1px solid transparent; border-radius: 6px; padding: 0.5rem 1rem; font: 500 0.875rem/1.2 Archivo, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-btn-ghost:hover { background: var(--k-hover); color: var(--k-fg-strong); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--k-sol); outline-offset: 2px; }"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Field con etiqueta, control y ayuda.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Título</span><input class=\"ds-input\" placeholder=\"Escribe un título\" /><span class=\"ds-field-hint\">Admite Markdown.</span></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; font-family: Archivo, ui-sans-serif, system-ui, sans-serif; } .ds-field-label { font-size: 0.75rem; font-weight: 500; color: var(--k-fg-muted); } .ds-field-hint { font-size: 0.75rem; color: var(--k-fg-faint); } .ds-input { background: var(--k-page); color: var(--k-fg-strong); border: 1px solid var(--k-line-strong); border-radius: 6px; padding: 6px 10px; font-size: 0.875rem; caret-color: var(--k-sol); box-shadow: none; } .ds-input::placeholder { color: var(--k-fg-faint); } .ds-input:hover { border-color: var(--k-line-hover); } .ds-input:focus-visible { outline: 2px solid var(--k-sol); outline-offset: 2px; }"
+    },
+    {
+      "name": "Navegación lateral",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Ítems de 32 px de la barra lateral; proyectos con su clave en mono.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\"><span class=\"ds-nav-key\">KUA</span>Kuador Factory</a><a class=\"ds-nav-item\" href=\"#\"><span class=\"ds-nav-key\">VEN</span>Ventas Q4</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 224px; padding: 8px; background: var(--k-sunken); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; } .ds-nav-item { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 6px; font-size: 13px; color: var(--k-fg-muted); text-decoration: none; } .ds-nav-item:hover { background: color-mix(in srgb, var(--k-hover) 60%, transparent); color: var(--k-fg-strong); } .ds-nav-item:focus-visible { outline: 2px solid var(--k-sol); outline-offset: 2px; } .ds-nav-item-active { background: var(--k-selected); color: var(--k-fg-strong); font-weight: 500; box-shadow: 0 0 0 1px var(--k-line); } .ds-nav-key { width: 40px; flex-shrink: 0; font: 10px 'Martian Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; color: var(--k-fg-faint); }"
+    },
+    {
+      "name": "Pestañas de proyecto",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Navegación entre páginas del proyecto; subrayado de sol en la activa.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-tab-active\" href=\"#\">Tablero</a><a class=\"ds-tab\" href=\"#\">Documentos</a><a class=\"ds-tab\" href=\"#\">Actividad</a></nav>",
+      "css": ".ds-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--k-line); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; } .ds-tab { margin-bottom: -1px; padding-bottom: 10px; border-bottom: 2px solid transparent; font-size: 13px; color: var(--k-fg-muted); text-decoration: none; } .ds-tab:hover { color: var(--k-fg-strong); } .ds-tab:focus-visible { outline: 2px solid var(--k-sol); outline-offset: 2px; } .ds-tab-active { border-bottom-color: var(--k-sol); color: var(--k-fg-strong); font-weight: 500; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Etiqueta de estado corta; el tono sol solo para automatización y agentes.",
+      "html": "<span class=\"ds-badge\">De fábrica</span> <span class=\"ds-badge ds-badge-ok\">Sincronizado</span> <span class=\"ds-badge ds-badge-sol\">Trabajando…</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 4px; padding: 1px 6px; font: 500 11px/1.4 Archivo, ui-sans-serif, system-ui, sans-serif; white-space: nowrap; background: var(--k-hover); color: var(--k-fg-muted); } .ds-badge-ok { background: color-mix(in srgb, var(--k-ok) 12%, transparent); color: var(--k-ok); } .ds-badge-sol { background: color-mix(in srgb, var(--k-sol) 15%, transparent); color: var(--k-sol-text); }"
+    },
+    {
+      "name": "Tarjeta de issue",
+      "kind": "card",
+      "refersTo": "issue-card",
+      "description": "Tarjeta del tablero con clave mono, prioridad, puntos, avatar y presencia de agente.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Servidor MCP del tablero</p><p class=\"ds-working\"><span class=\"ds-working-dot\"></span>Agente Backend trabajando…</p><div class=\"ds-card-foot\"><span class=\"ds-key\">KUA-3</span><span class=\"ds-points\">8</span><span class=\"ds-avatar ds-avatar-agent\" style=\"background:#34d399\">AB<span class=\"ds-spark\"><svg viewBox=\"0 0 24 24\" width=\"10\" height=\"10\" fill=\"#ffb81c\" stroke=\"#ffb81c\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z\"/></svg></span></span></div></div>",
+      "css": ".ds-card { width: 264px; background: var(--k-raised); border: 1px solid var(--k-line-strong); border-radius: 6px; padding: 10px 12px; font-family: Archivo, ui-sans-serif, system-ui, sans-serif; transition: border-color 150ms; } .ds-card:hover { border-color: var(--k-line-hover); } .ds-card-title { margin: 0; font-size: 13px; line-height: 1.375; color: var(--k-fg-strong); } .ds-working { margin: 8px 0 0; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--k-sol-text); } .ds-working-dot { width: 6px; height: 6px; border-radius: 9999px; background: var(--k-sol); animation: ds-pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; } @keyframes ds-pulse { 50% { opacity: 0.5; } } @media (prefers-reduced-motion: reduce) { .ds-working-dot { animation: none; } } .ds-card-foot { margin-top: 10px; display: flex; align-items: center; gap: 8px; } .ds-key { font: 11px 'Martian Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; color: var(--k-fg-muted); } .ds-points { margin-left: auto; min-width: 20px; text-align: center; border-radius: 9999px; background: var(--k-hover); padding: 0 6px; font: 11px 'Martian Mono', ui-monospace, monospace; color: var(--k-fg); } .ds-avatar { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; font-size: 9px; font-weight: 600; color: #0b1017; } .ds-avatar-agent { border-radius: 28%; } .ds-spark { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; width: 12px; height: 12px; border-radius: 9999px; background: var(--k-page); }"
+    },
+    {
+      "name": "Avatares persona y agente",
+      "kind": "custom",
+      "refersTo": "avatar-person",
+      "description": "Círculo = persona; cuadrado redondeado con chispa de sol = agente. Nunca el color del sol como fondo.",
+      "html": "<span class=\"ds-av ds-av-person\" style=\"background:#8fb4ff\">EK</span> <span class=\"ds-av ds-av-agent\" style=\"background:#c4a7ff\">PO<span class=\"ds-av-spark\"><svg viewBox=\"0 0 24 24\" width=\"10\" height=\"10\" fill=\"#ffb81c\" stroke=\"#ffb81c\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z\"/></svg></span></span> <span class=\"ds-av ds-av-none\" title=\"Sin asignar\"></span>",
+      "css": ".ds-av { position: relative; display: inline-grid; place-items: center; width: 32px; height: 32px; font: 600 12px Archivo, ui-sans-serif, system-ui, sans-serif; color: #0b1017; vertical-align: middle; } .ds-av-person { border-radius: 9999px; } .ds-av-agent { border-radius: 28%; } .ds-av-spark { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; width: 12px; height: 12px; border-radius: 9999px; background: var(--k-page); } .ds-av-none { border-radius: 9999px; border: 1px dashed var(--k-line-hover); }"
+    },
+    {
+      "name": "Section",
+      "kind": "card",
+      "refersTo": "section",
+      "description": "Bloque titulado de un solo nivel en páginas de configuración y listas.",
+      "html": "<section class=\"ds-section\"><header class=\"ds-section-head\"><h2>Repositorio</h2><p>Los documentos se sincronizan por Pull Request.</p></header><div class=\"ds-section-body\">Sin repositorio conectado. <a class=\"ds-link\" href=\"#\">Ver sincronización</a></div></section>",
+      "css": ".ds-section { border: 1px solid var(--k-line); border-radius: 8px; background: var(--k-surface); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; } .ds-section-head { padding: 14px 20px; border-bottom: 1px solid var(--k-line); } .ds-section-head h2 { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--k-fg-strong); } .ds-section-head p { margin: 2px 0 0; font-size: 13px; line-height: 1.625; color: var(--k-fg-muted); } .ds-section-body { padding: 16px 20px; font-size: 0.875rem; color: var(--k-fg); } .ds-link { color: var(--k-fg-strong); text-decoration: underline; text-decoration-color: var(--k-line-hover); text-underline-offset: 2px; } .ds-link:hover { text-decoration-color: currentColor; } .ds-link:focus-visible { outline: 2px solid var(--k-sol); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La noche de turno con un solo sol",
+    "overview": "Kuador Factory es un tracker de trabajo serio, a la altura de Jira y Linear, donde los agentes de IA son compañeros visibles del equipo. La interfaz es una noche técnica: capas de azul pizarra casi negro, líneas finas de 1 px y una sola luz cálida, el sol ecuatorial #ffb81c, que solo aparece donde hay que actuar, donde algo está seleccionado o enfocado, y donde un agente está presente. Todo lo demás es neutro, compacto y legible en sesiones largas.\n\nLa densidad es de herramienta de trabajo: texto base de 14 px, filas de 13 px, columnas de 288 px, barra lateral fija de 240 px. El sistema se apoya en PrimeReact 11 con un preset propio (src/theme/kuador-preset.ts) y en los mismos tokens expuestos a Tailwind (--k-* en src/app/globals.css), de modo que los componentes Prime y la maquetación propia leen las mismas variables y nunca se desalinean. Un único preset sirve para los dos temas mediante light-dark().\n\nEl oscuro es el tema por defecto; el claro es papel neutro (grises sin tinte) con la misma estructura y el sol oscurecido cuando es texto. El sistema rechaza el panel oscuro «hecho por IA»: nada de brillos, degradados, tarjetas dentro de tarjetas ni rótulos sobre títulos.",
+    "keyCharacteristics": [
+      "Un solo acento (el sol), reservado a acción primaria, selección, foco y presencia de agentes.",
+      "Profundidad por capas tonales y líneas de 1 px; sombra solo en lo que flota.",
+      "Archivo como única familia de interfaz; Martian Mono solo para claves, rutas y cifras.",
+      "Personas y agentes se distinguen por la forma del avatar, no solo por un ícono.",
+      "Detalle y creación en panel lateral derecho; el diálogo centrado es solo para confirmar lo destructivo."
+    ],
+    "rules": [
+      {
+        "name": "The Un Solo Sol Rule",
+        "body": "El acento es de la acción primaria, la selección, el foco y la presencia de agentes (WorkingLine, chispa del agente, badges de automatización). Nada más lo lleva: ni decoración, ni encabezados, ni enlaces, ni avatares.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sol De Cada Marca Rule",
+        "body": "El acento es el color base del espacio de trabajo: el sol #ffb81c en Kuador, el rojo o verde de otra empresa. `src/theme/brand.ts` deriva de ese único color la escala 50–950 del preset de PrimeReact, el texto encima del relleno (negro o blanco, el que contraste más) y la versión «como texto» con contraste AA en cada tema (`--brand`, `--brand-on`, `--brand-text-light`, `--brand-text-dark`). Ningún componente escribe el hex del sol directamente: todos leen `sol` / `sol-text` / `on-sol`."
+      },
+      {
+        "name": "The Enlace Sin Sol Rule",
+        "body": "Un enlace dentro de texto se distingue por el subrayado, no por el color: `.k-link` usa el texto fuerte con subrayado en `line-hover` desplazado 2 px, que pasa a `currentColor` al pasar el puntero.",
+        "section": "colors"
+      },
+      {
+        "name": "The Avatar Sin Sol Rule",
+        "body": "Ningún avatar se pinta con el sol. Un color guardado `#ffb81c` se remapea a `#8fb4ff` al mostrarse, sin tocar el dato del miembro.",
+        "section": "colors"
+      },
+      {
+        "name": "The Par Claro/Oscuro Rule",
+        "body": "Todo color existe en `:root` (claro) y en `.app-dark` (oscuro), y en el preset como `light-dark(claro, oscuro)`. Un color con un solo valor no entra al sistema.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono Es Dato Rule",
+        "body": "Martian Mono solo para claves, rutas y cifras, siempre con `.tabular`. Nunca para títulos, etiquetas ni texto corrido.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sin Rótulo Rule",
+        "body": "Ningún texto pequeño en mayúsculas se coloca sobre un título. La jerarquía la hacen el tamaño y el peso.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mismo Cuadro Rule",
+        "body": "El título de la página y su contenido comparten el mismo ancho y el mismo relleno (`px-6`, ancho completo; `max-w-3xl px-6` en `narrow`): bordes izquierdo y derecho del título, las acciones y el contenido coinciden siempre.",
+        "section": "layout"
+      },
+      {
+        "name": "The Solo Flota Rule",
+        "body": "Una superficie en reposo no tiene sombra. La sombra significa «esto está por encima»: arrastre, menú, panel, diálogo.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Forma Es Identidad Rule",
+        "body": "Círculo = persona, cuadrado redondeado con chispa = agente. Ninguna otra pieza usa el radio del 28 %.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** usar el sol solo para la acción primaria, la selección, el foco y la presencia de agentes (WorkingLine, chispa del agente, badges de automatización).",
+      "**Do** marcar los enlaces de texto con `.k-link`: texto fuerte y subrayado, nunca sol.",
+      "**Do** dibujar a las personas como círculos y a los agentes como cuadrados redondeados con chispa.",
+      "**Do** dejar que listas y tablas ocupen todo el ancho, con cabecera y contenido en el mismo cuadro `px-6`.",
+      "**Do** abrir el detalle y la creación en un SidePanel derecho; reservar ConfirmDialog para confirmar acciones destructivas.",
+      "**Do** definir cada color nuevo en los dos temas (`:root` y `.app-dark`, o `light-dark()` en el preset); oscuro por defecto, claro por cookie `kuador_theme`.",
+      "**Do** escribir claves, rutas y cifras en Martian Mono con números tabulares.",
+      "**Do** expresar la profundidad con capas tonales y líneas de 1 px, y la sombra solo en lo que flota."
+    ],
+    "donts": [
+      "**Don't** pintar enlaces, encabezados, iconos decorativos ni avatares con el sol; un avatar guardado `#ffb81c` se muestra `#8fb4ff`.",
+      "**Don't** poner más de un botón primario por vista.",
+      "**Don't** usar un diálogo centrado para ver o editar un issue.",
+      "**Don't** anidar Section dentro de Section ni tarjetas dentro de tarjetas.",
+      "**Don't** usar brillos, degradados ni rótulos en mayúsculas sobre los títulos.",
+      "**Don't** usar Martian Mono para títulos o texto corrido.",
+      "**Don't** añadir sombra a superficies en reposo ni a campos de formulario."
+    ]
+  }
+}

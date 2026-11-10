@@ -1,0 +1,66 @@
+server:
+  port: ${PORT:8091}
+  # Solo escucha en la máquina local hasta que exista autenticación.
+  address: ${SERVER_ADDRESS:127.0.0.1}
+
+spring:
+  config:
+    # Variables locales no versionadas (ver .env.example).
+    import: optional:file:.env[.properties]
+  application:
+    name: kuador-board-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/kuador_board}
+    username: ${SPRING_DATASOURCE_USERNAME:kuador}
+    password: ${SPRING_DATASOURCE_PASSWORD:kuador}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          enabled: false # Flyway crea las tablas (V4).
+      completion-mode: delete
+      # Si la API se cae antes de que un listener termine, el evento se reintenta al arrancar.
+      republish-outstanding-events-on-restart: true
+  mvc:
+    problemdetails:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+board:
+  agents:
+    # Sin clave, los agentes quedan desactivados (cada asignación se registra como SKIPPED).
+    anthropic-api-key: ${ANTHROPIC_API_KEY:}
+    model: ${BOARD_AGENTS_MODEL:claude-opus-5-5}
+    effort: ${BOARD_AGENTS_EFFORT:medium}
+    # Si el modelo declina por sus clasificadores de seguridad, el servidor reintenta con otro modelo.
+    refusal-fallback: ${BOARD_AGENTS_REFUSAL_FALLBACK:true}
+  # 32 bytes en base64 (openssl rand -base64 32). Cifra los tokens de GitHub guardados en la base.
+  secrets-key: ${BOARD_SECRETS_KEY:}
+  github:
+    api-url: ${BOARD_GITHUB_API_URL:https://api.github.com}
+  sync:
+    # Carpetas (separadas por coma) dentro de las cuales se pueden vincular repositorios locales.
+    # Vacío = sincronización local desactivada.
+    allowed-roots: ${BOARD_SYNC_ALLOWED_ROOTS:}
+  mail:
+    from: ${BOARD_MAIL_FROM:Kuador Factory <no-reply@kuador.com>}
+    # Solo desarrollo: sin SMTP (SPRING_MAIL_HOST vacío), escribe el código del alta en el log.
+    log-codes: ${BOARD_MAIL_LOG_CODES:false}
+  bootstrap:
+    admin-email: ${BOARD_BOOTSTRAP_ADMIN_EMAIL:}
+    admin-password: ${BOARD_BOOTSTRAP_ADMIN_PASSWORD:}

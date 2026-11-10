@@ -1,0 +1,274 @@
+/* Orden de capas: el tema de PrimeReact queda bajo las utilidades de Tailwind (que pueden ajustarlo). */
+@layer theme, base, primeui, components, utilities;
+@import "tailwindcss";
+
+/*
+ * Tokens Kuador (ver landing/kuador-app/DESIGN.md): noche técnica, un solo sol.
+ * Cada color existe en claro (:root) y oscuro (.app-dark); las utilidades (bg-surface, text-fg…)
+ * leen la variable, así que una misma clase sirve en los dos temas.
+ */
+:root {
+  color-scheme: light;
+  /* Claro: grises neutros (sin tinte azul), papel blanco y la barra lateral apenas más oscura. */
+  --k-page: #fafafa;
+  --k-sunken: #f4f4f5;
+  --k-rail: #f7f7f8;
+  --k-surface: #ffffff;
+  --k-raised: #ffffff;
+  --k-hover: #f0f0f2;
+  --k-selected: #ffffff;
+  --k-line: #e7e7ea;
+  --k-line-strong: #d8d8dc;
+  --k-line-hover: #a8a8b0;
+  --k-fg-strong: #0c0c0e;
+  --k-fg: #2b2b30;
+  --k-fg-muted: #5a5a63;
+  --k-fg-faint: #6e6e78;
+  /* Acento: la marca del espacio (el layout define --brand*; sin ella, el sol Kuador). */
+  --k-sol: var(--brand, #ffb81c);
+  --k-sol-text: var(--brand-text-light, #8a5a00);
+  --k-sol-soft: var(--brand-hover, #ffc53d);
+  --k-on-sol: var(--brand-on, #0b1017);
+  --k-ok: #0e7a55;
+  --k-danger: #c42b40;
+  --k-info: #2f5fc4;
+  --k-warn: #b4501a;
+  --k-epic: #6f4bc9;
+  --k-shadow: 0 1px 2px rgb(11 16 23 / 0.06), 0 4px 12px rgb(11 16 23 / 0.06);
+}
+
+.app-dark {
+  color-scheme: dark;
+  --k-page: #0a0e14;
+  --k-sunken: #070a0f;
+  --k-rail: #070a0f;
+  --k-surface: #10151d;
+  --k-raised: #151c26;
+  --k-hover: #1e2833;
+  --k-selected: #1e2833;
+  --k-line: #1e2833;
+  --k-line-strong: #2a3644;
+  --k-line-hover: #4a5461;
+  --k-fg-strong: #ffffff;
+  --k-fg: #c6d2db;
+  --k-fg-muted: #94a3af;
+  --k-fg-faint: #75838f;
+  --k-sol: var(--brand, #ffb81c);
+  --k-sol-text: var(--brand-text-dark, #ffc53d);
+  --k-sol-soft: var(--brand-hover, #ffd66b);
+  --k-on-sol: var(--brand-on, #070a0f);
+  --k-ok: #34d399;
+  --k-danger: #ff6b78;
+  --k-info: #8fb4ff;
+  --k-warn: #ff8a4c;
+  --k-epic: #c4a7ff;
+  --k-shadow: 0 2px 6px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.35);
+}
+
+@theme inline {
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-martian), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-page: var(--k-page);
+  --color-sunken: var(--k-sunken);
+  /* Barra lateral: en claro casi blanca; en oscuro, la noche más profunda. */
+  --color-rail: var(--k-rail);
+  --color-surface: var(--k-surface);
+  --color-raised: var(--k-raised);
+  --color-hover: var(--k-hover);
+  /* Elemento actual de una navegación: distinto del fondo de la barra en los dos temas. */
+  --color-selected: var(--k-selected);
+  --color-line: var(--k-line);
+  --color-line-strong: var(--k-line-strong);
+  --color-line-hover: var(--k-line-hover);
+
+  --color-fg-strong: var(--k-fg-strong);
+  --color-fg: var(--k-fg);
+  --color-fg-muted: var(--k-fg-muted);
+  --color-fg-faint: var(--k-fg-faint);
+
+  /* sol: relleno (botón primario, selección, foco). sol-text: el sol cuando es texto o ícono sobre la superficie. */
+  --color-sol: var(--k-sol);
+  --color-sol-text: var(--k-sol-text);
+  --color-sol-soft: var(--k-sol-soft);
+  --color-on-sol: var(--k-on-sol);
+
+  --color-ok: var(--k-ok);
+  --color-danger: var(--k-danger);
+  --color-info: var(--k-info);
+  --color-warn: var(--k-warn);
+  --color-epic: var(--k-epic);
+
+  --shadow-float: var(--k-shadow);
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-sol);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--k-sol) 35%, transparent);
+  color: var(--color-fg-strong);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--k-line-strong) transparent;
+}
+
+input,
+textarea {
+  caret-color: var(--k-sol);
+}
+
+/* Enlace dentro de texto: se distingue por el subrayado, no por el sol (reservado a acción y selección). */
+.k-link {
+  color: var(--color-fg-strong);
+  text-decoration: underline;
+  text-decoration-color: var(--color-line-hover);
+  text-underline-offset: 2px;
+}
+.k-link:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Claves (KUA-12), rutas y cifras: monoespaciada con números tabulares. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Documentos en Markdown (constitución, specs...). */
+@layer components {
+  .doc-prose {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--color-fg);
+    overflow-wrap: anywhere;
+  }
+  .doc-prose > * + * {
+    margin-top: 0.85em;
+  }
+  .doc-prose h1,
+  .doc-prose h2,
+  .doc-prose h3,
+  .doc-prose h4 {
+    color: var(--color-fg-strong);
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .doc-prose h1 {
+    font-size: 1.6rem;
+  }
+  .doc-prose h2 {
+    font-size: 1.25rem;
+    margin-top: 1.8em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .doc-prose h3 {
+    font-size: 1.05rem;
+    margin-top: 1.4em;
+  }
+  .doc-prose strong {
+    color: var(--color-fg-strong);
+    font-weight: 600;
+  }
+  .doc-prose a {
+    color: var(--color-fg-strong);
+    text-decoration: underline;
+    text-decoration-color: var(--color-line-hover);
+    text-underline-offset: 2px;
+  }
+  .doc-prose ul,
+  .doc-prose ol {
+    padding-left: 1.4em;
+  }
+  .doc-prose ul {
+    list-style: disc;
+  }
+  .doc-prose ol {
+    list-style: decimal;
+  }
+  .doc-prose li + li {
+    margin-top: 0.3em;
+  }
+  .doc-prose li:has(> input[type="checkbox"]) {
+    list-style: none;
+    margin-left: -1.4em;
+  }
+  .doc-prose input[type="checkbox"] {
+    margin-right: 0.5em;
+    accent-color: var(--color-sol);
+  }
+  .doc-prose code {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    background: var(--color-sunken);
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+  }
+  .doc-prose pre {
+    background: var(--color-sunken);
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    padding: 0.9em 1em;
+    overflow-x: auto;
+  }
+  .doc-prose pre code {
+    border: 0;
+    padding: 0;
+    background: none;
+  }
+  .doc-prose blockquote {
+    border-left: 2px solid var(--color-line-strong);
+    padding-left: 1em;
+    color: var(--color-fg-muted);
+  }
+  .doc-prose table {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .doc-prose th,
+  .doc-prose td {
+    border: 1px solid var(--color-line-strong);
+    padding: 0.45em 0.75em;
+    text-align: left;
+  }
+  .doc-prose th {
+    background: var(--color-raised);
+    color: var(--color-fg-strong);
+    font-weight: 500;
+  }
+  .doc-prose hr {
+    border-color: var(--color-line);
+  }
+  /* Comentarios: mismo Markdown, más compacto. */
+  .doc-prose-compact {
+    font-size: 0.8125rem;
+    line-height: 1.55;
+  }
+  .doc-prose-compact > * + * {
+    margin-top: 0.5em;
+  }
+  .doc-prose-compact h1,
+  .doc-prose-compact h2,
+  .doc-prose-compact h3 {
+    font-size: 0.875rem;
+    margin-top: 0.8em;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+}

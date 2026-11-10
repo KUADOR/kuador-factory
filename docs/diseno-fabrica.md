@@ -159,7 +159,7 @@ Decidido el 2026-11-10:
    lo supervisa; los agentes lo heredan por la cadena y solo los agentes de esa persona lo atienden
    (cada suscripción sirve solo a su dueño). Herramientas: `pendientes`, `ver_issue`,
    `instrucciones_rol`, `tomar`, `comentar`, `estimar`, `entregar`, `devolver`, `consultar`, `leer_documento`,
-   `escribir_documento`. **Kit** (página Claude Code o `GET /api/claude-kit.zip`): `.mcp.json` (tablero +
+   `escribir_documento`. **Kit** (página Agentes locales o `GET /api/agent-kit.zip`): `.mcp.json` (tablero +
    servidores del catálogo elegidos, todo con variables de entorno), un subagente por rol que pide su
    manual vigente con `instrucciones_rol`, y el comando `/pendientes`. El trabajo en Claude Code queda
    como ejecución `claude-code` (el tablero muestra al agente trabajando). Los clientes también comentan.

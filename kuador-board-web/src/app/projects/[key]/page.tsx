@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 
 import { Board } from "@/components/board/Board";
+import { SetupBanner } from "@/components/project/SetupBanner";
 import { boardApi } from "@/lib/api";
+import { canEdit } from "@/lib/access";
+import { setupDone, setupSteps } from "@/lib/onboarding";
 import { failPage } from "@/lib/page-errors";
+import type { Project } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -31,5 +35,22 @@ export default async function BoardPage({ params, searchParams }: Props) {
     return failPage(e);
   }
   const [project, issues, members, runs, me, roles] = data;
-  return <Board project={project} issues={issues} members={members} runs={runs} me={me} roles={roles} initialOpenKey={issue?.toUpperCase()} />;
+  const pending = canEdit(me) ? await pendingSetup(project, issues.length) : 0;
+  return (
+    <>
+      <SetupBanner projectKey={project.key} pending={pending} />
+      <Board project={project} issues={issues} members={members} runs={runs} me={me} roles={roles} initialOpenKey={issue?.toUpperCase()} />
+    </>
+  );
+}
+
+/** Pasos del asistente que faltan (los mismos que mide su página). */
+async function pendingSetup(project: Project, issues: number): Promise<number> {
+  const [link, connections, notifications] = await Promise.all([
+    project.kind === "SOFTWARE" ? boardApi.repository(project.key).catch(() => null) : null,
+    boardApi.runnerTokens().catch(() => []),
+    boardApi.notifications().catch(() => null),
+  ]);
+  const done = setupDone(project, link, connections, notifications, issues);
+  return setupSteps(project).filter((s) => !done[s]).length;
 }

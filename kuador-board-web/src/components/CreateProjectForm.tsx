@@ -28,7 +28,7 @@ export function CreateProjectForm({ templates, onCancel }: { templates: Workflow
         e.preventDefault();
         startTransition(async () => {
           const result = await createProjectAction({ key, name, description: description.trim() || null, templateKey });
-          if (result.ok) router.push(`/projects/${result.data.key}`);
+          if (result.ok) router.push(`/projects/${result.data.key}/inicio`);
           else setError(result.error);
         });
       }}

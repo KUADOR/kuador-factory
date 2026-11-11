@@ -56,6 +56,12 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
           })}
         </div>
       ))}
+      <Link
+        href={`/projects/${projectKey}/inicio`}
+        className="rounded-md border border-dashed border-line-strong px-2.5 py-1.5 text-[13px] text-fg-muted hover:bg-hover hover:text-fg-strong"
+      >
+        Asistente de inicio
+      </Link>
     </nav>
   );
 }

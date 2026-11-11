@@ -75,14 +75,25 @@ export function IssueForm({
   const software = project.kind === "SOFTWARE";
   const [values, setValues] = useState(initial);
   const [labelsText, setLabelsText] = useState(initial.labels.join(", "));
+  // Si el issue cambia mientras está abierto (otra persona, un agente), se toman los datos nuevos,
+  // salvo que haya cambios sin guardar: esos no se pisan.
+  const [base, setBase] = useState(initial);
+  const formKey = (v: IssueFormValues, labels: string) => JSON.stringify({ ...v, labels });
+  if (formKey(base, base.labels.join(", ")) !== formKey(initial, initial.labels.join(", "))) {
+    if (formKey(values, labelsText) === formKey(base, base.labels.join(", "))) {
+      setValues(initial);
+      setLabelsText(initial.labels.join(", "));
+    }
+    setBase(initial);
+  }
   // Foco en el título al abrir, solo con mouse o trackpad: en pantallas táctiles abriría el teclado.
   const titleRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!readOnly && window.matchMedia("(pointer: fine)").matches) titleRef.current?.focus();
   }, [readOnly]);
   const set = <K extends keyof IssueFormValues>(key: K, value: IssueFormValues[K]) => setValues((v) => ({ ...v, [key]: value }));
-  const dirty = JSON.stringify({ ...values, labels: labelsText }) !== JSON.stringify({ ...initial, labels: initial.labels.join(", ") });
-  const newAgent = values.assigneeId !== initial.assigneeId ? members.find((m) => m.id === values.assigneeId && m.kind === "AGENT") : undefined;
+  const dirty = formKey(values, labelsText) !== formKey(base, base.labels.join(", "));
+  const newAgent = values.assigneeId !== base.assigneeId ? members.find((m) => m.id === values.assigneeId && m.kind === "AGENT") : undefined;
 
   const typeOptions: SelectOption<IssueType>[] = allowedTypes(project).map((t) => ({
     value: t,

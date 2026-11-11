@@ -146,6 +146,16 @@ los `eventId` ya procesados, porque una reentrega puede repetir un evento. Así 
 `activity`, que guarda el historial y lo expone en `/api/issues/{key}/activity` y
 `/api/projects/{key}/activity`. El historial se conserva aunque el issue se borre.
 
+### Tiempo real
+
+El módulo `live` reenvía esos eventos, después del commit, a los navegadores abiertos por
+Server-Sent Events: `GET /api/live?project=KEY` (del espacio de quien pide). Cada aviso
+(`cambio`) lleva solo `proyecto`, `issue`, `tipo` y `actor`, nunca contenido: el navegador vuelve
+a pedir los datos y la API decide qué ve cada quien. La web lo reenvía en `/live` (el navegador
+nunca llama a la API) y `LiveUpdates` recarga la página del proyecto y los paneles del issue abierto,
+sin pisar lo que alguien está escribiendo. Las conexiones viven en memoria (una réplica) con un
+latido cada 25 s; si se cortan, el navegador se reconecta y recarga.
+
 ## Metodología y documentos (solo proyectos de Software)
 
 En *Configurar* se elige la metodología; en *Docs* se crean los documentos desde plantillas. Cada

@@ -1,3 +1,4 @@
+import { LiveUpdates } from "@/components/live/LiveUpdates";
 import { ProjectTabs } from "@/components/project/ProjectTabs";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { boardApi } from "@/lib/api";
@@ -13,11 +14,13 @@ export default async function ProjectLayout({ params, children }: LayoutProps<"/
     return failPage(e);
   }
   return (
+    <LiveUpdates projectKey={project.key}>
     <div className="flex min-h-full flex-col">
       <PageHeader crumbs={[{ label: "Proyectos", href: "/" }, { label: project.key }]} title={project.name} description={project.description}>
         <ProjectTabs projectKey={project.key} kind={project.kind} />
       </PageHeader>
       {children}
     </div>
+    </LiveUpdates>
   );
 }

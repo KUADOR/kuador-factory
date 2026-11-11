@@ -85,9 +85,9 @@ export const kitQuery = (client: string, mcp: string[]) => new URLSearchParams([
  * Descarga binaria con la sesión (el .zip del kit). Devuelve la respuesta de la API tal cual para
  * reenviarla al navegador desde un route handler.
  */
-export async function fetchWithSession(path: string): Promise<Response> {
+export async function fetchWithSession(path: string, signal?: AbortSignal): Promise<Response> {
   const token = await getSessionToken();
-  return fetch(`${BASE_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" });
+  return fetch(`${BASE_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store", signal });
 }
 
 export const boardApi = {

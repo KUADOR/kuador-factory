@@ -29,6 +29,7 @@ import { TypeIcon } from "@/components/ui/IssueIcons";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { Tabs } from "@/components/ui/Tabs";
 import { notify } from "@/components/ui/Toaster";
+import { useLiveVersion } from "@/components/live/LiveUpdates";
 import { parentLabel, documentsOf } from "@/lib/labels";
 import type { Activity, AgentRun, Comment, DocumentMeta, Issue, Me, Member, Methodology, Project } from "@/lib/types";
 
@@ -186,6 +187,7 @@ function IssueTabs({ issueKey, members, project }: { issueKey: string; members: 
 }
 
 function IssueDocs({ issueKey, project }: { issueKey: string; project: Project }) {
+  const live = useLiveVersion(issueKey);
   const [docs, setDocs] = useState<DocumentMeta[] | null>(null);
   const [guide, setGuide] = useState<Methodology | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -201,7 +203,7 @@ function IssueDocs({ issueKey, project }: { issueKey: string; project: Project }
     return () => {
       active = false;
     };
-  }, [issueKey, project]);
+  }, [issueKey, project, live]);
 
   if (error) return <p className="text-xs text-danger">{error}</p>;
   if (!docs || !guide) return <p className="text-xs text-fg-faint">Cargando…</p>;
@@ -255,6 +257,7 @@ async function fetchGuide(project: Project): Promise<Methodology | null> {
 }
 
 function IssueHistory({ issueKey, members, project }: { issueKey: string; members: Member[]; project: Project }) {
+  const live = useLiveVersion(issueKey);
   const byId = new Map(members.map((m) => [m.id, m]));
   const [entries, setEntries] = useState<Activity[] | null>(null);
   const [runs, setRuns] = useState<AgentRun[]>([]);
@@ -273,7 +276,7 @@ function IssueHistory({ issueKey, members, project }: { issueKey: string; member
     return () => {
       active = false;
     };
-  }, [issueKey]);
+  }, [issueKey, live]);
 
   if (error) return <p className="text-xs text-danger">{error}</p>;
   if (!entries) return <p className="text-xs text-fg-faint">Cargando…</p>;
@@ -303,6 +306,7 @@ function IssueHistory({ issueKey, members, project }: { issueKey: string; member
 }
 
 function Comments({ issueKey, members }: { issueKey: string; members: Member[] }) {
+  const live = useLiveVersion(issueKey);
   const byId = new Map(members.map((m) => [m.id, m]));
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -334,7 +338,7 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
     return () => {
       active = false;
     };
-  }, [issueKey]);
+  }, [issueKey, live]);
 
   return (
     <section aria-label="Comentarios" className="flex flex-col gap-3">

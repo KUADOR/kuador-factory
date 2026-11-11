@@ -362,7 +362,7 @@ export function Board({
 
       {openIssue && (
         <IssueDetail
-          key={openIssue.key + openIssue.updatedAt}
+          key={openIssue.key}
           issue={openIssue}
           project={project}
           members={members}

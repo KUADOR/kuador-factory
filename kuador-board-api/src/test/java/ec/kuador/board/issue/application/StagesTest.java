@@ -108,6 +108,19 @@ class StagesTest {
     }
 
     @Test
+    void anAgentDeliveringIntoAColumnWithoutStageHandsTheIssueToItsSupervisor() {
+        Issue issue = issueIn("IN_REVIEW");
+        service.supervise(issue.key(), OWNER);
+        service.take(issue.key(), QA);
+
+        Issue delivered = service.deliver(issue.key(), "Probado", QA);
+
+        assertThat(delivered.status()).isEqualTo("DONE");
+        assertThat(delivered.assigneeId()).as("no queda a nombre del agente").isEqualTo(OWNER);
+        assertThat(service.agentQueue(OWNER)).as("sale de los pendientes de los agentes").isEmpty();
+    }
+
+    @Test
     void aGateCannotBeDeliveredAndTheLastStageHasNoNext() {
         assertThatThrownBy(() -> service.deliver(issueIn("TODO").key(), null, OWNER)).hasMessageContaining("es una puerta");
         assertThatThrownBy(() -> service.deliver(issueIn("DONE").key(), null, OWNER)).hasMessageContaining("no hay una etapa siguiente");

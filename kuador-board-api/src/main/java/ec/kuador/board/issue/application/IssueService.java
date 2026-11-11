@@ -274,7 +274,17 @@ public class IssueService implements IssueApi {
         ColumnDef next = project.nextAfter(issue.status())
                 .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay una etapa siguiente permitida."));
         if (comment != null && !comment.isBlank()) saveComment(issue, actorId, comment.strip(), now());
-        return move(key, next.key(), Integer.MAX_VALUE, actorId);
+        Issue moved = move(key, next.key(), Integer.MAX_VALUE, actorId);
+        if (actor.agent() && actorId.equals(moved.assigneeId())) {
+            // La columna siguiente no tiene etapa: ningún rol la cubre, así que el agente no se queda con el
+            // issue (volvería a sus pendientes). Pasa a la persona que lo supervisa, que decide qué sigue.
+            Instant now = now();
+            moved.assign(moved.supervisorId(), now);
+            Issue saved = issues.save(moved);
+            publishAssignmentIfChanged(saved, actorId, actorId, now);
+            return saved;
+        }
+        return moved;
     }
 
     /** Cierra una puerta: aprobar pasa a la siguiente etapa; rechazar devuelve el issue con un motivo. */

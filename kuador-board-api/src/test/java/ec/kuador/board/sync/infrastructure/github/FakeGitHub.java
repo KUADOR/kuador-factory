@@ -1,5 +1,7 @@
 package ec.kuador.board.sync.infrastructure.github;
 
+import ec.kuador.board.shared.github.GitHubClient;
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;

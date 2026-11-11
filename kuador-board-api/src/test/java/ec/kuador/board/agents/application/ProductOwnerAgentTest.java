@@ -84,7 +84,7 @@ class ProductOwnerAgentTest {
                 return true;
             }
         };
-        DocsApi docs = new DocsApi() {
+        DocsApi docs = new ec.kuador.board.testing.DocsApiStub() {
             public List<DocContent> ofProject(String p) {
                 return List.of(new DocContent(UUID.randomUUID(), "KUA", null, "CONSTITUTION", "Constitución", ".specify/memory/constitution.md", 3,
                         "# Constitución\n\nI. Privacidad primero"));

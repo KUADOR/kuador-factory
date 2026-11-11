@@ -3,6 +3,8 @@ package ec.kuador.board.sync.infrastructure.web;
 import ec.kuador.board.auth.AuthenticatedMember;
 import ec.kuador.board.docs.DocsApi.DocContent;
 import ec.kuador.board.sync.application.SyncService;
+import jakarta.validation.constraints.NotNull;
+import ec.kuador.board.sync.application.RepositoryProvisioning;
 import ec.kuador.board.sync.domain.RepositoryLink;
 import ec.kuador.board.sync.domain.RepositoryProvider;
 import ec.kuador.board.sync.domain.SyncState;
@@ -33,8 +35,10 @@ import org.springframework.web.bind.annotation.RestController;
 class SyncController {
 
     private final SyncService service;
+    private final RepositoryProvisioning provisioning;
 
-    SyncController(SyncService service) {
+    SyncController(SyncService service, RepositoryProvisioning provisioning) {
+        this.provisioning = provisioning;
         this.service = service;
     }
 
@@ -46,8 +50,25 @@ class SyncController {
     @PutMapping("/repository")
     LinkResponse link(
             @PathVariable String projectKey, @Valid @RequestBody LinkRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
-        return LinkResponse.from(service.link(projectKey, r.kind(), new RepositoryProvider.LinkSpec(r.location(), r.branch(), r.token()),
+        return LinkResponse.from(service.link(projectKey, r.kind(), new RepositoryProvider.LinkSpec(r.location(), r.branch(), r.token(), r.installationId()),
                 who.memberId()));
+    }
+
+    record NewRepositoryRequest(
+            @NotNull Long installationId, @NotBlank @Size(max = 100) String name, @Size(max = 350) String description,
+            /** Privado si no se indica: el código de un cliente no se publica por accidente. */
+            Boolean privateRepo) {}
+
+    record NewRepositoryResponse(LinkResponse link, String url, List<String> protectedBranches, List<String> warnings, int documents) {}
+
+    /** Crea el repo en una organización conectada, con sus bases, y lo deja vinculado. */
+    @PostMapping("/repository/new")
+    @ResponseStatus(HttpStatus.CREATED)
+    NewRepositoryResponse create(
+            @PathVariable String projectKey, @Valid @RequestBody NewRepositoryRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        RepositoryProvisioning.Result res = provisioning.create(projectKey, r.installationId(), r.name(), r.description(),
+                r.privateRepo() == null || r.privateRepo(), who.memberId());
+        return new NewRepositoryResponse(LinkResponse.from(res.link()), res.url(), res.protectedBranches(), res.warnings(), res.documents());
     }
 
     @DeleteMapping("/repository")
@@ -106,10 +127,12 @@ class SyncController {
 
     /** {@code token} solo para GitHub; nunca se devuelve. {@code branch} vacío = rama por defecto del repo. */
     record LinkRequest(
-            @NotBlank @Pattern(regexp = "LOCAL|GITHUB") String kind,
+            @NotBlank @Pattern(regexp = "LOCAL|GITHUB|GITHUB_APP") String kind,
             @NotBlank @Size(max = 1000) String location,
             @Size(max = 255) String branch,
-            @Size(max = 255) String token) {}
+            @Size(max = 255) String token,
+            /** Solo GITHUB_APP: la conexión de GitHub del espacio. */
+            Long installationId) {}
 
     record ExportRequest(@NotEmpty List<UUID> documentIds, Set<UUID> forced) {}
 
@@ -119,11 +142,13 @@ class SyncController {
     record ImportNewRequest(@NotBlank @Size(max = 300) String group, @Size(max = 20) String issueKey, @Size(max = 200) String newIssueTitle) {}
 
     /** Sin el secreto: el token no sale de la API. */
-    record LinkResponse(boolean linked, String kind, String location, String branch, Instant linkedAt, UUID linkedBy) {
-        static final LinkResponse NONE = new LinkResponse(false, null, null, null, null, null);
+    /** {@code installationId}: la conexión de GitHub (solo GITHUB_APP; no es un secreto). */
+    record LinkResponse(boolean linked, String kind, String location, String branch, Long installationId, Instant linkedAt, UUID linkedBy) {
+        static final LinkResponse NONE = new LinkResponse(false, null, null, null, null, null, null);
 
         static LinkResponse from(RepositoryLink l) {
-            return new LinkResponse(true, l.kind(), l.location(), l.branch(), l.linkedAt(), l.linkedBy());
+            return new LinkResponse(true, l.kind(), l.location(), l.branch(), "GITHUB_APP".equals(l.kind()) ? Long.valueOf(l.secret()) : null,
+                    l.linkedAt(), l.linkedBy());
         }
     }
 

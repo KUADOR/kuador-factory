@@ -31,6 +31,7 @@ import type {
   Comment,
   IssuedToken,
   Issue,
+  NewRepositoryResult,
   IssueInput,
   IssueStatus,
   AgentClient,
@@ -305,9 +306,30 @@ const syncPath = (key: string) => `/projects/${key}/sync`;
 
 export async function linkRepositoryAction(
   projectKey: string,
-  input: { kind: RepositoryKind; location: string; branch: string | null; token: string | null },
+  input: { kind: RepositoryKind; location: string; branch: string | null; token: string | null; installationId?: number | null },
 ): Promise<ActionResult<RepositoryLink>> {
   return run(() => boardApi.linkRepository(projectKey, input), `/projects/${projectKey}/settings`);
+}
+
+export async function createRepositoryAction(
+  projectKey: string,
+  input: { installationId: number; name: string; description: string | null; privateRepo: boolean },
+): Promise<ActionResult<NewRepositoryResult>> {
+  return run(() => boardApi.createRepository(projectKey, input), `/projects/${projectKey}/settings`);
+}
+
+// ---- Conexiones de GitHub ----
+
+export async function githubManifestAction(appName: string, organization: string | null): Promise<ActionResult<{ postUrl: string; manifest: string }>> {
+  return run(() => boardApi.githubManifest(appName, organization));
+}
+
+export async function githubStartInstallAction(): Promise<ActionResult<{ url: string }>> {
+  return run(() => boardApi.githubStartInstall());
+}
+
+export async function githubDisconnectAction(installationId: number): Promise<ActionResult<void>> {
+  return run(() => boardApi.githubDisconnect(installationId), "/conexiones");
 }
 
 export async function unlinkRepositoryAction(projectKey: string): Promise<ActionResult<void>> {

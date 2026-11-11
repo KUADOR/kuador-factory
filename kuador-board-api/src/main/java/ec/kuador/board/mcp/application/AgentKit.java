@@ -31,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
  * secreto: el token sale de una variable de entorno de cada persona.
  */
 @Service
-public class AgentKit {
+public class AgentKit implements ec.kuador.board.mcp.AgentInstructionsApi {
 
     /** Clientes con kit propio. {@code GENERIC}: cualquier otro cliente con MCP (Cursor, OpenCode, Cline...). */
     public enum Client {
@@ -86,6 +86,11 @@ public class AgentKit {
 
     public String subagentName(String roleKey) {
         return subagentName(workspace.identity().slug(), roleKey);
+    }
+
+    @Override
+    public String agentsMd() {
+        return agentsMd(workspace.identity(), connection());
     }
 
     public List<KitFile> files(Client client, Collection<String> mcpKeys) {

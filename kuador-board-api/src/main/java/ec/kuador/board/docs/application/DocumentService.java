@@ -215,6 +215,20 @@ public class DocumentService implements DocsApi {
 
     @Override
     @Transactional
+    public List<DocContent> ensureProjectDocuments(String projectKey, UUID actorId) {
+        ProjectView project = softwareProject(projectKey);
+        catalog.methodology(project.methodology()).ifPresent(m -> {
+            List<Document> existing = documents.findByProject(projectKey);
+            for (DocumentDef def : m.documents(DocumentDef.Scope.PROJECT)) {
+                boolean has = existing.stream().anyMatch(d -> d.issueKey() == null && d.kind().equals(def.kind()));
+                if (!has) create(projectKey, def.kind(), null, actorId);
+            }
+        });
+        return ofProject(projectKey).stream().filter(d -> d.issueKey() == null).toList();
+    }
+
+    @Override
+    @Transactional
     public DocContent write(String projectKey, String issueKey, String kind, String content, String note, UUID actorId) {
         Optional<Document> existing = (issueKey == null
                 ? documents.findByProject(projectKey).stream().filter(d -> d.issueKey() == null)

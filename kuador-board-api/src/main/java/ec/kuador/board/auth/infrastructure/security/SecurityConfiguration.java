@@ -64,8 +64,9 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/catalog/**").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.DELETE, "/api/catalog/**").access(HUMAN_EDITOR)
                         // Sincronizar lee y escribe en el disco del servidor: solo personas que editan.
-                        .requestMatchers("/api/projects/*/repository", "/api/projects/*/sync", "/api/projects/*/sync/**").access(HUMAN_EDITOR)
-                        .requestMatchers("/api/members/*/credentials", "/api/auth/accounts", "/api/auth/tokens/**", "/api/auth/runner-tokens", "/api/auth/runner-tokens/**").access(HUMAN_EDITOR)
+                        .requestMatchers("/api/projects/*/repository", "/api/projects/*/repository/**", "/api/projects/*/sync", "/api/projects/*/sync/**").access(HUMAN_EDITOR)
+                        .requestMatchers("/api/members/*/credentials", "/api/auth/accounts", "/api/auth/tokens/**", "/api/auth/runner-tokens", "/api/auth/runner-tokens/**",
+                                "/api/github", "/api/github/**").access(HUMAN_EDITOR)
                         // Cualquier otra escritura exige acceso de edición (personas o agentes).
                         .requestMatchers(HttpMethod.POST, "/api/**").hasRole("EDITOR")
                         .requestMatchers(HttpMethod.PUT, "/api/**").hasRole("EDITOR")

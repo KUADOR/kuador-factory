@@ -55,7 +55,7 @@ class LocalRepositoryAccess implements RepositoryProvider {
         }
         Path path = Path.of(location.strip());
         if (!path.isAbsolute()) {
-            throw new DomainException("La ruta debe ser absoluta, por ejemplo /Users/…/kuador-api.");
+            throw new DomainException("La ruta debe ser absoluta, por ejemplo /Users/…/proyecto-api.");
         }
         Path real = realOrNull(path.toString());
         if (real == null || !Files.isDirectory(real)) {

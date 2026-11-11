@@ -1,5 +1,7 @@
 package ec.kuador.board.sync.infrastructure.github;
 
+import ec.kuador.board.shared.crypto.SecretBox;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -60,7 +62,7 @@ class GitHubFilesTest {
     @Test
     void rejectsBadLinks() {
         assertThatThrownBy(() -> provider.validate(new RepositoryProvider.LinkSpec("kuador/kuador-api", null, "token-malo")))
-                .hasMessageContaining("rechazó el token");
+                .hasMessageContaining("rechazó la credencial");
         assertThatThrownBy(() -> provider.validate(new RepositoryProvider.LinkSpec("otro/repo", null, FakeGitHub.TOKEN)))
                 .hasMessageContaining("no encuentra");
         assertThatThrownBy(() -> provider.validate(new RepositoryProvider.LinkSpec("../../etc", null, FakeGitHub.TOKEN)))
@@ -100,7 +102,7 @@ class GitHubFilesTest {
         assertThat(p.direct()).isFalse();
         assertThat(p.pullRequest()).isEqualTo(1);
         assertThat(p.url()).isEqualTo("https://github.com/kuador/kuador-api/pull/1");
-        assertThat(p.branch()).startsWith("kuador/docs-");
+        assertThat(p.branch()).startsWith("tablero/docs-");
         assertThat(github.file("main", ".specify/memory/constitution.md")).as("main intacto hasta fusionar").doesNotContain("OpenAPI");
         assertThat(github.file(p.branch(), ".specify/memory/constitution.md")).contains("II. OpenAPI");
         assertThat(github.file(p.branch(), "specs/008-prueba/spec.md")).isEqualTo("# Spec nueva");

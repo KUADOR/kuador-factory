@@ -1,4 +1,4 @@
-package ec.kuador.board.sync.infrastructure.github;
+package ec.kuador.board.shared.crypto;
 
 import ec.kuador.board.shared.error.DomainException;
 import java.nio.ByteBuffer;
@@ -18,12 +18,12 @@ import org.springframework.stereotype.Component;
  * tokens. Formato: base64(iv de 12 bytes + texto cifrado con su tag).
  */
 @Component
-class SecretBox {
+public class SecretBox {
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private final SecretKeySpec key;
 
-    SecretBox(@Value("${board.secrets-key:}") String base64Key) {
+    public SecretBox(@Value("${board.secrets-key:}") String base64Key) {
         SecretKeySpec parsed = null;
         if (!base64Key.isBlank()) {
             byte[] raw = Base64.getDecoder().decode(base64Key.strip());
@@ -35,7 +35,7 @@ class SecretBox {
         this.key = parsed;
     }
 
-    String encrypt(String plain) {
+    public String encrypt(String plain) {
         try {
             byte[] iv = new byte[12];
             RANDOM.nextBytes(iv);
@@ -48,7 +48,7 @@ class SecretBox {
         }
     }
 
-    String decrypt(String stored) {
+    public String decrypt(String stored) {
         try {
             byte[] all = Base64.getDecoder().decode(stored);
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");

@@ -26,7 +26,10 @@ import type {
   AgentToken,
   Comment,
   IssuedToken,
+  GitHubConnection,
+  GitHubOverview,
   Issue,
+  NewRepositoryResult,
   IssueInput,
   IssueStatus,
   AgentClient,
@@ -170,7 +173,20 @@ export const boardApi = {
     request<DocumentWithContent>(`/api/docs/${encodeURIComponent(id)}/versions/${version}/restore`, json("POST", { baseVersion })),
 
   repository: (key: string) => request<RepositoryLink>(`/api/projects/${encodeURIComponent(key)}/repository`),
-  linkRepository: (key: string, input: { kind: RepositoryKind; location: string; branch: string | null; token: string | null }) =>
+  github: () => request<GitHubOverview>("/api/github"),
+  githubManifest: (appName: string, organization: string | null) =>
+    request<{ postUrl: string; manifest: string }>("/api/github/app/manifest", json("POST", { appName, organization })),
+  githubCompleteApp: (code: string, state: string) => request<GitHubOverview["app"]>("/api/github/app", json("POST", { code, state })),
+  githubStartInstall: () => request<{ url: string }>("/api/github/installations/start", { method: "POST" }),
+  githubCompleteInstall: (installationId: number, code: string, state: string) =>
+    request<GitHubConnection>("/api/github/installations", json("POST", { installationId, code, state })),
+  githubDisconnect: (installationId: number) => request<void>(`/api/github/installations/${installationId}`, { method: "DELETE" }),
+  createRepository: (key: string, input: { installationId: number; name: string; description: string | null; privateRepo: boolean }) =>
+    request<NewRepositoryResult>(`/api/projects/${encodeURIComponent(key)}/repository/new`, json("POST", input)),
+  linkRepository: (
+    key: string,
+    input: { kind: RepositoryKind; location: string; branch: string | null; token: string | null; installationId?: number | null },
+  ) =>
     request<RepositoryLink>(`/api/projects/${encodeURIComponent(key)}/repository`, json("PUT", input)),
   unlinkRepository: (key: string) =>
     request<void>(`/api/projects/${encodeURIComponent(key)}/repository`, { method: "DELETE" }),

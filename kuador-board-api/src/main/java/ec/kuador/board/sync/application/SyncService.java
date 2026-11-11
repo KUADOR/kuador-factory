@@ -181,8 +181,8 @@ public class SyncService {
         String projectName = projects.name(projectKey);
         RepositoryFiles.Published published = files.publish(
                 toExport.stream().map(d -> new RepositoryFiles.FileWrite(d.path(), d.content())).toList(),
-                "docs(" + projectKey + "): actualiza " + toExport.size() + " documento(s) desde el tablero KUADOR",
-                "Documentos de " + projectName + " desde el tablero KUADOR",
+                "docs(" + projectKey + "): actualiza " + toExport.size() + " documento(s) desde el tablero",
+                "Documentos de " + projectName + " desde el tablero",
                 description(projectName, toExport),
                 existing == null ? null : existing.branch());
         Instant now = clock.instant();
@@ -322,7 +322,7 @@ public class SyncService {
 
     private static String description(String projectName, List<DocContent> exported) {
         StringBuilder sb = new StringBuilder("Cambios en los documentos de **").append(projectName)
-                .append("** exportados desde el tablero KUADOR.\n\n| Documento | Ruta | Versión |\n|---|---|---|\n");
+                .append("** exportados desde el tablero.\n\n| Documento | Ruta | Versión |\n|---|---|---|\n");
         exported.forEach(d -> sb.append("| ").append(d.title().replace("|", "\\|")).append(" | `").append(d.path())
                 .append("` | v").append(d.version()).append(" |\n"));
         return sb.append("\nAl fusionar este PR, el tablero marca estos documentos como sincronizados.").toString();

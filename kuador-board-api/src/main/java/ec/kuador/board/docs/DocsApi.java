@@ -26,6 +26,12 @@ public interface DocsApi {
 
     java.util.Optional<MethodologyRules> methodologyRules(String projectKey);
 
+    /**
+     * Crea desde su plantilla los documentos del proyecto (no de issue) que pide la metodología y aún no
+     * existen. Devuelve todos los documentos del proyecto, con su ruta en el repo.
+     */
+    List<DocContent> ensureProjectDocuments(String projectKey, UUID actorId);
+
     /** Crea el documento del issue con {@code content} o guarda una versión nueva si ya existe. */
     DocContent write(String projectKey, String issueKey, String kind, String content, String note, UUID actorId);
 }

@@ -1,5 +1,8 @@
 package ec.kuador.board.sync.infrastructure.github;
 
+import ec.kuador.board.shared.crypto.SecretBox;
+import ec.kuador.board.shared.github.GitHubClient;
+
 import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.sync.domain.RepositoryFiles;
 import ec.kuador.board.sync.domain.RepositoryLink;
@@ -39,7 +42,7 @@ class GitHubRepositoryProvider implements RepositoryProvider {
     public Validated validate(LinkSpec spec) {
         Matcher m = REPO.matcher(spec.location() == null ? "" : spec.location().strip());
         if (!m.matches() || m.group(2).equals(".") || m.group(2).equals("..")) {
-            throw new DomainException("Indica el repositorio como owner/repo, por ejemplo kuador/kuador-api.");
+            throw new DomainException("Indica el repositorio como owner/repo, por ejemplo empresa/proyecto-api.");
         }
         String token = spec.token() == null ? "" : spec.token().strip();
         if (token.isEmpty() || token.length() > 255) {

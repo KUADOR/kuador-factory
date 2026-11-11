@@ -46,7 +46,7 @@ class SyncServiceTest {
             public Validated validate(LinkSpec spec) { return new Validated(spec.location(), "main", "cifrado"); }
             public RepositoryFiles open(RepositoryLink link) { return repo; }
         };
-        DocsApi docs = new DocsApi() {
+        DocsApi docs = new ec.kuador.board.testing.DocsApiStub() {
             public List<DocContent> ofProject(String projectKey) { return List.copyOf(board.values()); }
             public DocContent saveFromRepository(UUID id, int base, String content, String note, UUID actor) {
                 return edit(id, content);
@@ -240,8 +240,8 @@ class SyncServiceTest {
             files.forEach(f -> changes.put(f.path(), f.content()));
             prs.put(n, changes);
             states.put(n, PullRequestState.OPEN);
-            branches.put("kuador/docs-" + n, n);
-            return new Published(false, n, "https://github.com/pr/" + n, "kuador/docs-" + n);
+            branches.put("tablero/docs-" + n, n);
+            return new Published(false, n, "https://github.com/pr/" + n, "tablero/docs-" + n);
         }
         public Optional<PullRequestState> pullRequestState(int number) { return Optional.ofNullable(states.get(number)); }
         void merge(int n) {

@@ -1,5 +1,8 @@
 package ec.kuador.board.sync.infrastructure.github;
 
+import ec.kuador.board.shared.crypto.SecretBox;
+import ec.kuador.board.shared.github.GitHubClient;
+
 import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.sync.domain.RepositoryFiles;
 import java.nio.ByteBuffer;
@@ -81,8 +84,7 @@ final class GitHubFiles implements RepositoryFiles {
             Optional<String> head = refSha(existingBranch);
             if (head.isPresent()) {
                 String commit = commit(files, commitMessage, head.get());
-                ObjectNode update = GitHubClient.JSON.createObjectNode().put("sha", commit).put("force", false);
-                client.patch("/repos/" + repo + "/git/refs/heads/" + existingBranch, update);
+                GitData.advance(client, repo, existingBranch, commit);
                 log.info("Commit {} agregado al PR del tablero en {}:{}", commit, repo, existingBranch);
                 return new Published(false, null, null, existingBranch);
             }
@@ -90,10 +92,9 @@ final class GitHubFiles implements RepositoryFiles {
         }
         String base = refSha(branch).orElseThrow(() -> new DomainException("La rama " + branch + " no existe en " + repo + "."));
         String commit = commit(files, commitMessage, base);
-        String newBranch = "kuador/docs-" + LocalDateTime.now(ZoneId.of("America/Guayaquil")).format(BRANCH_TIME)
+        String newBranch = "tablero/docs-" + LocalDateTime.now(ZoneId.of("America/Guayaquil")).format(BRANCH_TIME)
                 + "-" + UUID.randomUUID().toString().substring(0, 4);
-        client.post("/repos/" + repo + "/git/refs",
-                GitHubClient.JSON.createObjectNode().put("ref", "refs/heads/" + newBranch).put("sha", commit));
+        GitData.createBranch(client, repo, newBranch, commit);
         JsonNode pr = client.post("/repos/" + repo + "/pulls", GitHubClient.JSON.createObjectNode()
                 .put("title", title).put("head", newBranch).put("base", branch).put("body", description));
         log.info("PR #{} abierto en {} desde {}", pr.path("number").asInt(), repo, newBranch);
@@ -108,23 +109,12 @@ final class GitHubFiles implements RepositoryFiles {
         });
     }
 
-    /** Un commit con todos los archivos sobre {@code parent}: árbol nuevo apoyado en el del padre. */
     private String commit(List<FileWrite> files, String message, String parent) {
-        String baseTree = client.get("/repos/" + repo + "/git/commits/" + parent).path("tree").path("sha").asString();
-        ArrayNode entries = GitHubClient.JSON.createArrayNode();
-        for (FileWrite f : files) {
-            entries.addObject().put("path", f.path()).put("mode", "100644").put("type", "blob").put("content", f.content());
-        }
-        ObjectNode treeReq = GitHubClient.JSON.createObjectNode().put("base_tree", baseTree);
-        treeReq.set("tree", entries);
-        String newTree = client.post("/repos/" + repo + "/git/trees", treeReq).path("sha").asString();
-        ObjectNode commitReq = GitHubClient.JSON.createObjectNode().put("message", message).put("tree", newTree);
-        commitReq.putArray("parents").add(parent);
-        return client.post("/repos/" + repo + "/git/commits", commitReq).path("sha").asString();
+        return GitData.commit(client, repo, files.stream().map(f -> new GitData.Entry(f.path(), f.content())).toList(), message, parent);
     }
 
     private Optional<String> refSha(String ref) {
-        return client.find("/repos/" + repo + "/git/ref/heads/" + ref).map(r -> r.path("object").path("sha").asString());
+        return GitData.refSha(client, repo, ref);
     }
 
     private Map<String, String> tree() {

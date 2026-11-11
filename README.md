@@ -250,6 +250,10 @@ estado de cada documento. El tablero **escribe archivos pero no hace commits**: 
 | GET · POST · DELETE | `/api/auth/runner-tokens` | Conexiones de agentes locales de quien pide (el secreto se ve una vez) |
 | GET | `/api/agent-kit?client=claude-code\|codex\|mcp&mcp=CONTEXT7` · `/api/agent-kit.zip` | Kit para el repo en el formato del cliente de IA, con el nombre del espacio |
 | POST | `/api/issues/{key}/supervise` | Quien llama pasa a supervisar el issue (sus agentes lo atienden) |
+| GET | `/api/github` | App de la plataforma y organizaciones de GitHub conectadas al espacio |
+| POST | `/api/github/app/manifest` · `/api/github/app` | Registrar la GitHub App con el manifiesto (una vez, quien opera la plataforma) |
+| POST | `/api/github/installations/start` · `/api/github/installations` · DELETE `/api/github/installations/{id}` | Conectar o quitar una organización (verificado con OAuth) |
+| POST | `/api/projects/{key}/repository/new` | Crear el repo en una organización conectada, con sus bases, y vincularlo (`GITHUB_APP`) |
 | PUT | `/api/members/{id}/access` | Nivel de acceso de una persona `{access: EDIT\|VIEW}` (solo personas que editan; nadie cambia el suyo; siempre queda alguien que edita) |
 | PUT | `/api/projects/{key}/stages` | Etapas `{stages: [{column, roles, gate, approvers, rejectTo}], maxRework}` (solo personas) |
 | POST | `/api/issues/{key}/take` · `/deliver` · `/review` | Tomar de la etapa / entregar `{comment?}` / cerrar una puerta `{approve, comment}` (solo personas aprobadoras) |

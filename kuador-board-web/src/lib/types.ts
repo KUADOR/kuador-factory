@@ -300,15 +300,42 @@ export interface Activity {
   occurredAt: string;
 }
 
-export type RepositoryKind = "GITHUB" | "LOCAL";
+/** GITHUB_APP: con la app de la plataforma (sin token personal); GITHUB: con un token; LOCAL: carpeta. */
+export type RepositoryKind = "GITHUB_APP" | "GITHUB" | "LOCAL";
 
 export interface RepositoryLink {
   linked: boolean;
   kind: RepositoryKind | null;
   location: string | null;
   branch: string | null;
+  /** Solo GITHUB_APP: la conexión de GitHub del espacio. */
+  installationId: number | null;
   linkedAt: string | null;
   linkedBy: string | null;
+}
+
+/** Organización (o cuenta) de GitHub conectada al espacio: la app de la plataforma está instalada ahí. */
+export interface GitHubConnection {
+  installationId: number;
+  account: string;
+  accountType: "Organization" | "User";
+  linkedAt: string;
+}
+
+export interface GitHubOverview {
+  /** La app de la plataforma; nula hasta que quien opera la plataforma la registre. */
+  app: { slug: string; name: string; ownerLogin: string; htmlUrl: string } | null;
+  canRegister: boolean;
+  connections: GitHubConnection[];
+}
+
+/** Repo creado con sus bases; {@code warnings} explica lo que GitHub no permitió (p. ej. proteger ramas privadas en plan gratuito). */
+export interface NewRepositoryResult {
+  link: RepositoryLink;
+  url: string;
+  protectedBranches: string[];
+  warnings: string[];
+  documents: number;
 }
 
 export type SyncState = "SYNCED" | "BOARD_AHEAD" | "FILE_AHEAD" | "CONFLICT" | "BOARD_ONLY" | "FILE_DELETED";

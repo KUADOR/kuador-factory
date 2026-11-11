@@ -72,7 +72,7 @@ final class LocalFolderFiles implements RepositoryFiles {
             Files.createDirectories(parent);
             insideRoot(parent.toRealPath(), path); // ninguna carpeta intermedia es un enlace hacia fuera
             if (Files.exists(file, LinkOption.NOFOLLOW_LINKS)) rejectLink(file, path);
-            Path tmp = Files.createTempFile(parent, ".kuador-sync-", ".tmp");
+            Path tmp = Files.createTempFile(parent, ".tablero-sync-", ".tmp");
             try {
                 Files.writeString(tmp, content, StandardCharsets.UTF_8);
                 try {

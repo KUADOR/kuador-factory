@@ -113,8 +113,8 @@ class SyncController {
     }
 
     @GetMapping("/sync")
-    StatusResponse status(@PathVariable String projectKey) {
-        SyncService.Status s = service.status(projectKey);
+    StatusResponse status(@PathVariable String projectKey, @AuthenticationPrincipal AuthenticatedMember who) {
+        SyncService.Status s = service.status(projectKey, who.memberId());
         return new StatusResponse(LinkResponse.from(s.link()), s.entries().stream().map(EntryResponse::from).toList(),
                 s.untracked().stream().map(u -> new UntrackedResponse(u.group(), u.issueScoped(),
                         u.files().stream().map(f -> new UntrackedFileResponse(f.path(), f.kind())).toList(), u.suggestedTitle())).toList(),

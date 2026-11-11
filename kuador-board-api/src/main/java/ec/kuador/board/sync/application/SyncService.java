@@ -10,6 +10,7 @@ import ec.kuador.board.project.ProjectView;
 import ec.kuador.board.shared.error.ConflictException;
 import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.shared.error.NotFoundException;
+import ec.kuador.board.sync.RepositoryInstructions;
 import ec.kuador.board.sync.domain.ExportPullRequest;
 import ec.kuador.board.sync.domain.RepoLayout;
 import ec.kuador.board.sync.domain.RepositoryFiles;
@@ -23,6 +24,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,16 +55,18 @@ public class SyncService {
     private final ProjectApi projects;
     private final IssueApi issues;
     private final CatalogApi catalog;
+    private final RepositoryInstructions instructions;
     private final Clock clock;
 
     SyncService(SyncRecordRepository records, List<RepositoryProvider> providers, DocsApi docs, ProjectApi projects, IssueApi issues,
-            CatalogApi catalog, Clock clock) {
+            CatalogApi catalog, RepositoryInstructions instructions, Clock clock) {
         this.records = records;
         this.providers = providers.stream().collect(Collectors.toMap(RepositoryProvider::kind, Function.identity()));
         this.docs = docs;
         this.projects = projects;
         this.issues = issues;
         this.catalog = catalog;
+        this.instructions = instructions;
         this.clock = clock;
     }
 
@@ -124,11 +128,18 @@ public class SyncService {
      */
     @Transactional
     public Status status(String projectKey) {
+        return status(projectKey, null);
+    }
+
+    /** {@code actorId}: quien mira el estado; firma la fusión automática del AGENTS.md (null = no fusiona). */
+    @Transactional
+    public Status status(String projectKey, UUID actorId) {
         RepositoryLink link = requireLink(projectKey);
         RepositoryFiles files = open(link);
         List<ExportPullRequest> open = reconcile(projectKey, files);
         List<DocContent> all = docs.ofProject(projectKey);
-        Map<UUID, SyncRecord> last = records.findRecords(all.stream().map(DocContent::id).toList());
+        Map<UUID, SyncRecord> last = new HashMap<>(records.findRecords(all.stream().map(DocContent::id).toList()));
+        if (actorId != null) all = all.stream().map(d -> withBoardSection(projectKey, d, last, files, actorId)).toList();
         List<Entry> entries = all.stream().map(d -> {
             Optional<String> file = files.read(d.path());
             SyncState state = SyncState.of(Optional.ofNullable(last.get(d.id())), d.version(), d.content(), file);
@@ -258,7 +269,7 @@ public class SyncService {
      */
     @Transactional
     public SafeResult syncSafe(String projectKey, UUID actorId) {
-        Status status = status(projectKey);
+        Status status = status(projectKey, actorId);
         int imported = 0, conflicts = 0;
         List<UUID> toExport = new ArrayList<>();
         Instant now = clock.instant();
@@ -290,6 +301,28 @@ public class SyncService {
     }
 
     // ---- Apoyo ----
+
+    /**
+     * El AGENTS.md que el tablero puso al crear el repo y el documento «Reglas para agentes» creado después
+     * apuntan al mismo archivo. Si el archivo sigue tal como lo dejó el tablero, no es un conflicto: el
+     * documento suma el flujo del tablero como una sección y queda listo para exportar (nada se pierde).
+     * Si alguien editó el archivo en el repo, sigue siendo un conflicto que decide una persona.
+     */
+    private DocContent withBoardSection(String projectKey, DocContent doc, Map<UUID, SyncRecord> last, RepositoryFiles files, UUID actorId) {
+        if (!doc.path().equals(RepositoryBase.AGENTS_MD) || doc.issueKey() != null || last.containsKey(doc.id())) return doc;
+        Optional<String> file = files.read(doc.path());
+        String base = instructions.agentsMd();
+        if (file.isEmpty() || !file.get().strip().equals(base.strip()) || doc.content().strip().equals(base.strip())) return doc;
+        String heading = base.lines().findFirst().orElse("").replaceFirst("^#", "##");
+        DocContent merged = doc.content().contains(heading) ? doc
+                : docs.write(projectKey, null, doc.kind(), RepositoryBase.withBoardSection(doc.content(), base), "Agrega cómo trabajar con el tablero", actorId);
+        // Registro: el archivo es el de las bases y el tablero va adelante desde entonces.
+        SyncRecord record = new SyncRecord(doc.id(), merged.version() == doc.version() ? doc.version() - 1 : doc.version(), SyncState.sha256(file.get()), clock.instant());
+        records.saveRecord(record);
+        last.put(doc.id(), record);
+        log.info("{}: el documento {} suma la sección del tablero del AGENTS.md de las bases", projectKey, doc.path());
+        return merged;
+    }
 
     /** Revisa los PRs abiertos: fusionado → sincroniza lo que llevaba; cerrado → se descarta. */
     private List<ExportPullRequest> reconcile(String projectKey, RepositoryFiles files) {

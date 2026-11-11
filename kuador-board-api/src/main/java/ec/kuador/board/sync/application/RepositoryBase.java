@@ -121,7 +121,7 @@ final class RepositoryBase {
                     name: ci
                     runs-on: ubuntu-latest
                     steps:
-                      - uses: actions/checkout@v4
+                      - uses: actions/checkout@v7
                       - name: Documentos de la metodología
                         run: |
                           for f in %s; do

@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 class SyncServiceTest {
 
     private static final UUID PERSON = UUID.randomUUID();
+    private static final String BOARD_AGENTS = "# Tablero de Prueba\n\nLlama a `pendientes`.\n";
 
     private final FakeRepo repo = new FakeRepo();
     private final Map<UUID, DocContent> board = new LinkedHashMap<>();
@@ -58,7 +59,10 @@ class SyncServiceTest {
             }
             public List<String> allowedKinds(String projectKey) { return List.of("CONSTITUTION", "PRODUCT", "AGENT_RULES", "SPEC", "PLAN", "TASKS"); }
             public Optional<MethodologyRules> methodologyRules(String projectKey) { return Optional.empty(); }
-            public DocContent write(String p, String i, String k, String c, String n, UUID a) { throw new UnsupportedOperationException(); }
+            public DocContent write(String p, String i, String k, String c, String n, UUID a) {
+                DocContent d = board.values().stream().filter(x -> x.kind().equals(k)).findFirst().orElseThrow();
+                return edit(d.id(), c);
+            }
         };
         InMemoryProjects projects = new InMemoryProjects();
         projects.add("KUA", "SOFTWARE", "SDD");
@@ -73,7 +77,7 @@ class SyncServiceTest {
             public void reassign(String key, UUID member, UUID actor) {}
             public boolean setStoryPointsIfEmpty(String key, int points, UUID actor) { return false; }
         };
-        sync = new SyncService(new InMemoryRecords(), List.of(provider), docs, projects, issues, new InMemoryCatalog(), Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
+        sync = new SyncService(new InMemoryRecords(), List.of(provider), docs, projects, issues, new InMemoryCatalog(), () -> BOARD_AGENTS, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
         sync.link("KUA", "GITHUB", new RepositoryProvider.LinkSpec("kuador/kuador-api", null, "token"), PERSON);
     }
 
@@ -92,6 +96,29 @@ class SyncServiceTest {
 
     private SyncService.Entry entry(UUID id) {
         return sync.status("KUA").entries().stream().filter(e -> e.document().id().equals(id)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void agentRulesCreatedAfterTheRepoAbsorbTheUntouchedBaseInsteadOfConflicting() {
+        repo.main.put("AGENTS.md", BOARD_AGENTS);
+        DocContent rules = doc("AGENT_RULES", "AGENTS.md", "# Reglas para agentes · KUA\n\nNo tocar producción.\n");
+
+        SyncService.SafeResult result = sync.syncSafe("KUA", PERSON);
+
+        assertThat(result.conflicts()).isZero();
+        assertThat(board.get(rules.id()).content()).contains("No tocar producción.").contains("## Tablero de Prueba").contains("Llama a `pendientes`.");
+        assertThat(result.exported()).as("sale en el PR del tablero").isNotNull();
+        repo.merge(result.exported().pullRequest());
+        assertThat(entry(rules.id()).state()).isEqualTo(SyncState.SYNCED);
+    }
+
+    @Test
+    void agentsFileEditedInTheRepoIsStillAConflictForAPerson() {
+        repo.main.put("AGENTS.md", BOARD_AGENTS + "\nRegla escrita en el repo.\n");
+        DocContent rules = doc("AGENT_RULES", "AGENTS.md", "# Reglas para agentes · KUA\n");
+
+        assertThat(sync.syncSafe("KUA", PERSON).conflicts()).isEqualTo(1);
+        assertThat(board.get(rules.id()).version()).as("no se toca").isEqualTo(1);
     }
 
     @Test

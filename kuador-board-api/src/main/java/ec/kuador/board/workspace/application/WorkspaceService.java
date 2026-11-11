@@ -54,13 +54,19 @@ public class WorkspaceService implements ec.kuador.board.workspace.WorkspaceApi 
     @Transactional(readOnly = true)
     public Identity identity() {
         Workspace w = current();
-        return new Identity(w.slug(), w.name());
+        return new Identity(w.slug(), w.name(), w.languages().team(), w.languages().code());
     }
 
     /** Nombre, descripción, color base y logo del espacio actual (solo personas). */
     @Transactional
     public Workspace updateBranding(String name, String description, String brandColor, String brandOnColor, String logo) {
         return workspaces.save(current().withBranding(name, description, brandColor, brandOnColor, logo));
+    }
+
+    /** Idioma del equipo y del código del espacio actual (solo personas). */
+    @Transactional
+    public Workspace updateLanguages(String team, String code) {
+        return workspaces.save(current().withLanguages(new ec.kuador.board.workspace.domain.Languages(team, code)));
     }
 
     /**

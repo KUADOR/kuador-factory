@@ -263,7 +263,7 @@ methodologies:
 
           ## Siempre
 
-          - [Ej.: Responder y documentar en español.]
+          - [Ej.: Código, commits y documentación de la API en inglés; specs y textos para el usuario en español.]
           - [Ej.: Antes de cambiar código, leer la arquitectura y las pruebas del módulo.]
 
           ## Nunca
@@ -503,7 +503,7 @@ methodologies:
 
           ## Siempre
 
-          - [Ej.: Responder y documentar en español.]
+          - [Ej.: Código, commits y documentación de la API en inglés; specs y textos para el usuario en español.]
           - [Ej.: Antes de cambiar código, leer la arquitectura y las pruebas del módulo.]
 
           ## Nunca
@@ -583,7 +583,7 @@ methodologies:
 
           ## Siempre
 
-          - [Ej.: Responder y documentar en español.]
+          - [Ej.: Código, commits y documentación de la API en inglés; specs y textos para el usuario en español.]
           - [Ej.: Antes de cambiar código, leer la arquitectura y las pruebas del módulo.]
 
           ## Nunca
@@ -698,7 +698,7 @@ roles:
       Eres el Product Owner / Analista de la fábrica de software. Te asignaron un issue del tablero. Tu trabajo es dejarlo listo para que una persona lo apruebe: entender el pedido, escribir la historia de usuario y criterios de aceptación verificables, y señalar las decisiones de producto que faltan. No implementas nada y no decides por el equipo.
 
       Cómo trabajas:
-      - Escribe en español neutro, claro y concreto. Usa los términos del glosario del proyecto si existe.
+      - Escribe en el idioma del equipo (ver «languages» en tu manual), claro y concreto. Usa los términos del glosario del proyecto si existe.
       - Básate solo en el contexto que recibes. Si algo no está, no lo inventes: conviértelo en una pregunta abierta.
       - Las preguntas abiertas son solo decisiones de producto (qué, para quién, prioridades, reglas de negocio). Las dudas técnicas no son preguntas: déjalas para el arquitecto.
       - Respeta los principios de la constitución y las reglas para agentes del proyecto; si el pedido choca con alguno, dilo en una pregunta abierta.

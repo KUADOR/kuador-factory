@@ -13,7 +13,8 @@ import java.util.regex.Pattern;
  * {@code brandOnColor}: color del texto encima del color de marca (botones principales); nulo =
  * automático, el que más contraste.
  */
-public record Workspace(UUID id, String slug, String name, String description, String brandColor, String brandOnColor, String logo, Instant createdAt) {
+public record Workspace(
+        UUID id, String slug, String name, String description, String brandColor, String brandOnColor, String logo, Languages languages, Instant createdAt) {
 
     public static final String DEFAULT_BRAND = "#ffb81c";
     /** ~150 KB de imagen en base64. */
@@ -43,6 +44,7 @@ public record Workspace(UUID id, String slug, String name, String description, S
         if (brandOnColor != null && !COLOR.matcher(brandOnColor).matches()) {
             throw new DomainException("El color del texto de los botones va en formato hexadecimal, ej. #ffffff.");
         }
+        languages = languages == null ? Languages.DEFAULT : languages;
         logo = logo == null || logo.isBlank() ? null : logo.strip();
         if (logo != null && (logo.length() > MAX_LOGO || !LOGO.matcher(logo).matches())) {
             throw new DomainException("El logo debe ser una imagen PNG, JPG o WebP de hasta 150 KB.");
@@ -50,11 +52,15 @@ public record Workspace(UUID id, String slug, String name, String description, S
     }
 
     public static Workspace create(String slug, String name, String description, String brandColor, String brandOnColor, String logo, Instant now) {
-        return new Workspace(UUID.randomUUID(), slug, name, description, brandColor, brandOnColor, logo, now);
+        return new Workspace(UUID.randomUUID(), slug, name, description, brandColor, brandOnColor, logo, Languages.DEFAULT, now);
     }
 
     public Workspace withBranding(String newName, String newDescription, String newBrandColor, String newBrandOnColor, String newLogo) {
-        return new Workspace(id, slug, newName, newDescription, newBrandColor, newBrandOnColor, newLogo, createdAt);
+        return new Workspace(id, slug, newName, newDescription, newBrandColor, newBrandOnColor, newLogo, languages, createdAt);
+    }
+
+    public Workspace withLanguages(Languages newLanguages) {
+        return new Workspace(id, slug, name, description, brandColor, brandOnColor, logo, newLanguages, createdAt);
     }
 
     /** Identificador a partir del nombre: «Clínica Andes» → «clinica-andes». */

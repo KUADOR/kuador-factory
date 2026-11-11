@@ -175,6 +175,8 @@ export interface Workspace {
   brandOnColor: string | null;
   /** Logo como data URL (png, jpeg o webp) o nulo. */
   logo: string | null;
+  /** Idioma del equipo (documentos, comentarios, textos para el usuario final) y del código. ISO 639-1. */
+  languages: { team: Language; code: Language };
   createdAt: string;
 }
 
@@ -477,6 +479,25 @@ export type AgentClient = "claude-code" | "codex" | "mcp";
 
 /** Cómo se conecta el espacio: servidor MCP (con el nombre de la empresa), variables de entorno y URL. */
 export interface AgentKit {
-  connection: { server: string; tokenVar: string; urlVar: string; url: string };
+  connection: { server: string; tokenVar: string; url: string };
   files: KitFile[];
+}
+
+export type Language = "es" | "en" | "pt";
+
+export type KitFileState = "CURRENT" | "OUTDATED" | "MISSING";
+
+/** Kit de agentes en un repo del proyecto y el PR del tablero que lo actualiza, si hay uno abierto. */
+export interface RepoKit {
+  repository: string;
+  files: { path: string; state: KitFileState }[];
+  pullRequest: { number: number; url: string; branch: string } | null;
+}
+
+/** Cliente de IA que pide conectarse (pantalla de permiso OAuth). */
+export interface OAuthClientInfo {
+  clientId: string;
+  name: string;
+  redirectHost: string;
+  local: boolean;
 }

@@ -37,6 +37,9 @@ import type {
   IssueStatus,
   AgentClient,
   AgentKit,
+  Language,
+  OAuthClientInfo,
+  RepoKit,
   Me,
   Member,
   MemberAccess,
@@ -67,8 +70,8 @@ async function request<T>(path: string, init?: RequestInit & { anonymous?: boole
   if (!res.ok) {
     let message = `La API respondió ${res.status}.`;
     try {
-      const problem = (await res.json()) as { detail?: string; title?: string };
-      message = problem.detail ?? problem.title ?? message;
+      const problem = (await res.json()) as { detail?: string; title?: string; error_description?: string };
+      message = problem.detail ?? problem.error_description ?? problem.title ?? message;
     } catch {
       // Cuerpo vacío o no JSON: se queda el mensaje genérico.
     }
@@ -119,6 +122,11 @@ export const boardApi = {
     request<Project>(`/api/projects/${encodeURIComponent(key)}/methodology`, json("PUT", { methodology })),
 
   workspace: () => request<Workspace>("/api/workspace"),
+  updateLanguages: (team: Language, code: Language) => request<Workspace>("/api/workspace/languages", json("PUT", { team, code })),
+  oauthClient: (clientId: string, redirectUri: string | null) =>
+    request<OAuthClientInfo>(`/api/oauth/client?${new URLSearchParams([["client_id", clientId], ...(redirectUri ? [["redirect_uri", redirectUri]] : [])])}`),
+  oauthAuthorize: (input: { clientId: string; redirectUri: string | null; codeChallenge: string | null; codeChallengeMethod: string | null; state: string | null; approved: boolean }) =>
+    request<{ redirect: string }>("/api/oauth/authorize", json("POST", input)),
   updateWorkspace: (input: { name: string; description: string | null; brandColor: string; brandOnColor: string | null; logo: string | null }) =>
     request<Workspace>("/api/workspace", json("PUT", input)),
 
@@ -195,6 +203,8 @@ export const boardApi = {
     request<RepositoryLink>(`/api/projects/${encodeURIComponent(key)}/repository`, json("PUT", input)),
   unlinkRepository: (key: string) =>
     request<void>(`/api/projects/${encodeURIComponent(key)}/repository`, { method: "DELETE" }),
+  agentKitStatus: (key: string) => request<RepoKit[]>(`/api/projects/${encodeURIComponent(key)}/sync/agent-kit`),
+  proposeAgentKit: (key: string) => request<RepoKit[]>(`/api/projects/${encodeURIComponent(key)}/sync/agent-kit`, { method: "POST" }),
   syncStatus: (key: string) => request<SyncStatus>(`/api/projects/${encodeURIComponent(key)}/sync`),
   syncCompare: (key: string, docId: string) =>
     request<SyncComparison>(`/api/projects/${encodeURIComponent(key)}/sync/docs/${encodeURIComponent(docId)}/compare`),

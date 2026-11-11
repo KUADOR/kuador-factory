@@ -124,47 +124,55 @@ class McpIT {
         assertThat(call("POST", "/mcp", Map.of("jsonrpc", "2.0", "method", "notifications/initialized"), runner).status()).isEqualTo(202);
         List<String> names = new ArrayList<>();
         rpc(runner, "tools/list", Map.of()).body().get("result").get("tools").forEach(t -> names.add(t.get("name").asString()));
-        assertThat(names).contains("pendientes", "ver_issue", "instrucciones_rol", "tomar", "comentar", "entregar", "devolver", "consultar",
-                "leer_documento", "escribir_documento");
+        assertThat(names).contains("pending_work", "get_issue", "role_manual", "take_issue", "add_comment", "deliver", "send_back", "ask_human",
+                "read_document", "write_document");
+        // El prompt «pendientes» (en Claude Code, /mcp__pi__pendientes) trae los pasos sin archivos en el repo.
+        assertThat(init.get("capabilities").has("prompts")).isTrue();
+        assertThat(rpc(runner, "prompts/list", Map.of()).body().get("result").get("prompts").get(0).get("name").asString()).isEqualTo("pendientes");
+        String prompt = rpc(runner, "prompts/get", Map.of("name", "pendientes", "arguments", Map.of("filtro", "PI"))).body()
+                .get("result").get("messages").get(0).get("content").get("text").asString();
+        assertThat(prompt).contains("mcp__pi__pending_work", "«PI»", "subagent");
         assertThat(rpc(runner, "nada/que/ver", Map.of()).body().get("error").get("code").asInt()).isEqualTo(-32601);
 
         // Pía crea un issue en Refinamiento (lo cubre el agente PO): pasa a su cola.
         call("POST", "/api/projects", Map.of("key", "PI", "name", "Pi", "templateKey", "SOFTWARE_FACTORY"), owner);
         String key = call("POST", "/api/projects/PI/issues", Map.of("title", "Agenda de citas", "type", "STORY", "status", "REFINEMENT"), owner)
                 .body().get("key").asString();
-        JsonNode queue = tool(runner, "pendientes", Map.of(), false);
+        JsonNode queue = tool(runner, "pending_work", Map.of(), false);
         assertThat(queue.get("total").asInt()).isEqualTo(1);
-        assertThat(queue.get("pendientes").get(0).get("subagente").asString()).isEqualTo("pi-product-owner");
-        assertThat(tool(otherRunner, "pendientes", Map.of(), false).get("total").asInt()).as("la cola de otra persona").isZero();
+        assertThat(queue.get("items").get(0).get("subagent").asString()).isEqualTo("pi-product-owner");
+        assertThat(tool(otherRunner, "pending_work", Map.of(), false).get("total").asInt()).as("la cola de otra persona").isZero();
 
-        JsonNode manual = tool(runner, "instrucciones_rol", Map.of("agente", "PRODUCT_OWNER"), false);
-        assertThat(manual.get("instrucciones").asString()).contains("Product Owner");
-        JsonNode detail = tool(runner, "ver_issue", Map.of("clave", key), false);
-        assertThat(detail.get("etapa").get("siguiente").get("columna").asString()).isEqualTo("APPROVAL");
+        JsonNode manual = tool(runner, "role_manual", Map.of("agent", "PRODUCT_OWNER"), false);
+        assertThat(manual.get("instructions").asString()).contains("Product Owner");
+        assertThat(manual.get("languages").get("code").asString()).isEqualTo("en");
+        assertThat(manual.get("factoryRules").toString()).contains("el código va en inglés", "van en español");
+        JsonNode detail = tool(runner, "get_issue", Map.of("key", key), false);
+        assertThat(detail.get("stage").get("next").get("column").asString()).isEqualTo("APPROVAL");
 
-        assertThat(tool(otherRunner, "tomar", Map.of("clave", key, "agente", "PRODUCT_OWNER"), true).asString()).contains("lo supervisa Pía");
-        assertThat(tool(runner, "tomar", Map.of("clave", key, "agente", "QA"), true).asString()).contains("cubren");
-        assertThat(tool(runner, "tomar", Map.of("clave", key, "agente", "NADIE"), true).asString()).contains("No hay un agente con el rol NADIE");
-        tool(runner, "tomar", Map.of("clave", key, "agente", "PRODUCT_OWNER"), false);
+        assertThat(tool(otherRunner, "take_issue", Map.of("key", key, "agent", "PRODUCT_OWNER"), true).asString()).contains("lo supervisa Pía");
+        assertThat(tool(runner, "take_issue", Map.of("key", key, "agent", "QA"), true).asString()).contains("cubren");
+        assertThat(tool(runner, "take_issue", Map.of("key", key, "agent", "NADIE"), true).asString()).contains("No hay un agente con el rol NADIE");
+        tool(runner, "take_issue", Map.of("key", key, "agent", "PRODUCT_OWNER"), false);
         JsonNode working = call("GET", "/api/agents/runs?issueKey=" + key, null, owner).body().get(0);
         assertThat(working.get("status").asString()).as("el tablero ve que el agente está trabajando").isEqualTo("RUNNING");
         assertThat(working.get("model").asString()).as("y desde qué cliente (el de Java en esta prueba)").isEqualTo("local:java-http-client");
-        tool(runner, "comentar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "texto", "Historia y criterios listos."), false);
-        assertThat(tool(runner, "estimar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "puntos", "4"), true).asString()).contains("escala");
-        assertThat(tool(runner, "estimar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "puntos", "5"), false).get("ok").asBoolean()).isTrue();
-        assertThat(tool(runner, "estimar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "puntos", "8"), false).get("ok").asBoolean())
+        tool(runner, "add_comment", Map.of("key", key, "agent", "PRODUCT_OWNER", "text", "Historia y criterios listos."), false);
+        assertThat(tool(runner, "estimate", Map.of("key", key, "agent", "PRODUCT_OWNER", "points", "4"), true).asString()).contains("escala");
+        assertThat(tool(runner, "estimate", Map.of("key", key, "agent", "PRODUCT_OWNER", "points", "5"), false).get("ok").asBoolean()).isTrue();
+        assertThat(tool(runner, "estimate", Map.of("key", key, "agent", "PRODUCT_OWNER", "points", "8"), false).get("ok").asBoolean())
                 .as("no pisa una estimación").isFalse();
-        assertThat(tool(runner, "escribir_documento", Map.of("clave", key, "agente", "PRODUCT_OWNER", "tipo", "SPEC", "contenido", "# Spec"), true)
+        assertThat(tool(runner, "write_document", Map.of("key", key, "agent", "PRODUCT_OWNER", "type", "SPEC", "content", "# Spec"), true)
                 .asString()).contains("no tiene metodología");
-        JsonNode delivered = tool(runner, "entregar", Map.of("clave", key, "agente", "PRODUCT_OWNER", "comentario", "Listo para aprobar."), false);
-        assertThat(delivered.get("columna").asString()).isEqualTo("APPROVAL");
+        JsonNode delivered = tool(runner, "deliver", Map.of("key", key, "agent", "PRODUCT_OWNER", "comment", "Listo para aprobar."), false);
+        assertThat(delivered.get("column").asString()).isEqualTo("APPROVAL");
         assertThat(call("GET", "/api/agents/runs?issueKey=" + key, null, owner).body().get(0).get("status").asString()).isEqualTo("SUCCEEDED");
 
         // En la puerta espera a una persona; al aprobar, sigue en la cola de Pía para el arquitecto.
-        assertThat(tool(runner, "pendientes", Map.of(), false).get("total").asInt()).isZero();
+        assertThat(tool(runner, "pending_work", Map.of(), false).get("total").asInt()).isZero();
         call("POST", "/api/issues/" + key + "/review", Map.of("approve", true), owner);
-        JsonNode next = tool(runner, "pendientes", Map.of("agente", "ARCHITECT"), false);
-        assertThat(next.get("pendientes").get(0).get("etapa").asString()).isEqualTo("Diseño");
+        JsonNode next = tool(runner, "pending_work", Map.of("agent", "ARCHITECT"), false);
+        assertThat(next.get("items").get(0).get("stage").asString()).isEqualTo("Diseño");
 
         JsonNode comments = call("GET", "/api/issues/" + key + "/comments", null, owner).body();
         List<String> bodies = new ArrayList<>();
@@ -182,14 +190,15 @@ class McpIT {
         JsonNode claude = call("GET", "/api/agent-kit?client=claude-code&mcp=CONTEXT7", null, owner).body();
         assertThat(claude.get("connection").get("tokenVar").asString()).isEqualTo("TABLERO_PI_TOKEN");
         String mcpJson = claude.get("files").get(0).get("content").asString();
-        assertThat(mcpJson).contains("\"pi\"", "${TABLERO_PI_TOKEN}", "/mcp", "context7").doesNotContain(runner).doesNotContainIgnoringCase("kuador");
+        assertThat(mcpJson).as("sin token: cada persona inicia sesión").contains("\"pi\"", "/mcp", "context7").doesNotContain(runner, "Authorization")
+                .doesNotContainIgnoringCase("kuador");
         JsonNode codex = call("GET", "/api/agent-kit?client=codex", null, owner).body().get("files");
         assertThat(codex.get(0).get("path").asString()).isEqualTo(".codex/config.toml");
-        assertThat(codex.get(0).get("content").asString()).contains("[mcp_servers.pi]", "bearer_token_env_var = \"TABLERO_PI_TOKEN\"");
+        assertThat(codex.get(0).get("content").asString()).contains("[mcp_servers.pi]", "codex mcp login pi").doesNotContain("bearer_token_env_var");
         assertThat(codex.get(1).get("path").asString()).isEqualTo("AGENTS.md");
-        assertThat(codex.get(1).get("content").asString()).contains("# Tablero de Pi", "instrucciones_rol").doesNotContainIgnoringCase("kuador");
+        assertThat(codex.get(1).get("content").asString()).contains("# Tablero de Pi", "role_manual", "el código va en inglés").doesNotContainIgnoringCase("kuador");
         JsonNode generic = call("GET", "/api/agent-kit?client=mcp", null, owner).body().get("files");
-        assertThat(generic.get(0).get("content").asString()).contains("<valor de TABLERO_PI_TOKEN>");
+        assertThat(generic.get(0).get("content").asString()).contains("/mcp").doesNotContain("Authorization");
 
         // Revocar la conexión la deja sin acceso.
         String tokenId = issued.body().get("info").get("id").asString();

@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/Section";
 
-import { boardApi } from "@/lib/api";
+import { ApiError, boardApi } from "@/lib/api";
+import type { RepoKit } from "@/lib/types";
 import { requireEditor } from "@/lib/require-editor";
 import { failPage } from "@/lib/page-errors";
 
+import { AgentKitPanel } from "./AgentKitPanel";
 import { SyncPanel } from "./SyncPanel";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +45,14 @@ export default async function SyncPage({ params }: Props) {
     return failPage(e);
   }
   const [status, issues] = data;
+  // El kit vive en los repos creados con la app de GitHub; si GitHub no responde, el resto de la página sigue.
+  let kit: { repos: RepoKit[]; error: string | null } | null = null;
+  if (link.kind === "GITHUB_APP") {
+    kit = await boardApi.agentKitStatus(projectKey).then(
+      (repos) => ({ repos, error: null }),
+      (e: unknown) => ({ repos: [], error: e instanceof ApiError ? e.message : "No se pudo leer el kit de agentes del repo." }),
+    );
+  }
   return (
     <div className="flex flex-col gap-5 px-6 py-6">
       <p className="text-[13px] text-fg-muted">
@@ -52,6 +62,7 @@ export default async function SyncPage({ params }: Props) {
           : "El tablero escribe los archivos pero no hace commits: revisa con git diff en la carpeta y haz commit tú."}
       </p>
       <SyncPanel projectKey={project.key} status={status} issues={issues} />
+      {kit && <AgentKitPanel projectKey={project.key} repos={kit.repos} error={kit.error} />}
     </div>
   );
 }

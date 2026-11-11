@@ -32,6 +32,14 @@ class WorkspaceController {
         return service.updateBranding(r.name(), r.description(), r.brandColor(), r.brandOnColor(), r.logo());
     }
 
+    /** Idioma del equipo (documentos, comentarios, textos para el usuario final) y del código. */
+    @PutMapping("/languages")
+    Workspace languages(@Valid @RequestBody LanguagesRequest r) {
+        return service.updateLanguages(r.team(), r.code());
+    }
+
+    record LanguagesRequest(@NotBlank @Size(max = 5) String team, @NotBlank @Size(max = 5) String code) {}
+
     record UpdateRequest(
             @NotBlank @Size(max = 120) String name,
             @Size(max = 500) String description,

@@ -333,13 +333,20 @@ MCP · 5 desarrollo y QA · 6 release.
 
 ## Agentes locales (Fase 2)
 
-El servidor MCP del tablero es estándar: sirve cualquier cliente de IA con MCP (Claude Code, Codex, Cursor, OpenCode, Cline…). Todo lleva el nombre del espacio de trabajo, no el del producto: en el espacio `adma`, el servidor se llama `adma` y el token va en `TABLERO_ADMA_TOKEN`.
+El servidor MCP del tablero es estándar: sirve cualquier cliente de IA con MCP (Claude Code, Codex, Cursor, OpenCode, Cline…). Todo lleva el nombre del espacio de trabajo, no el del producto: en el espacio `adma`, el servidor se llama `adma`.
 
-1. En el tablero, **Agentes locales → Crear conexión** (una por equipo). Guarda el token en tu shell, nunca en el repo.
-2. Elige tu cliente y descarga el kit en la raíz del repo:
-   - **Claude Code:** `.mcp.json`, un subagente por rol (`.claude/agents/<espacio>-<rol>.md`) y el comando `/pendientes`. Haz `unset ANTHROPIC_API_KEY` para usar tu plan.
-   - **Codex:** `.codex/config.toml` (proyecto de confianza; `bearer_token_env_var`) y `AGENTS.md` con el flujo de trabajo.
-   - **Otro cliente MCP:** `mcp-servidores.json` con URL y cabecera para adaptar, y `AGENTS.md`.
-3. Pide «trabaja mis pendientes». El historial del issue muestra desde qué cliente se trabajó.
+**Conectarse = un comando y un inicio de sesión** (OAuth 2.1 con PKCE; no hay token que copiar):
+
+- **Claude Code:** en un repo creado por el tablero ya viene todo; si no, `claude mcp add --transport http --scope user <espacio> <URL>/mcp`. Después `/mcp` → Authenticate: se abre el navegador, la persona entra al tablero y aprueba. Haz `unset ANTHROPIC_API_KEY` para usar tu plan.
+- **Codex:** `codex mcp add <espacio> --url <URL>/mcp` y `codex mcp login <espacio>`.
+- **Clientes sin OAuth:** token de conexión (Agentes locales → Crear token) en la cabecera `Authorization: Bearer`.
+
+Cada inicio de sesión queda como una conexión de esa persona en **Agentes locales**, donde se revoca.
+
+**El kit vive en el repo.** Al crear un repo, el tablero commitea `.mcp.json` (sin cabeceras), el comando `/pendientes`, un subagente por rol (`.claude/agents/<espacio>-<rol>.md`) y `.codex/config.toml`. Si cambian los roles, las reglas o los idiomas, **Sincronizar → Kit de agentes** lo propone por PR. Sin archivos, el mismo pedido llega como prompt del servidor (`/mcp__<espacio>__pendientes`). El .zip queda para repos que no creó el tablero.
+
+**Herramientas** (en inglés): `pending_work`, `get_issue`, `role_manual`, `take_issue`, `add_comment`, `estimate`, `deliver`, `send_back`, `ask_human`, `read_document`, `write_document`.
+
+**Idiomas** (Empresa e idiomas): idioma del equipo (specs, planes, comentarios, textos para el usuario final; por defecto español) e idioma del código (nombres, comentarios, pruebas, commits, PRs, OpenAPI; por defecto inglés). Todos los agentes lo reciben como regla de la fábrica.
 
 Solo se atienden los issues que supervisas: los que asignaste a un agente o llevaste a una etapa que cubren agentes. Las puertas siguen siendo de las personas.

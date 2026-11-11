@@ -47,8 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ComponentService implements RepositoriesApi {
 
     private static final Logger log = LoggerFactory.getLogger(ComponentService.class);
-    private static final String KIND = "GITHUB_APP";
-    private static final String WORK_BRANCH = "develop";
+    static final String KIND = "GITHUB_APP";
+    static final String WORK_BRANCH = "develop";
     private static final Pattern PIECE = Pattern.compile("^[a-z][a-z0-9-]{1,39}$");
 
     /** Una pieza a crear. {@code repoName} nulo = carpeta en el repo del proyecto; si no, un repo propio. */
@@ -133,6 +133,9 @@ public class ComponentService implements RepositoriesApi {
         ownRepo.forEach(p -> lines.add(p.line("repo " + p.spec().repoName().strip())));
 
         List<File> projectFiles = new ArrayList<>(RepositoryBase.files(project.name(), projectKey, s.description(), agentsMd, documents, lines));
+        List<Prepared> all = new ArrayList<>(inFolder);
+        all.addAll(ownRepo);
+        projectFiles.addAll(kit(all));
         inFolder.forEach(p -> projectFiles.addAll(p.files()));
         RepositoryCreator.Created main = creator.create(
                 new RepositoryCreator.NewRepository(s.installationId(), s.repoName(), s.description(), s.privateRepo(), checks(inFolder)),
@@ -220,9 +223,20 @@ public class ComponentService implements RepositoriesApi {
     /** Repo propio de una pieza: bases de pieza y, encima, el código de su plantilla (gana la plantilla). */
     private RepositoryCreator.Created createPieceRepo(ProjectView project, Prepared p, long installationId, boolean privateRepo, String projectRepo, String agentsMd) {
         List<File> files = new ArrayList<>(RepositoryBase.pieceRepoFiles(project.name(), project.key(), agentsMd, projectRepo, p.line(".")));
+        files.addAll(kit(List.of(p)));
         files.addAll(p.files());
         return creator.create(new RepositoryCreator.NewRepository(installationId, p.spec().repoName().strip(), project.name() + " · " + p.spec().name(),
                 privateRepo, checks(List.of(p))), dedupe(files), "chore: pieza " + p.spec().name() + " del proyecto " + project.key() + " desde el tablero");
+    }
+
+    /** Kit de agentes del repo con los servidores MCP que sugieren las plantillas de sus piezas. */
+    private List<File> kit(List<Prepared> pieces) {
+        return agents.agentKit(mcpServers(pieces.stream().map(Prepared::template).toList())).stream()
+                .map(f -> new File(f.path(), f.content())).toList();
+    }
+
+    static List<String> mcpServers(List<ComponentTemplate> templates) {
+        return templates.stream().filter(java.util.Objects::nonNull).flatMap(t -> t.mcpServers().stream()).distinct().toList();
     }
 
     /** Verificaciones de CI que exigen las ramas protegidas: «ci» del tablero más las de cada plantilla. */

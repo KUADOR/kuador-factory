@@ -15,8 +15,8 @@ import type { AgentClient, AgentKit, McpServer, RunnerToken } from "@/lib/types"
 
 const CLIENTS: { value: AgentClient; label: string; hint: string }[] = [
   { value: "claude-code", label: "Claude Code", hint: "Un subagente por rol y el comando /pendientes." },
-  { value: "codex", label: "Codex", hint: ".codex/config.toml y AGENTS.md con el flujo de trabajo." },
-  { value: "mcp", label: "Otro cliente MCP", hint: "Cursor, OpenCode, Cline… La conexión y un AGENTS.md para adaptar." },
+  { value: "codex", label: "Codex", hint: "Inicia sesión con codex mcp login y sigue el AGENTS.md." },
+  { value: "mcp", label: "Otro cliente MCP", hint: "Cursor, OpenCode, Cline… Con OAuth o con un token." },
 ];
 
 /** Bloque de comando o archivo con botón de copiar. */
@@ -56,21 +56,26 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 const muted = "text-[13px] leading-relaxed text-fg-muted";
 const mono = "font-mono text-[12px]";
 
-/** Cómo se trabaja en cada cliente, una vez puesto el kit. */
-function Usage({ client, kit }: { client: AgentClient; kit: AgentKit }) {
-  const { server, tokenVar } = kit.connection;
+/** Cómo conectar cada cliente: un comando y un inicio de sesión en el navegador. */
+function Connect({ client, kit }: { client: AgentClient; kit: AgentKit }) {
+  const { server, url } = kit.connection;
   if (client === "claude-code") {
     return (
       <>
-        <Step n={1} title="Usa tu suscripción, no una API key">
+        <Step n={1} title="Agrega el tablero a Claude Code">
+          <p className={muted}>
+            Si el repo lo creó el tablero, ya trae la conexión: abre Claude Code en el repo, aprueba el servidor «{server}» y pasa al paso 2. Si no, agrégalo una vez para todas tus carpetas:
+          </p>
+          <Code label="comando">{`claude mcp add --transport http --scope user ${server} ${url}`}</Code>
+        </Step>
+        <Step n={2} title="Inicia sesión">
+          <p className={muted}>
+            En Claude Code escribe <code className={mono}>/mcp</code>, elige «{server}» y luego Authenticate. Se abre el navegador, entras con tu cuenta del tablero y apruebas. No hay token que copiar: la conexión queda a tu nombre en la lista de abajo.
+          </p>
+        </Step>
+        <Step n={3} title="Usa tu suscripción, no una API key">
           <p className={muted}>Si tienes ANTHROPIC_API_KEY definida, Claude Code cobra cada uso a esa clave en vez de a tu plan.</p>
           <Code label="comando">unset ANTHROPIC_API_KEY</Code>
-        </Step>
-        <Step n={2} title="Abre Claude Code en el repo y pide tus pendientes">
-          <Code label="comando">{"claude\n/pendientes"}</Code>
-          <p className={muted}>
-            Filtra con <code className={mono}>/pendientes MED</code> (un proyecto) o <code className={mono}>/pendientes QA</code> (un rol). La primera vez, aprueba el servidor «{server}» del .mcp.json.
-          </p>
         </Step>
       </>
     );
@@ -78,48 +83,62 @@ function Usage({ client, kit }: { client: AgentClient; kit: AgentKit }) {
   if (client === "codex") {
     return (
       <>
-        <Step n={1} title="Marca el repo como de confianza">
-          <p className={muted}>Codex solo lee el .codex/config.toml de proyectos de confianza. Si ya tenías ese archivo o un AGENTS.md, agrega lo del kit en vez de reemplazarlos.</p>
+        <Step n={1} title="Agrega el tablero a Codex">
+          <p className={muted}>Si el repo lo creó el tablero, ya trae .codex/config.toml (Codex lo lee si marcas el proyecto como de confianza). Si no:</p>
+          <Code label="comando">{`codex mcp add ${server} --url ${url}`}</Code>
         </Step>
-        <Step n={2} title="Abre Codex en el repo y pide tus pendientes">
-          <Code label="comando">{"codex\n> Trabaja mis pendientes del tablero"}</Code>
-          <p className={muted}>AGENTS.md le explica el flujo: toma cada issue con el rol que pide y sigue el manual de ese rol desde el tablero.</p>
+        <Step n={2} title="Inicia sesión">
+          <Code label="comando">{`codex mcp login ${server}`}</Code>
+          <p className={muted}>Se abre el navegador, entras con tu cuenta del tablero y apruebas.</p>
         </Step>
       </>
     );
   }
   return (
-    <>
-      <Step n={1} title="Agrega el servidor en tu cliente">
+    <Step n={1} title="Agrega el servidor en tu cliente">
+      <p className={muted}>
+        Es un servidor MCP por HTTP en <code className={mono}>{url}</code>. Si tu cliente inicia sesión con OAuth, basta con la URL: te pedirá entrar con tu cuenta del tablero. Si no, crea un token abajo y envíalo en la cabecera <code className={mono}>Authorization: Bearer</code>.
+      </p>
+    </Step>
+  );
+}
+
+/** Cómo pedir el trabajo en cada cliente. */
+function Work({ client, kit }: { client: AgentClient; kit: AgentKit }) {
+  const { server } = kit.connection;
+  if (client === "claude-code") {
+    return (
+      <Step n={1} title="Pide tus pendientes">
+        <Code label="comando">{"/pendientes"}</Code>
         <p className={muted}>
-          Es un servidor MCP por HTTP: URL <code className={mono}>{kit.connection.url}</code> y cabecera <code className={mono}>Authorization: Bearer</code> con el valor de{" "}
-          <code className={mono}>{tokenVar}</code>. mcp-servidores.json trae el formato más común; cada cliente lo pide en su propio archivo.
+          En un repo con el kit, <code className={mono}>/pendientes</code> reparte cada issue al subagente de su rol. En cualquier otra carpeta, el mismo pedido llega desde el tablero como <code className={mono}>/mcp__{server}__pendientes</code>. Filtra con un proyecto (<code className={mono}>MED</code>) o un rol (<code className={mono}>QA</code>).
         </p>
       </Step>
-      <Step n={2} title="Dale las instrucciones del flujo">
-        <p className={muted}>Muchos clientes leen AGENTS.md solos; si el tuyo no, pega su contenido en sus reglas o instrucciones. Después pídele «trabaja mis pendientes del tablero».</p>
-      </Step>
-    </>
+    );
+  }
+  return (
+    <Step n={1} title="Pide tus pendientes">
+      <Code label="pedido">{"Trabaja mis pendientes del tablero"}</Code>
+      <p className={muted}>El AGENTS.md del repo le explica el flujo; si tu cliente usa prompts de MCP, también tiene el prompt «pendientes».</p>
+    </Step>
   );
 }
 
 /**
- * Conectar el cliente de IA de una persona con el tablero: su conexión (token), el kit para el repo en
- * el formato de su cliente y cómo trabajar los pendientes.
+ * Conectar el cliente de IA de una persona con el tablero: un comando y un inicio de sesión (OAuth). Los tokens
+ * copiados a mano y el kit en .zip quedan para clientes sin OAuth y repos que no creó el tablero.
  */
 export function AgentSetup({
   tokens,
   servers,
   initialKit,
   initialMcp,
-  boardUrl,
   personName,
 }: {
   tokens: RunnerToken[];
   servers: McpServer[];
   initialKit: AgentKit;
   initialMcp: string[];
-  boardUrl: string;
   personName: string;
 }) {
   const [client, setClient] = useState<AgentClient>("claude-code");
@@ -127,7 +146,7 @@ export function AgentSetup({
   const [kit, setKit] = useState(initialKit);
   const [open, setOpen] = useState(initialKit.files[0]?.path ?? "");
   const [pending, start] = useTransition();
-  const { tokenVar, server } = kit.connection;
+  const { tokenVar, server, url } = kit.connection;
   const query = new URLSearchParams([["client", client], ...mcp.map((k) => ["mcp", k])]).toString();
   const shown = kit.files.find((f) => f.path === open) ?? kit.files[0];
 
@@ -142,33 +161,8 @@ export function AgentSetup({
 
   return (
     <div className="flex max-w-3xl flex-col gap-5 px-6 py-6">
-      <Section
-        title="1 · Tu conexión"
-        description={`Tu cliente de IA entra al tablero como los agentes del equipo, en nombre de ${personName}. Solo abre el servidor MCP del tablero: no sirve para entrar a la web ni a la API. Crea una por equipo.`}
-      >
-        <TokenManager
-          tokens={tokens}
-          create={createRunnerTokenAction}
-          revoke={revokeRunnerTokenAction}
-          copy={{
-            empty: "Aún no conectaste ningún equipo.",
-            namePlaceholder: "Nombre, ej. Laptop con Codex",
-            create: "Crear conexión",
-            revokeTitle: (name) => `¿Desconectar «${name}»?`,
-            revokeMessage: "Ese equipo dejará de tener acceso al tablero de inmediato.",
-            revoked: "Conexión revocada",
-          }}
-          onIssued={(secret) => (
-            <div className="mt-3 flex flex-col gap-1.5">
-              <p className="text-fg">Guárdalo en tu shell (por ejemplo en ~/.zshrc), nunca en el repositorio:</p>
-              <Code label="comando">{`export ${tokenVar}=${secret}`}</Code>
-            </div>
-          )}
-        />
-      </Section>
-
-      <Section title="2 · Kit para el repositorio" description={`Archivos para la raíz del repo. El servidor se llama «${server}», como este espacio. No llevan secretos: se pueden versionar.`}>
-        <div className="flex flex-col gap-4">
+      <Section title="1 · Conecta tu cliente de IA" description={`Tu cliente entra al tablero como los agentes del equipo, en nombre de ${personName}, y solo atiende los issues que supervisas.`}>
+        <div className="flex flex-col gap-5">
           <ChoiceCards
             name="agent-client"
             label="Cliente de IA"
@@ -179,7 +173,57 @@ export function AgentSetup({
             }}
             choices={CLIENTS}
           />
+          <ol className="flex flex-col gap-5">
+            <Connect client={client} kit={kit} />
+          </ol>
+        </div>
+      </Section>
 
+      <Section title="2 · Trabaja tus pendientes">
+        <ol className="flex flex-col gap-5">
+          <Work client={client} kit={kit} />
+          <Step n={2} title="Qué atiende">
+            <p className={muted}>
+              Los issues que supervisas: los que asignaste a un agente o llevaste a una etapa que cubren agentes (por ejemplo, al aprobar una puerta). Cada issue lo trabaja el rol que lo cubre, firmado por ese agente, y termina entregado, devuelto o con una pregunta para ti. Las puertas siguen siendo de las personas. Todo cuenta para los límites de tu cuenta en ese cliente.
+            </p>
+          </Step>
+        </ol>
+      </Section>
+
+      <Section
+        title="3 · Tus conexiones"
+        description="Cada inicio de sesión de un cliente queda aquí; desconéctalo cuando ya no uses ese equipo. Para clientes sin inicio de sesión, crea un token: solo abre el servidor MCP, no la web ni la API."
+      >
+        <TokenManager
+          tokens={tokens}
+          create={createRunnerTokenAction}
+          revoke={revokeRunnerTokenAction}
+          copy={{
+            empty: "Aún no conectaste ningún cliente.",
+            namePlaceholder: "Nombre, ej. Cursor en la laptop",
+            create: "Crear token",
+            revokeTitle: (name) => `¿Desconectar «${name}»?`,
+            revokeMessage: "Ese cliente dejará de tener acceso al tablero de inmediato.",
+            revoked: "Conexión revocada",
+          }}
+          onIssued={(secret) => (
+            <div className="mt-3 flex flex-col gap-1.5">
+              <p className="text-fg">Guárdalo en tu shell (por ejemplo en ~/.zshrc), nunca en el repositorio, y úsalo como cabecera:</p>
+              <Code label="comando">{`export ${tokenVar}=${secret}`}</Code>
+              <Code label="comando">{`claude mcp add --transport http --scope user ${server} ${url} --header "Authorization: Bearer \$${tokenVar}"`}</Code>
+            </div>
+          )}
+        />
+      </Section>
+
+      <details className="group rounded-lg border border-line bg-surface">
+        <summary className="cursor-pointer list-none px-5 py-4 text-[13px] font-medium text-fg-strong">
+          Kit para un repo que no creó el tablero
+          <span className="mt-0.5 block text-xs font-normal text-fg-muted">
+            Los repos que crea el tablero ya lo traen y se actualizan por PR desde Sincronizar. Para otros, copia estos archivos en la raíz: no llevan secretos.
+          </span>
+        </summary>
+        <div className="flex flex-col gap-4 border-t border-line px-5 py-4">
           <div className="flex flex-col gap-2">
             <p className="text-xs font-medium text-fg-muted">Servidores MCP del catálogo que se suman al del tablero</p>
             <ul className="flex flex-col divide-y divide-line rounded-md border border-line">
@@ -230,28 +274,13 @@ export function AgentSetup({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button tone="primary" size="sm" icon={Download} href={`/agentes-locales/kit?${query}`} download>
+            <Button tone="secondary" size="sm" icon={Download} href={`/agentes-locales/kit?${query}`} download>
               Descargar kit (.zip)
             </Button>
             <span className="text-xs text-fg-muted">{kit.files.length} archivos para {CLIENTS.find((c) => c.value === client)?.label}</span>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <p className="text-xs text-fg-muted">O desde la raíz del repo, con tu conexión. No reemplaza archivos que ya existan:</p>
-            <Code label="comando">{`curl -fsSL -H "Authorization: Bearer $${tokenVar}" "${boardUrl}/api/agent-kit.zip?${query}" -o kit-agentes.zip && unzip -n kit-agentes.zip && rm kit-agentes.zip`}</Code>
-          </div>
         </div>
-      </Section>
-
-      <Section title="3 · Trabaja tus pendientes">
-        <ol className="flex flex-col gap-5">
-          <Usage client={client} kit={kit} />
-          <Step n={3} title="Qué atiende">
-            <p className={muted}>
-              Los issues que supervisas: los que asignaste a un agente o llevaste a una etapa que cubren agentes (por ejemplo, al aprobar una puerta). Cada issue lo trabaja el rol que lo cubre, firmado por ese agente, y termina entregado, devuelto o con una pregunta para ti. Las puertas siguen siendo de las personas. El historial muestra desde qué cliente se trabajó. Todo cuenta para los límites de tu cuenta en ese cliente.
-            </p>
-          </Step>
-        </ol>
-      </Section>
+      </details>
     </div>
   );
 }

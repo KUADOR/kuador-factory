@@ -91,6 +91,39 @@ class GitHubRepositoryCreator implements RepositoryCreator {
         return new Proposal(pr.path("number").asInt(), pr.path("html_url").asString(), branch);
     }
 
+    @Override
+    public java.util.Map<String, String> read(long installationId, String repository, String branch, java.util.Collection<String> paths) {
+        GitHubClient client = provider.client(installationId);
+        java.util.Map<String, String> found = new java.util.LinkedHashMap<>();
+        for (String path : paths) {
+            if (path.contains("..")) throw new DomainException("Ruta no permitida: " + path);
+            client.find("/repos/" + repository + "/contents/" + path + "?ref=" + java.net.URLEncoder.encode(branch, java.nio.charset.StandardCharsets.UTF_8))
+                    .filter(n -> n.isObject() && "file".equals(n.path("type").asString("")))
+                    .ifPresent(n -> found.put(path, new String(java.util.Base64.getMimeDecoder().decode(n.path("content").asString("")),
+                            java.nio.charset.StandardCharsets.UTF_8)));
+        }
+        return found;
+    }
+
+    @Override
+    public java.util.Optional<Proposal> openProposal(long installationId, String repository, String baseBranch, String branchPrefix) {
+        JsonNode pulls = provider.client(installationId).get("/repos/" + repository + "/pulls?state=open&per_page=100&base="
+                + java.net.URLEncoder.encode(baseBranch, java.nio.charset.StandardCharsets.UTF_8));
+        for (JsonNode pr : pulls) {
+            String head = pr.path("head").path("ref").asString("");
+            if (head.startsWith(branchPrefix)) return java.util.Optional.of(new Proposal(pr.path("number").asInt(), pr.path("html_url").asString(), head));
+        }
+        return java.util.Optional.empty();
+    }
+
+    @Override
+    public void addCommit(long installationId, String repository, String branch, List<File> files, String message) {
+        GitHubClient client = provider.client(installationId);
+        String head = GitData.refSha(client, repository, branch)
+                .orElseThrow(() -> new DomainException("La rama " + branch + " ya no existe en " + repository + "."));
+        GitData.advance(client, repository, branch, GitData.commit(client, repository, entries(files), message, head));
+    }
+
     private static List<GitData.Entry> entries(List<File> files) {
         return files.stream().map(f -> new GitData.Entry(f.path(), f.content(), f.base64(), f.executable())).toList();
     }

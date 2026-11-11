@@ -208,7 +208,7 @@ class GitHubAppIT {
         assertThat(GITHUB.file("acme/pi", "main", "web/README.md")).contains("Angular", "npm run build");
         assertThat(GITHUB.file("acme/pi", "main", "README.md")).contains("## Piezas", "| api | Java 25 · Spring Boot | `api/` |", "| web |");
         assertThat(GITHUB.file("acme/pi", "main", "AGENTS.md")).as("el AGENTS.md de la metodología lleva el flujo del tablero")
-                .contains("# Reglas para agentes", "## Tablero de Acme Lab", "instrucciones_rol").doesNotContainIgnoringCase("kuador");
+                .contains("# Reglas para agentes", "## Tablero de Acme Lab", "role_manual").doesNotContainIgnoringCase("kuador");
         assertThat(GITHUB.file("acme/pi", "main", ".specify/memory/constitution.md")).contains("Portal Pi");
         assertThat(call("GET", "/api/projects/PI/components", null, devSession).body()).extracting(n -> n.get("path").asString()).containsExactly("api", "web");
 
@@ -221,6 +221,32 @@ class GitHubAppIT {
         assertThat(GITHUB.tokensIssued).isEqualTo(1);
         assertThat(call("POST", "/api/projects/PI/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "otro"), owner).status())
                 .as("se arma una sola vez").isEqualTo(409);
+
+        // El kit de agentes nace en el repo, sin secretos: cada persona solo inicia sesión desde su cliente.
+        assertThat(GITHUB.file("acme/pi", "develop", ".mcp.json")).contains("\"acme-lab\"", "/mcp").doesNotContain("Authorization");
+        assertThat(GITHUB.file("acme/pi", "develop", ".claude/commands/pendientes.md")).contains("mcp__acme-lab__pending_work");
+        assertThat(GITHUB.file("acme/pi", "develop", ".claude/agents/acme-lab-backend.md")).contains("agent: BACKEND", "el código va en inglés");
+        assertThat(GITHUB.file("acme/pi", "develop", ".codex/config.toml")).contains("[mcp_servers.acme-lab]", "codex mcp login acme-lab");
+        JsonNode kit = call("GET", "/api/projects/PI/sync/agent-kit", null, owner).body();
+        assertThat(kit).hasSize(1);
+        assertThat(kit.get(0).get("files")).allSatisfy(f -> assertThat(f.get("state").asString()).isEqualTo("CURRENT"));
+        assertThat(call("POST", "/api/projects/PI/sync/agent-kit", null, owner).status()).as("al día: nada que proponer").isEqualTo(422);
+
+        // El equipo decide escribir el código en español: el kit queda desactualizado y se propone por PR (uno solo).
+        assertThat(call("PUT", "/api/workspace/languages", Map.of("team", "es", "code", "es"), owner).status()).isEqualTo(200);
+        JsonNode outdated = call("GET", "/api/projects/PI/sync/agent-kit", null, owner).body().get(0).get("files");
+        assertThat(outdated).anySatisfy(f -> assertThat(f.get("state").asString()).isEqualTo("OUTDATED"));
+        Reply proposed = call("POST", "/api/projects/PI/sync/agent-kit", null, owner);
+        assertThat(proposed.status()).as(String.valueOf(proposed.body())).isEqualTo(200);
+        assertThat(proposed.body().get(0).get("pullRequest").get("url").asString()).contains("acme/pi/pull/");
+        int pulls = GITHUB.pulls.size();
+        String kitBranch = proposed.body().get(0).get("pullRequest").get("branch").asString();
+        assertThat(kitBranch).startsWith("tablero/kit-agentes");
+        assertThat(GITHUB.file("acme/pi", kitBranch, ".claude/agents/acme-lab-backend.md")).contains("todo va en español");
+        call("PUT", "/api/workspace/languages", Map.of("team", "es", "code", "en"), owner);
+        call("POST", "/api/projects/PI/sync/agent-kit", null, owner);
+        assertThat(GITHUB.pulls).as("suma un commit al PR abierto").hasSize(pulls);
+        assertThat(GITHUB.file("acme/pi", kitBranch, ".claude/agents/acme-lab-backend.md")).contains("el código va en inglés");
 
         // Sumar una pieza después en el monorepo: llega por Pull Request a develop.
         Reply worker = call("POST", "/api/projects/PI/components", Map.of("piece", Map.of("name", "worker", "templateKey", "MICROSERVICE_SPRING")), owner);

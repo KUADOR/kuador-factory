@@ -239,6 +239,25 @@ final class FakeGitHubCloud implements AutoCloseable {
             int number = pulls.size() + 1;
             pulls.add(Map.of("repo", full, "head", req.path("head").asString(), "base", req.path("base").asString(), "title", req.path("title").asString()));
             reply(ex, 201, Map.of("number", number, "html_url", "https://github.com/" + full + "/pull/" + number));
+        } else if (rest.startsWith("contents/") && method.equals("GET")) {
+            String query = ex.getRequestURI().getQuery() == null ? "" : ex.getRequestURI().getQuery();
+            String branch = query.replaceAll(".*ref=([^&]+).*", "$1");
+            String ref = refs.get(full + ":" + branch);
+            String content = ref == null ? null : trees.get(commitTree.get(ref)).get(rest.substring("contents/".length()));
+            if (content == null) reply(ex, 404, Map.of("message", "Not Found"));
+            else reply(ex, 200, Map.of("type", "file", "encoding", "base64",
+                    "content", Base64.getMimeEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8))));
+        } else if (rest.equals("pulls") && method.equals("GET")) {
+            String query = ex.getRequestURI().getQuery() == null ? "" : ex.getRequestURI().getQuery();
+            String base = query.replaceAll(".*base=([^&]+).*", "$1");
+            List<Map<String, Object>> open = new ArrayList<>();
+            for (int i = 0; i < pulls.size(); i++) {
+                Map<String, String> pr = pulls.get(i);
+                if (pr.get("repo").equals(full) && pr.get("base").equals(base)) {
+                    open.add(Map.of("number", i + 1, "html_url", "https://github.com/" + full + "/pull/" + (i + 1), "head", Map.of("ref", pr.get("head"))));
+                }
+            }
+            reply(ex, 200, open);
         } else if (rest.matches("branches/.+/protection") && method.equals("PUT")) {
             if ((Boolean) repo.get("private")) {
                 reply(ex, 403, Map.of("message", "Upgrade to GitHub Pro or make this repository public to enable this feature."));

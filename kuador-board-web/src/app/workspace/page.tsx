@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shell/PageHeader";
+import { LanguageSettings } from "@/components/workspace/LanguageSettings";
 import { WorkspaceSettings } from "@/components/workspace/WorkspaceSettings";
 import { boardApi } from "@/lib/api";
 import { requireEditor } from "@/lib/require-editor";
@@ -20,9 +21,12 @@ export default async function WorkspacePage() {
   }
   return (
     <>
-      <PageHeader title="Marca y empresa" />
-      <div className="px-6 py-6">
+      <PageHeader title="Empresa e idiomas" />
+      <div className="flex flex-col gap-6 px-6 py-6">
         <WorkspaceSettings workspace={workspace} />
+        <div className="max-w-3xl">
+          <LanguageSettings workspace={workspace} />
+        </div>
       </div>
     </>
   );

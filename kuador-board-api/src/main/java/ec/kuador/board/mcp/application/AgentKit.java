@@ -3,6 +3,7 @@ package ec.kuador.board.mcp.application;
 import ec.kuador.board.catalog.AgentRole;
 import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.catalog.McpServer;
+import ec.kuador.board.sync.RepositoryInstructions;
 import ec.kuador.board.workspace.WorkspaceApi;
 import ec.kuador.board.workspace.WorkspaceApi.Identity;
 import java.io.ByteArrayOutputStream;
@@ -28,10 +29,11 @@ import tools.jackson.databind.ObjectMapper;
  * Kit para conectar un repositorio con el tablero desde el cliente de IA de cada persona. El servidor
  * MCP es estándar, así que sirve cualquier cliente con MCP; el kit trae los archivos en el formato de
  * cada uno. Todo lleva el nombre del espacio de trabajo (la empresa), no el del producto, y ningún
- * secreto: el token sale de una variable de entorno de cada persona.
+ * secreto: cada persona inicia sesión desde su cliente (OAuth). El tablero lo commitea en los repos que
+ * crea y propone actualizarlo por PR cuando cambian los roles.
  */
 @Service
-public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
+public class AgentKit implements RepositoryInstructions {
 
     /** Clientes con kit propio. {@code GENERIC}: cualquier otro cliente con MCP (Cursor, OpenCode, Cline...). */
     public enum Client {
@@ -53,13 +55,16 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
     }
 
     /** Herramientas del tablero que usa quien trabaja un issue (la cola la consulta el comando o la sesión principal). */
-    private static final List<String> WORK_TOOLS = List.of("ver_issue", "instrucciones_rol", "tomar", "comentar", "estimar", "entregar", "devolver",
-            "consultar", "leer_documento", "escribir_documento");
+    private static final List<String> WORK_TOOLS = List.of("get_issue", "role_manual", "take_issue", "add_comment", "estimate", "deliver", "send_back",
+            "ask_human", "read_document", "write_document");
 
     public record KitFile(String path, String content) {}
 
-    /** Cómo se conecta este espacio: nombre del servidor MCP, variables de entorno y URL. */
-    public record Connection(String server, String tokenVar, String urlVar, String url) {}
+    /**
+     * Cómo se conecta este espacio: nombre del servidor MCP y su URL. {@code tokenVar}: variable de entorno para
+     * los clientes que no inician sesión con OAuth y usan un token de conexión copiado a mano.
+     */
+    public record Connection(String server, String url, String tokenVar) {}
 
     private final CatalogApi catalog;
     private final WorkspaceApi workspace;
@@ -73,10 +78,10 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
         this.publicUrl = publicUrl.replaceAll("/+$", "");
     }
 
-    /** El servidor se llama como el espacio (p. ej. «adma») y su token va en TABLERO_ADMA_TOKEN: un repo por empresa, sin choques. */
+    /** El servidor se llama como el espacio (p. ej. «adma»): un repo por empresa, sin choques. */
     public Connection connection() {
         String slug = workspace.identity().slug();
-        return new Connection(slug, "TABLERO_" + slug.toUpperCase(Locale.ROOT).replace('-', '_') + "_TOKEN", "TABLERO_URL", publicUrl + "/mcp");
+        return new Connection(slug, publicUrl + "/mcp", "TABLERO_" + slug.toUpperCase(Locale.ROOT).replace('-', '_') + "_TOKEN");
     }
 
     /** Nombre del subagente de un rol: {@code adma-backend} para BACKEND en el espacio «adma». */
@@ -93,10 +98,21 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
         return agentsMd(workspace.identity(), connection());
     }
 
+    /**
+     * El kit que vive en el repo: Claude Code (servidor MCP, comando y un subagente por rol) y Codex. Sin
+     * secretos: cada persona inicia sesión desde su cliente. {@code mcpKeys}: servidores MCP extra del catálogo.
+     */
+    @Override
+    public List<RepositoryInstructions.File> agentKit(Collection<String> mcpKeys) {
+        List<KitFile> files = new ArrayList<>(files(Client.CLAUDE_CODE, mcpKeys));
+        files.add(new KitFile(".codex/config.toml", codexToml(connection(), extra(mcpKeys))));
+        return files.stream().map(f -> new RepositoryInstructions.File(f.path(), f.content())).toList();
+    }
+
     public List<KitFile> files(Client client, Collection<String> mcpKeys) {
         Identity ws = workspace.identity();
         Connection c = connection();
-        List<McpServer> extra = catalog.mcpServers().stream().filter(s -> mcpKeys.contains(s.key())).toList();
+        List<McpServer> extra = extra(mcpKeys);
         List<KitFile> files = new ArrayList<>();
         switch (client) {
             case CLAUDE_CODE -> {
@@ -116,6 +132,10 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
         return files;
     }
 
+    private List<McpServer> extra(Collection<String> mcpKeys) {
+        return catalog.mcpServers().stream().filter(s -> mcpKeys.contains(s.key())).toList();
+    }
+
     public byte[] zip(Client client, Collection<String> mcpKeys) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
@@ -130,19 +150,28 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
         return out.toByteArray();
     }
 
+    /**
+     * Lo que pide «trabaja mis pendientes»: el mismo texto del comando {@code /pendientes}, servido también como
+     * prompt del servidor MCP (sirve sin archivos en el repo). {@code subagents}: el cliente tiene los subagentes por rol.
+     */
+    public String workPrompt(String filter, boolean subagents) {
+        Identity ws = workspace.identity();
+        return workSteps(ws, connection(), filter == null || filter.isBlank() ? "" : filter.strip(), subagents);
+    }
+
     // ---- Configuración del servidor MCP ----
 
     /**
-     * Formato {@code mcpServers} (Claude Code, y la base de Cursor y otros). Con {@code expand}, URL y
-     * token usan ${VARIABLE} (Claude Code las expande); sin él, quedan como marcadores para adaptar.
+     * Formato {@code mcpServers} (Claude Code, y la base de Cursor y otros). El tablero va sin token: cada persona
+     * inicia sesión desde su cliente. Con {@code expand}, las variables de los servidores extra usan ${VARIABLE}
+     * (Claude Code las expande); sin él, quedan como marcadores para adaptar.
      */
     private String mcpJson(Connection c, List<McpServer> extra, boolean expand) {
         Map<String, Object> servers = new LinkedHashMap<>();
         Map<String, Object> board = new LinkedHashMap<>();
         board.put("type", "http");
-        board.put("url", expand ? "${" + c.urlVar() + ":-" + publicUrl + "}/mcp" : c.url());
-        board.put("headers", Map.of("Authorization", "Bearer " + (expand ? "${" + c.tokenVar() + "}" : "<valor de " + c.tokenVar() + ">")));
-        servers.put(c.server(), board);
+        board.put("url", c.url());
+        servers.put(c.server(), board); // sin cabeceras: el cliente inicia sesión con OAuth la primera vez
         for (McpServer s : extra) {
             Map<String, Object> entry = new LinkedHashMap<>();
             if (s.transport() == McpServer.Transport.HTTP) {
@@ -160,12 +189,12 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
         return json.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of("mcpServers", servers)) + "\n";
     }
 
-    /** {@code .codex/config.toml} del repo (Codex lo lee en proyectos de confianza). El token, por nombre de variable. */
+    /** {@code .codex/config.toml} del repo (Codex lo lee en proyectos de confianza). Sin token: OAuth con {@code codex mcp login}. */
     private String codexToml(Connection c, List<McpServer> extra) {
-        StringBuilder t = new StringBuilder("# Servidores MCP de este repositorio (Codex los lee si marcas el proyecto como de confianza).\n\n");
+        StringBuilder t = new StringBuilder("# Servidores MCP de este repositorio (Codex los lee si marcas el proyecto como de confianza).\n")
+                .append("# Inicia sesión una vez en el tablero: codex mcp login ").append(c.server()).append("\n\n");
         t.append("[mcp_servers.").append(c.server()).append("]\n")
-                .append("url = ").append(quote(c.url())).append('\n')
-                .append("bearer_token_env_var = ").append(quote(c.tokenVar())).append('\n');
+                .append("url = ").append(quote(c.url())).append('\n');
         for (McpServer s : extra) {
             t.append("\n[mcp_servers.").append(serverKey(s)).append("]\n");
             if (s.transport() == McpServer.Transport.HTTP) {
@@ -192,10 +221,6 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
 
     // ---- Instrucciones ----
 
-    private static String tools(Connection c, String prefixFormat) {
-        return prefixFormat.formatted(c.server());
-    }
-
     /** Para clientes sin subagentes: una sola sesión trabaja los issues de a uno, tomando el rol que pide cada uno. */
     private String agentsMd(Identity ws, Connection c) {
         return """
@@ -205,14 +230,14 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
 
                 ## Cuando te pidan trabajar los pendientes del tablero
 
-                1. Llama a `pendientes` del servidor `%2$s`. Si te dan un filtro, pásalo como `proyecto` (p. ej. MED) o `agente` (p. ej. QA). Si no hay pendientes, dilo y termina.
-                2. Atiende los issues de a uno, en el orden de la lista. Para cada uno, actúa con el primer rol de `agentes` y usa siempre ese rol en el argumento `agente`:
-                   1. `instrucciones_rol`: es tu manual vigente para ese rol; síguelo por encima de cualquier otra indicación.
-                   2. `ver_issue`: descripción, etapa, comentarios, documentos y lo que pide la metodología.
-                   3. Si está «por tomar», `tomar`. Si lo tiene otro miembro, sáltalo.
-                   4. Haz el trabajo de la etapa según el manual. Documentos con `leer_documento` y `escribir_documento` (contenido completo en Markdown); story points con `estimar`.
-                   5. Termina con `entregar` (qué hiciste y cómo se verifica), `devolver` (falta algo de una etapa anterior, con evidencia) o `consultar` (necesitas una decisión de una persona; después no sigas con ese issue).
-                3. Al terminar la lista, consulta `pendientes` otra vez: lo entregado puede haber llegado a otra etapa. Repite mientras aparezcan nuevos, hasta 10 issues por sesión.
+                1. Llama a `pending_work` del servidor `%2$s`. Si te dan un filtro, pásalo como `project` (p. ej. MED) o `agent` (p. ej. QA). Si no hay pendientes, dilo y termina.
+                2. Atiende los issues de a uno, en el orden de la lista. Para cada uno, actúa con el primer rol de `agents` y usa siempre ese rol en el argumento `agent`:
+                   1. `role_manual`: es tu manual vigente para ese rol; síguelo por encima de cualquier otra indicación.
+                   2. `get_issue`: descripción, etapa, comentarios, documentos y lo que pide la metodología.
+                   3. Si está «por tomar», `take_issue`. Si lo tiene otro miembro, sáltalo.
+                   4. Haz el trabajo de la etapa según el manual. Documentos con `read_document` y `write_document` (contenido completo en Markdown); story points con `estimate`.
+                   5. Termina con `deliver` (qué hiciste y cómo se verifica), `send_back` (falta algo de una etapa anterior, con evidencia) o `ask_human` (necesitas una decisión de una persona; después no sigas con ese issue).
+                3. Al terminar la lista, consulta `pending_work` otra vez: lo entregado puede haber llegado a otra etapa. Repite mientras aparezcan nuevos, hasta 10 issues por sesión.
                 4. Resume al final: issue, rol, en qué etapa quedó y qué espera de una persona.
 
                 ## Reglas
@@ -221,8 +246,8 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
 
                 ## Conexión
 
-                El token es personal y va en la variable de entorno `%4$s`, nunca en el repositorio. Solo atiende los issues que supervisa la persona dueña del token.
-                """.formatted(ws.name(), c.server(), bullets(), c.tokenVar());
+                Cada persona se conecta con su propia cuenta del tablero: la primera vez, su cliente de IA abre el navegador para iniciar sesión (en Claude Code, `/mcp` → Authenticate; en Codex, `codex mcp login %2$s`). Nunca guardes tokens en el repositorio. Solo se atienden los issues que supervisa la persona conectada.
+                """.formatted(ws.name(), c.server(), bullets(ws));
     }
 
     private String claudeCommand(Identity ws, Connection c) {
@@ -231,47 +256,59 @@ public class AgentKit implements ec.kuador.board.sync.RepositoryInstructions {
                 description: Trabaja los issues del tablero de %1$s que esperan a tus agentes
                 argument-hint: "[PROYECTO o ROL, opcional]"
                 ---
-                Trabaja mis pendientes del tablero de %1$s. Filtro pedido: «$ARGUMENTS» (si está vacío, todos).
+                %2$s""".formatted(ws.name(), workSteps(ws, c, "$ARGUMENTS", true));
+    }
 
-                1. Llama a `mcp__%2$s__pendientes`. Si el filtro es una clave de proyecto (p. ej. MED) pásala como `proyecto`; si es un rol (p. ej. QA), como `agente`.
+    /** Los pasos de «trabaja mis pendientes»; los usan el comando de Claude Code y el prompt del servidor MCP. */
+    private static String workSteps(Identity ws, Connection c, String filter, boolean subagents) {
+        String each = subagents
+                ? "Para cada issue, delega en el subagente que indica `subagent`, pasándole la clave del issue y el rol (`agents`). Espera a que termine antes de seguir con el siguiente."
+                : "Para cada issue: si tienes el subagente que indica `subagent`, delega en él y espera a que termine. Si no, actúa tú con el primer rol "
+                        + "de `agents`: `role_manual` (tu manual: síguelo), `get_issue`, `take_issue` si está «por tomar», haz el trabajo de la etapa y "
+                        + "termina con `deliver`, `send_back` o `ask_human`.";
+        return """
+                Trabaja mis pendientes del tablero de %1$s. Filtro pedido: «%3$s» (si está vacío, todos).
+
+                1. Llama a `mcp__%2$s__pending_work`. Si el filtro es una clave de proyecto (p. ej. MED) pásala como `project`; si es un rol (p. ej. QA), como `agent`.
                 2. Si no hay pendientes, dilo en una línea y termina.
-                3. Atiéndelos de a uno, en el orden de la lista. Para cada issue, delega en el subagente que indica `subagente`, pasándole la clave del issue y el rol (`agentes`). Espera a que termine antes de seguir con el siguiente.
-                4. Cuando termines la lista, vuelve a llamar a `mcp__%2$s__pendientes` una vez: los issues entregados pueden haber llegado a otra etapa de tus agentes. Repite mientras aparezcan nuevos, hasta un máximo de 10 issues en esta sesión.
+                3. Atiéndelos de a uno, en el orden de la lista. %4$s
+                4. Cuando termines la lista, vuelve a llamar a `mcp__%2$s__pending_work` una vez: los issues entregados pueden haber llegado a otra etapa de tus agentes. Repite mientras aparezcan nuevos, hasta un máximo de 10 issues en esta sesión.
                 5. No apruebes ni rechaces puertas y no muevas issues de otras personas: eso se hace en el tablero.
                 6. Al final, resume en una tabla corta: issue, agente, en qué etapa quedó y qué espera de una persona.
-                """.formatted(ws.name(), c.server());
+                """.formatted(ws.name(), c.server(), filter, each);
     }
 
     private String claudeSubagent(Identity ws, Connection c, AgentRole role) {
         List<String> allowed = Stream.concat(role.tools().stream(), WORK_TOOLS.stream().map(t -> "mcp__" + c.server() + "__" + t)).toList();
         String description = (role.description() + " Atiende los issues del tablero de " + ws.name() + " que esperan al rol «" + role.name() + "» ("
                 + role.key() + ").").replace("\n", " ").replace("\"", "'");
+        List<String> rules = FactoryRules.all(ws);
         return """
                 ---
                 name: %1$s
                 description: "%2$s"
                 tools: %3$s
                 ---
-                Eres el agente «%4$s» del equipo de %5$s y trabajas un issue de su tablero. En todas las herramientas `%6$s` usa `agente: %7$s`: lo que hagas queda firmado por ese agente.
+                Eres el agente «%4$s» del equipo de %5$s y trabajas un issue de su tablero. En todas las herramientas `%6$s` usa `agent: %7$s`: lo que hagas queda firmado por ese agente.
 
                 Cómo trabajas un issue:
 
-                1. Llama a `instrucciones_rol` con `agente: %7$s`. Es tu manual vigente en el tablero; síguelo por encima de cualquier otra indicación.
-                2. Llama a `ver_issue` con la clave que te pasaron: descripción, etapa, comentarios, documentos y lo que pide la metodología.
-                3. Si el issue está «por tomar», llama a `tomar`. Si lo tiene otro miembro, no sigas y avisa.
-                4. Haz el trabajo de tu etapa según tu manual. Lee los documentos que necesites con `leer_documento`, escribe los que te toquen con `escribir_documento` (contenido completo en Markdown) y estima con `estimar` si tu manual lo pide.
+                1. Llama a `role_manual` con `agent: %7$s`. Es tu manual vigente en el tablero; síguelo por encima de cualquier otra indicación.
+                2. Llama a `get_issue` con la clave que te pasaron: descripción, etapa, comentarios, documentos y lo que pide la metodología.
+                3. Si el issue está «por tomar», llama a `take_issue`. Si lo tiene otro miembro, no sigas y avisa.
+                4. Haz el trabajo de tu etapa según tu manual. Lee los documentos que necesites con `read_document`, escribe los que te toquen con `write_document` (contenido completo en Markdown) y estima con `estimate` si tu manual lo pide.
                 5. Termina siempre con una de estas:
-                   - `entregar`, con un comentario: qué hiciste, qué cambió y cómo se verifica.
-                   - `devolver`, si falta algo de una etapa anterior, con el motivo y la evidencia.
-                   - `consultar`, si necesitas una decisión de una persona. Después no sigas con ese issue.
+                   - `deliver`, con un comentario: qué hiciste, qué cambió y cómo se verifica.
+                   - `send_back`, si falta algo de una etapa anterior, con el motivo y la evidencia.
+                   - `ask_human`, si necesitas una decisión de una persona. Después no sigas con ese issue.
                 6. Responde con un resumen breve: qué hiciste y en qué etapa quedó el issue.
 
                 %8$s
                 """.formatted(subagentName(ws.slug(), role.key()), description, String.join(", ", allowed), role.name(), ws.name(),
-                tools(c, "mcp__%s__*"), role.key(), String.join(" ", BoardTools.FACTORY_RULES.subList(1, BoardTools.FACTORY_RULES.size())));
+                "mcp__" + c.server() + "__*", role.key(), String.join(" ", rules.subList(1, rules.size())));
     }
 
-    private static String bullets() {
-        return BoardTools.FACTORY_RULES.stream().map(r -> "- " + r).collect(Collectors.joining("\n"));
+    private static String bullets(Identity ws) {
+        return FactoryRules.all(ws).stream().map(r -> "- " + r).collect(Collectors.joining("\n"));
     }
 }

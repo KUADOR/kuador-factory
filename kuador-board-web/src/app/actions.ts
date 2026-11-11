@@ -38,10 +38,12 @@ import type {
   IssueStatus,
   AgentClient,
   AgentKit,
+  Language,
   Member,
   MemberAccess,
   MemberKind,
   Project,
+  RepoKit,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -207,6 +209,31 @@ export async function listMethodologiesAction(): Promise<ActionResult<Methodolog
 
 // ---- Espacio de trabajo y catálogo (solo personas) ----
 
+export async function updateLanguagesAction(team: Language, code: Language): Promise<ActionResult<Workspace>> {
+  return run(() => boardApi.updateLanguages(team, code), "/workspace");
+}
+
+/**
+ * Respuesta de la persona en la pantalla de permiso OAuth. El destino lo valida la API (un redirect registrado
+ * del cliente); el navegador vuelve ahí con el código o con el error.
+ */
+export async function oauthDecisionAction(input: {
+  clientId: string;
+  redirectUri: string | null;
+  codeChallenge: string | null;
+  codeChallengeMethod: string | null;
+  state: string | null;
+  approved: boolean;
+}): Promise<ActionResult<never>> {
+  let target: string;
+  try {
+    target = (await boardApi.oauthAuthorize(input)).redirect;
+  } catch (error) {
+    return { ok: false, error: error instanceof ApiError ? error.message : "No se pudo completar la conexión." };
+  }
+  redirect(target);
+}
+
 export async function updateWorkspaceAction(input: {
   name: string;
   description: string | null;
@@ -345,6 +372,10 @@ export async function syncCompareAction(projectKey: string, docId: string): Prom
 
 export async function syncExportAction(projectKey: string, docId: string, force = false): Promise<ActionResult<Exported>> {
   return run(() => boardApi.syncExport(projectKey, docId, force), syncPath(projectKey));
+}
+
+export async function proposeAgentKitAction(projectKey: string): Promise<ActionResult<RepoKit[]>> {
+  return run(() => boardApi.proposeAgentKit(projectKey), syncPath(projectKey));
 }
 
 export async function syncExportManyAction(projectKey: string, documentIds: string[]): Promise<ActionResult<Exported>> {

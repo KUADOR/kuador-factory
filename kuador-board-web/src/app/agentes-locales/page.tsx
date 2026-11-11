@@ -34,7 +34,6 @@ export default async function LocalAgentsPage() {
         servers={servers}
         initialKit={kit}
         initialMcp={DEFAULT_MCP}
-        boardUrl={process.env.BOARD_PUBLIC_API_URL ?? process.env.BOARD_API_URL ?? "http://localhost:8091"}
         personName={me.name}
       />
     </>

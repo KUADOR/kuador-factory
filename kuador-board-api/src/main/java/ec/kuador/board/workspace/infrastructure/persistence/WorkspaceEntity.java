@@ -29,6 +29,12 @@ class WorkspaceEntity {
 
     String logo;
 
+    @Column(name = "team_language")
+    String teamLanguage;
+
+    @Column(name = "code_language")
+    String codeLanguage;
+
     @Column(name = "catalog_version", insertable = false, updatable = false)
     int catalogVersion;
 
@@ -46,11 +52,14 @@ class WorkspaceEntity {
         e.brandColor = w.brandColor();
         e.brandOnColor = w.brandOnColor();
         e.logo = w.logo();
+        e.teamLanguage = w.languages().team();
+        e.codeLanguage = w.languages().code();
         e.createdAt = w.createdAt();
         return e;
     }
 
     Workspace toDomain() {
-        return new Workspace(id, slug, name, description, brandColor, brandOnColor, logo, createdAt);
+        return new Workspace(id, slug, name, description, brandColor, brandOnColor, logo,
+                new ec.kuador.board.workspace.domain.Languages(teamLanguage, codeLanguage), createdAt);
     }
 }

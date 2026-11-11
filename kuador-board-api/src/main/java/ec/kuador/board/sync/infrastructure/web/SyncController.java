@@ -39,7 +39,10 @@ class SyncController {
     private final SyncService service;
     private final ComponentService components;
 
-    SyncController(SyncService service, ComponentService components) {
+    private final ec.kuador.board.sync.application.AgentKitService kit;
+
+    SyncController(SyncService service, ComponentService components, ec.kuador.board.sync.application.AgentKitService kit) {
+        this.kit = kit;
         this.components = components;
         this.service = service;
     }
@@ -110,6 +113,19 @@ class SyncController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void unlink(@PathVariable String projectKey) {
         service.unlink(projectKey);
+    }
+
+    /** Kit de agentes de cada repo del proyecto: al día, desactualizado o faltante (solo repos de la app de GitHub). */
+    @GetMapping("/sync/agent-kit")
+    java.util.List<ec.kuador.board.sync.application.AgentKitService.RepoKit> agentKit(@PathVariable String projectKey) {
+        return kit.status(projectKey);
+    }
+
+    /** Propone por PR el kit vigente en los repos donde cambió. */
+    @PostMapping("/sync/agent-kit")
+    java.util.List<ec.kuador.board.sync.application.AgentKitService.RepoKit> proposeAgentKit(@PathVariable String projectKey,
+            @AuthenticationPrincipal AuthenticatedMember who) {
+        return kit.propose(projectKey, who.memberId());
     }
 
     @GetMapping("/sync")

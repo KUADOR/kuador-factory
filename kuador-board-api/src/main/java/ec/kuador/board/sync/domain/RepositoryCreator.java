@@ -36,4 +36,13 @@ public interface RepositoryCreator {
 
     /** Propone archivos en un repo existente: rama nueva desde {@code baseBranch}, un commit y un Pull Request. */
     Proposal propose(long installationId, String repository, String baseBranch, String branch, List<File> files, String title, String body);
+
+    /** Contenido de esos archivos en la rama (los que no existen no aparecen). Solo texto UTF-8. */
+    java.util.Map<String, String> read(long installationId, String repository, String branch, java.util.Collection<String> paths);
+
+    /** PR abierto hacia {@code baseBranch} cuya rama empieza con {@code branchPrefix}, si hay uno. */
+    java.util.Optional<Proposal> openProposal(long installationId, String repository, String baseBranch, String branchPrefix);
+
+    /** Agrega un commit con los archivos a una rama existente (p. ej. la de un PR abierto). */
+    void addCommit(long installationId, String repository, String branch, List<File> files, String message);
 }

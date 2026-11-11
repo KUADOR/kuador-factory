@@ -242,6 +242,19 @@ public class AuthService implements AuthApi {
         return new IssuedToken(secret, saved);
     }
 
+    /**
+     * Conexión emitida por un inicio de sesión OAuth: el canje llega sin sesión, así que se resuelve la persona
+     * en su espacio y se aplican las mismas reglas que al crearla a mano.
+     */
+    public IssuedToken issueRunnerToken(UUID workspaceId, UUID memberId, String name) {
+        return TenantContext.call(workspaceId, () -> tx.execute(s -> {
+            MemberView m = members.find(memberId).filter(x -> x.workspaceId().equals(workspaceId))
+                    .orElseThrow(() -> new ForbiddenException("La persona que aprobó ya no está en el espacio."));
+            AuthenticatedMember who = new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), null, m.viewOnly());
+            return createRunnerToken(who, name.length() > 80 ? name.substring(0, 80) : name);
+        }));
+    }
+
     @Transactional(readOnly = true)
     public List<AccessToken> runnerTokens(AuthenticatedMember who) {
         return tokens.findActiveRunnerTokens(who.memberId());

@@ -30,16 +30,21 @@ public class McpProtocol {
     private static final Logger log = LoggerFactory.getLogger(McpProtocol.class);
     private static final String INSTRUCTIONS = """
             Tablero de %s. Trabajas como los agentes del equipo sobre los issues que supervisa la persona \
-            conectada. Empieza por «pendientes»; para cada issue, «ver_issue» e «instrucciones_rol» del agente que lo cubre; \
-            luego «tomar», trabaja y termina con «entregar», «devolver» o «consultar». Las puertas de aprobación las \
-            cierra siempre una persona.""";
+            conectada. Empieza por «pending_work»; para cada issue, «get_issue» y «role_manual» del agente que lo cubre; \
+            luego «take_issue», trabaja y termina con «deliver», «send_back» o «ask_human». Las puertas de aprobación las \
+            cierra siempre una persona. El prompt «pendientes» trae estos pasos.""";
+
+    /** Prompt del servidor: en Claude Code aparece como el comando /mcp__<servidor>__pendientes. */
+    static final String WORK_PROMPT = "pendientes";
 
     private final BoardTools tools;
+    private final AgentKit kit;
     private final ObjectMapper json;
     private final WorkspaceApi workspace;
 
-    McpProtocol(BoardTools tools, ObjectMapper json, WorkspaceApi workspace) {
+    McpProtocol(BoardTools tools, AgentKit kit, ObjectMapper json, WorkspaceApi workspace) {
         this.tools = tools;
+        this.kit = kit;
         this.json = json;
         this.workspace = workspace;
     }
@@ -56,6 +61,8 @@ public class McpProtocol {
             case "ping" -> result(id, Map.of());
             case "tools/list" -> result(id, Map.of("tools", tools.list().stream().map(McpProtocol::describe).toList()));
             case "tools/call" -> result(id, call(params, personId, client));
+            case "prompts/list" -> result(id, Map.of("prompts", List.of(workPrompt())));
+            case "prompts/get" -> prompt(id, params);
             default -> error(id, -32601, "Método no soportado: " + method);
         });
     }
@@ -66,9 +73,23 @@ public class McpProtocol {
         WorkspaceApi.Identity ws = workspace.identity();
         return Map.of(
                 "protocolVersion", VERSIONS.contains(asked) ? asked : VERSIONS.getFirst(),
-                "capabilities", Map.of("tools", Map.of("listChanged", false)),
+                "capabilities", Map.of("tools", Map.of("listChanged", false), "prompts", Map.of("listChanged", false)),
                 "serverInfo", Map.of("name", ws.slug(), "title", "Tablero de " + ws.name(), "version", "1.0.0"),
                 "instructions", INSTRUCTIONS.formatted(ws.name()));
+    }
+
+    private Map<String, Object> workPrompt() {
+        return Map.of("name", WORK_PROMPT, "title", "Trabajar mis pendientes",
+                "description", "Atiende los issues del tablero de " + workspace.identity().name() + " que esperan a tus agentes, uno por uno.",
+                "arguments", List.of(Map.of("name", "filtro", "description", "Opcional: clave de proyecto (p. ej. MED) o rol (p. ej. QA).", "required", false)));
+    }
+
+    private Map<String, Object> prompt(JsonNode id, JsonNode params) {
+        String name = params.path("name").asString("");
+        if (!WORK_PROMPT.equals(name)) return error(id, -32602, "No existe el prompt " + name + ".");
+        String filter = params.path("arguments").path("filtro").asString("");
+        return result(id, Map.of("description", "Trabajar mis pendientes",
+                "messages", List.of(Map.of("role", "user", "content", text(kit.workPrompt(filter, false))))));
     }
 
     private static Map<String, Object> describe(Tool t) {

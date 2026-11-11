@@ -79,7 +79,7 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
           {editor && (
             <>
               <NavLink href="/workspace" active={path.startsWith("/workspace")}>
-                <Building2 className="size-4 shrink-0" aria-hidden /> Marca y empresa
+                <Building2 className="size-4 shrink-0" aria-hidden /> Empresa e idiomas
               </NavLink>
               <NavLink href="/catalog" active={path.startsWith("/catalog")}>
                 <BookMarked className="size-4 shrink-0" aria-hidden /> Catálogo

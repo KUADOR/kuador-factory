@@ -9,13 +9,16 @@ proxy de Cloudflare, o con modo SSL *Full*). Dokploy pide el certificado HTTPS c
 ```
 Internet ──HTTPS──▶ Traefik (Dokploy)
                       │  go.kuador.com      ──▶ kuador-board-web (Next.js, :3600)
-                      │  go-api.kuador.com  ──▶ kuador-board-api (:8091), solo /mcp, el kit, el webhook y la salud
+                      │  go-api.kuador.com  ──▶ kuador-board-api (:8091), solo /mcp, OAuth, el kit, el webhook y la salud
                       ▼
         kuador-board-web ──red interna──▶ kuador-board-api ──▶ PostgreSQL (servicio de BD de Dokploy)
 ```
 
 - **Por el dominio de la API solo entran** el MCP de los clientes de IA de cada persona
-  (`/mcp`), el kit de agentes (`/api/agent-kit`, `/api/agent-kit.zip`), el webhook de GitHub
+  (`/mcp`), su inicio de sesión OAuth (`/.well-known/oauth-protected-resource[/mcp]`,
+  `/.well-known/oauth-authorization-server`, `/oauth/register`, `/oauth/token`; la pantalla de permiso
+  es `https://go.kuador.com/oauth/authorize`, por eso `BOARD_WEB_URL` debe ser la URL pública de la web),
+  el kit de agentes (`/api/agent-kit`, `/api/agent-kit.zip`), el webhook de GitHub
   (`/api/github/webhook`) y `/actuator/health`. Lo hace la propia API (`BOARD_PUBLIC_HOST_GATE=true`):
   cualquier otra ruta pedida con el host de `BOARD_PUBLIC_URL` responde 404. El resto de la API lo
   llama el servidor de Next por la red interna, con el host interno; el navegador nunca habla con la API.
@@ -53,7 +56,7 @@ BOARD_SECRETS_KEY=
 
 BOARD_PUBLIC_URL=https://go-api.kuador.com
 BOARD_WEB_URL=https://go.kuador.com
-# Por go-api.kuador.com solo entran /mcp, el kit, el webhook y la salud.
+# Por go-api.kuador.com solo entran /mcp, su OAuth, el kit, el webhook y la salud.
 BOARD_PUBLIC_HOST_GATE=true
 
 # Primera cuenta (solo si la base está vacía). Cámbiala después de entrar.

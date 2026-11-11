@@ -166,6 +166,12 @@ Decidido el 2026-11-10:
    Probada con Claude Code real (2026-11-10): `/pendientes` en modo `-p`, el subagente del PO tomó un
    issue SDD, escribió la spec (v1→v3), consultó dos veces a la persona y al final estimó y entregó a
    Aprobación (~75 s y 5 turnos por vuelta).
+   **Actualización (2026-11-11):** herramientas, argumentos y respuestas en inglés (`pending_work`,
+   `get_issue`, `role_manual`, `take_issue`, `add_comment`, `estimate`, `deliver`, `send_back`,
+   `ask_human`, `read_document`, `write_document`); conexión por OAuth 2.1 + PKCE con registro
+   dinámico (la persona aprueba en la web y recibe su conexión `RUNNER`); kit commiteado en los repos
+   que crea el tablero y actualizado por PR desde Sincronizar; prompt MCP `pendientes`; idiomas del
+   espacio (equipo / código) como regla de la fábrica.
    **Abierto a cualquier cliente de IA (decisión del usuario):** el kit se elige por cliente (Claude
    Code, Codex con `.codex/config.toml` + `AGENTS.md`, u otro cliente MCP) y todo lleva el nombre del
    espacio (servidor `<slug>`, `TABLERO_<SLUG>_TOKEN`, subagentes `<slug>-<rol>`), nunca «Kuador»:

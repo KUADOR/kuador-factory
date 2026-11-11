@@ -48,6 +48,7 @@ export function IssueCard({
               Espera a {plan!.waitingFor!.join(", ")}
             </span>
           )}
+          {plan?.planPending && <span className="rounded bg-warn/12 px-1.5 py-px text-[11px] font-medium text-warn">Reparto por aprobar</span>}
           {plan?.progress && (
             <span title="Tareas terminadas" className="tabular rounded bg-hover px-1.5 py-px font-mono text-[11px] text-fg">
               {plan.progress.done}/{plan.progress.total} tareas

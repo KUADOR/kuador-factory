@@ -38,6 +38,7 @@ import type {
   IssueStatus,
   AgentClient,
   AgentKit,
+  EpicTask,
   Language,
   Member,
   MemberAccess,
@@ -442,6 +443,14 @@ export async function takeIssueAction(projectKey: string, key: string): Promise<
 
 export async function deliverIssueAction(projectKey: string, key: string, comment: string | null): Promise<ActionResult<Issue>> {
   return run(() => boardApi.deliverIssue(key, comment), `/projects/${projectKey}`);
+}
+
+export async function listEpicTasksAction(key: string): Promise<ActionResult<EpicTask[]>> {
+  return run(() => boardApi.epicTasks(key));
+}
+
+export async function reviewPlanAction(projectKey: string, key: string, approve: boolean, comment: string | null): Promise<ActionResult<Issue>> {
+  return run(() => boardApi.reviewPlan(key, approve, comment), `/projects/${projectKey}`);
 }
 
 export async function reviewIssueAction(projectKey: string, key: string, approve: boolean, comment: string | null): Promise<ActionResult<Issue>> {

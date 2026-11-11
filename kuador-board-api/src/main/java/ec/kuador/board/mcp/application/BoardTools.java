@@ -113,7 +113,7 @@ public class BoardTools {
                 "dependsOn", Map.of("type", "array", "items", Map.of("type", "integer"), "description", "Números (desde 1) de tareas de esta lista que deben terminar antes.")));
         tools.put("create_tasks", new Definition(new Tool("create_tasks", "Crear tareas de la épica",
                 "Épicas: al terminar el plan, crea una tarjeta por cada tarea del tasks.md, hija de la épica, con su rol y sus dependencias. "
-                        + "Esperan en la primera columna y arrancan cuando la épica llega a Desarrollo; cada una la toma el agente de su rol, en su propia rama y PR. "
+                        + "Esperan en la primera columna; cuando la épica llega a Desarrollo, una persona revisa el reparto y al aprobarlo arrancan: cada una la toma el agente de su rol, en su propia rama y PR. "
                         + "Si llamas otra vez antes de que arranquen, reemplaza las anteriores.",
                 Tool.schema(Map.of("key", "Clave de la épica.", "agent", AGENT),
                         Map.of("tasks", Map.of("type", "array", "minItems", 1, "items", taskItem, "description", "Las tareas, en orden.")),
@@ -198,8 +198,9 @@ public class BoardTools {
             m.put("tasks", tasks.stream().map(BoardTools::task).toList());
             m.put("epicGuide", tasks.isEmpty()
                     ? "Es una épica. Quien escribe el plan (arquitecto) termina creando una tarjeta por cada tarea del tasks.md con create_tasks "
-                            + "(rol y dependencias) antes de deliver. Las tareas arrancan cuando la épica llega a Desarrollo y la épica se cierra sola al terminarlas."
-                    : "Es una épica con tareas: la trabajan sus tareas, cada una por su rol. Se cierra sola cuando terminan todas.");
+                            + "(rol y dependencias) antes de deliver. Una persona revisa y aprueba el reparto; entonces arrancan las tareas, y la épica sigue sola al terminarlas."
+                    : "Es una épica con tareas: la trabajan sus tareas, cada una por su rol, cuando una persona aprueba el reparto. Si te la devolvieron con cambios al reparto, "
+                            + "lee el comentario, ajusta el plan y vuelve a llamar a create_tasks (reemplaza las tareas que no arrancaron) antes de deliver.");
         }
         issues.taskInfo(c.key()).ifPresent(t -> {
             Map<String, Object> task = new LinkedHashMap<>(task(t));
@@ -361,7 +362,7 @@ public class BoardTools {
             throw new ToolException("«tasks» debe ser una lista JSON de objetos {title, role, description, dependsOn}.");
         }
         List<IssueApi.IssueRef> created = issues.createEpicTasks(c.key(), tasks, agent.id());
-        return Map.of("ok", true, "message", "Creé " + created.size() + " tarea(s) en " + c.key() + ". Arrancan cuando la épica llegue a Desarrollo: ahora entrégala con deliver.",
+        return Map.of("ok", true, "message", "Creé " + created.size() + " tarea(s) en " + c.key() + ". Ahora entrégala con deliver: una persona revisa el reparto y, al aprobarlo, arrancan.",
                 "tasks", created.stream().map(r -> Map.of("key", r.key(), "title", r.title())).toList());
     }
 

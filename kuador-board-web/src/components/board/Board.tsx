@@ -87,7 +87,7 @@ export function Board({
   const memberById = new Map(members.map((m) => [m.id, m]));
   const epics = issues.filter((i) => i.type === "EPIC");
   const epicTitles = new Map(epics.map((e) => [e.key, e.title]));
-  const plans = cardPlans(issues, byKey, new Set(project.columns.filter((c) => c.category === "DONE").map((c) => c.key)), roleName);
+  const plans = cardPlans(issues, byKey, project, roleName);
   const working = new Map(
     runs.filter((r) => r.status === "RUNNING" && r.projectKey === project.key).flatMap((r) => {
       const agent = memberById.get(r.agentId);
@@ -372,6 +372,7 @@ export function Board({
           workingAgent={working.get(openIssue.key)}
           me={me}
           roleName={roleName}
+          onOpenIssue={setOpenKey}
           onClose={() => setOpenKey(null)}
         />
       )}
@@ -412,8 +413,10 @@ export function Board({
   );
 }
 
-/** Plan de las épicas en las tarjetas: rol de cada tarea, a qué tareas espera y cuántas terminó cada épica. */
-function cardPlans(issues: Issue[], byKey: Map<string, Issue>, done: Set<string>, roleName: (key: string) => string): Map<string, CardPlan> {
+/** Plan de las épicas en las tarjetas: rol de cada tarea, a qué tareas espera, cuántas terminó cada épica y si su reparto espera aprobación. */
+function cardPlans(issues: Issue[], byKey: Map<string, Issue>, project: Project, roleName: (key: string) => string): Map<string, CardPlan> {
+  const done = new Set(project.columns.filter((c) => c.category === "DONE").map((c) => c.key));
+  const first = project.columns[0]?.key;
   const plans = new Map<string, CardPlan>();
   for (const issue of issues) {
     if (!issue.workRole) continue;
@@ -421,11 +424,18 @@ function cardPlans(issues: Issue[], byKey: Map<string, Issue>, done: Set<string>
       const dep = byKey.get(k);
       return dep && !done.has(dep.status);
     });
-    plans.set(issue.key, { role: roleName(issue.workRole), waitingFor: done.has(issue.status) ? [] : waitingFor });
-    if (issue.parentKey) {
-      const epic = plans.get(issue.parentKey) ?? {};
-      const progress = epic.progress ?? { done: 0, total: 0 };
-      plans.set(issue.parentKey, { ...epic, progress: { done: progress.done + (done.has(issue.status) ? 1 : 0), total: progress.total + 1 } });
+    plans.set(issue.key, { ...plans.get(issue.key), role: roleName(issue.workRole), waitingFor: done.has(issue.status) ? [] : waitingFor });
+    const epic = issue.parentKey ? byKey.get(issue.parentKey) : undefined;
+    if (epic) {
+      const current = plans.get(epic.key) ?? {};
+      const progress = current.progress ?? { done: 0, total: 0 };
+      const stage = project.stages.find((st) => st.column === epic.status);
+      const awaiting = issue.status === first && !epic.assigneeId && !!stage && !stage.gate && stage.roles.length > 0;
+      plans.set(epic.key, {
+        ...current,
+        progress: { done: progress.done + (done.has(issue.status) ? 1 : 0), total: progress.total + 1 },
+        planPending: current.planPending || awaiting,
+      });
     }
   }
   return plans;

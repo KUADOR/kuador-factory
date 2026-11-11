@@ -104,6 +104,18 @@ class IssueController {
         return IssueResponse.from(service.review(key, r.approve(), r.comment(), who.memberId()));
     }
 
+    /** Una persona aprueba el reparto de tareas de una épica (arrancan) o pide cambios (vuelve al diseño). */
+    @PostMapping("/api/issues/{key}/plan")
+    IssueResponse reviewPlan(@PathVariable String key, @Valid @RequestBody ReviewRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        return IssueResponse.from(service.reviewPlan(key, r.approve(), r.comment(), who.memberId()));
+    }
+
+    /** Tareas del plan de una épica: rol, dependencias y en qué etapa va cada una. */
+    @GetMapping("/api/issues/{key}/tasks")
+    java.util.List<ec.kuador.board.issue.IssueApi.TaskInfo> tasks(@PathVariable String key) {
+        return service.epicTasks(key);
+    }
+
     record StepRequest(@Size(max = 10_000) String comment) {}
 
     record ReviewRequest(boolean approve, @Size(max = 10_000) String comment) {}

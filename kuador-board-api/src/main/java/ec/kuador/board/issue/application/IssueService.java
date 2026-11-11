@@ -227,7 +227,7 @@ public class IssueService implements IssueApi {
             events.publishEvent(new IssueMoved(UUID.randomUUID(), TenantContext.require(), key, issue.projectKey(), actorId, now, from, target,
                     fromCategory, to.category().name()));
             publishAssignmentIfChanged(issue, previousAssignee, actorId, now);
-            if (issue.type() == IssueType.EPIC) releaseTasks(issue, project, actorId);
+            if (issue.type() == IssueType.EPIC) announcePendingPlan(issue, project, actorId);
             if (issue.workRole() != null && issue.parentKey() != null && releaseColumn(project).filter(target::equals).isPresent()) {
                 // Una tarea termina con su PR aprobado: el release (develop → main) se hace una vez, con la épica.
                 firstDone(project).ifPresent(done -> {
@@ -302,12 +302,70 @@ public class IssueService implements IssueApi {
                 pendingDependencies(task, project), Optional.ofNullable(task.assigneeId()).flatMap(members::find).map(MemberView::name).orElse(null));
     }
 
-    /** La épica llegó a una etapa de trabajo (p. ej. Desarrollo): sus tareas del plan arrancan ahí, cada una para su rol. */
-    private void releaseTasks(Issue epic, ProjectView project, UUID actorId) {
-        Optional<StageDef> stage = project.stage(epic.status());
-        if (stage.isEmpty() || stage.get().gate() || stage.get().roles().isEmpty()) return;
+    /** Tareas del plan que todavía esperan en la primera columna. */
+    private List<Issue> waitingTasks(Issue epic, ProjectView project) {
         String first = project.columns().getFirst().key();
-        List<Issue> waiting = issues.findChildren(epic.key()).stream().filter(c -> c.workRole() != null && c.status().equals(first)).toList();
+        return issues.findChildren(epic.key()).stream().filter(c -> c.workRole() != null && c.status().equals(first)).toList();
+    }
+
+    /** Etapa de trabajo: tiene roles y no es una puerta (p. ej. Desarrollo). */
+    private static boolean workStage(ProjectView project, String column) {
+        return project.stage(column).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
+    }
+
+    /** La épica llegó a una etapa de trabajo con su reparto sin aprobar: lo avisa; nada arranca hasta que una persona lo apruebe. */
+    private void announcePendingPlan(Issue epic, ProjectView project, UUID actorId) {
+        if (!workStage(project, epic.status())) return;
+        List<Issue> waiting = waitingTasks(epic, project);
+        if (waiting.isEmpty()) return;
+        saveComment(epic, actorId, "**Reparto por aprobar:** " + waiting.size() + " tarea(s) esperan en «" + columnName(project, project.columns().getFirst().key())
+                + "» (" + String.join(", ", waiting.stream().map(Issue::key).toList()) + "). Revísalas y aprueba el reparto, o pide cambios al arquitecto.", now());
+    }
+
+    /**
+     * Una persona revisa el reparto de tareas de la épica. Aprobar: las tareas arrancan en la etapa de la épica, cada una
+     * para su rol. Pedir cambios: la épica vuelve a la etapa anterior (el diseño) con el motivo; el plan se rehace.
+     */
+    @Transactional
+    public Issue reviewPlan(String epicKey, boolean approve, String comment, UUID actorId) {
+        Issue epic = load(epicKey);
+        ProjectView project = project(epic.projectKey());
+        MemberView person = requireMember(actorId);
+        if (person.agent()) throw new ForbiddenException("El reparto de tareas lo aprueba una persona, no un agente.");
+        if (epic.type() != IssueType.EPIC) throw new DomainException(epicKey + " no es una épica.");
+        List<Issue> waiting = waitingTasks(epic, project);
+        if (waiting.isEmpty()) throw new DomainException(epicKey + " no tiene un reparto de tareas por aprobar.");
+        if (!workStage(project, epic.status())) {
+            throw new DomainException("El reparto se aprueba cuando la épica llega a una etapa de trabajo (p. ej. Desarrollo); ahora está en «"
+                    + columnName(project, epic.status()) + "».");
+        }
+        if (approve) {
+            saveComment(epic, actorId, "**Reparto aprobado** por " + person.name() + "." + (comment == null || comment.isBlank() ? "" : "\n\n" + comment.strip()), now());
+            releaseTasks(epic, project, actorId);
+            return load(epicKey);
+        }
+        if (comment == null || comment.isBlank()) throw new DomainException("Para pedir cambios al reparto, explica qué hay que cambiar.");
+        String back = previousColumn(project, epic.status())
+                .orElseThrow(() -> new DomainException("No hay a qué etapa devolver la épica: revisa las transiciones del flujo."));
+        saveComment(epic, actorId, "**Cambios al reparto** pedidos por " + person.name() + ": " + comment.strip(), now());
+        Issue moved = move(epicKey, back, Integer.MAX_VALUE, actorId);
+        // Vuelve a quien hizo el reparto (el agente que creó las tareas), si esa etapa la cubre su rol.
+        Optional<MemberView> planner = Optional.ofNullable(waiting.getFirst().reporterId()).flatMap(members::find).filter(MemberView::agent)
+                .filter(a -> project.stage(back).map(st -> st.coveredBy(a.role())).orElse(false));
+        if (planner.isPresent()) {
+            Instant now = now();
+            moved.assign(planner.get().id(), now);
+            Issue saved = issues.save(moved);
+            publishAssignmentIfChanged(saved, null, actorId, now);
+            return saved;
+        }
+        return moved;
+    }
+
+    /** Reparto aprobado: las tareas del plan arrancan en la etapa de la épica, cada una para su rol. */
+    private void releaseTasks(Issue epic, ProjectView project, UUID actorId) {
+        String first = project.columns().getFirst().key();
+        List<Issue> waiting = waitingTasks(epic, project);
         if (waiting.isEmpty()) return;
         Instant now = now();
         int position = issues.nextPosition(epic.projectKey(), epic.status());
@@ -389,11 +447,13 @@ public class IssueService implements IssueApi {
                 .toList();
     }
 
-    /** Épica cuyas tareas del plan ya arrancaron: es un contenedor, no la trabaja un agente. */
-    private boolean hasStartedTasks(Issue issue, ProjectView project) {
-        if (issue.type() != IssueType.EPIC) return false;
-        String first = project.columns().getFirst().key();
-        return issues.findChildren(issue.key()).stream().anyMatch(c -> c.workRole() != null && !c.status().equals(first));
+    /**
+     * Épica con reparto de tareas que nadie está trabajando: la trabajan sus tareas (o espera que una persona apruebe el
+     * reparto). Si un agente la tiene (p. ej. el arquitecto rehaciendo el plan), sigue en su cola.
+     */
+    private boolean handledByTasks(Issue issue) {
+        return issue.type() == IssueType.EPIC && issue.assigneeId() == null
+                && issues.findChildren(issue.key()).stream().anyMatch(c -> c.workRole() != null);
     }
 
     // ---- Etapas: tomar, entregar y revisar en una puerta ----
@@ -543,7 +603,7 @@ public class IssueService implements IssueApi {
             if (column.isEmpty() || column.get().category() == ec.kuador.board.catalog.ColumnCategory.DONE) continue;
             Optional<StageDef> stage = project.stage(i.status());
             Optional<MemberView> assignee = Optional.ofNullable(i.assigneeId()).flatMap(members::find);
-            if (hasStartedTasks(i, project)) continue; // la trabajan sus tareas
+            if (handledByTasks(i)) continue; // la trabajan sus tareas, o espera la aprobación del reparto
             if (!pendingDependencies(i, project).isEmpty()) continue; // espera a otras tareas
             List<String> roles;
             if (assignee.isPresent()) {

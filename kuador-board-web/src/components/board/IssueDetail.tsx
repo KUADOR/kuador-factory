@@ -33,6 +33,7 @@ import { useLiveVersion } from "@/components/live/LiveUpdates";
 import { parentLabel, documentsOf } from "@/lib/labels";
 import type { Activity, AgentRun, Comment, DocumentMeta, Issue, Me, Member, Methodology, Project } from "@/lib/types";
 
+import { EpicPlan } from "./EpicPlan";
 import { IssueForm, valuesOf } from "./IssueForm";
 import { StageBar } from "./StageBar";
 
@@ -47,6 +48,7 @@ export function IssueDetail({
   workingAgent,
   me,
   roleName,
+  onOpenIssue,
   onClose,
 }: {
   issue: Issue;
@@ -57,6 +59,8 @@ export function IssueDetail({
   workingAgent?: Member;
   me: Me;
   roleName: (key: string) => string;
+  /** Abre otro issue en el panel (p. ej. una tarea del reparto). */
+  onOpenIssue?: (key: string) => void;
   onClose: () => void;
 }) {
   const byId = new Map(members.map((m) => [m.id, m]));
@@ -100,6 +104,7 @@ export function IssueDetail({
       }
     >
       <StageBar issue={issue} project={project} me={me} members={members} roleName={roleName} />
+      {issue.type === "EPIC" && <EpicPlan epic={issue} project={project} roleName={roleName} onOpen={onOpenIssue} />}
       <IssueForm
         project={project}
         initial={valuesOf(issue)}

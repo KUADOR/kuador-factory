@@ -173,8 +173,9 @@ Decidido el 2026-11-10:
    que crea el tablero y actualizado por PR desde Sincronizar; prompt MCP `pendientes`; idiomas del
    espacio (equipo / código) como regla de la fábrica.
    **Épicas con tareas (2026-11-11):** `create_tasks` crea una tarjeta por tarea del plan (rol y
-   dependencias; columnas `work_role` y `depends_on`, V12). Esperan en la primera columna y arrancan
-   cuando la épica entra a una etapa de trabajo; en la columna de la épica las cubre su rol, después
+   dependencias; columnas `work_role` y `depends_on`, V12). Esperan en la primera columna; cuando la
+   épica entra a una etapa de trabajo, una persona aprueba el reparto (`POST /api/issues/{key}/plan`)
+   y recién entonces arrancan, o pide cambios y la épica vuelve al agente que lo hizo; en la columna de la épica las cubre su rol, después
    siguen el flujo normal (QA, revisión de PR). Una tarea termina al aprobarse su PR (salta la puerta
    de release, que es la columna justo antes de terminados); con todas terminadas la épica pasa a esa
    puerta de release (o a terminados si el flujo no la tiene). `pending_work` oculta las tareas

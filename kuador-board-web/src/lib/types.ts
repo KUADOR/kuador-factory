@@ -511,4 +511,18 @@ export interface CardPlan {
   role?: string;
   waitingFor?: string[];
   progress?: { done: number; total: number };
+  /** Épica con el reparto de tareas esperando aprobación. */
+  planPending?: boolean;
+}
+
+/** Tarea del plan de una épica (reparto). */
+export interface EpicTask {
+  key: string;
+  title: string;
+  status: string;
+  statusName: string;
+  workRole: string;
+  dependsOn: string[];
+  pendingDependencies: string[];
+  assigneeName: string | null;
 }

@@ -139,9 +139,27 @@ class EpicTasksIT {
         assertThat(call("GET", "/api/issues/" + back, null, owner).status()).as("las anteriores se reemplazan").isEqualTo(404);
         String b = again.get("tasks").get(0).get("key").asString(), f = again.get("tasks").get(1).get("key").asString(),
                 o = again.get("tasks").get(2).get("key").asString();
+        assertThat(f).isNotBlank();
 
-        // Al entregar la épica, sus tareas arrancan en Desarrollo, cada una para su rol; el front espera al backend.
+        // Al entregar la épica, el reparto espera a una persona: nada arranca y la épica no es de ningún agente.
         assertThat(tool(runner, "deliver", Map.of("key", epic, "agent", "ARCHITECT", "comment", "Plan listo."), false).get("column").asString()).isEqualTo("DEVELOPMENT");
+        assertThat(column(owner, b)).isEqualTo("BACKLOG");
+        assertThat(queue(runner)).isEmpty();
+        assertThat(call("GET", "/api/issues/" + epic + "/tasks", null, owner).body()).hasSize(3);
+
+        // Pedir cambios devuelve la épica al arquitecto que hizo el reparto; lo rehace y lo entrega otra vez.
+        assertThat(call("POST", "/api/issues/" + epic + "/plan", Map.of("approve", false), owner).status()).as("con motivo").isEqualTo(422);
+        call("POST", "/api/issues/" + epic + "/plan", Map.of("approve", false, "comment", "Separa el pipeline del despliegue."), owner);
+        assertThat(column(owner, epic)).isEqualTo("DESIGN");
+        assertThat(queue(runner)).contains(epic + ":ARCHITECT");
+        again = tool(runner, "create_tasks", Map.of("key", epic, "agent", "ARCHITECT", "tasks", tasks), false);
+        b = again.get("tasks").get(0).get("key").asString();
+        f = again.get("tasks").get(1).get("key").asString();
+        o = again.get("tasks").get(2).get("key").asString();
+        tool(runner, "deliver", Map.of("key", epic, "agent", "ARCHITECT", "comment", "Plan ajustado."), false);
+
+        // Aprobado el reparto, las tareas arrancan en Desarrollo, cada una para su rol; el front espera al backend.
+        assertThat(call("POST", "/api/issues/" + epic + "/plan", Map.of("approve", true), owner).status()).isEqualTo(200);
         assertThat(column(owner, b)).isEqualTo("DEVELOPMENT");
         assertThat(column(owner, f)).isEqualTo("DEVELOPMENT");
         assertThat(queue(runner)).containsExactlyInAnyOrder(b + ":BACKEND", o + ":DEVOPS");
@@ -177,6 +195,6 @@ class EpicTasksIT {
         assertThat(column(owner, epic)).isEqualTo("RELEASE");
         List<String> bodies = new ArrayList<>();
         call("GET", "/api/issues/" + epic + "/comments", null, owner).body().forEach(c -> bodies.add(c.get("body").asString()));
-        assertThat(bodies).anyMatch(x -> x.contains("Arrancan 3 tarea(s)")).anyMatch(x -> x.contains("Terminaron todas sus tareas (3)"));
+        assertThat(bodies).anyMatch(x -> x.contains("Reparto por aprobar")).anyMatch(x -> x.contains("Reparto aprobado")).anyMatch(x -> x.contains("Arrancan 3 tarea(s)")).anyMatch(x -> x.contains("Terminaron todas sus tareas (3)"));
     }
 }

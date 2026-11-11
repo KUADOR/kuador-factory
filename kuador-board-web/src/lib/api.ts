@@ -37,6 +37,7 @@ import type {
   IssueStatus,
   AgentClient,
   AgentKit,
+  EpicTask,
   Language,
   OAuthClientInfo,
   RepoKit,
@@ -154,6 +155,9 @@ export const boardApi = {
   takeIssue: (key: string) => request<Issue>(`/api/issues/${encodeURIComponent(key)}/take`, { method: "POST" }),
   deliverIssue: (key: string, comment: string | null) =>
     request<Issue>(`/api/issues/${encodeURIComponent(key)}/deliver`, json("POST", { comment })),
+  epicTasks: (key: string) => request<EpicTask[]>(`/api/issues/${encodeURIComponent(key)}/tasks`),
+  reviewPlan: (key: string, approve: boolean, comment: string | null) =>
+    request<Issue>(`/api/issues/${encodeURIComponent(key)}/plan`, json("POST", { approve, comment })),
   reviewIssue: (key: string, approve: boolean, comment: string | null) =>
     request<Issue>(`/api/issues/${encodeURIComponent(key)}/review`, json("POST", { approve, comment })),
   setTransitions: (key: string, transitions: Transitions) =>

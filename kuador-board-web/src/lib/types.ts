@@ -526,3 +526,23 @@ export interface EpicTask {
   pendingDependencies: string[];
   assigneeName: string | null;
 }
+
+/** Avisos de una persona: canales y qué avisos recibe. */
+export interface NotificationSettings {
+  email: boolean;
+  telegram: boolean;
+  telegramChatId: number | null;
+  onAssigned: boolean;
+  onGates: boolean;
+  onPlans: boolean;
+}
+
+export interface NotificationView {
+  settings: NotificationSettings;
+  /** Correo con el que entra (ahí llegan los avisos). */
+  email: string | null;
+  /** El servidor tiene SMTP / bot de Telegram configurados. */
+  emailAvailable: boolean;
+  telegramAvailable: boolean;
+  telegramBot: string | null;
+}

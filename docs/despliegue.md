@@ -18,7 +18,8 @@ Internet ──HTTPS──▶ Traefik (Dokploy)
   (`/mcp`), su inicio de sesión OAuth (`/.well-known/oauth-protected-resource[/mcp]`,
   `/.well-known/oauth-authorization-server`, `/oauth/register`, `/oauth/token`; la pantalla de permiso
   es `https://go.kuador.com/oauth/authorize`, por eso `BOARD_WEB_URL` debe ser la URL pública de la web),
-  el kit de agentes (`/api/agent-kit`, `/api/agent-kit.zip`), el webhook de GitHub
+  el kit de agentes (`/api/agent-kit`, `/api/agent-kit.zip`), el webhook del bot de Telegram
+  (`/api/telegram/webhook`, con su secreto), el webhook de GitHub
   (`/api/github/webhook`) y `/actuator/health`. Lo hace la propia API (`BOARD_PUBLIC_HOST_GATE=true`):
   cualquier otra ruta pedida con el host de `BOARD_PUBLIC_URL` responde 404. El resto de la API lo
   llama el servidor de Next por la red interna, con el host interno; el navegador nunca habla con la API.
@@ -70,6 +71,11 @@ SPRING_MAIL_USERNAME=
 SPRING_MAIL_PASSWORD=
 BOARD_MAIL_FROM=Kuador Factory <no-reply@kuador.com>
 BOARD_MAIL_LOG_CODES=false
+
+# Avisos por Telegram (opcional). Crea el bot con @BotFather (/newbot) y copia su token y su nombre.
+# Al arrancar, la API registra sola el webhook en https://go-api.kuador.com/api/telegram/webhook.
+BOARD_TELEGRAM_BOT_TOKEN=
+BOARD_TELEGRAM_BOT_USERNAME=
 
 # En el servidor no hay carpetas locales que sincronizar.
 BOARD_SYNC_ALLOWED_ROOTS=

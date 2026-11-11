@@ -57,6 +57,9 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/oauth/register", "/oauth/token").permitAll()
                         // La pantalla de permiso: personas con su sesión (el servicio exige edición para aprobar).
                         .requestMatchers("/api/oauth/**").hasRole("HUMAN")
+                        // Avisos: cada persona sus preferencias (también quien solo mira). El webhook de Telegram valida su secreto.
+                        .requestMatchers(HttpMethod.POST, "/api/telegram/webhook").permitAll()
+                        .requestMatchers("/api/notifications", "/api/notifications/**").hasRole("HUMAN")
                         // Servidor MCP del tablero: solo con la conexión de agentes locales de una persona.
                         .requestMatchers("/mcp").hasRole("RUNNER")
                         .requestMatchers(HttpMethod.GET, "/api/agent-kit", "/api/agent-kit.zip").authenticated()

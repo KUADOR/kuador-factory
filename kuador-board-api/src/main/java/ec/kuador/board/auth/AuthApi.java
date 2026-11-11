@@ -10,4 +10,7 @@ public interface AuthApi {
 
     /** Si el correo ya entra a algún espacio (los correos son únicos en todo el tablero). */
     boolean emailInUse(String email);
+
+    /** Correo con el que entra una persona, si tiene acceso web. */
+    java.util.Optional<String> emailOf(UUID memberId);
 }

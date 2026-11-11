@@ -351,6 +351,8 @@ Cada inicio de sesión queda como una conexión de esa persona en **Agentes loca
 
 **En paralelo:** `/pendientes --paralelo` lanza a la vez (hasta 3) los subagentes de las tareas libres; cada uno trabaja en su propio `git worktree`. Consume más rápido los límites de tu suscripción.
 
+**Notificaciones** (Mi cuenta → Notificaciones): avisos por correo (el mismo SMTP del alta) y por Telegram (un bot creado con @BotFather; `BOARD_TELEGRAM_BOT_TOKEN` y `BOARD_TELEGRAM_BOT_USERNAME`) solo cuando algo necesita a la persona: le asignan un issue (p. ej. un agente le pide una decisión, con la pregunta en el aviso), un issue espera su aprobación en una puerta o un reparto de tareas espera que lo apruebe. Cada persona vincula su Telegram con un enlace de un solo uso, elige canales y avisos, y puede enviarse una prueba. Los envíos van por una cola con reintentos. En local, el bot recibe mensajes con `getUpdates` (en producción, por webhook).
+
 **Idiomas** (Empresa e idiomas): idioma del equipo (specs, planes, comentarios, textos para el usuario final; por defecto español) e idioma del código (nombres, comentarios, pruebas, commits, PRs, OpenAPI; por defecto inglés). Todos los agentes lo reciben como regla de la fábrica.
 
 Solo se atienden los issues que supervisas: los que asignaste a un agente o llevaste a una etapa que cubren agentes. Las puertas siguen siendo de las personas.

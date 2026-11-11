@@ -1,0 +1,144 @@
+package ec.kuador.board.notify.application;
+
+import ec.kuador.board.catalog.StageDef;
+import ec.kuador.board.issue.IssueApi;
+import ec.kuador.board.issue.IssueApi.IssueContext;
+import ec.kuador.board.issue.IssueAssigned;
+import ec.kuador.board.issue.IssueMoved;
+import ec.kuador.board.member.MemberApi;
+import ec.kuador.board.member.MemberView;
+import ec.kuador.board.notify.domain.NoticeKind;
+import ec.kuador.board.project.ProjectApi;
+import ec.kuador.board.project.ProjectView;
+import ec.kuador.board.shared.tenant.TenantContext;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * Decide a quién avisar, después del commit y en otro hilo (un SMTP lento no frena el tablero). Solo lo que necesita
+ * a una persona: le asignaron un issue, un issue espera su aprobación en una puerta o un reparto de tareas espera que
+ * lo apruebe. Nunca avisa a quien hizo el cambio.
+ */
+@Component
+class NoticeRouter {
+
+    private static final Logger log = LoggerFactory.getLogger(NoticeRouter.class);
+    private static final int EXCERPT = 600;
+
+    private final NotificationService notifications;
+    private final IssueApi issues;
+    private final ProjectApi projects;
+    private final MemberApi members;
+    private final TransactionTemplate tx;
+    private final String webUrl;
+
+    NoticeRouter(NotificationService notifications, IssueApi issues, ProjectApi projects, MemberApi members, PlatformTransactionManager txManager,
+            @Value("${board.web-url:http://localhost:3600}") String webUrl) {
+        this.notifications = notifications;
+        this.issues = issues;
+        this.projects = projects;
+        this.members = members;
+        this.tx = new TransactionTemplate(txManager);
+        this.webUrl = webUrl.replaceAll("/+$", "");
+    }
+
+    @Async
+    @TransactionalEventListener(fallbackExecution = true)
+    void on(IssueAssigned e) {
+        if (e.toAssigneeId() == null || e.toAssigneeId().equals(e.actorId())) return;
+        safely(e.workspaceId(), () -> {
+            MemberView to = members.find(e.toAssigneeId()).filter(m -> !m.agent()).orElse(null);
+            IssueContext issue = issues.context(e.issueKey()).orElse(null);
+            if (to == null || issue == null) return;
+            Optional<MemberView> actor = Optional.ofNullable(e.actorId()).flatMap(members::find);
+            String subject;
+            String body;
+            if (actor.isPresent() && actor.get().agent()) {
+                // Un agente se lo pasa a una persona: casi siempre una pregunta o el freno de vueltas atrás. Va el último comentario.
+                String last = issue.comments().isEmpty() ? "" : issue.comments().getLast().body();
+                subject = e.issueKey() + " · " + actor.get().name() + " te necesita";
+                body = "«" + issue.title() + "»\n\n" + excerpt(last);
+            } else {
+                subject = e.issueKey() + " · te lo asignaron";
+                body = "«" + issue.title() + "»" + actor.map(a -> "\n\nTe lo asignó " + a.name() + ".").orElse("");
+            }
+            notifications.enqueue(e.workspaceId(), to.id(), NoticeKind.ASSIGNED, subject, body, link(e.projectKey(), e.issueKey()));
+        });
+    }
+
+    @Async
+    @TransactionalEventListener(fallbackExecution = true)
+    void on(IssueMoved e) {
+        safely(e.workspaceId(), () -> {
+            ProjectView project = projects.find(e.projectKey()).orElse(null);
+            IssueContext issue = issues.context(e.issueKey()).orElse(null);
+            if (project == null || issue == null) return;
+            Optional<StageDef> stage = project.stage(e.toStatus());
+            String column = project.column(e.toStatus()).map(c -> c.name()).orElse(e.toStatus());
+            if (stage.isPresent() && stage.get().gate()) {
+                for (UUID person : approvers(project, stage.get(), e.issueKey(), e.actorId())) {
+                    notifications.enqueue(e.workspaceId(), person, NoticeKind.GATE, e.issueKey() + " · espera tu aprobación en «" + column + "»",
+                            "«" + issue.title() + "» llegó a «" + column + "». Apruébalo o recházalo con un motivo desde el tablero.", link(e.projectKey(), e.issueKey()));
+                }
+                return;
+            }
+            if ("EPIC".equals(issue.type()) && stage.isPresent() && !stage.get().roles().isEmpty()) {
+                String first = project.columns().getFirst().key();
+                List<IssueApi.TaskInfo> waiting = issues.epicTasks(e.issueKey()).stream().filter(t -> t.status().equals(first)).toList();
+                if (waiting.isEmpty() || issue.assigneeId() != null) return;
+                StringBuilder list = new StringBuilder();
+                waiting.forEach(t -> list.append("\n• ").append(t.key()).append(" ").append(t.title()).append(" (").append(t.workRole()).append(")"));
+                for (UUID person : supervisorOrOwners(e.issueKey(), e.actorId())) {
+                    notifications.enqueue(e.workspaceId(), person, NoticeKind.PLAN, e.issueKey() + " · el reparto de " + waiting.size() + " tareas espera tu aprobación",
+                            "«" + issue.title() + "» llegó a «" + column + "». Revisa el reparto y apruébalo o pide cambios:" + list, link(e.projectKey(), e.issueKey()));
+                }
+            }
+        });
+    }
+
+    /** Quienes pueden cerrar la puerta. Si la puerta no pide un rol, quien supervisa el issue (o los dueños del espacio). */
+    private Set<UUID> approvers(ProjectView project, StageDef gate, String issueKey, UUID actorId) {
+        if (gate.approvers().isEmpty()) return supervisorOrOwners(issueKey, actorId);
+        Set<UUID> people = new LinkedHashSet<>();
+        members.humans().stream().filter(m -> gate.approvers().contains(m.role())).map(MemberView::id).forEach(people::add);
+        people.remove(actorId);
+        return people;
+    }
+
+    private Set<UUID> supervisorOrOwners(String issueKey, UUID actorId) {
+        Set<UUID> people = new LinkedHashSet<>();
+        issues.supervisorOf(issueKey).ifPresentOrElse(people::add,
+                () -> members.humans().stream().filter(m -> "OWNER".equals(m.role())).map(MemberView::id).forEach(people::add));
+        people.remove(actorId);
+        return people;
+    }
+
+    private String link(String projectKey, String issueKey) {
+        return webUrl + "/projects/" + projectKey + "?issue=" + issueKey;
+    }
+
+    private static String excerpt(String text) {
+        String t = text == null ? "" : text.replace("**", "").strip();
+        return t.length() > EXCERPT ? t.substring(0, EXCERPT) + "…" : t;
+    }
+
+    /** En el espacio del evento y en su propia transacción. Un aviso que falla no debe afectar a nada más. */
+    private void safely(UUID workspaceId, Runnable work) {
+        try {
+            TenantContext.run(workspaceId, () -> tx.executeWithoutResult(s -> work.run()));
+        } catch (RuntimeException ex) {
+            log.warn("No se pudo preparar un aviso: {}", ex.getMessage(), ex);
+        }
+    }
+}

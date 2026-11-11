@@ -39,6 +39,8 @@ import type {
   AgentKit,
   EpicTask,
   Language,
+  NotificationSettings,
+  NotificationView,
   OAuthClientInfo,
   RepoKit,
   Me,
@@ -123,6 +125,11 @@ export const boardApi = {
     request<Project>(`/api/projects/${encodeURIComponent(key)}/methodology`, json("PUT", { methodology })),
 
   workspace: () => request<Workspace>("/api/workspace"),
+  notifications: () => request<NotificationView>("/api/notifications"),
+  updateNotifications: (s: Omit<NotificationSettings, "telegramChatId">) => request<NotificationView>("/api/notifications", json("PUT", s)),
+  telegramLink: () => request<{ url: string }>("/api/notifications/telegram/link", { method: "POST" }),
+  unlinkTelegram: () => request<NotificationView>("/api/notifications/telegram", { method: "DELETE" }),
+  testNotifications: () => request<{ channels: string[] }>("/api/notifications/test", { method: "POST" }),
   updateLanguages: (team: Language, code: Language) => request<Workspace>("/api/workspace/languages", json("PUT", { team, code })),
   oauthClient: (clientId: string, redirectUri: string | null) =>
     request<OAuthClientInfo>(`/api/oauth/client?${new URLSearchParams([["client_id", clientId], ...(redirectUri ? [["redirect_uri", redirectUri]] : [])])}`),

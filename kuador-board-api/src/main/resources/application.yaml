@@ -68,6 +68,10 @@ board:
     # Carpetas (separadas por coma) dentro de las cuales se pueden vincular repositorios locales.
     # Vacío = sincronización local desactivada.
     allowed-roots: ${BOARD_SYNC_ALLOWED_ROOTS:}
+  telegram:
+    # Bot para los avisos (lo crea @BotFather). Sin token, Telegram no aparece como canal.
+    bot-token: ${BOARD_TELEGRAM_BOT_TOKEN:}
+    bot-username: ${BOARD_TELEGRAM_BOT_USERNAME:}
   mail:
     from: ${BOARD_MAIL_FROM:Kuador Factory <no-reply@kuador.com>}
     # Solo desarrollo: sin SMTP (SPRING_MAIL_HOST vacío), escribe el código del alta en el log.

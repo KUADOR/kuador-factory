@@ -19,7 +19,7 @@ public final class PublicHostGate extends OncePerRequestFilter {
 
     static final List<String> OPEN_PATHS = List.of("/mcp", "/api/agent-kit", "/api/agent-kit.zip", "/api/github/webhook",
             "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-authorization-server",
-            "/oauth/register", "/oauth/token",
+            "/oauth/register", "/oauth/token", "/api/telegram/webhook",
             "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness");
 
     private final String publicHost;

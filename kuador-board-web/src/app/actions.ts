@@ -40,6 +40,8 @@ import type {
   AgentKit,
   EpicTask,
   Language,
+  NotificationSettings,
+  NotificationView,
   Member,
   MemberAccess,
   MemberKind,
@@ -209,6 +211,26 @@ export async function listMethodologiesAction(): Promise<ActionResult<Methodolog
 }
 
 // ---- Espacio de trabajo y catálogo (solo personas) ----
+
+export async function updateNotificationsAction(input: Omit<NotificationSettings, "telegramChatId">): Promise<ActionResult<NotificationView>> {
+  return run(() => boardApi.updateNotifications(input), "/account");
+}
+
+export async function notificationsAction(): Promise<ActionResult<NotificationView>> {
+  return run(() => boardApi.notifications());
+}
+
+export async function telegramLinkAction(): Promise<ActionResult<{ url: string }>> {
+  return run(() => boardApi.telegramLink());
+}
+
+export async function unlinkTelegramAction(): Promise<ActionResult<NotificationView>> {
+  return run(() => boardApi.unlinkTelegram(), "/account");
+}
+
+export async function testNotificationsAction(): Promise<ActionResult<{ channels: string[] }>> {
+  return run(() => boardApi.testNotifications());
+}
 
 export async function updateLanguagesAction(team: Language, code: Language): Promise<ActionResult<Workspace>> {
   return run(() => boardApi.updateLanguages(team, code), "/workspace");

@@ -187,6 +187,12 @@ public class AuthService implements AuthApi {
         return Boolean.TRUE.equals(TenantContext.asRoot(() -> tx.execute(s -> credentials.findByEmail(email).isPresent())));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> emailOf(UUID memberId) {
+        return credentials.findByMemberId(memberId).map(Credential::email);
+    }
+
     /** Accesos de las personas del espacio actual (las credenciales son globales: se filtran por miembro). */
     @Transactional(readOnly = true)
     public List<Account> accounts() {

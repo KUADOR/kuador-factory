@@ -14,7 +14,8 @@ import { THEME_COOKIE, parseTheme } from "@/theme/theme";
 
 import "./globals.css";
 
-const archivo = Archivo({ subsets: ["latin"], variable: "--font-archivo", display: "swap" });
+// Con el eje de ancho (wdth): los titulares de la presentación usan Archivo semiexpandido, como kuador.com.
+const archivo = Archivo({ subsets: ["latin"], variable: "--font-archivo", display: "swap", axes: ["wdth"] });
 const martian = Martian_Mono({ subsets: ["latin"], variable: "--font-martian", display: "swap" });
 
 

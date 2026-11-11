@@ -4,7 +4,14 @@ import { SESSION_COOKIE } from "@/lib/session-cookie";
 
 // Sin cookie de sesión, todo el tablero lleva al login. La validez real del token la decide la API.
 export function proxy(request: NextRequest) {
-  if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
+  const path = request.nextUrl.pathname;
+  if (request.cookies.has(SESSION_COOKIE)) {
+    // Con sesión, la presentación del producto lleva al tablero.
+    return path === "/producto" ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next();
+  }
+  // Sin sesión, la portada es la presentación del producto (la URL sigue siendo la raíz).
+  if (path === "/") return NextResponse.rewrite(new URL("/producto", request.url));
+  if (path === "/producto") return NextResponse.next();
   const login = new URL("/login", request.url);
   const next = request.nextUrl.pathname + request.nextUrl.search;
   if (next !== "/") login.searchParams.set("next", next);

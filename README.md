@@ -351,6 +351,8 @@ Cada inicio de sesión queda como una conexión de esa persona en **Agentes loca
 
 **En paralelo:** `/pendientes --paralelo` lanza a la vez (hasta 3) los subagentes de las tareas libres; cada uno trabaja en su propio `git worktree`. Consume más rápido los límites de tu suscripción.
 
+**Presentación del producto** (`/producto`): quien entra a la raíz sin sesión ve la landing de Kuador Factory (marca de kuador.com: emblema, paleta noche + sol ecuatorial, Archivo semiexpandido y Martian Mono); con sesión, la raíz sigue siendo el tablero. Sin clientes ni cifras inventadas: la vista del tablero usa datos de ejemplo.
+
 **Asistente de inicio** (`/projects/<clave>/inicio`): al crear un proyecto se abre solo y lo deja listo en pasos que se pueden saltar: metodología, repositorio y piezas (con la GitHub App o vinculando uno existente), cliente de IA, notificaciones y primer trabajo (una épica «Esqueleto del sistema» que entra a la etapa del PO). El tablero muestra «Faltan N pasos» hasta terminar (se puede ocultar) y Configuración tiene el acceso para volver.
 
 **Notificaciones** (Mi cuenta → Notificaciones): avisos por correo (el mismo SMTP del alta) y por Telegram (un bot creado con @BotFather; `BOARD_TELEGRAM_BOT_TOKEN` y `BOARD_TELEGRAM_BOT_USERNAME`) solo cuando algo necesita a la persona: le asignan un issue (p. ej. un agente le pide una decisión, con la pregunta en el aviso), un issue espera su aprobación en una puerta o un reparto de tareas espera que lo apruebe. Cada persona vincula su Telegram con un enlace de un solo uso, elige canales y avisos, y puede enviarse una prueba. Los envíos van por una cola con reintentos. En local, el bot recibe mensajes con `getUpdates` (en producción, por webhook).

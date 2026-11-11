@@ -1,0 +1,7 @@
+# Nunca entran a la imagen: secretos locales, compilados y configuración del editor.
+.env
+.env.*
+!.env.example
+target
+.idea
+*.iml

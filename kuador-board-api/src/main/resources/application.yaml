@@ -27,6 +27,11 @@ spring:
       completion-mode: delete
       # Si la API se cae antes de que un listener termine, el evento se reintenta al arrancar.
       republish-outstanding-events-on-restart: true
+  mail:
+    # Solo aplica si hay SPRING_MAIL_HOST (puerto 587 con STARTTLS).
+    properties:
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
   mvc:
     problemdetails:
       enabled: true
@@ -44,6 +49,8 @@ springdoc:
 board:
   # URL con la que los clientes de IA (Claude Code, Codex...) llegan a esta API: va en el kit de agentes locales.
   public-url: ${BOARD_PUBLIC_URL:http://localhost:8091}
+  # URL del tablero web (la GitHub App vuelve ahí después de registrarse o instalarse).
+  web-url: ${BOARD_WEB_URL:http://localhost:3600}
   agents:
     # Sin clave, los agentes quedan desactivados (cada asignación se registra como SKIPPED).
     anthropic-api-key: ${ANTHROPIC_API_KEY:}

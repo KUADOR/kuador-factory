@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kuador-board-api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      # Incluye las pruebas de integración con Testcontainers (el runner ya trae Docker).
+      - run: ./mvnw -B verify
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kuador-board-web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: kuador-board-web/.nvmrc
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+
+  # Construye las dos imágenes en cada corrida; solo desde main las publica en GHCR. Dokploy las baja de ahí.
+  image:
+    needs: [api, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [kuador-board-api, kuador-board-web]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.app }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.app }}
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  # Opcional: pide a Dokploy que redespliegue. Se omite hasta que existan los secretos (docs/despliegue.md).
+  deploy:
+    needs: image
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Redesplegar en Dokploy
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          API_ID: ${{ secrets.DOKPLOY_API_APPLICATION_ID }}
+          WEB_ID: ${{ secrets.DOKPLOY_WEB_APPLICATION_ID }}
+        run: |
+          if [ -z "$DOKPLOY_URL" ] || [ -z "$DOKPLOY_API_KEY" ]; then
+            echo "Sin secretos de Dokploy: se despliega con el botón Deploy."; exit 0
+          fi
+          for id in "$API_ID" "$WEB_ID"; do
+            [ -n "$id" ] || continue
+            curl -fsS -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" -H "Content-Type: application/json" \
+              -d "{\"applicationId\":\"${id}\"}"
+          done

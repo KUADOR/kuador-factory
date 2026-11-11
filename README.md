@@ -31,6 +31,11 @@ corepack pnpm install && corepack pnpm dev
 Pruebas de la API: `./mvnw test` (dominio, casos de uso y límites entre módulos) y `./mvnw verify`
 (además, aislamiento entre espacios contra un Postgres real con Testcontainers; requiere Docker).
 
+## Desplegar
+
+Imágenes Docker de la API y la web, CI que las publica en GHCR y guía de Dokploy (un dominio, solo
+`/mcp`, el kit de agentes y el webhook de GitHub salen de la API a Internet): [docs/despliegue.md](docs/despliegue.md).
+
 ## Espacios de trabajo y catálogo
 
 - Todo vive dentro de un **espacio de trabajo** (Kuador, o el de cada cliente). Cada entidad lleva

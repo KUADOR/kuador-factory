@@ -1,0 +1,8 @@
+# Nunca entran a la imagen: secretos locales, dependencias y compilados (se rehacen dentro).
+.env
+.env.*
+!.env.example
+node_modules
+.next
+.impeccable
+tsconfig.tsbuildinfo

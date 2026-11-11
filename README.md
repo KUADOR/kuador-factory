@@ -337,7 +337,7 @@ El servidor MCP del tablero es estándar: sirve cualquier cliente de IA con MCP 
 
 **Conectarse = un comando y un inicio de sesión** (OAuth 2.1 con PKCE; no hay token que copiar):
 
-- **Claude Code:** en un repo creado por el tablero ya viene todo; si no, `claude mcp add --transport http --scope user <espacio> <URL>/mcp`. Después `/mcp` → Authenticate: se abre el navegador, la persona entra al tablero y aprueba. Haz `unset ANTHROPIC_API_KEY` para usar tu plan.
+- **Claude Code:** en un repo creado por el tablero ya viene el `.mcp.json`; si no, `claude mcp add --transport http --scope user <espacio> <URL>/mcp`. Después `claude mcp login <espacio>`: se abre el navegador, la persona entra al tablero y aprueba. Sin `ANTHROPIC_API_KEY` definida, usa su plan.
 - **Codex:** `codex mcp add <espacio> --url <URL>/mcp` y `codex mcp login <espacio>`.
 - **Clientes sin OAuth:** token de conexión (Agentes locales → Crear token) en la cabecera `Authorization: Bearer`.
 

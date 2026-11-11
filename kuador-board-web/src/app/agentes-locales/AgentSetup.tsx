@@ -63,19 +63,14 @@ function Connect({ client, kit }: { client: AgentClient; kit: AgentKit }) {
     return (
       <>
         <Step n={1} title="Agrega el tablero a Claude Code">
-          <p className={muted}>
-            Si el repo lo creó el tablero, ya trae la conexión: abre Claude Code en el repo, aprueba el servidor «{server}» y pasa al paso 2. Si no, agrégalo una vez para todas tus carpetas:
-          </p>
+          <p className={muted}>Si el repo lo creó el tablero, ya trae .mcp.json (Claude Code te pide aprobarlo la primera vez). Si no:</p>
           <Code label="comando">{`claude mcp add --transport http --scope user ${server} ${url}`}</Code>
         </Step>
         <Step n={2} title="Inicia sesión">
+          <Code label="comando">{`claude mcp login ${server}`}</Code>
           <p className={muted}>
-            En Claude Code escribe <code className={mono}>/mcp</code>, elige «{server}» y luego Authenticate. Se abre el navegador, entras con tu cuenta del tablero y apruebas. No hay token que copiar: la conexión queda a tu nombre en la lista de abajo.
+            Se abre el navegador, entras con tu cuenta del tablero y apruebas. Para usar tu plan y no una API key, abre Claude Code sin ANTHROPIC_API_KEY definida.
           </p>
-        </Step>
-        <Step n={3} title="Usa tu suscripción, no una API key">
-          <p className={muted}>Si tienes ANTHROPIC_API_KEY definida, Claude Code cobra cada uso a esa clave en vez de a tu plan.</p>
-          <Code label="comando">unset ANTHROPIC_API_KEY</Code>
         </Step>
       </>
     );

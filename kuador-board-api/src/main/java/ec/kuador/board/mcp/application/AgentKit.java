@@ -246,7 +246,7 @@ public class AgentKit implements RepositoryInstructions {
 
                 ## Conexión
 
-                Cada persona se conecta con su propia cuenta del tablero: la primera vez, su cliente de IA abre el navegador para iniciar sesión (en Claude Code, `/mcp` → Authenticate; en Codex, `codex mcp login %2$s`). Nunca guardes tokens en el repositorio. Solo se atienden los issues que supervisa la persona conectada.
+                Cada persona se conecta con su propia cuenta del tablero: la primera vez, su cliente de IA abre el navegador para iniciar sesión (en Claude Code, `claude mcp login %2$s`; en Codex, `codex mcp login %2$s`). Nunca guardes tokens en el repositorio. Solo se atienden los issues que supervisa la persona conectada.
                 """.formatted(ws.name(), c.server(), bullets(ws));
     }
 

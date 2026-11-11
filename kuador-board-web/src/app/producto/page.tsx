@@ -35,6 +35,13 @@ const FLOW: { stage: string; you?: boolean }[] = [
   { stage: "Release" },
 ];
 
+/** Otros usos con lo que trae el catálogo de fábrica (plantillas y roles reales); cada espacio puede crear los suyos. */
+const BEYOND: { area: string; flow: string[]; agent: string }[] = [
+  { area: "Software", flow: ["Spec", "Diseño", "Desarrollo", "QA", "Release"], agent: "PO, arquitecto, desarrollo, QA y release" },
+  { area: "Ventas", flow: ["Prospecto", "Contactado", "Propuesta", "Negociación", "Ganado"], agent: "Tu equipo comercial; suma agentes con tu propio rol y manual" },
+  { area: "Marketing y operación", flow: ["Pendiente", "Haciendo", "Listo"], agent: "Un agente de marketing que convierte lo entregado en contenido" },
+];
+
 /** Presentación del producto en go.kuador.com para quien todavía no entra. Una idea por sección; datos de ejemplo, sin cifras inventadas. */
 export default function ProductPage() {
   return (
@@ -128,7 +135,32 @@ export default function ProductPage() {
           </div>
         </Chapter>
 
-        {/* 5 · Cierre */}
+        {/* 5 · No solo software */}
+        <Chapter
+          id="mas-alla"
+          index="04"
+          title="Y no es solo para software."
+          lead="El flujo, los roles y los agentes se configuran por espacio. Empieza con una plantilla o crea la de tu operación."
+        >
+          <ul className="grid gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-3">
+            {BEYOND.map((b) => (
+              <li key={b.area} className="flex flex-col gap-6 bg-page p-8">
+                <span className={`${display} text-[1.5rem] tracking-[-0.02em]`}>{b.area}</span>
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[12px] text-fg-muted">
+                  {b.flow.map((step, i) => (
+                    <span key={step} className="flex items-center gap-2">
+                      {step}
+                      {i < b.flow.length - 1 && <span className="text-fg-faint">→</span>}
+                    </span>
+                  ))}
+                </p>
+                <p className="mt-auto text-[14px] leading-relaxed text-fg-muted">{b.agent}</p>
+              </li>
+            ))}
+          </ul>
+        </Chapter>
+
+        {/* 6 · Cierre */}
         <section className="border-t border-line">
           <div className="mx-auto flex max-w-[1200px] flex-col items-center px-4 py-32 text-center sm:px-6 sm:py-44">
             <Emblem size={64} />

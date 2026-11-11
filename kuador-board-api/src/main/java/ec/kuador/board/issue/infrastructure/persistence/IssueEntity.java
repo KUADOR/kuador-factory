@@ -73,6 +73,13 @@ class IssueEntity {
 
     private UUID supervisorId;
 
+    @Column(name = "work_role")
+    private String workRole;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "depends_on", columnDefinition = "text[]")
+    private List<String> dependsOn = new ArrayList<>();
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -108,6 +115,8 @@ class IssueEntity {
         position = issue.position();
         reworkCount = issue.reworkCount();
         supervisorId = issue.supervisorId();
+        workRole = issue.workRole();
+        dependsOn = new ArrayList<>(issue.dependsOn());
         updatedAt = issue.updatedAt();
     }
 
@@ -115,6 +124,9 @@ class IssueEntity {
         Issue issue = new Issue(id, key, projectKey, title, description, type, status, priority, storyPoints, assigneeId,
                 reporterId, parentKey, labels == null ? List.of() : List.copyOf(labels), position, reworkCount, createdAt, updatedAt);
         issue.superviseBy(supervisorId);
+        if (parentKey != null && (workRole != null || (dependsOn != null && !dependsOn.isEmpty()))) {
+            issue.planAsTask(workRole, dependsOn == null ? List.of() : List.copyOf(dependsOn));
+        }
         return issue;
     }
 

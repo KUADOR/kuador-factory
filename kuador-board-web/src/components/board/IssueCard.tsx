@@ -4,7 +4,7 @@ import { WorkingLine } from "@/components/agents/WorkingLine";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityIcon, TypeIcon } from "@/components/ui/IssueIcons";
 import type { TypeSource } from "@/lib/labels";
-import type { Issue, Member } from "@/lib/types";
+import type { CardPlan, Issue, Member } from "@/lib/types";
 
 /**
  * Tarjeta del tablero. Si un agente está trabajando el issue, lo dice en una línea viva: es la
@@ -17,6 +17,7 @@ export function IssueCard({
   projectType,
   workingAgent,
   waiting,
+  plan,
   dragging = false,
 }: {
   issue: Issue;
@@ -26,8 +27,10 @@ export function IssueCard({
   workingAgent?: Member;
   /** «Por tomar» o «Por aprobar» cuando la etapa espera a alguien con su rol. */
   waiting?: string;
+  plan?: CardPlan;
   dragging?: boolean;
 }) {
+  const blocked = (plan?.waitingFor?.length ?? 0) > 0;
   return (
     <div
       className={clsx(
@@ -36,9 +39,20 @@ export function IssueCard({
       )}
     >
       <p className="text-[13px] leading-snug text-fg-strong">{issue.title}</p>
-      {(epicTitle || issue.labels.length > 0) && (
+      {(epicTitle || issue.labels.length > 0 || plan?.role || plan?.progress || blocked) && (
         <div className="mt-2 flex flex-wrap gap-1">
           {epicTitle && <span className="max-w-full truncate rounded bg-epic/12 px-1.5 py-px text-[11px] font-medium text-epic">{epicTitle}</span>}
+          {plan?.role && <span className="rounded bg-info/12 px-1.5 py-px text-[11px] font-medium text-info">{plan.role}</span>}
+          {blocked && (
+            <span title="No arranca hasta que terminen" className="rounded bg-warn/12 px-1.5 py-px text-[11px] font-medium text-warn">
+              Espera a {plan!.waitingFor!.join(", ")}
+            </span>
+          )}
+          {plan?.progress && (
+            <span title="Tareas terminadas" className="tabular rounded bg-hover px-1.5 py-px font-mono text-[11px] text-fg">
+              {plan.progress.done}/{plan.progress.total} tareas
+            </span>
+          )}
           {issue.labels.map((label) => (
             <span key={label} className="rounded bg-hover px-1.5 py-px text-[11px] text-fg-muted">
               {label}

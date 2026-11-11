@@ -106,6 +106,18 @@ public class BoardTools {
                 Map.of("key", KEY, "agent", AGENT, "type", "Tipo de documento que pide la metodología, por ejemplo SPEC.",
                         "content", "El documento completo en Markdown.", "note", "Opcional: qué cambió en esta versión."),
                 List.of("key", "agent", "type", "content"), this::writeDoc);
+        Map<String, Object> taskItem = Map.of("type", "object", "additionalProperties", false, "required", List.of("title", "role"), "properties", Map.of(
+                "title", Map.of("type", "string", "description", "Título corto de la tarea."),
+                "role", Map.of("type", "string", "description", "Rol que la trabaja: BACKEND, FRONTEND, DEVOPS..."),
+                "description", Map.of("type", "string", "description", "Qué hacer, archivos o módulos, criterio de terminado y las líneas del tasks.md que cubre."),
+                "dependsOn", Map.of("type", "array", "items", Map.of("type", "integer"), "description", "Números (desde 1) de tareas de esta lista que deben terminar antes.")));
+        tools.put("create_tasks", new Definition(new Tool("create_tasks", "Crear tareas de la épica",
+                "Épicas: al terminar el plan, crea una tarjeta por cada tarea del tasks.md, hija de la épica, con su rol y sus dependencias. "
+                        + "Esperan en la primera columna y arrancan cuando la épica llega a Desarrollo; cada una la toma el agente de su rol, en su propia rama y PR. "
+                        + "Si llamas otra vez antes de que arranquen, reemplaza las anteriores.",
+                Tool.schema(Map.of("key", "Clave de la épica.", "agent", AGENT),
+                        Map.of("tasks", Map.of("type", "array", "minItems", 1, "items", taskItem, "description", "Las tareas, en orden.")),
+                        List.of("key", "agent", "tasks")), false), this::createTasks));
     }
 
     private void register(String name, String title, boolean readOnly, String description, Map<String, String> args, List<String> required,
@@ -181,6 +193,25 @@ public class BoardTools {
         List<DocContent> all = docs.ofProject(project.key());
         m.put("issueDocuments", all.stream().filter(d -> c.key().equals(d.issueKey())).map(BoardTools::docMeta).toList());
         m.put("projectDocuments", all.stream().filter(d -> d.issueKey() == null).map(BoardTools::docMeta).toList());
+        if ("EPIC".equals(c.type())) {
+            List<IssueApi.TaskInfo> tasks = issues.epicTasks(c.key());
+            m.put("tasks", tasks.stream().map(BoardTools::task).toList());
+            m.put("epicGuide", tasks.isEmpty()
+                    ? "Es una épica. Quien escribe el plan (arquitecto) termina creando una tarjeta por cada tarea del tasks.md con create_tasks "
+                            + "(rol y dependencias) antes de deliver. Las tareas arrancan cuando la épica llega a Desarrollo y la épica se cierra sola al terminarlas."
+                    : "Es una épica con tareas: la trabajan sus tareas, cada una por su rol. Se cierra sola cuando terminan todas.");
+        }
+        issues.taskInfo(c.key()).ifPresent(t -> {
+            Map<String, Object> task = new LinkedHashMap<>(task(t));
+            task.put("epic", c.parentKey());
+            task.put("branch", "feature/" + c.key() + "-" + slug(c.title()));
+            task.put("rules", List.of(
+                    "Una rama y un PR por tarea: trabaja en «feature/" + c.key() + "-…» desde develop y abre el PR hacia develop con la clave " + c.key() + " en el título.",
+                    "Si otros agentes trabajan en paralelo en el mismo repo, usa un git worktree propio para tu rama (git worktree add ../<repo>-" + c.key()
+                            + " -b <rama> origin/develop) y bórralo al terminar.",
+                    "Haz solo lo de esta tarea; lo demás lo cubren las otras tareas de la épica."));
+            m.put("task", task);
+        });
         methodology(project).ifPresent(meth -> m.put("methodology", Map.of(
                 "name", meth.name(),
                 "rules", meth.agentRules(),
@@ -252,6 +283,13 @@ public class BoardTools {
     private Object deliver(Map<String, String> a, UUID person) {
         IssueContext c = ownIssue(a, person);
         MemberView agent = agent(a);
+        if ("EPIC".equals(c.type()) && issues.epicTasks(c.key()).isEmpty()) {
+            ProjectView project = project(c.projectKey());
+            boolean toWork = project.nextAfter(c.status()).flatMap(n -> project.stage(n.key())).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
+            if (toWork && project.software()) {
+                throw new ToolException(c.key() + " es una épica sin tareas: antes de entregarla, crea una tarjeta por cada tarea del plan con create_tasks.");
+            }
+        }
         Progress p = issues.deliverAs(c.key(), a.get("comment"), agent.id());
         work.finished(agent.id(), c.key(), Optional.ofNullable(a.get("comment")).orElse("Entregó a " + p.statusName() + "."));
         return progress(p, c.key() + " pasó a «" + p.statusName() + "».");
@@ -304,6 +342,47 @@ public class BoardTools {
         }
         DocContent d = docs.write(c.projectKey(), c.key(), kind, required(a, "content"), a.get("note"), agent.id());
         return Map.of("ok", true, "message", "Guardé " + d.title() + " (versión " + d.version() + ").", "document", docMeta(d));
+    }
+
+    private Object createTasks(Map<String, String> a, UUID person) {
+        IssueContext c = ownIssue(a, person);
+        MemberView agent = agent(a);
+        if (!agent.id().equals(c.assigneeId())) throw new ToolException("Toma primero " + c.key() + " con take_issue.");
+        List<IssueApi.PlannedTask> tasks = new java.util.ArrayList<>();
+        try {
+            tools.jackson.databind.JsonNode list = JSON.readTree(required(a, "tasks"));
+            if (list.isString()) list = JSON.readTree(list.asString()); // por si llegó como texto
+            for (tools.jackson.databind.JsonNode t : list) {
+                List<Integer> deps = new java.util.ArrayList<>();
+                t.path("dependsOn").forEach(d -> deps.add(d.asInt()));
+                tasks.add(new IssueApi.PlannedTask(t.path("title").asString(""), t.path("description").asString(null), t.path("role").asString(""), deps));
+            }
+        } catch (tools.jackson.core.JacksonException e) {
+            throw new ToolException("«tasks» debe ser una lista JSON de objetos {title, role, description, dependsOn}.");
+        }
+        List<IssueApi.IssueRef> created = issues.createEpicTasks(c.key(), tasks, agent.id());
+        return Map.of("ok", true, "message", "Creé " + created.size() + " tarea(s) en " + c.key() + ". Arrancan cuando la épica llegue a Desarrollo: ahora entrégala con deliver.",
+                "tasks", created.stream().map(r -> Map.of("key", r.key(), "title", r.title())).toList());
+    }
+
+    private static final tools.jackson.databind.ObjectMapper JSON = new tools.jackson.databind.ObjectMapper();
+
+    private static Map<String, Object> task(IssueApi.TaskInfo t) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("key", t.key());
+        m.put("title", t.title());
+        m.put("role", t.workRole());
+        m.put("stage", t.statusName());
+        if (!t.dependsOn().isEmpty()) m.put("dependsOn", t.dependsOn());
+        if (!t.pendingDependencies().isEmpty()) m.put("waitingFor", t.pendingDependencies());
+        if (t.assigneeName() != null) m.put("assignee", t.assigneeName());
+        return m;
+    }
+
+    private static String slug(String title) {
+        String s = java.text.Normalizer.normalize(title, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        return s.length() > 40 ? s.substring(0, 40).replaceAll("-+$", "") : s;
     }
 
     // ---- Apoyo ----

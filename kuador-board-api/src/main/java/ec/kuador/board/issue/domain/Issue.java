@@ -33,6 +33,10 @@ public final class Issue {
     private int reworkCount;
     /** Persona que puso a los agentes a trabajar en el issue: solo sus agentes lo atienden. */
     private UUID supervisorId;
+    /** Tarea de una épica: rol que la trabaja mientras la épica está en desarrollo (p. ej. BACKEND). */
+    private String workRole;
+    /** Tarea de una épica: claves de las tareas que deben terminar antes de empezar esta. */
+    private List<String> dependsOn = List.of();
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -195,6 +199,21 @@ public final class Issue {
 
     public UUID supervisorId() {
         return supervisorId;
+    }
+
+    public String workRole() {
+        return workRole;
+    }
+
+    public List<String> dependsOn() {
+        return dependsOn;
+    }
+
+    /** Lo marca como tarea de una épica: quién la trabaja y de qué depende. */
+    public void planAsTask(String role, List<String> dependencies) {
+        if (parentKey == null) throw new DomainException("Una tarea del plan pertenece a una épica.");
+        this.workRole = role == null || role.isBlank() ? null : role.strip().toUpperCase(java.util.Locale.ROOT);
+        this.dependsOn = dependencies == null ? List.of() : dependencies.stream().filter(d -> !d.equals(key)).distinct().toList();
     }
 
     /** Quién supervisa el trabajo de los agentes en este issue (nulo = nadie). */

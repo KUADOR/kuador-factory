@@ -22,6 +22,9 @@ public interface IssueRepository {
 
     int nextPosition(String projectKey, String status);
 
+    /** Hijos de una épica, en orden de creación. */
+    List<Issue> findChildren(String parentKey);
+
     long countInColumn(String projectKey, String status);
 
     Issue save(Issue issue);

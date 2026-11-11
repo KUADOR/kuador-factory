@@ -172,6 +172,13 @@ Decidido el 2026-11-10:
    dinámico (la persona aprueba en la web y recibe su conexión `RUNNER`); kit commiteado en los repos
    que crea el tablero y actualizado por PR desde Sincronizar; prompt MCP `pendientes`; idiomas del
    espacio (equipo / código) como regla de la fábrica.
+   **Épicas con tareas (2026-11-11):** `create_tasks` crea una tarjeta por tarea del plan (rol y
+   dependencias; columnas `work_role` y `depends_on`, V12). Esperan en la primera columna y arrancan
+   cuando la épica entra a una etapa de trabajo; en la columna de la épica las cubre su rol, después
+   siguen el flujo normal (QA, revisión de PR). Una tarea termina al aprobarse su PR (salta la puerta
+   de release, que es la columna justo antes de terminados); con todas terminadas la épica pasa a esa
+   puerta de release (o a terminados si el flujo no la tiene). `pending_work` oculta las tareas
+   bloqueadas y las épicas cuyas tareas ya arrancaron. `/pendientes --paralelo` con worktrees.
    **Abierto a cualquier cliente de IA (decisión del usuario):** el kit se elige por cliente (Claude
    Code, Codex con `.codex/config.toml` + `AGENTS.md`, u otro cliente MCP) y todo lleva el nombre del
    espacio (servidor `<slug>`, `TABLERO_<SLUG>_TOKEN`, subagentes `<slug>-<rol>`), nunca «Kuador»:

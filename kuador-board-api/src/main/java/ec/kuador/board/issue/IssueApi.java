@@ -43,6 +43,28 @@ public interface IssueApi {
     /** Dónde quedó un issue después de una acción. */
     record Progress(String key, String status, String statusName, UUID assigneeId) {}
 
+    /**
+     * Una tarea del plan de una épica. {@code role}: rol que la trabaja (p. ej. BACKEND); {@code dependsOn}: números
+     * (desde 1) de otras tareas de la misma lista que deben terminar antes.
+     */
+    record PlannedTask(String title, String description, String role, List<Integer> dependsOn) {}
+
+    /**
+     * Crea una tarjeta por tarea, hijas de la épica, en la primera columna: arrancan cuando la épica llega a una
+     * etapa de trabajo. Si la épica ya tenía tareas que no arrancaron, se reemplazan (p. ej. al rehacer el plan).
+     */
+    List<IssueRef> createEpicTasks(String epicKey, List<PlannedTask> tasks, UUID actorId);
+
+    /** Tarea de una épica vista desde fuera: rol, dependencias y cuáles siguen sin terminar. */
+    record TaskInfo(String key, String title, String status, String statusName, String workRole, List<String> dependsOn,
+            List<String> pendingDependencies, String assigneeName) {}
+
+    /** Tareas de una épica (vacío si no tiene). */
+    List<TaskInfo> epicTasks(String epicKey);
+
+    /** Si el issue es una tarea del plan de una épica, su rol y dependencias. */
+    Optional<TaskInfo> taskInfo(String issueKey);
+
     /** Issues que supervisa {@code supervisorId} y esperan a un agente (asignados a uno o por tomar). */
     List<QueueItem> agentQueue(UUID supervisorId);
 

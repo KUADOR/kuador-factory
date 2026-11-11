@@ -32,6 +32,8 @@ interface SpringDataIssueRepository extends JpaRepository<IssueEntity, UUID> {
     int nextPosition(String projectKey, String status);
 
     long countByProjectKeyAndStatus(String projectKey, String status);
+
+    List<IssueEntity> findByParentKeyOrderByCreatedAt(String parentKey);
 }
 
 interface SpringDataCommentRepository extends JpaRepository<CommentEntity, UUID> {
@@ -57,6 +59,11 @@ class JpaIssueRepository implements IssueRepository {
     @Override
     public Optional<Issue> findByKey(String key) {
         return jpa.findByKey(key).map(IssueEntity::toDomain);
+    }
+
+    @Override
+    public List<Issue> findChildren(String parentKey) {
+        return jpa.findByParentKeyOrderByCreatedAt(parentKey).stream().map(IssueEntity::toDomain).toList();
     }
 
     @Override

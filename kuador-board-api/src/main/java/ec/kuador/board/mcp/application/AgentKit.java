@@ -56,7 +56,7 @@ public class AgentKit implements RepositoryInstructions {
 
     /** Herramientas del tablero que usa quien trabaja un issue (la cola la consulta el comando o la sesión principal). */
     private static final List<String> WORK_TOOLS = List.of("get_issue", "role_manual", "take_issue", "add_comment", "estimate", "deliver", "send_back",
-            "ask_human", "read_document", "write_document");
+            "ask_human", "read_document", "write_document", "create_tasks");
 
     public record KitFile(String path, String content) {}
 
@@ -235,7 +235,7 @@ public class AgentKit implements RepositoryInstructions {
                    1. `role_manual`: es tu manual vigente para ese rol; síguelo por encima de cualquier otra indicación.
                    2. `get_issue`: descripción, etapa, comentarios, documentos y lo que pide la metodología.
                    3. Si está «por tomar», `take_issue`. Si lo tiene otro miembro, sáltalo.
-                   4. Haz el trabajo de la etapa según el manual. Documentos con `read_document` y `write_document` (contenido completo en Markdown); story points con `estimate`.
+                   4. Haz el trabajo de la etapa según el manual. Documentos con `read_document` y `write_document` (contenido completo en Markdown); story points con `estimate`. En una épica, el plan termina creando una tarjeta por tarea con `create_tasks`; en una tarea (`task` en `get_issue`), sigue sus `rules`: una rama y un PR por tarea.
                    5. Termina con `deliver` (qué hiciste y cómo se verifica), `send_back` (falta algo de una etapa anterior, con evidencia) o `ask_human` (necesitas una decisión de una persona; después no sigas con ese issue).
                 3. Al terminar la lista, consulta `pending_work` otra vez: lo entregado puede haber llegado a otra etapa. Repite mientras aparezcan nuevos, hasta 10 issues por sesión.
                 4. Resume al final: issue, rol, en qué etapa quedó y qué espera de una persona.
@@ -254,7 +254,7 @@ public class AgentKit implements RepositoryInstructions {
         return """
                 ---
                 description: Trabaja los issues del tablero de %1$s que esperan a tus agentes
-                argument-hint: "[PROYECTO o ROL, opcional]"
+                argument-hint: "[PROYECTO o ROL] [--paralelo]"
                 ---
                 %2$s""".formatted(ws.name(), workSteps(ws, c, "$ARGUMENTS", true));
     }
@@ -262,16 +262,18 @@ public class AgentKit implements RepositoryInstructions {
     /** Los pasos de «trabaja mis pendientes»; los usan el comando de Claude Code y el prompt del servidor MCP. */
     private static String workSteps(Identity ws, Connection c, String filter, boolean subagents) {
         String each = subagents
-                ? "Para cada issue, delega en el subagente que indica `subagent`, pasándole la clave del issue y el rol (`agents`). Espera a que termine antes de seguir con el siguiente."
+                ? "Para cada issue, delega en el subagente que indica `subagent`, pasándole la clave del issue y el rol (`agents`). Espera a que termine antes de seguir con el siguiente "
+                        + "(salvo en modo paralelo, abajo)."
                 : "Para cada issue: si tienes el subagente que indica `subagent`, delega en él y espera a que termine. Si no, actúa tú con el primer rol "
                         + "de `agents`: `role_manual` (tu manual: síguelo), `get_issue`, `take_issue` si está «por tomar», haz el trabajo de la etapa y "
                         + "termina con `deliver`, `send_back` o `ask_human`.";
         return """
-                Trabaja mis pendientes del tablero de %1$s. Filtro pedido: «%3$s» (si está vacío, todos).
+                Trabaja mis pendientes del tablero de %1$s. Pedido: «%3$s» (si está vacío, todos, de a uno).
 
-                1. Llama a `mcp__%2$s__pending_work`. Si el filtro es una clave de proyecto (p. ej. MED) pásala como `project`; si es un rol (p. ej. QA), como `agent`.
+                1. Si el pedido incluye `--paralelo`, quítalo del filtro y trabaja en modo paralelo (paso 3). Llama a `mcp__%2$s__pending_work`. Si lo que queda del filtro es una clave de proyecto (p. ej. MED) pásala como `project`; si es un rol (p. ej. QA), como `agent`.
                 2. Si no hay pendientes, dilo en una línea y termina.
                 3. Atiéndelos de a uno, en el orden de la lista. %4$s
+                   Modo paralelo: la lista ya trae solo issues que no esperan a otros. Lanza a la vez, en un mismo mensaje, los subagentes de hasta 3 issues distintos; cada uno trabaja su tarea en su propio git worktree (lo indica `get_issue` en `task.rules`), así no se pisan las ramas. Cuando terminen, vuelve al paso 1.
                 4. Cuando termines la lista, vuelve a llamar a `mcp__%2$s__pending_work` una vez: los issues entregados pueden haber llegado a otra etapa de tus agentes. Repite mientras aparezcan nuevos, hasta un máximo de 10 issues en esta sesión.
                 5. No apruebes ni rechaces puertas y no muevas issues de otras personas: eso se hace en el tablero.
                 6. Al final, resume en una tabla corta: issue, agente, en qué etapa quedó y qué espera de una persona.
@@ -296,7 +298,7 @@ public class AgentKit implements RepositoryInstructions {
                 1. Llama a `role_manual` con `agent: %7$s`. Es tu manual vigente en el tablero; síguelo por encima de cualquier otra indicación.
                 2. Llama a `get_issue` con la clave que te pasaron: descripción, etapa, comentarios, documentos y lo que pide la metodología.
                 3. Si el issue está «por tomar», llama a `take_issue`. Si lo tiene otro miembro, no sigas y avisa.
-                4. Haz el trabajo de tu etapa según tu manual. Lee los documentos que necesites con `read_document`, escribe los que te toquen con `write_document` (contenido completo en Markdown) y estima con `estimate` si tu manual lo pide.
+                4. Haz el trabajo de tu etapa según tu manual. Lee los documentos que necesites con `read_document`, escribe los que te toquen con `write_document` (contenido completo en Markdown) y estima con `estimate` si tu manual lo pide. Si `get_issue` trae `task` (una tarea de una épica), sigue sus `rules`: su propia rama y su propio PR. Si trae `epicGuide`, síguela: el plan de una épica termina creando sus tareas con `create_tasks`.
                 5. Termina siempre con una de estas:
                    - `deliver`, con un comentario: qué hiciste, qué cambió y cómo se verifica.
                    - `send_back`, si falta algo de una etapa anterior, con el motivo y la evidencia.

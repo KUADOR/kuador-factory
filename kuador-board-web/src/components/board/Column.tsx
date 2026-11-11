@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { TextInput } from "@/components/ui/Field";
 import type { TypeSource } from "@/lib/labels";
-import type { BoardColumn, ColumnCategory, Issue, IssueStatus, Member, StageDef } from "@/lib/types";
+import type { BoardColumn, CardPlan, ColumnCategory, Issue, IssueStatus, Member, StageDef } from "@/lib/types";
 
 import { COLUMN_DROP_PREFIX } from "./dnd";
 import { IssueCard } from "./IssueCard";
@@ -41,6 +41,7 @@ function SortableIssue({
   projectType,
   workingAgent,
   waiting,
+  plan,
   readOnly,
   onOpen,
 }: {
@@ -50,6 +51,7 @@ function SortableIssue({
   projectType: TypeSource;
   workingAgent: Member | undefined;
   waiting?: string;
+  plan?: CardPlan;
   readOnly?: boolean;
   onOpen: (key: string) => void;
 }) {
@@ -72,7 +74,7 @@ function SortableIssue({
         aria-roledescription={readOnly ? undefined : "issue arrastrable"}
         className={clsx("block w-full touch-manipulation rounded-md", readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing")}
       >
-        <IssueCard issue={issue} assignee={assignee} epicTitle={epicTitle} projectType={projectType} workingAgent={workingAgent} waiting={waiting} />
+        <IssueCard issue={issue} assignee={assignee} epicTitle={epicTitle} projectType={projectType} workingAgent={workingAgent} waiting={waiting} plan={plan} />
       </div>
     </li>
   );
@@ -84,6 +86,7 @@ export function Column({
   issues,
   members,
   epics,
+  plans,
   working,
   blocked,
   stage,
@@ -97,6 +100,8 @@ export function Column({
   issues: Issue[];
   members: Map<string, Member>;
   epics: Map<string, string>;
+  /** issueKey → plan de la épica que muestra la tarjeta (rol, a qué espera, avance). */
+  plans?: Map<string, CardPlan>;
   /** issueKey → agente que lo está trabajando ahora. */
   working: Map<string, Member>;
   /** Durante un arrastre: el flujo no permite soltar aquí (texto con el motivo). */
@@ -222,6 +227,7 @@ export function Column({
               epicTitle={issue.parentKey ? epics.get(issue.parentKey) : undefined}
               projectType={projectType}
               workingAgent={working.get(issue.key)}
+              plan={plans?.get(issue.key)}
               readOnly={!onCreate}
               waiting={!issue.assigneeId && stage && (stage.gate || stage.roles.length > 0) ? (stage.gate && stage.roles.length === 0 ? "Por aprobar" : "Por tomar") : undefined}
               onOpen={onOpen}

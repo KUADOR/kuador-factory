@@ -168,12 +168,13 @@ class IssueController {
     record IssueResponse(
             UUID id, String key, String projectKey, String title, String description, IssueType type,
             String status, Priority priority, Integer storyPoints, UUID assigneeId, UUID reporterId,
-            String parentKey, List<String> labels, int position, int reworkCount, UUID supervisorId, Instant createdAt, Instant updatedAt) {
+            String parentKey, List<String> labels, int position, int reworkCount, UUID supervisorId, String workRole, List<String> dependsOn,
+            Instant createdAt, Instant updatedAt) {
 
         static IssueResponse from(Issue i) {
             return new IssueResponse(i.id(), i.key(), i.projectKey(), i.title(), i.description(), i.type(), i.status(),
                     i.priority(), i.storyPoints(), i.assigneeId(), i.reporterId(), i.parentKey(), i.labels(),
-                    i.position(), i.reworkCount(), i.supervisorId(), i.createdAt(), i.updatedAt());
+                    i.position(), i.reworkCount(), i.supervisorId(), i.workRole(), i.dependsOn(), i.createdAt(), i.updatedAt());
         }
     }
 

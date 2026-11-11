@@ -81,7 +81,7 @@ public class McpProtocol {
     private Map<String, Object> workPrompt() {
         return Map.of("name", WORK_PROMPT, "title", "Trabajar mis pendientes",
                 "description", "Atiende los issues del tablero de " + workspace.identity().name() + " que esperan a tus agentes, uno por uno.",
-                "arguments", List.of(Map.of("name", "filtro", "description", "Opcional: clave de proyecto (p. ej. MED) o rol (p. ej. QA).", "required", false)));
+                "arguments", List.of(Map.of("name", "filtro", "description", "Opcional: clave de proyecto (p. ej. MED) o rol (p. ej. QA); agrega --paralelo para trabajar varias tareas a la vez.", "required", false)));
     }
 
     private Map<String, Object> prompt(JsonNode id, JsonNode params) {

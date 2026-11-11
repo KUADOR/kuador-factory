@@ -27,7 +27,7 @@ import { notify } from "@/components/ui/Toaster";
 import { allowedTypes, typeLabel } from "@/lib/labels";
 import { useAccess } from "@/components/shell/AccessContext";
 import { roleLabel } from "@/lib/labels";
-import type { AgentRole, AgentRun, BoardColumn, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
+import type { AgentRole, AgentRun, BoardColumn, CardPlan, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
 
 import { AddColumn, Column, type ColumnActions } from "./Column";
 import { COLUMN_DROP_PREFIX } from "./dnd";
@@ -87,6 +87,7 @@ export function Board({
   const memberById = new Map(members.map((m) => [m.id, m]));
   const epics = issues.filter((i) => i.type === "EPIC");
   const epicTitles = new Map(epics.map((e) => [e.key, e.title]));
+  const plans = cardPlans(issues, byKey, new Set(project.columns.filter((c) => c.category === "DONE").map((c) => c.key)), roleName);
   const working = new Map(
     runs.filter((r) => r.status === "RUNNING" && r.projectKey === project.key).flatMap((r) => {
       const agent = memberById.get(r.agentId);
@@ -334,6 +335,7 @@ export function Board({
               issues={(columns[column.key] ?? []).map((k) => byKey.get(k)).filter(filtering ? visible : (i): i is Issue => !!i)}
               members={memberById}
               epics={epicTitles}
+              plans={plans}
               working={working}
               onOpen={setOpenKey}
               onCreate={canEdit ? setCreatingIn : undefined}
@@ -408,4 +410,23 @@ export function Board({
       </SidePanel>
     </div>
   );
+}
+
+/** Plan de las épicas en las tarjetas: rol de cada tarea, a qué tareas espera y cuántas terminó cada épica. */
+function cardPlans(issues: Issue[], byKey: Map<string, Issue>, done: Set<string>, roleName: (key: string) => string): Map<string, CardPlan> {
+  const plans = new Map<string, CardPlan>();
+  for (const issue of issues) {
+    if (!issue.workRole) continue;
+    const waitingFor = (issue.dependsOn ?? []).filter((k) => {
+      const dep = byKey.get(k);
+      return dep && !done.has(dep.status);
+    });
+    plans.set(issue.key, { role: roleName(issue.workRole), waitingFor: done.has(issue.status) ? [] : waitingFor });
+    if (issue.parentKey) {
+      const epic = plans.get(issue.parentKey) ?? {};
+      const progress = epic.progress ?? { done: 0, total: 0 };
+      plans.set(issue.parentKey, { ...epic, progress: { done: progress.done + (done.has(issue.status) ? 1 : 0), total: progress.total + 1 } });
+    }
+  }
+  return plans;
 }

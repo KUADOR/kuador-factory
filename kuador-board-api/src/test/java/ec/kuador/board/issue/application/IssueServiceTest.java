@@ -238,6 +238,9 @@ class IssueServiceTest {
         public int nextPosition(String projectKey, String status) {
             return findColumn(projectKey, status).stream().mapToInt(Issue::position).max().orElse(-1) + 1;
         }
+        public List<Issue> findChildren(String parentKey) {
+            return store.values().stream().filter(i -> parentKey.equals(i.parentKey())).toList();
+        }
         public Issue save(Issue issue) { store.put(issue.id(), issue); return issue; }
         public void saveAll(List<Issue> list) { list.forEach(this::save); }
         public void delete(Issue issue) { store.remove(issue.id()); }

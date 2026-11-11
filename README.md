@@ -345,7 +345,11 @@ Cada inicio de sesión queda como una conexión de esa persona en **Agentes loca
 
 **El kit vive en el repo.** Al crear un repo, el tablero commitea `.mcp.json` (sin cabeceras), el comando `/pendientes`, un subagente por rol (`.claude/agents/<espacio>-<rol>.md`) y `.codex/config.toml`. Si cambian los roles, las reglas o los idiomas, **Sincronizar → Kit de agentes** lo propone por PR. Sin archivos, el mismo pedido llega como prompt del servidor (`/mcp__<espacio>__pendientes`). El .zip queda para repos que no creó el tablero.
 
-**Herramientas** (en inglés): `pending_work`, `get_issue`, `role_manual`, `take_issue`, `add_comment`, `estimate`, `deliver`, `send_back`, `ask_human`, `read_document`, `write_document`.
+**Herramientas** (en inglés): `pending_work`, `get_issue`, `role_manual`, `take_issue`, `add_comment`, `estimate`, `deliver`, `send_back`, `ask_human`, `read_document`, `write_document`, `create_tasks`.
+
+**Épicas con tareas.** Una épica pasa por PO → aprobación → arquitecto como cualquier issue. Al terminar el plan, el arquitecto crea con `create_tasks` una tarjeta por cada tarea del `tasks.md`, hija de la épica, con su rol (BACKEND, FRONTEND, DEVOPS…) y sus dependencias. Esperan en Backlog y arrancan cuando la épica llega a Desarrollo (si agregas una puerta «Aprobar plan» antes, esperan esa aprobación). Cada tarea la toma el agente de su rol, en su propia rama y PR; las que dependen de otra no aparecen en pendientes hasta que esa termina. Una tarea termina cuando se aprueba su PR (pasa directo a Hecho, sin release propio); cuando terminan todas, la épica pasa sola a Release: un release por épica. El tablero muestra en cada tarjeta el rol, «Espera a …» y el avance de la épica (`2/5 tareas`).
+
+**En paralelo:** `/pendientes --paralelo` lanza a la vez (hasta 3) los subagentes de las tareas libres; cada uno trabaja en su propio `git worktree`. Consume más rápido los límites de tu suscripción.
 
 **Idiomas** (Empresa e idiomas): idioma del equipo (specs, planes, comentarios, textos para el usuario final; por defecto español) e idioma del código (nombres, comentarios, pruebas, commits, PRs, OpenAPI; por defecto inglés). Todos los agentes lo reciben como regla de la fábrica.
 

@@ -19,4 +19,19 @@ public abstract class IssueApiStub implements IssueApi {
     @Override public Progress takeAs(String issueKey, UUID agentId) { throw new UnsupportedOperationException(); }
     @Override public Progress deliverAs(String issueKey, String comment, UUID agentId) { throw new UnsupportedOperationException(); }
     @Override public Progress sendBack(String issueKey, String column, String reason, UUID actorId) { throw new UnsupportedOperationException(); }
+
+    @Override
+    public List<IssueRef> createEpicTasks(String epicKey, List<PlannedTask> tasks, UUID actorId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<TaskInfo> epicTasks(String epicKey) {
+        return List.of();
+    }
+
+    @Override
+    public Optional<TaskInfo> taskInfo(String issueKey) {
+        return Optional.empty();
+    }
 }

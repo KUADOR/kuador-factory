@@ -289,6 +289,10 @@ export interface Issue {
   reworkCount: number;
   /** Persona que puso a los agentes a trabajar: solo sus agentes, en su Claude Code, lo atienden. */
   supervisorId: string | null;
+  /** Tarea del plan de una épica: rol que la trabaja (p. ej. BACKEND). */
+  workRole: string | null;
+  /** Tarea del plan de una épica: claves de las tareas que deben terminar antes. */
+  dependsOn: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -500,4 +504,11 @@ export interface OAuthClientInfo {
   name: string;
   redirectHost: string;
   local: boolean;
+}
+
+/** Lo que una tarjeta muestra del plan de una épica: rol de la tarea, a qué espera y, en la épica, su avance. */
+export interface CardPlan {
+  role?: string;
+  waitingFor?: string[];
+  progress?: { done: number; total: number };
 }

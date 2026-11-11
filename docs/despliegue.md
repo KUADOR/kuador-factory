@@ -1,14 +1,19 @@
 # Despliegue en Dokploy
 
 Todo corre en el servidor de Dokploy, cada pieza como un servicio aparte, con **un solo dominio
-público** (en esta guía, `tablero.kuador.com`):
+público**: `go.kuador.com`.
+
+**Antes de empezar**: en el DNS de `kuador.com`, un registro `A` `go` → IP del VPS (sin proxy de
+Cloudflare, o con modo SSL *Full*). Dokploy pide el certificado HTTPS cuando el registro ya resuelve.
+
+Esquema:
 
 ```
 Internet ──HTTPS──▶ Traefik (Dokploy)
-                      │  tablero.kuador.com/*                         ──▶ kuador-board-web (Next.js, :3600)
-                      │  tablero.kuador.com/mcp                       ──▶ kuador-board-api (:8091)
-                      │  tablero.kuador.com/api/agent-kit(.zip)       ──▶ kuador-board-api
-                      │  tablero.kuador.com/api/github/webhook        ──▶ kuador-board-api
+                      │  go.kuador.com/*                         ──▶ kuador-board-web (Next.js, :3600)
+                      │  go.kuador.com/mcp                       ──▶ kuador-board-api (:8091)
+                      │  go.kuador.com/api/agent-kit(.zip)       ──▶ kuador-board-api
+                      │  go.kuador.com/api/github/webhook        ──▶ kuador-board-api
                       ▼
         kuador-board-web ──red interna──▶ kuador-board-api ──▶ PostgreSQL (servicio de BD de Dokploy)
 ```
@@ -42,9 +47,9 @@ las tablas en el primer arranque. Programa respaldos diarios en la pestaña **Ba
 
 | Host | Path |
 |---|---|
-| `tablero.kuador.com` | `/mcp` |
-| `tablero.kuador.com` | `/api/agent-kit` |
-| `tablero.kuador.com` | `/api/github/webhook` |
+| `go.kuador.com` | `/mcp` |
+| `go.kuador.com` | `/api/agent-kit` |
+| `go.kuador.com` | `/api/github/webhook` |
 
 Traefik prefiere la regla más larga, así que estas rutas ganan sobre el `/` de la web.
 
@@ -56,8 +61,8 @@ SPRING_DATASOURCE_PASSWORD=
 # openssl rand -base64 32 — cifra las claves de GitHub guardadas. Si se pierde, hay que volver a registrar la app.
 BOARD_SECRETS_KEY=
 
-BOARD_PUBLIC_URL=https://tablero.kuador.com
-BOARD_WEB_URL=https://tablero.kuador.com
+BOARD_PUBLIC_URL=https://go.kuador.com
+BOARD_WEB_URL=https://go.kuador.com
 
 # Primera cuenta (solo si la base está vacía). Cámbiala después de entrar.
 BOARD_BOOTSTRAP_ADMIN_EMAIL=
@@ -84,12 +89,12 @@ persona, con su propia suscripción, conectados al MCP.
 
 ## 4. Servicio de la web
 
-**Application**, imagen `ghcr.io/<dueño>/kuador-board-web:latest`. Dominio `tablero.kuador.com`,
+**Application**, imagen `ghcr.io/<dueño>/kuador-board-web:latest`. Dominio `go.kuador.com`,
 path `/`, puerto `3600`, HTTPS.
 
 ```dotenv
 BOARD_API_URL=http://<app-name-de-la-api>:8091
-BOARD_PUBLIC_API_URL=https://tablero.kuador.com
+BOARD_PUBLIC_API_URL=https://go.kuador.com
 PRIMEUI_LICENSE=
 ```
 

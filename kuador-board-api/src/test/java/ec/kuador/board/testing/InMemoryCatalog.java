@@ -18,6 +18,7 @@ public class InMemoryCatalog implements CatalogApi {
     public final List<WorkflowTemplate> templates = new ArrayList<>(FACTORY.workflowTemplates());
     public final List<Methodology> methodologies = new ArrayList<>(FACTORY.methodologies());
     public final List<AgentRole> roles = new ArrayList<>(FACTORY.roles());
+    public final List<ec.kuador.board.catalog.ComponentTemplate> components = new ArrayList<>(FACTORY.componentTemplates());
 
     public static Methodology factoryMethodology(String key) {
         return FACTORY.methodologies().stream().filter(m -> m.key().equals(key)).findFirst().orElseThrow();
@@ -75,5 +76,15 @@ public class InMemoryCatalog implements CatalogApi {
     @Override
     public int receiveFactoryAdditions(int fromVersion) {
         return 0;
+    }
+
+    @Override
+    public List<ec.kuador.board.catalog.ComponentTemplate> componentTemplates() {
+        return components;
+    }
+
+    @Override
+    public java.util.Optional<ec.kuador.board.catalog.ComponentTemplate> componentTemplate(String key) {
+        return components.stream().filter(c -> c.key().equals(key)).findFirst();
     }
 }

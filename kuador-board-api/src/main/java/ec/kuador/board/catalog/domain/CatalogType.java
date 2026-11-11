@@ -1,18 +1,20 @@
 package ec.kuador.board.catalog.domain;
 
 import ec.kuador.board.catalog.AgentRole;
+import ec.kuador.board.catalog.ComponentTemplate;
 import ec.kuador.board.catalog.McpServer;
 import ec.kuador.board.catalog.Methodology;
 import ec.kuador.board.catalog.WorkflowTemplate;
 import java.util.Arrays;
 import java.util.Optional;
 
-/** Los cuatro catálogos: qué registro los representa y cómo se nombran en la API. */
+/** Los catálogos: qué registro los representa y cómo se nombran en la API. */
 public enum CatalogType {
     WORKFLOW_TEMPLATE(WorkflowTemplate.class, "workflow-templates"),
     METHODOLOGY(Methodology.class, "methodologies"),
     AGENT_ROLE(AgentRole.class, "roles"),
-    MCP_SERVER(McpServer.class, "mcp-servers");
+    MCP_SERVER(McpServer.class, "mcp-servers"),
+    COMPONENT_TEMPLATE(ComponentTemplate.class, "component-templates");
 
     private final Class<?> recordType;
     private final String path;

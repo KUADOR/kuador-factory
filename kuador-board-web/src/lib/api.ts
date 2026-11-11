@@ -29,7 +29,10 @@ import type {
   GitHubConnection,
   GitHubOverview,
   Issue,
-  NewRepositoryResult,
+  PieceInput,
+  PiecesSetup,
+  ProjectPiece,
+  SetupResult,
   IssueInput,
   IssueStatus,
   AgentClient,
@@ -181,8 +184,10 @@ export const boardApi = {
   githubCompleteInstall: (installationId: number, code: string, state: string) =>
     request<GitHubConnection>("/api/github/installations", json("POST", { installationId, code, state })),
   githubDisconnect: (installationId: number) => request<void>(`/api/github/installations/${installationId}`, { method: "DELETE" }),
-  createRepository: (key: string, input: { installationId: number; name: string; description: string | null; privateRepo: boolean }) =>
-    request<NewRepositoryResult>(`/api/projects/${encodeURIComponent(key)}/repository/new`, json("POST", input)),
+  pieces: (key: string) => request<ProjectPiece[]>(`/api/projects/${encodeURIComponent(key)}/components`),
+  setupPieces: (key: string, input: PiecesSetup) => request<SetupResult>(`/api/projects/${encodeURIComponent(key)}/components/setup`, json("POST", input)),
+  addPiece: (key: string, piece: PieceInput, privateRepo: boolean) =>
+    request<SetupResult>(`/api/projects/${encodeURIComponent(key)}/components`, json("POST", { piece, privateRepo })),
   linkRepository: (
     key: string,
     input: { kind: RepositoryKind; location: string; branch: string | null; token: string | null; installationId?: number | null },

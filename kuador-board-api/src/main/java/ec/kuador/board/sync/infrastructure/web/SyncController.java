@@ -4,7 +4,9 @@ import ec.kuador.board.auth.AuthenticatedMember;
 import ec.kuador.board.docs.DocsApi.DocContent;
 import ec.kuador.board.sync.application.SyncService;
 import jakarta.validation.constraints.NotNull;
-import ec.kuador.board.sync.application.RepositoryProvisioning;
+import ec.kuador.board.sync.application.ComponentService;
+import ec.kuador.board.sync.domain.ProjectComponent;
+import java.util.Map;
 import ec.kuador.board.sync.domain.RepositoryLink;
 import ec.kuador.board.sync.domain.RepositoryProvider;
 import ec.kuador.board.sync.domain.SyncState;
@@ -35,10 +37,10 @@ import org.springframework.web.bind.annotation.RestController;
 class SyncController {
 
     private final SyncService service;
-    private final RepositoryProvisioning provisioning;
+    private final ComponentService components;
 
-    SyncController(SyncService service, RepositoryProvisioning provisioning) {
-        this.provisioning = provisioning;
+    SyncController(SyncService service, ComponentService components) {
+        this.components = components;
         this.service = service;
     }
 
@@ -54,21 +56,54 @@ class SyncController {
                 who.memberId()));
     }
 
-    record NewRepositoryRequest(
-            @NotNull Long installationId, @NotBlank @Size(max = 100) String name, @Size(max = 350) String description,
+    // ---- Piezas del proyecto (API, web, microservicios...) y sus repos ----
+
+    record PieceRequest(@NotBlank @Size(max = 40) String name, @Size(max = 40) String templateKey, @Size(max = 100) String repoName,
+            Map<String, String> variables) {
+        ComponentService.PieceSpec spec() {
+            return new ComponentService.PieceSpec(name, templateKey, repoName, variables);
+        }
+    }
+
+    record SetupRequest(@NotNull Long installationId, @NotBlank @Size(max = 100) String repoName, @Size(max = 350) String description,
             /** Privado si no se indica: el código de un cliente no se publica por accidente. */
-            Boolean privateRepo) {}
+            Boolean privateRepo, @Valid List<PieceRequest> pieces) {}
 
-    record NewRepositoryResponse(LinkResponse link, String url, List<String> protectedBranches, List<String> warnings, int documents) {}
+    record AddPieceRequest(@NotNull @Valid PieceRequest piece, Boolean privateRepo) {}
 
-    /** Crea el repo en una organización conectada, con sus bases, y lo deja vinculado. */
-    @PostMapping("/repository/new")
+    record PieceResponse(String name, String templateKey, Long templateVersion, String templateRef, String kind, String stack, String repository,
+            String path, String build, String test, String run, Instant createdAt) {
+        static PieceResponse from(ProjectComponent c) {
+            return new PieceResponse(c.name(), c.templateKey(), c.templateVersion(), c.templateRef(), c.kind(), c.stack(), c.repoLocation(), c.path(),
+                    c.buildCommand(), c.testCommand(), c.runCommand(), c.createdAt());
+        }
+    }
+
+    record SetupResponse(LinkResponse link, List<ComponentService.RepoResult> repositories, List<PieceResponse> pieces, int documents) {
+        static SetupResponse from(ComponentService.Result r) {
+            return new SetupResponse(LinkResponse.from(r.link()), r.repositories(), r.pieces().stream().map(PieceResponse::from).toList(), r.documents());
+        }
+    }
+
+    @GetMapping("/components")
+    List<PieceResponse> pieces(@PathVariable String projectKey) {
+        return components.list(projectKey).stream().map(PieceResponse::from).toList();
+    }
+
+    /** Arma el proyecto en GitHub: repo del proyecto con sus bases y documentos, y sus piezas (carpetas o repos propios). */
+    @PostMapping("/components/setup")
     @ResponseStatus(HttpStatus.CREATED)
-    NewRepositoryResponse create(
-            @PathVariable String projectKey, @Valid @RequestBody NewRepositoryRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
-        RepositoryProvisioning.Result res = provisioning.create(projectKey, r.installationId(), r.name(), r.description(),
-                r.privateRepo() == null || r.privateRepo(), who.memberId());
-        return new NewRepositoryResponse(LinkResponse.from(res.link()), res.url(), res.protectedBranches(), res.warnings(), res.documents());
+    SetupResponse setup(@PathVariable String projectKey, @Valid @RequestBody SetupRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        List<ComponentService.PieceSpec> pieces = r.pieces() == null ? List.of() : r.pieces().stream().map(PieceRequest::spec).toList();
+        return SetupResponse.from(components.setup(projectKey,
+                new ComponentService.Setup(r.installationId(), r.repoName(), r.description(), r.privateRepo() == null || r.privateRepo(), pieces), who.memberId()));
+    }
+
+    /** Suma una pieza: carpeta nueva por Pull Request a develop, o un repo propio con sus bases. */
+    @PostMapping("/components")
+    @ResponseStatus(HttpStatus.CREATED)
+    SetupResponse addPiece(@PathVariable String projectKey, @Valid @RequestBody AddPieceRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        return SetupResponse.from(components.add(projectKey, r.piece().spec(), r.privateRepo() == null || r.privateRepo(), who.memberId()));
     }
 
     @DeleteMapping("/repository")

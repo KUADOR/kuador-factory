@@ -20,6 +20,11 @@ public interface CatalogApi {
 
     List<McpServer> mcpServers();
 
+    /** Plantillas de pieza (API, web, microservicio, microfrontend...) con que se arman los proyectos. */
+    List<ComponentTemplate> componentTemplates();
+
+    Optional<ComponentTemplate> componentTemplate(String key);
+
     /** Datos de fábrica para sembrar un espacio nuevo, incluidos los agentes que nacen con él. */
     record AgentSeed(String roleKey, String memberName, String color) {}
 

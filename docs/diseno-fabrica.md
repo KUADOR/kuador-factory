@@ -184,7 +184,14 @@ Decidido el 2026-11-10:
    CI mínimo (job `ci`) y los documentos del proyecto; `develop` predeterminada; protección de `main`
    (PR + 1 aprobación + CI) y `develop` (PR + CI). En el plan gratuito, GitHub no protege ramas de repos
    privados: el tablero lo intenta y lo avisa. Webhook creado pero apagado hasta tener URL pública.
-   Falta: plantillas de stack del catálogo, varios repos por proyecto, webhooks.
+   **Piezas (decisión del usuario):** el stack es **por proyecto** y un proyecto se arma con **varias
+   piezas** (API .NET + web Angular; Spring + React; microservicios; microfrontends + shell). El catálogo
+   guarda **plantillas de pieza** (`COMPONENT_TEMPLATE`, catálogo v4: repo plantilla en versión fija,
+   variables `{{X}}`, comandos, CI exigido, roles y MCP); de fábrica vienen 8 sin repo, cada empresa
+   apunta las suyas. Cada proyecto elige **monorepo** (piezas en carpetas) o **un repo por pieza** (los
+   documentos viven en el repo del proyecto). Sumar una pieza después: carpeta por PR a `develop`, o repo
+   propio con sus bases. Las piezas guardan con qué plantilla y versión nacieron; los agentes las ven en
+   `ver_issue` (stack, repo, carpeta, comandos). Falta: webhooks.
 4. **PO y Arquitecto vía MCP:** se reutilizan las reglas de hoy (comentar, spec, plan, devolver).
 5. **Dev y QA:** ramas, pruebas, evidencias y apertura del PR a `develop`.
 6. **Release** (PR `develop → main` + notas), merge automático configurable, guía de protección de

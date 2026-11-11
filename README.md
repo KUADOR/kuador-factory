@@ -253,7 +253,8 @@ estado de cada documento. El tablero **escribe archivos pero no hace commits**: 
 | GET | `/api/github` | App de la plataforma y organizaciones de GitHub conectadas al espacio |
 | POST | `/api/github/app/manifest` · `/api/github/app` | Registrar la GitHub App con el manifiesto (una vez, quien opera la plataforma) |
 | POST | `/api/github/installations/start` · `/api/github/installations` · DELETE `/api/github/installations/{id}` | Conectar o quitar una organización (verificado con OAuth) |
-| POST | `/api/projects/{key}/repository/new` | Crear el repo en una organización conectada, con sus bases, y vincularlo (`GITHUB_APP`) |
+| GET · POST | `/api/projects/{key}/components` | Piezas del proyecto · sumar una (carpeta por PR a develop, o repo propio) |
+| POST | `/api/projects/{key}/components/setup` | Armar el proyecto en GitHub: repo del proyecto con sus bases y sus piezas (monorepo o un repo por pieza) |
 | PUT | `/api/members/{id}/access` | Nivel de acceso de una persona `{access: EDIT\|VIEW}` (solo personas que editan; nadie cambia el suyo; siempre queda alguien que edita) |
 | PUT | `/api/projects/{key}/stages` | Etapas `{stages: [{column, roles, gate, approvers, rejectTo}], maxRework}` (solo personas) |
 | POST | `/api/issues/{key}/take` · `/deliver` · `/review` | Tomar de la etapa / entregar `{comment?}` / cerrar una puerta `{approve, comment}` (solo personas aprobadoras) |

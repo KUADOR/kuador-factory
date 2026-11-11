@@ -2,6 +2,7 @@ package ec.kuador.board.catalog.domain;
 
 import ec.kuador.board.catalog.AgentRole;
 import ec.kuador.board.catalog.CatalogApi;
+import ec.kuador.board.catalog.ComponentTemplate;
 import ec.kuador.board.catalog.McpServer;
 import ec.kuador.board.catalog.Methodology;
 import ec.kuador.board.catalog.WorkflowTemplate;
@@ -19,6 +20,8 @@ public interface FactoryCatalog {
 
     List<McpServer> mcpServers();
 
+    List<ComponentTemplate> componentTemplates();
+
     List<CatalogApi.AgentSeed> agentSeeds();
 
     /** Versión del catálogo de fábrica (crece cuando se agregan entradas). */
@@ -33,6 +36,7 @@ public interface FactoryCatalog {
             case METHODOLOGY -> methodologies();
             case AGENT_ROLE -> roles();
             case MCP_SERVER -> mcpServers();
+            case COMPONENT_TEMPLATE -> componentTemplates();
         };
         return all.stream().filter(e -> key.equals(CatalogKeys.of(e))).map(e -> (Object) e).findFirst();
     }

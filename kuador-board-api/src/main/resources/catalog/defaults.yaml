@@ -7,7 +7,7 @@
 # Versión del catálogo de fábrica. Cada espacio guarda hasta qué versión recibió; al arrancar recibe
 # una sola vez lo que se agregó después (ver «releases»). Así una entrada nueva llega a los espacios
 # existentes sin pisar sus cambios ni revivir lo que un equipo borró.
-version: 3
+version: 4
 releases:
   - version: 2
     added:
@@ -16,6 +16,16 @@ releases:
   - version: 3
     added:
       - { type: WORKFLOW_TEMPLATE, key: SOFTWARE_FACTORY }
+  - version: 4
+    added:
+      - { type: COMPONENT_TEMPLATE, key: API_SPRING_HEXAGONAL }
+      - { type: COMPONENT_TEMPLATE, key: MICROSERVICE_SPRING }
+      - { type: COMPONENT_TEMPLATE, key: API_DOTNET }
+      - { type: COMPONENT_TEMPLATE, key: WEB_NEXTJS }
+      - { type: COMPONENT_TEMPLATE, key: WEB_REACT }
+      - { type: COMPONENT_TEMPLATE, key: WEB_ANGULAR }
+      - { type: COMPONENT_TEMPLATE, key: MICROFRONTEND_REACT }
+      - { type: COMPONENT_TEMPLATE, key: SHELL_MICROFRONTENDS }
 
 workflowTemplates:
   - key: SOFTWARE
@@ -791,3 +801,108 @@ mcpServers:
       - { name: GITHUB_TOOLSETS, required: false, description: "Opcional: grupos de herramientas, ej. repos,issues,pull_requests,actions (por defecto los básicos)." }
       - { name: GITHUB_HOST, required: false, description: "Opcional: solo para GitHub Enterprise Server o ghe.com." }
     docsUrl: "https://github.com/github/github-mcp-server"
+
+# Plantillas de pieza: con qué se arma cada proyecto (una o varias piezas, monorepo o un repo por pieza).
+# De fábrica vienen sin repo plantilla: cada empresa apunta las suyas a su propio código base probado.
+# Mientras no tengan repo, la pieza nace con su README, sus comandos y su lugar en el CI.
+componentTemplates:
+  - key: API_SPRING_HEXAGONAL
+    name: API Spring Boot hexagonal
+    description: "API REST con arquitectura hexagonal y módulos (Spring Modulith), migraciones Flyway y pruebas de arquitectura."
+    kind: BACKEND
+    stack: "Java 25 · Spring Boot 4 · PostgreSQL"
+    templateRepo: null
+    templateRef: null
+    variables:
+      - { name: PAQUETE, description: "Paquete base de Java", defaultValue: "com.empresa.proyecto" }
+    commands: { build: "./mvnw -B package", test: "./mvnw -B verify", run: "./mvnw spring-boot:run" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MICROSERVICE_SPRING
+    name: Microservicio Spring Boot
+    description: "Servicio pequeño con una responsabilidad, su propia base de datos y contratos de API o eventos."
+    kind: BACKEND
+    stack: "Java 25 · Spring Boot 4"
+    templateRepo: null
+    templateRef: null
+    variables:
+      - { name: PAQUETE, description: "Paquete base de Java", defaultValue: "com.empresa.servicio" }
+    commands: { build: "./mvnw -B package", test: "./mvnw -B verify", run: "./mvnw spring-boot:run" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, DEVOPS, QA]
+    mcpServers: [CONTEXT7]
+  - key: API_DOTNET
+    name: API .NET
+    description: "API REST en ASP.NET Core con capas de dominio, aplicación e infraestructura y pruebas."
+    kind: BACKEND
+    stack: ".NET 10 · ASP.NET Core · Entity Framework"
+    templateRepo: null
+    templateRef: null
+    variables:
+      - { name: ESPACIO_NOMBRES, description: "Espacio de nombres raíz", defaultValue: "Empresa.Proyecto" }
+    commands: { build: "dotnet build", test: "dotnet test", run: "dotnet run" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: WEB_NEXTJS
+    name: Web Next.js
+    description: "Aplicación web con App Router, TypeScript estricto, Tailwind, ESLint y Vitest."
+    kind: FRONTEND
+    stack: "Next.js · React · TypeScript · Tailwind"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "pnpm build", test: "pnpm test", run: "pnpm dev" }
+    ciChecks: [ci]
+    suggestedRoles: [FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: WEB_REACT
+    name: Web React
+    description: "Aplicación de una sola página con Vite, TypeScript estricto, ESLint y Vitest."
+    kind: FRONTEND
+    stack: "React · Vite · TypeScript"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "pnpm build", test: "pnpm test", run: "pnpm dev" }
+    ciChecks: [ci]
+    suggestedRoles: [FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: WEB_ANGULAR
+    name: Web Angular
+    description: "Aplicación Angular con componentes standalone, TypeScript estricto, ESLint y pruebas."
+    kind: FRONTEND
+    stack: "Angular · TypeScript"
+    templateRepo: null
+    templateRef: null
+    variables:
+      - { name: PREFIJO, description: "Prefijo de los componentes", defaultValue: "app" }
+    commands: { build: "npm run build", test: "npm test -- --watch=false", run: "npm start" }
+    ciChecks: [ci]
+    suggestedRoles: [FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MICROFRONTEND_REACT
+    name: Microfrontend React
+    description: "Microfrontend que se publica por separado y lo carga el shell (Module Federation)."
+    kind: MICROFRONTEND
+    stack: "React · TypeScript · Module Federation"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "pnpm build", test: "pnpm test", run: "pnpm dev" }
+    ciChecks: [ci]
+    suggestedRoles: [FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: SHELL_MICROFRONTENDS
+    name: Shell de microfrontends
+    description: "Aplicación contenedora: navegación, sesión y carga de los microfrontends."
+    kind: SHELL
+    stack: "React · TypeScript · Module Federation"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "pnpm build", test: "pnpm test", run: "pnpm dev" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, FRONTEND, QA]
+    mcpServers: [CONTEXT7]

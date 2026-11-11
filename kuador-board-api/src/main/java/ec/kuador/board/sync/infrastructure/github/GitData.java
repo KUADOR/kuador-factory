@@ -9,8 +9,13 @@ import tools.jackson.databind.node.ObjectNode;
 /** Operaciones de la API de Git de GitHub que comparten la publicación de documentos y la creación de repos. */
 final class GitData {
 
-    /** Un archivo a escribir (cualquier tipo de texto). */
-    record Entry(String path, String content) {}
+    /** Un archivo a escribir: texto, o binario en base64; {@code executable} lo marca 100755. */
+    record Entry(String path, String content, boolean base64, boolean executable) {
+
+        Entry(String path, String content) {
+            this(path, content, false, false);
+        }
+    }
 
     private GitData() {}
 
@@ -23,7 +28,15 @@ final class GitData {
         String baseTree = client.get("/repos/" + repo + "/git/commits/" + parent).path("tree").path("sha").asString();
         ArrayNode entries = GitHubClient.JSON.createArrayNode();
         for (Entry f : files) {
-            entries.addObject().put("path", f.path()).put("mode", "100644").put("type", "blob").put("content", f.content());
+            ObjectNode e = entries.addObject().put("path", f.path()).put("mode", f.executable() ? "100755" : "100644").put("type", "blob");
+            if (f.base64()) {
+                // Los binarios van como blob aparte: el árbol solo acepta texto en «content».
+                String sha = client.post("/repos/" + repo + "/git/blobs",
+                        GitHubClient.JSON.createObjectNode().put("content", f.content()).put("encoding", "base64")).path("sha").asString();
+                e.put("sha", sha);
+            } else {
+                e.put("content", f.content());
+            }
         }
         ObjectNode treeReq = GitHubClient.JSON.createObjectNode().put("base_tree", baseTree);
         treeReq.set("tree", entries);

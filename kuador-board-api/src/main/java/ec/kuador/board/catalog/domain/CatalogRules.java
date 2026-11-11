@@ -7,6 +7,7 @@ import ec.kuador.board.catalog.TransitionDef;
 import ec.kuador.board.catalog.DocumentDef;
 import ec.kuador.board.catalog.IssueType;
 import ec.kuador.board.catalog.IssueTypeDef;
+import ec.kuador.board.catalog.ComponentTemplate;
 import ec.kuador.board.catalog.McpServer;
 import ec.kuador.board.catalog.Methodology;
 import ec.kuador.board.catalog.WorkflowTemplate;
@@ -34,6 +35,7 @@ public final class CatalogRules {
             case METHODOLOGY -> methodology((Methodology) entry);
             case AGENT_ROLE -> role((AgentRole) entry);
             case MCP_SERVER -> mcp((McpServer) entry);
+            case COMPONENT_TEMPLATE -> component((ComponentTemplate) entry);
         }
     }
 
@@ -107,6 +109,32 @@ public final class CatalogRules {
         text(r.instructions(), "Las instrucciones");
         if (r.tools() == null) throw new DomainException("Indica las herramientas del rol (puede ser una lista vacía).");
         if (r.automation() == null) throw new DomainException("Indica la automatización del rol (NONE si no tiene).");
+    }
+
+    private static final Pattern REPO = Pattern.compile("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9._-]{1,100}$");
+    private static final Pattern REF = Pattern.compile("^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$");
+    private static final Pattern VARIABLE = Pattern.compile("^[A-Z][A-Z0-9_]{0,39}$");
+
+    private static void component(ComponentTemplate c) {
+        name(c.name());
+        text(c.description(), "La descripción");
+        if (c.kind() == null) throw new DomainException("Indica el tipo de pieza (backend, frontend, microfrontend...).");
+        if (c.stack() == null || c.stack().isBlank() || c.stack().length() > 120) throw new DomainException("Indica el stack (p. ej. «Angular 20 · TypeScript»).");
+        boolean hasRepo = c.templateRepo() != null && !c.templateRepo().isBlank();
+        if (hasRepo && !REPO.matcher(c.templateRepo().strip()).matches()) {
+            throw new DomainException("El repo plantilla va como owner/repo, por ejemplo mi-org/plantilla-api.");
+        }
+        if (hasRepo && (c.templateRef() == null || !REF.matcher(c.templateRef()).matches() || c.templateRef().contains(".."))) {
+            throw new DomainException("Fija la versión de la plantilla: una etiqueta, rama o commit (p. ej. v1.0.0).");
+        }
+        if (c.variables() == null || c.ciChecks() == null || c.suggestedRoles() == null || c.mcpServers() == null) {
+            throw new DomainException("Indica variables, verificaciones, roles y servidores MCP (pueden ser listas vacías).");
+        }
+        for (ComponentTemplate.Variable v : c.variables()) {
+            if (v.name() == null || !VARIABLE.matcher(v.name()).matches()) throw new DomainException("Nombre de variable no válido: " + v.name() + " (mayúsculas, números o _).");
+            if (ComponentTemplate.BUILT_IN_VARIABLES.contains(v.name())) throw new DomainException(v.name() + " la pone el tablero; usa otro nombre.");
+        }
+        if (c.commands() == null) throw new DomainException("Indica los comandos (pueden quedar vacíos).");
     }
 
     private static void mcp(McpServer s) {

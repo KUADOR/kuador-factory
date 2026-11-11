@@ -3,6 +3,7 @@ package ec.kuador.board.catalog.application;
 import ec.kuador.board.catalog.AgentRole;
 import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.catalog.CatalogUsage;
+import ec.kuador.board.catalog.ComponentTemplate;
 import ec.kuador.board.catalog.McpServer;
 import ec.kuador.board.catalog.Methodology;
 import ec.kuador.board.catalog.WorkflowTemplate;
@@ -78,6 +79,18 @@ public class CatalogService implements CatalogApi {
     @Transactional(readOnly = true)
     public List<McpServer> mcpServers() {
         return entries.list(CatalogType.MCP_SERVER, McpServer.class);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ComponentTemplate> componentTemplates() {
+        return entries.list(CatalogType.COMPONENT_TEMPLATE, ComponentTemplate.class);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ComponentTemplate> componentTemplate(String key) {
+        return entries.find(CatalogType.COMPONENT_TEMPLATE, key, ComponentTemplate.class);
     }
 
     @Override
@@ -182,6 +195,7 @@ public class CatalogService implements CatalogApi {
             case METHODOLOGY -> factory.methodologies();
             case AGENT_ROLE -> factory.roles();
             case MCP_SERVER -> factory.mcpServers();
+            case COMPONENT_TEMPLATE -> factory.componentTemplates();
         };
     }
 
@@ -195,6 +209,7 @@ public class CatalogService implements CatalogApi {
             case Methodology m -> m.builtIn();
             case AgentRole r -> r.builtIn();
             case McpServer s -> s.builtIn();
+            case ComponentTemplate c -> c.builtIn();
             default -> false;
         };
     }
@@ -205,6 +220,7 @@ public class CatalogService implements CatalogApi {
             case Methodology m -> m.version();
             case AgentRole r -> r.version();
             case McpServer s -> s.version();
+            case ComponentTemplate c -> c.version();
             default -> 0;
         };
     }

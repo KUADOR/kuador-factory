@@ -26,7 +26,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
             title: "Software",
             items: [
               { slug: "metodologia", label: "Metodología" },
-              { slug: "repositorio", label: "Repositorio" },
+              { slug: "repositorio", label: "Piezas y repositorio" },
             ],
           },
         ]

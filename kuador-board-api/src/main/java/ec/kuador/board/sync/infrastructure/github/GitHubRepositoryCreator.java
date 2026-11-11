@@ -64,7 +64,7 @@ class GitHubRepositoryCreator implements RepositoryCreator {
         log.info("Repo {} creado con la app", fullName);
 
         String head = headOf(client, fullName, main);
-        String commit = GitData.commit(client, fullName, files.stream().map(f -> new GitData.Entry(f.path(), f.content())).toList(), commitMessage, head);
+        String commit = GitData.commit(client, fullName, entries(files), commitMessage, head);
         GitData.advance(client, fullName, main, commit);
         GitData.createBranch(client, fullName, WORK, commit);
         client.patch("/repos/" + fullName, GitHubClient.JSON.createObjectNode().put("default_branch", WORK));
@@ -72,15 +72,34 @@ class GitHubRepositoryCreator implements RepositoryCreator {
         List<String> protectedBranches = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         // main: solo por PR, con aprobación de una persona y CI en verde. develop: por PR con CI.
-        protect(client, fullName, main, 1, true, protectedBranches, warnings);
-        protect(client, fullName, WORK, 0, false, protectedBranches, warnings);
+        List<String> checks = repo.requiredChecks() == null || repo.requiredChecks().isEmpty() ? List.of(CI_CHECK) : repo.requiredChecks();
+        protect(client, fullName, main, 1, true, checks, protectedBranches, warnings);
+        protect(client, fullName, WORK, 0, false, checks, protectedBranches, warnings);
         return new Created(fullName, created.path("html_url").asString(), WORK, protectedBranches, warnings);
     }
 
-    private void protect(GitHubClient client, String fullName, String branch, int approvals, boolean strict, List<String> done, List<String> warnings) {
+    @Override
+    public Proposal propose(long installationId, String repository, String baseBranch, String branch, List<File> files, String title, String body) {
+        GitHubClient client = provider.client(installationId);
+        String base = GitData.refSha(client, repository, baseBranch)
+                .orElseThrow(() -> new DomainException("La rama " + baseBranch + " no existe en " + repository + "."));
+        String commit = GitData.commit(client, repository, entries(files), title, base);
+        GitData.createBranch(client, repository, branch, commit);
+        JsonNode pr = client.post("/repos/" + repository + "/pulls", GitHubClient.JSON.createObjectNode()
+                .put("title", title).put("head", branch).put("base", baseBranch).put("body", body));
+        log.info("PR #{} abierto en {} desde {}", pr.path("number").asInt(), repository, branch);
+        return new Proposal(pr.path("number").asInt(), pr.path("html_url").asString(), branch);
+    }
+
+    private static List<GitData.Entry> entries(List<File> files) {
+        return files.stream().map(f -> new GitData.Entry(f.path(), f.content(), f.base64(), f.executable())).toList();
+    }
+
+    private void protect(GitHubClient client, String fullName, String branch, int approvals, boolean strict, List<String> contexts, List<String> done,
+            List<String> warnings) {
         ObjectNode rules = GitHubClient.JSON.createObjectNode();
         ObjectNode checks = rules.putObject("required_status_checks").put("strict", strict);
-        checks.putArray("contexts").add(CI_CHECK);
+        contexts.forEach(checks.putArray("contexts")::add);
         rules.put("enforce_admins", false);
         rules.putObject("required_pull_request_reviews").put("required_approving_review_count", approvals).put("dismiss_stale_reviews", true);
         rules.putNull("restrictions");

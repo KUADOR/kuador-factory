@@ -1,6 +1,7 @@
 package ec.kuador.board.catalog.domain;
 
 import ec.kuador.board.catalog.AgentRole;
+import ec.kuador.board.catalog.ComponentTemplate;
 import ec.kuador.board.catalog.McpServer;
 import ec.kuador.board.catalog.Methodology;
 import ec.kuador.board.catalog.WorkflowTemplate;
@@ -16,6 +17,7 @@ public final class CatalogKeys {
             case Methodology m -> m.key();
             case AgentRole r -> r.key();
             case McpServer s -> s.key();
+            case ComponentTemplate c -> c.key();
             default -> throw new IllegalArgumentException("No es una entrada del catálogo: " + entry);
         };
     }

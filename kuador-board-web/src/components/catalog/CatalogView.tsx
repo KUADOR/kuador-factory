@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
-import type { AgentRole, CatalogEntries, CatalogType, McpServer, Methodology, WorkflowTemplate } from "@/lib/types";
+import type { AgentRole, CatalogEntries, CatalogType, ComponentTemplate, McpServer, Methodology, WorkflowTemplate } from "@/lib/types";
 
 import { CATALOG_SECTIONS, type CatalogSection } from "./catalogTypes";
-import { McpEditor, MethodologyEditor, RoleEditor, TemplateEditor, blankEntry } from "./editors";
+import { McpEditor, MethodologyEditor, RoleEditor, TemplateEditor, blankEntry, ComponentEditor, COMPONENT_KIND_LABEL } from "./editors";
 
 type AnyEntry = CatalogEntries[CatalogType];
 
@@ -124,6 +124,7 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
             {section.type === "methodologies" && <MethodologyEditor value={draft as Methodology} onChange={setDraft} isNew={isNew} roles={roles} />}
             {section.type === "roles" && <RoleEditor value={draft as AgentRole} onChange={setDraft} isNew={isNew} />}
             {section.type === "mcp-servers" && <McpEditor value={draft as McpServer} onChange={setDraft} isNew={isNew} />}
+            {section.type === "component-templates" && <ComponentEditor value={draft as ComponentTemplate} onChange={setDraft} isNew={isNew} />}
           </div>
         )}
       </SidePanel>
@@ -185,6 +186,15 @@ function detail(type: CatalogType, e: AnyEntry): React.ReactNode {
       ) : (
         <span className="inline-flex items-center gap-1 text-sol-text">
           <Sparkle className="size-3" aria-hidden /> Refina issues asignados
+        </span>
+      );
+    }
+    case "component-templates": {
+      const c = e as ComponentTemplate;
+      return (
+        <span>
+          {COMPONENT_KIND_LABEL[c.kind]} · {c.stack} ·{" "}
+          {c.templateRepo ? <code className="font-mono">{`${c.templateRepo}@${c.templateRef}`}</code> : <span className="text-fg-faint">sin código base</span>}
         </span>
       );
     }

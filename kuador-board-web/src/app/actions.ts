@@ -31,7 +31,9 @@ import type {
   Comment,
   IssuedToken,
   Issue,
-  NewRepositoryResult,
+  PieceInput,
+  PiecesSetup,
+  SetupResult,
   IssueInput,
   IssueStatus,
   AgentClient,
@@ -311,11 +313,12 @@ export async function linkRepositoryAction(
   return run(() => boardApi.linkRepository(projectKey, input), `/projects/${projectKey}/settings`);
 }
 
-export async function createRepositoryAction(
-  projectKey: string,
-  input: { installationId: number; name: string; description: string | null; privateRepo: boolean },
-): Promise<ActionResult<NewRepositoryResult>> {
-  return run(() => boardApi.createRepository(projectKey, input), `/projects/${projectKey}/settings`);
+export async function setupPiecesAction(projectKey: string, input: PiecesSetup): Promise<ActionResult<SetupResult>> {
+  return run(() => boardApi.setupPieces(projectKey, input), `/projects/${projectKey}/settings`);
+}
+
+export async function addPieceAction(projectKey: string, piece: PieceInput, privateRepo: boolean): Promise<ActionResult<SetupResult>> {
+  return run(() => boardApi.addPiece(projectKey, piece, privateRepo), `/projects/${projectKey}/settings`);
 }
 
 // ---- Conexiones de GitHub ----

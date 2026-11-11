@@ -162,42 +162,96 @@ class GitHubAppIT {
         assertThat(installed.body().get("account").asString()).isEqualTo("acme");
         assertThat(call("GET", "/api/github", null, devSession).body().get("connections").get(0).get("account").asString()).isEqualTo("acme");
 
-        // Repo nuevo, privado: bases arriba, develop predeterminada; GitHub no deja proteger (plan gratuito).
+        // Una plantilla de pieza propia de la empresa, con su repo de código base en una versión fija.
+        GITHUB.seed("acme/plantilla-api", true, "v1", Map.of(
+                "README.md", "# {{PIEZA}} de {{PROYECTO}}",
+                "src/main/java/App.java", "package {{PAQUETE}};",
+                "mvnw", "#!/bin/sh",
+                "logo.png", "b64:iVBORw0KGgo=",
+                ".github/workflows/ci.yml", "working-directory: {{PIEZA_RUTA}}"), List.of("mvnw"));
+        Map<String, Object> template = new java.util.LinkedHashMap<>();
+        template.put("key", "API_ACME");
+        template.put("name", "API Acme");
+        template.put("description", "API con el código base de Acme");
+        template.put("kind", "BACKEND");
+        template.put("stack", "Java 25 · Spring Boot");
+        template.put("templateRepo", "acme/plantilla-api");
+        template.put("templateRef", "v1");
+        template.put("variables", List.of(Map.of("name", "PAQUETE", "description", "Paquete", "defaultValue", "com.acme")));
+        template.put("commands", Map.of("build", "./mvnw package", "test", "./mvnw verify", "run", "./mvnw spring-boot:run"));
+        template.put("ciChecks", List.of("ci"));
+        template.put("suggestedRoles", List.of("BACKEND"));
+        template.put("mcpServers", List.of());
+        template.put("builtIn", false);
+        template.put("version", 0);
+        assertThat(call("PUT", "/api/catalog/component-templates/API_ACME", template, owner).status()).isEqualTo(200);
+
+        // Monorepo privado: API con su plantilla y web Angular (sin código base todavía), cada una en su carpeta.
         call("POST", "/api/projects", Map.of("key", "PI", "name", "Portal Pi", "templateKey", "SOFTWARE_FACTORY"), owner);
         call("PUT", "/api/projects/PI/methodology", Map.of("methodology", "SDD"), owner);
-        Reply repo = call("POST", "/api/projects/PI/repository/new", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "name", "pi-api",
-                "description", "Portal de pacientes", "privateRepo", true), owner);
-        assertThat(repo.status()).as(String.valueOf(repo.body())).isEqualTo(201);
-        assertThat(repo.body().get("link").get("kind").asString()).isEqualTo("GITHUB_APP");
-        assertThat(repo.body().get("link").get("branch").asString()).isEqualTo("develop");
-        assertThat(repo.body().get("protectedBranches")).isEmpty();
-        assertThat(repo.body().get("warnings").get(0).asString()).contains("plan gratuito", "Upgrade to GitHub Pro");
-        assertThat(repo.body().get("documents").asInt()).isPositive();
-        assertThat(GITHUB.repos.get("acme/pi-api").get("default_branch")).isEqualTo("develop");
-        assertThat(GITHUB.refs.get("acme/pi-api:develop")).isEqualTo(GITHUB.refs.get("acme/pi-api:main"));
-        assertThat(GITHUB.file("acme/pi-api", "main", "AGENTS.md")).as("el AGENTS.md de la metodología lleva el flujo del tablero")
+        Reply mono = call("POST", "/api/projects/PI/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "pi",
+                "description", "Portal de pacientes", "pieces", List.of(
+                        Map.of("name", "api", "templateKey", "API_ACME", "variables", Map.of("PAQUETE", "ec.pi.api")),
+                        Map.of("name", "web", "templateKey", "WEB_ANGULAR"))), owner);
+        assertThat(mono.status()).as(String.valueOf(mono.body())).isEqualTo(201);
+        assertThat(mono.body().get("link").get("kind").asString()).isEqualTo("GITHUB_APP");
+        assertThat(mono.body().get("link").get("branch").asString()).isEqualTo("develop");
+        assertThat(mono.body().get("repositories")).hasSize(1);
+        assertThat(mono.body().get("repositories").get(0).get("warnings").get(0).asString()).contains("plan gratuito", "Upgrade to GitHub Pro");
+        assertThat(mono.body().get("pieces")).hasSize(2);
+        assertThat(GITHUB.repos.get("acme/pi").get("default_branch")).isEqualTo("develop");
+        assertThat(GITHUB.file("acme/pi", "main", "api/src/main/java/App.java")).isEqualTo("package ec.pi.api;");
+        assertThat(GITHUB.file("acme/pi", "main", "api/README.md")).as("el README de la plantilla").isEqualTo("# api de Portal Pi");
+        assertThat(GITHUB.mode("acme/pi", "main", "api/mvnw")).isEqualTo("100755");
+        assertThat(GITHUB.file("acme/pi", "main", "api/logo.png")).as("binario intacto").isEqualTo("b64:iVBORw0KGgo=");
+        assertThat(GITHUB.file("acme/pi", "main", ".github/workflows/api-ci.yml")).isEqualTo("working-directory: api");
+        assertThat(GITHUB.file("acme/pi", "main", "web/README.md")).contains("Angular", "npm run build");
+        assertThat(GITHUB.file("acme/pi", "main", "README.md")).contains("## Piezas", "| api | Java 25 · Spring Boot | `api/` |", "| web |");
+        assertThat(GITHUB.file("acme/pi", "main", "AGENTS.md")).as("el AGENTS.md de la metodología lleva el flujo del tablero")
                 .contains("# Reglas para agentes", "## Tablero de Acme Lab", "instrucciones_rol").doesNotContainIgnoringCase("kuador");
-        assertThat(GITHUB.file("acme/pi-api", "main", ".github/workflows/ci.yml")).contains("name: ci", ".specify/memory/constitution.md");
-        assertThat(GITHUB.file("acme/pi-api", "main", ".specify/memory/constitution.md")).contains("Portal Pi");
-        assertThat(GITHUB.file("acme/pi-api", "main", "README.md")).contains("# Portal Pi", "feature/PI-");
+        assertThat(GITHUB.file("acme/pi", "main", ".specify/memory/constitution.md")).contains("Portal Pi");
+        assertThat(call("GET", "/api/projects/PI/components", null, devSession).body()).extracting(n -> n.get("path").asString()).containsExactly("api", "web");
 
         // Vinculado y sincronizado desde el primer momento, con tokens de corta duración reutilizados.
         Reply sync = call("GET", "/api/projects/PI/sync", null, owner);
         assertThat(sync.status()).as(String.valueOf(sync.body())).isEqualTo(200);
-        JsonNode status = sync.body();
         List<String> states = new ArrayList<>();
-        status.get("entries").forEach(e -> states.add(e.get("state").asString()));
+        sync.body().get("entries").forEach(e -> states.add(e.get("state").asString()));
         assertThat(states).isNotEmpty().allMatch("SYNCED"::equals);
         assertThat(GITHUB.tokensIssued).isEqualTo(1);
-        assertThat(call("POST", "/api/projects/PI/repository/new", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "name", "otro"), owner).status())
-                .as("un proyecto, un repo").isEqualTo(409);
+        assertThat(call("POST", "/api/projects/PI/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "otro"), owner).status())
+                .as("se arma una sola vez").isEqualTo(409);
 
-        // Repo público: sí quedan protegidas main y develop.
-        call("POST", "/api/projects", Map.of("key", "PU", "name", "Público", "templateKey", "SOFTWARE_FACTORY"), owner);
-        JsonNode pub = call("POST", "/api/projects/PU/repository/new", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "name", "pu-web",
-                "privateRepo", false), owner).body();
-        assertThat(pub.get("warnings")).isEmpty();
-        assertThat(GITHUB.protectedBranches).containsExactly("acme/pu-web:main", "acme/pu-web:develop");
+        // Sumar una pieza después en el monorepo: llega por Pull Request a develop.
+        Reply worker = call("POST", "/api/projects/PI/components", Map.of("piece", Map.of("name", "worker", "templateKey", "MICROSERVICE_SPRING")), owner);
+        assertThat(worker.status()).as(String.valueOf(worker.body())).isEqualTo(201);
+        assertThat(worker.body().get("repositories").get(0).get("pullRequestUrl").asString()).contains("acme/pi/pull/");
+        assertThat(GITHUB.pulls).anySatisfy(pr -> assertThat(pr).containsEntry("head", "tablero/pieza-worker").containsEntry("base", "develop"));
+        assertThat(GITHUB.file("acme/pi", "tablero/pieza-worker", "worker/README.md")).contains("Spring Boot");
+
+        // Un repo por pieza, públicos: el repo del proyecto guarda los documentos; cada pieza en la raíz de su repo, protegido.
+        call("POST", "/api/projects", Map.of("key", "PU", "name", "Pagos", "templateKey", "SOFTWARE_FACTORY"), owner);
+        Reply multi = call("POST", "/api/projects/PU/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "pu-plataforma",
+                "privateRepo", false, "pieces", List.of(
+                        Map.of("name", "pagos", "templateKey", "API_ACME", "repoName", "pu-pagos"),
+                        Map.of("name", "shell", "templateKey", "SHELL_MICROFRONTENDS", "repoName", "pu-shell"))), owner);
+        assertThat(multi.status()).as(String.valueOf(multi.body())).isEqualTo(201);
+        assertThat(multi.body().get("repositories")).extracting(r -> r.get("repository").asString())
+                .containsExactly("acme/pu-plataforma", "acme/pu-pagos", "acme/pu-shell");
+        assertThat(multi.body().get("repositories")).allSatisfy(r -> assertThat(r.get("warnings")).isEmpty());
+        assertThat(GITHUB.protectedBranches).contains("acme/pu-pagos:main", "acme/pu-pagos:develop", "acme/pu-shell:main", "acme/pu-plataforma:main");
+        assertThat(GITHUB.file("acme/pu-pagos", "main", "src/main/java/App.java")).isEqualTo("package com.acme;");
+        assertThat(GITHUB.file("acme/pu-pagos", "main", ".github/workflows/ci.yml")).as("gana el CI de la plantilla").isEqualTo("working-directory: .");
+        assertThat(GITHUB.file("acme/pu-shell", "main", "README.md")).contains("Pagos · shell", "acme/pu-plataforma");
+        assertThat(GITHUB.file("acme/pu-plataforma", "main", "README.md")).contains("repo pu-pagos", "repo pu-shell");
+
+        // Sumar después un microfrontend en su propio repo.
+        Reply mf = call("POST", "/api/projects/PU/components", Map.of("piece", Map.of("name", "checkout", "templateKey", "MICROFRONTEND_REACT",
+                "repoName", "pu-mf-checkout"), "privateRepo", false), owner);
+        assertThat(mf.status()).as(String.valueOf(mf.body())).isEqualTo(201);
+        assertThat(GITHUB.repos).containsKey("acme/pu-mf-checkout");
+        assertThat(call("GET", "/api/projects/PU/components", null, owner).body()).extracting(n -> n.get("repository").asString())
+                .containsExactly("acme/pu-pagos", "acme/pu-shell", "acme/pu-mf-checkout");
 
         // Quitar la conexión del espacio.
         assertThat(call("DELETE", "/api/github/installations/" + FakeGitHubCloud.INSTALLATION, null, owner).status()).isEqualTo(204);

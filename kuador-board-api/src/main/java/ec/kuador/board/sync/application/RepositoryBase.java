@@ -23,9 +23,16 @@ final class RepositoryBase {
         return methodologyAgents.stripTrailing() + "\n\n" + section + "\n";
     }
 
+    /** Cómo aparece una pieza en el README del repo del proyecto. */
+    record PieceLine(String name, String stack, String location, String build, String test, String run) {}
+
     static List<File> files(String projectName, String projectKey, String description, String agentsMd, List<DocContent> documents) {
+        return files(projectName, projectKey, description, agentsMd, documents, List.of());
+    }
+
+    static List<File> files(String projectName, String projectKey, String description, String agentsMd, List<DocContent> documents, List<PieceLine> pieces) {
         List<File> files = new ArrayList<>();
-        files.add(new File("README.md", readme(projectName, projectKey, description, documents)));
+        files.add(new File("README.md", readme(projectName, projectKey, description, documents, pieces)));
         // Si la metodología tiene su propio AGENTS.md, el flujo del tablero ya va dentro de ese documento.
         if (documents.stream().noneMatch(d -> d.path().equals(AGENTS_MD))) files.add(new File(AGENTS_MD, agentsMd));
         files.add(new File(".gitignore", GITIGNORE));
@@ -34,7 +41,40 @@ final class RepositoryBase {
         return files;
     }
 
-    private static String readme(String name, String key, String description, List<DocContent> documents) {
+    /** Bases de un repo que solo tiene una pieza (un repo por pieza): los documentos viven en el repo del proyecto. */
+    static List<File> pieceRepoFiles(String projectName, String projectKey, String agentsMd, String projectRepo, PieceLine piece) {
+        List<File> files = new ArrayList<>();
+        files.add(new File("README.md", pieceReadme(projectName, projectKey, projectRepo, piece)));
+        files.add(new File(AGENTS_MD, agentsMd));
+        files.add(new File(".gitignore", GITIGNORE));
+        files.add(new File(".github/workflows/ci.yml", ci(List.of())));
+        return files;
+    }
+
+    /** README de una pieza (si su plantilla no trae uno): stack, comandos y dónde están los documentos. */
+    static String pieceReadme(String projectName, String projectKey, String projectRepo, PieceLine piece) {
+        StringBuilder r = new StringBuilder("# ").append(projectName).append(" · ").append(piece.name()).append("\n\n")
+                .append("Pieza **").append(piece.name()).append("** del proyecto ").append(projectKey).append(". Stack: ").append(piece.stack()).append(".\n\n");
+        commands(r, piece);
+        if (projectRepo != null) r.append("\nLos documentos del proyecto (constitución, specs, planes) viven en `").append(projectRepo).append("`.\n");
+        return r.toString();
+    }
+
+    private static void commands(StringBuilder r, PieceLine p) {
+        if (blank(p.build()) && blank(p.test()) && blank(p.run())) return;
+        r.append("| Compilar | Probar | Levantar |\n|---|---|---|\n")
+                .append("| ").append(code(p.build())).append(" | ").append(code(p.test())).append(" | ").append(code(p.run())).append(" |\n");
+    }
+
+    private static boolean blank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    private static String code(String s) {
+        return blank(s) ? "—" : "`" + s + "`";
+    }
+
+    private static String readme(String name, String key, String description, List<DocContent> documents, List<PieceLine> pieces) {
         StringBuilder r = new StringBuilder("# ").append(name).append("\n\n");
         if (description != null && !description.isBlank()) r.append(description.strip()).append("\n\n");
         r.append("""
@@ -49,6 +89,13 @@ final class RepositoryBase {
 
                 Los agentes trabajan desde el cliente de IA de cada persona conectado al tablero. Ver `AGENTS.md`.
                 """.formatted(key, key));
+        if (!pieces.isEmpty()) {
+            r.append("\n## Piezas\n\n| Pieza | Stack | Dónde | Compilar | Probar | Levantar |\n|---|---|---|---|---|---|\n");
+            for (PieceLine p : pieces) {
+                r.append("| ").append(p.name()).append(" | ").append(p.stack()).append(" | `").append(p.location()).append("` | ")
+                        .append(code(p.build())).append(" | ").append(code(p.test())).append(" | ").append(code(p.run())).append(" |\n");
+            }
+        }
         if (!documents.isEmpty()) {
             r.append("\n## Documentos\n\n");
             documents.forEach(d -> r.append("- [").append(d.title()).append("](").append(d.path()).append(")\n"));

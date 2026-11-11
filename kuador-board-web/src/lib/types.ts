@@ -13,7 +13,7 @@ export type DocumentKind = string;
 
 // ---- Catálogo del espacio de trabajo (configurable; trae valores de fábrica) ----
 
-export type CatalogType = "workflow-templates" | "methodologies" | "roles" | "mcp-servers";
+export type CatalogType = "workflow-templates" | "methodologies" | "roles" | "mcp-servers" | "component-templates";
 
 interface CatalogEntry {
   id: string | null;
@@ -97,11 +97,70 @@ export interface McpServer extends CatalogEntry {
   docsUrl: string | null;
 }
 
+export type ComponentKind = "BACKEND" | "FRONTEND" | "MICROFRONTEND" | "SHELL" | "MOBILE" | "LIBRARY" | "OTHER";
+
+/**
+ * Plantilla de pieza (API, web, microservicio, microfrontend...). Sin {@code templateRepo}, la pieza nace
+ * solo con su README y sus comandos; con él, se copia su código base en {@code templateRef}.
+ */
+export interface ComponentTemplate extends CatalogEntry {
+  description: string;
+  kind: ComponentKind;
+  stack: string;
+  templateRepo: string | null;
+  templateRef: string | null;
+  variables: { name: string; description: string | null; defaultValue: string | null }[];
+  commands: { build: string | null; test: string | null; run: string | null };
+  ciChecks: string[];
+  suggestedRoles: string[];
+  mcpServers: string[];
+}
+
+/** Una pieza de un proyecto y dónde vive. {@code path} vacío = raíz de su propio repo. */
+export interface ProjectPiece {
+  name: string;
+  templateKey: string | null;
+  templateVersion: number | null;
+  templateRef: string | null;
+  kind: ComponentKind;
+  stack: string;
+  repository: string;
+  path: string;
+  build: string | null;
+  test: string | null;
+  run: string | null;
+  createdAt: string;
+}
+
+/** Una pieza a crear: sin {@code repoName} va en una carpeta del repo del proyecto; con él, en un repo propio. */
+export interface PieceInput {
+  name: string;
+  templateKey: string | null;
+  repoName: string | null;
+  variables: Record<string, string>;
+}
+
+export interface PiecesSetup {
+  installationId: number;
+  repoName: string;
+  description: string | null;
+  privateRepo: boolean;
+  pieces: PieceInput[];
+}
+
+export interface SetupResult {
+  link: RepositoryLink;
+  repositories: { repository: string; url: string | null; protectedBranches: string[]; warnings: string[]; pullRequestUrl: string | null }[];
+  pieces: ProjectPiece[];
+  documents: number;
+}
+
 export interface CatalogEntries {
   "workflow-templates": WorkflowTemplate;
   methodologies: Methodology;
   roles: AgentRole;
   "mcp-servers": McpServer;
+  "component-templates": ComponentTemplate;
 }
 
 export interface Workspace {
@@ -329,14 +388,7 @@ export interface GitHubOverview {
   connections: GitHubConnection[];
 }
 
-/** Repo creado con sus bases; {@code warnings} explica lo que GitHub no permitió (p. ej. proteger ramas privadas en plan gratuito). */
-export interface NewRepositoryResult {
-  link: RepositoryLink;
-  url: string;
-  protectedBranches: string[];
-  warnings: string[];
-  documents: number;
-}
+
 
 export type SyncState = "SYNCED" | "BOARD_AHEAD" | "FILE_AHEAD" | "CONFLICT" | "BOARD_ONLY" | "FILE_DELETED";
 

@@ -49,7 +49,17 @@ class FactoryCatalogTest {
         var roles = factory.roles().stream().map(AgentRole::key).toList();
         assertThat(t.stages()).allSatisfy(s -> assertThat(roles).containsAll(s.roles()));
         assertThat(t.transitions()).isNotEmpty();
-        assertThat(factory.addedAfter(2)).extracting(e -> e.getValue()).containsExactly("SOFTWARE_FACTORY");
+        assertThat(factory.addedAfter(2)).filteredOn(e -> e.getKey() == CatalogType.WORKFLOW_TEMPLATE)
+                .extracting(e -> e.getValue()).containsExactly("SOFTWARE_FACTORY");
+    }
+
+    @Test
+    void piecesCoverBackendFrontendAndMicrofrontendsWithoutHardcodedRepos() {
+        assertThat(factory.componentTemplates()).extracting(c -> c.kind().name())
+                .contains("BACKEND", "FRONTEND", "MICROFRONTEND", "SHELL");
+        assertThat(factory.componentTemplates()).as("cada empresa apunta sus propias plantillas").allMatch(c -> c.templateRepo() == null);
+        assertThat(factory.componentTemplates()).allSatisfy(c -> assertThat(c.commands().test()).isNotBlank());
+        assertThat(factory.addedAfter(3)).extracting(e -> e.getKey().name()).containsOnly("COMPONENT_TEMPLATE");
     }
 
     @Test

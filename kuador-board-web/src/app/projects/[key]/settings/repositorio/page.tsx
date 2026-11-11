@@ -7,10 +7,10 @@ import type { GitHubOverview } from "@/lib/types";
 
 import { RepositoryForm } from "../RepositoryForm";
 import { SettingsSection } from "../SettingsSection";
-import { CreateRepository } from "./CreateRepository";
+import { PiecesList, PiecesSetupForm } from "./Pieces";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Repositorio" };
+export const metadata: Metadata = { title: "Piezas y repositorio" };
 
 const NO_GITHUB: GitHubOverview = { app: null, canRegister: false, connections: [] };
 
@@ -18,25 +18,40 @@ export default async function RepositorySettingsPage({ params }: PageProps<"/pro
   const key = (await params).key.toUpperCase();
   let data;
   try {
-    data = await Promise.all([boardApi.project(key), boardApi.repository(key), boardApi.github().catch(() => NO_GITHUB)]);
+    data = await Promise.all([
+      boardApi.project(key),
+      boardApi.repository(key),
+      boardApi.github().catch(() => NO_GITHUB),
+      boardApi.catalog("component-templates"),
+      boardApi.pieces(key),
+    ]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, link, github] = data;
+  const [project, link, github, templates, pieces] = data;
   if (project.kind !== "SOFTWARE") notFound();
+  const viaApp = link.linked && link.kind === "GITHUB_APP";
   return (
     <div className="flex flex-col gap-8">
-      {!link.linked && (
+      {!link.linked ? (
         <SettingsSection
-          title="Crear repositorio"
-          description="El tablero crea el repo en GitHub con sus bases: metodología, AGENTS.md, CI mínimo, develop como rama de trabajo y main protegida."
+          title="Armar el proyecto en GitHub"
+          description="Elige las piezas (API, web, microservicios, microfrontends…) y cómo se organizan los repos. El tablero crea cada repo con sus bases: metodología, AGENTS.md, CI, develop como rama de trabajo y main protegida."
         >
           <div className="rounded-lg border border-line bg-surface p-5">
-            <CreateRepository projectKey={project.key} projectName={project.name} connections={github.connections} />
+            <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} />
           </div>
         </SettingsSection>
+      ) : (
+        viaApp && (
+          <SettingsSection title="Piezas" description="De qué está hecho el proyecto y dónde vive cada pieza. Los agentes reciben esta lista con los comandos de cada una.">
+            <div className="rounded-lg border border-line bg-surface p-5">
+              <PiecesList projectKey={project.key} pieces={pieces} templates={templates} mainRepo={link.location} />
+            </div>
+          </SettingsSection>
+        )
       )}
-      <SettingsSection title={link.linked ? "Repositorio" : "Vincular uno existente"} description="El tablero lee la rama principal y propone sus cambios como Pull Requests.">
+      <SettingsSection title={link.linked ? "Repositorio del proyecto" : "O vincular uno existente"} description="Donde viven los documentos. El tablero lee la rama principal y propone sus cambios como Pull Requests.">
         <div className="rounded-lg border border-line bg-surface p-5">
           <RepositoryForm projectKey={project.key} link={link} connections={github.connections} />
         </div>

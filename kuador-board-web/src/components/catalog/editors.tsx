@@ -17,6 +17,8 @@ import {
   type CatalogEntries,
   type CatalogType,
   type DocumentDef,
+  type ComponentKind,
+  type ComponentTemplate,
   type McpServer,
   type Methodology,
   type WorkflowTemplate,
@@ -50,6 +52,20 @@ export function blankEntry(type: CatalogType): CatalogEntries[CatalogType] {
       return { ...base, description: "", instructions: "", tools: ["Read", "Grep", "Glob"], automation: "NONE" } satisfies AgentRole;
     case "mcp-servers":
       return { ...base, description: "", transport: "STDIO", command: "npx", args: [], url: null, envVars: [], docsUrl: null } satisfies McpServer;
+    case "component-templates":
+      return {
+        ...base,
+        description: "",
+        kind: "BACKEND",
+        stack: "",
+        templateRepo: null,
+        templateRef: null,
+        variables: [],
+        commands: { build: null, test: null, run: null },
+        ciChecks: ["ci"],
+        suggestedRoles: [],
+        mcpServers: [],
+      } satisfies ComponentTemplate;
   }
 }
 
@@ -475,6 +491,90 @@ export function McpEditor({ value, onChange, isNew }: { value: McpServer; onChan
       <Field label="Documentación" hint="Opcional: enlace al proyecto del servidor.">
         {(id) => <TextInput id={id} type="url" value={value.docsUrl ?? ""} onChange={(e) => onChange({ ...value, docsUrl: e.target.value || null })} className="font-mono text-xs" />}
       </Field>
+    </div>
+  );
+}
+
+const COMPONENT_KINDS: { value: ComponentKind; label: string }[] = [
+  { value: "BACKEND", label: "Backend / API" },
+  { value: "FRONTEND", label: "Frontend" },
+  { value: "MICROFRONTEND", label: "Microfrontend" },
+  { value: "SHELL", label: "Shell de microfrontends" },
+  { value: "MOBILE", label: "Móvil" },
+  { value: "LIBRARY", label: "Librería" },
+  { value: "OTHER", label: "Otra" },
+];
+
+export const COMPONENT_KIND_LABEL = Object.fromEntries(COMPONENT_KINDS.map((k) => [k.value, k.label])) as Record<ComponentKind, string>;
+
+/** Plantilla de pieza: su código base (repo y versión fija), variables, comandos y verificaciones de CI. */
+export function ComponentEditor({ value, onChange, isNew }: { value: ComponentTemplate; onChange: (v: ComponentTemplate) => void; isNew: boolean }) {
+  const cmd = (k: keyof ComponentTemplate["commands"], v: string) => onChange({ ...value, commands: { ...value.commands, [k]: v || null } });
+  return (
+    <div className="flex flex-col gap-5">
+      <Identity value={value} onChange={onChange} isNew={isNew} keyHint="Ej. API_DOTNET o WEB_ANGULAR." />
+      <Field label="Descripción">{(id) => <TextInput id={id} maxLength={300} value={value.description} onChange={(e) => onChange({ ...value, description: e.target.value })} />}</Field>
+      <div className="grid gap-3 sm:grid-cols-[14rem_minmax(0,1fr)]">
+        <Field label="Tipo de pieza">
+          {(id) => <SelectInput id={id} options={COMPONENT_KINDS} value={value.kind} onChange={(kind) => kind && onChange({ ...value, kind })} />}
+        </Field>
+        <Field label="Stack" hint="Lo leen las personas y los agentes.">
+          {(id) => <TextInput id={id} required maxLength={120} value={value.stack} onChange={(e) => onChange({ ...value, stack: e.target.value })} placeholder="Angular 20 · TypeScript" />}
+        </Field>
+      </div>
+      <Group title="Código base" description="Un repo plantilla de GitHub en una versión fija. Vacío: la pieza nace solo con su README y sus comandos.">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+          <Field label="Repo plantilla" hint="owner/repo. La app de GitHub tiene que poder leerlo.">
+            {(id) => <TextInput id={id} value={value.templateRepo ?? ""} onChange={(e) => onChange({ ...value, templateRepo: e.target.value.trim() || null })} placeholder="mi-org/plantilla-api" className="font-mono text-xs" />}
+          </Field>
+          <Field label="Versión" hint="Etiqueta, rama o commit.">
+            {(id) => <TextInput id={id} value={value.templateRef ?? ""} onChange={(e) => onChange({ ...value, templateRef: e.target.value.trim() || null })} placeholder="v1.0.0" className="font-mono text-xs" />}
+          </Field>
+        </div>
+        <p className="mt-2 text-xs text-fg-muted">
+          En los archivos y rutas de la plantilla, <code className="font-mono">{"{{PROYECTO}}"}</code>, <code className="font-mono">{"{{PROYECTO_CLAVE}}"}</code>, <code className="font-mono">{"{{PIEZA}}"}</code> y{" "}
+          <code className="font-mono">{"{{PIEZA_RUTA}}"}</code> los pone el tablero; las variables de abajo las pide al crear la pieza. Los flujos de CI usan{" "}
+          <code className="font-mono">{"{{PIEZA_RUTA}}"}</code> como carpeta de trabajo para servir en monorepo y en repo propio.
+        </p>
+      </Group>
+      <Group
+        title="Variables"
+        actions={
+          <Button size="sm" icon={Plus} onClick={() => onChange({ ...value, variables: [...value.variables, { name: "", description: null, defaultValue: null }] })}>
+            Variable
+          </Button>
+        }
+      >
+        {value.variables.length === 0 ? (
+          <p className="text-xs text-fg-faint">Sin variables propias.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {value.variables.map((v, i) => {
+              const set = (patch: Partial<ComponentTemplate["variables"][number]>) => onChange({ ...value, variables: value.variables.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+              return (
+                <li key={i} className="grid grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2">
+                  <TextInput size="sm" required aria-label="Nombre" value={v.name} onChange={(e) => set({ name: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_") })} className="font-mono text-xs" />
+                  <TextInput size="sm" aria-label="Para qué sirve" placeholder="Para qué sirve" value={v.description ?? ""} onChange={(e) => set({ description: e.target.value || null })} />
+                  <TextInput size="sm" aria-label="Valor por defecto" placeholder="Valor por defecto" value={v.defaultValue ?? ""} onChange={(e) => set({ defaultValue: e.target.value || null })} className="font-mono text-xs" />
+                  <Button tone="ghost" size="sm" icon={Trash} iconOnly label="Quitar variable" onClick={() => onChange({ ...value, variables: value.variables.filter((_, j) => j !== i) })} />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Group>
+      <Group title="Comandos" description="Cómo se compila, prueba y levanta. Los ven los agentes y van en el README de la pieza.">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="Compilar">{(id) => <TextInput id={id} value={value.commands.build ?? ""} onChange={(e) => cmd("build", e.target.value)} className="font-mono text-xs" />}</Field>
+          <Field label="Probar">{(id) => <TextInput id={id} value={value.commands.test ?? ""} onChange={(e) => cmd("test", e.target.value)} className="font-mono text-xs" />}</Field>
+          <Field label="Levantar">{(id) => <TextInput id={id} value={value.commands.run ?? ""} onChange={(e) => cmd("run", e.target.value)} className="font-mono text-xs" />}</Field>
+        </div>
+      </Group>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <LinesField label="Verificaciones de CI" hint="Jobs que exigen las ramas protegidas." value={value.ciChecks} onChange={(ciChecks) => onChange({ ...value, ciChecks })} rows={3} mono />
+        <LinesField label="Roles sugeridos" value={value.suggestedRoles} onChange={(suggestedRoles) => onChange({ ...value, suggestedRoles })} rows={3} mono />
+        <LinesField label="Servidores MCP" value={value.mcpServers} onChange={(mcpServers) => onChange({ ...value, mcpServers })} rows={3} mono />
+      </div>
     </div>
   );
 }

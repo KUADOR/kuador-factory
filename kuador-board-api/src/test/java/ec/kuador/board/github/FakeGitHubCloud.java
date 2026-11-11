@@ -44,6 +44,9 @@ final class FakeGitHubCloud implements AutoCloseable {
     final Map<String, Map<String, String>> trees = new HashMap<>(); // tree → ruta → contenido
     final Map<String, String> commitTree = new HashMap<>();
     final List<String> protectedBranches = new ArrayList<>();
+    final Map<String, String> modes = new HashMap<>(); // "tree:ruta" → modo (100755 = ejecutable)
+    final Map<String, String> blobs = new HashMap<>(); // blob → base64
+    final List<Map<String, String>> pulls = new ArrayList<>();
     final List<String> requests = new ArrayList<>();
     int tokensIssued;
 
@@ -58,6 +61,21 @@ final class FakeGitHubCloud implements AutoCloseable {
 
     String url() {
         return "http://127.0.0.1:" + server.getAddress().getPort();
+    }
+
+    /** Repo plantilla con archivos en la rama {@code ref}. Los binarios van como "b64:..."; {@code executables} con modo 100755. */
+    void seed(String full, boolean privateRepo, String ref, Map<String, String> files, List<String> executables) {
+        repos.put(full, new LinkedHashMap<>(Map.of("full_name", full, "html_url", "https://github.com/" + full, "default_branch", ref, "private", privateRepo)));
+        String tree = "t" + ids.incrementAndGet();
+        trees.put(tree, new HashMap<>(files));
+        executables.forEach(path -> modes.put(tree + ":" + path, "100755"));
+        String commit = "c" + ids.incrementAndGet();
+        commitTree.put(commit, tree);
+        refs.put(full + ":" + ref, commit);
+    }
+
+    String mode(String repo, String branch, String path) {
+        return modes.getOrDefault(commitTree.get(refs.get(repo + ":" + branch)) + ":" + path, "100644");
     }
 
     /** Archivo en la punta de una rama. */
@@ -176,21 +194,35 @@ final class FakeGitHubCloud implements AutoCloseable {
         } else if (rest.startsWith("git/commits/") && method.equals("GET")) {
             reply(ex, 200, Map.of("tree", Map.of("sha", commitTree.get(rest.substring("git/commits/".length())))));
         } else if (rest.startsWith("git/trees/") && method.equals("GET")) {
-            String tree = rest.substring("git/trees/".length());
+            String ref = rest.substring("git/trees/".length());
+            // Como GitHub: acepta el sha de un árbol o el nombre de una rama o etiqueta.
+            String tree = trees.containsKey(ref) ? ref : commitTree.get(refs.get(full + ":" + ref));
+            if (tree == null) { reply(ex, 404, Map.of("message", "Not Found")); return; }
             List<Map<String, Object>> entries = trees.get(tree).keySet().stream()
-                    .map(file -> Map.<String, Object>of("path", file, "type", "blob",
+                    .map(file -> Map.<String, Object>of("path", file, "type", "blob", "mode", modes.getOrDefault(tree + ":" + file, "100644"),
                             "sha", tree + "~" + Base64.getUrlEncoder().withoutPadding().encodeToString(file.getBytes(StandardCharsets.UTF_8))))
                     .toList();
             reply(ex, 200, Map.of("tree", entries, "truncated", false));
         } else if (rest.startsWith("git/blobs/") && method.equals("GET")) {
             String[] sha = rest.substring("git/blobs/".length()).split("~");
             String content = trees.get(sha[0]).get(new String(Base64.getUrlDecoder().decode(sha[1]), StandardCharsets.UTF_8));
-            byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+            byte[] bytes = content.startsWith("b64:") ? Base64.getDecoder().decode(content.substring(4)) : content.getBytes(StandardCharsets.UTF_8);
             reply(ex, 200, Map.of("content", Base64.getEncoder().encodeToString(bytes), "size", bytes.length));
+        } else if (rest.equals("git/blobs") && method.equals("POST")) {
+            String blob = "blob" + ids.incrementAndGet();
+            blobs.put(blob, req.path("content").asString());
+            reply(ex, 201, Map.of("sha", blob));
         } else if (rest.equals("git/trees") && method.equals("POST")) {
-            Map<String, String> files = new HashMap<>(trees.get(req.path("base_tree").asString()));
-            req.path("tree").forEach(e -> files.put(e.path("path").asString(), e.path("content").asString()));
+            String base = req.path("base_tree").asString();
+            Map<String, String> files = new HashMap<>(trees.get(base));
             String tree = "t" + ids.incrementAndGet();
+            modes.entrySet().stream().filter(m -> m.getKey().startsWith(base + ":")).toList()
+                    .forEach(m -> modes.put(tree + m.getKey().substring(base.length()), m.getValue()));
+            req.path("tree").forEach(e -> {
+                String file = e.path("path").asString();
+                files.put(file, e.has("sha") ? "b64:" + blobs.get(e.path("sha").asString()) : e.path("content").asString());
+                modes.put(tree + ":" + file, e.path("mode").asString("100644"));
+            });
             trees.put(tree, files);
             reply(ex, 201, Map.of("sha", tree));
         } else if (rest.equals("git/commits") && method.equals("POST")) {
@@ -203,6 +235,10 @@ final class FakeGitHubCloud implements AutoCloseable {
         } else if (rest.equals("git/refs") && method.equals("POST")) {
             refs.put(full + ":" + req.path("ref").asString().replace("refs/heads/", ""), req.path("sha").asString());
             reply(ex, 201, Map.of());
+        } else if (rest.equals("pulls") && method.equals("POST")) {
+            int number = pulls.size() + 1;
+            pulls.add(Map.of("repo", full, "head", req.path("head").asString(), "base", req.path("base").asString(), "title", req.path("title").asString()));
+            reply(ex, 201, Map.of("number", number, "html_url", "https://github.com/" + full + "/pull/" + number));
         } else if (rest.matches("branches/.+/protection") && method.equals("PUT")) {
             if ((Boolean) repo.get("private")) {
                 reply(ex, 403, Map.of("message", "Upgrade to GitHub Pro or make this repository public to enable this feature."));

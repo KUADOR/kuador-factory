@@ -1,26 +1,24 @@
 # Despliegue en Dokploy
 
-Todo corre en el servidor de Dokploy, cada pieza como un servicio aparte, con **un solo dominio
-público**: `go.kuador.com`.
+Todo corre en el servidor de Dokploy, cada pieza como un servicio aparte, con dos dominios:
+`go.kuador.com` (la web) y `go-api.kuador.com` (la API).
 
-**Antes de empezar**: en el DNS de `kuador.com`, un registro `A` `go` → IP del VPS (sin proxy de
-Cloudflare, o con modo SSL *Full*). Dokploy pide el certificado HTTPS cuando el registro ya resuelve.
-
-Esquema:
+**Antes de empezar**: en el DNS de `kuador.com`, registros `A` `go` y `go-api` → IP del VPS (sin
+proxy de Cloudflare, o con modo SSL *Full*). Dokploy pide el certificado HTTPS cuando ya resuelven.
 
 ```
 Internet ──HTTPS──▶ Traefik (Dokploy)
-                      │  go.kuador.com/*                         ──▶ kuador-board-web (Next.js, :3600)
-                      │  go.kuador.com/mcp                       ──▶ kuador-board-api (:8091)
-                      │  go.kuador.com/api/agent-kit(.zip)       ──▶ kuador-board-api
-                      │  go.kuador.com/api/github/webhook        ──▶ kuador-board-api
+                      │  go.kuador.com      ──▶ kuador-board-web (Next.js, :3600)
+                      │  go-api.kuador.com  ──▶ kuador-board-api (:8091), solo /mcp, el kit, el webhook y la salud
                       ▼
         kuador-board-web ──red interna──▶ kuador-board-api ──▶ PostgreSQL (servicio de BD de Dokploy)
 ```
 
-- **Solo tres rutas de la API salen a Internet**: el MCP que usan los clientes de IA de cada
-  persona, el kit de agentes y el webhook de GitHub. Todo lo demás lo llama el servidor de Next por
-  la red interna; el navegador nunca habla con la API.
+- **Por el dominio de la API solo entran** el MCP de los clientes de IA de cada persona
+  (`/mcp`), el kit de agentes (`/api/agent-kit`, `/api/agent-kit.zip`), el webhook de GitHub
+  (`/api/github/webhook`) y `/actuator/health`. Lo hace la propia API (`BOARD_PUBLIC_HOST_GATE=true`):
+  cualquier otra ruta pedida con el host de `BOARD_PUBLIC_URL` responde 404. El resto de la API lo
+  llama el servidor de Next por la red interna, con el host interno; el navegador nunca habla con la API.
 - **Las imágenes** las construye GitHub Actions (`.github/workflows/ci.yml`) y las publica en GHCR:
   `ghcr.io/<dueño>/kuador-board-api` y `ghcr.io/<dueño>/kuador-board-web`, con las etiquetas
   `latest` (último `main`) y `sha-<commit>` (para volver atrás).
@@ -43,15 +41,7 @@ las tablas en el primer arranque. Programa respaldos diarios en la pestaña **Ba
 **Application**, proveedor Docker, imagen `ghcr.io/<dueño>/kuador-board-api:latest`. **Réplicas: 1**
 (la caché de credenciales de GitHub y los estados de los flujos viven en memoria y en la base).
 
-**Domains** (las tres con el mismo host, puerto `8091`, HTTPS, *Strip path* apagado):
-
-| Host | Path |
-|---|---|
-| `go.kuador.com` | `/mcp` |
-| `go.kuador.com` | `/api/agent-kit` |
-| `go.kuador.com` | `/api/github/webhook` |
-
-Traefik prefiere la regla más larga, así que estas rutas ganan sobre el `/` de la web.
+**Domains**: `go-api.kuador.com`, path `/`, puerto `8091`, HTTPS.
 
 ```dotenv
 SPRING_DATASOURCE_URL=jdbc:postgresql://<app-name-de-la-bd>:5432/<base>
@@ -61,8 +51,10 @@ SPRING_DATASOURCE_PASSWORD=
 # openssl rand -base64 32 — cifra las claves de GitHub guardadas. Si se pierde, hay que volver a registrar la app.
 BOARD_SECRETS_KEY=
 
-BOARD_PUBLIC_URL=https://go.kuador.com
+BOARD_PUBLIC_URL=https://go-api.kuador.com
 BOARD_WEB_URL=https://go.kuador.com
+# Por go-api.kuador.com solo entran /mcp, el kit, el webhook y la salud.
+BOARD_PUBLIC_HOST_GATE=true
 
 # Primera cuenta (solo si la base está vacía). Cámbiala después de entrar.
 BOARD_BOOTSTRAP_ADMIN_EMAIL=
@@ -94,7 +86,7 @@ path `/`, puerto `3600`, HTTPS.
 
 ```dotenv
 BOARD_API_URL=http://<app-name-de-la-api>:8091
-BOARD_PUBLIC_API_URL=https://go.kuador.com
+BOARD_PUBLIC_API_URL=https://go-api.kuador.com
 PRIMEUI_LICENSE=
 ```
 

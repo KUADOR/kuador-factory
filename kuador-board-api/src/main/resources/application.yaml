@@ -51,6 +51,8 @@ board:
   public-url: ${BOARD_PUBLIC_URL:http://localhost:8091}
   # URL del tablero web (la GitHub App vuelve ahí después de registrarse o instalarse).
   web-url: ${BOARD_WEB_URL:http://localhost:3600}
+  # true cuando la API tiene dominio propio: por el host de public-url solo entran /mcp, el kit, el webhook y la salud.
+  public-host-gate: ${BOARD_PUBLIC_HOST_GATE:false}
   agents:
     # Sin clave, los agentes quedan desactivados (cada asignación se registra como SKIPPED).
     anthropic-api-key: ${ANTHROPIC_API_KEY:}

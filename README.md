@@ -33,8 +33,8 @@ Pruebas de la API: `./mvnw test` (dominio, casos de uso y límites entre módulo
 
 ## Desplegar
 
-Imágenes Docker de la API y la web, CI que las publica en GHCR y guía de Dokploy (un dominio, solo
-`/mcp`, el kit de agentes y el webhook de GitHub salen de la API a Internet): [docs/despliegue.md](docs/despliegue.md).
+Imágenes Docker de la API y la web, CI que las publica en GHCR y guía de Dokploy (web y API con dominio propio; por el de la API
+solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/despliegue.md](docs/despliegue.md).
 
 ## Espacios de trabajo y catálogo
 

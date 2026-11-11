@@ -6,3 +6,6 @@
 
 # Capturas temporales de la revisión de diseño (Impeccable); DESIGN.md y design.json sí se versionan
 kuador-board-web/.impeccable/review/
+
+# Credenciales locales de despliegue (clave de Dokploy). Nunca se versionan.
+.env.deploy

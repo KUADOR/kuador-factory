@@ -47,6 +47,11 @@ import type {
   MemberKind,
   Project,
   RepoKit,
+  LicenseStatus,
+  Plan,
+  PlanInput,
+  WorkspaceLicense,
+  WorkspacePlan,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -294,6 +299,7 @@ export async function signupCompleteAction(input: {
   logo: string | null;
   ownerName: string;
   password: string;
+  plan: string | null;
 }): Promise<ActionResult<void>> {
   const { email, ...body } = input;
   const created = await run(() => boardApi.signupComplete(body));
@@ -302,6 +308,21 @@ export async function signupCompleteAction(input: {
   if (!session.ok) return session;
   await setSessionToken(session.data.token, session.data.expiresAt);
   redirect("/");
+}
+
+export async function changePlanAction(plan: string): Promise<ActionResult<WorkspacePlan>> {
+  return run(() => boardApi.changePlan(plan), "/workspace/plan");
+}
+
+export async function savePlanAction(code: string, input: PlanInput): Promise<ActionResult<Plan>> {
+  return run(() => boardApi.savePlan(code, input), "/plataforma");
+}
+
+export async function setLicenseAction(
+  workspaceId: string,
+  input: { plan: string; status: LicenseStatus; trialEndsAt: string | null; paidUntil: string | null },
+): Promise<ActionResult<WorkspaceLicense>> {
+  return run(() => boardApi.setLicense(workspaceId, input), "/plataforma");
 }
 
 export async function updateProjectAction(key: string, input: { name: string; description: string | null }): Promise<ActionResult<Project>> {

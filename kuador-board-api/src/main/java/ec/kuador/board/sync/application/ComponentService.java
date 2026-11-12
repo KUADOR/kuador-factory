@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ec.kuador.board.billing.BillingApi;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,9 +72,11 @@ public class ComponentService implements RepositoriesApi {
     private final ProjectApi projects;
     private final RepositoryInstructions agents;
     private final Clock clock;
+    private final BillingApi billing;
 
     ComponentService(ComponentRepository components, SyncRecordRepository records, RepositoryCreator creator, TemplateFiles templates,
-            CatalogApi catalog, DocsApi docs, ProjectApi projects, RepositoryInstructions agents, Clock clock) {
+            CatalogApi catalog, DocsApi docs, ProjectApi projects, RepositoryInstructions agents, Clock clock, BillingApi billing) {
+        this.billing = billing;
         this.components = components;
         this.records = records;
         this.creator = creator;
@@ -103,6 +106,7 @@ public class ComponentService implements RepositoriesApi {
 
     @Transactional
     public Result setup(String projectKey, Setup s, UUID actorId) {
+        billing.requireFactory("Armar el repo con piezas");
         ProjectView project = software(projectKey);
         if (records.findLink(projectKey).isPresent()) {
             throw new ConflictException("El proyecto ya tiene un repositorio. Suma piezas desde «Agregar pieza».");
@@ -161,6 +165,7 @@ public class ComponentService implements RepositoriesApi {
 
     @Transactional
     public Result add(String projectKey, PieceSpec spec, boolean privateRepo, UUID actorId) {
+        billing.requireFactory("Sumar piezas al repo");
         ProjectView project = software(projectKey);
         RepositoryLink link = records.findLink(projectKey).filter(l -> KIND.equals(l.kind()))
                 .orElseThrow(() -> new DomainException("Primero arma el repo del proyecto con la app de GitHub."));

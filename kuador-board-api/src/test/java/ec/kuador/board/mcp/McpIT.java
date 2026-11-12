@@ -101,7 +101,7 @@ class McpIT {
     void claudeCodeWorksTheQueueOfItsPersonAsTheWorkspaceAgents() throws Exception {
         signup.requestCode("pia@pi.test");
         Workspace w = signup.complete(signup.verifyCode("pia@pi.test", INBOX.get("pia@pi.test")),
-                new SignupService.Company("Pi", null, null, null, null, null), "Pía", "clave-de-pia-123");
+                new SignupService.Company("Pi", null, null, null, null, null), "Pía", "clave-de-pia-123", "FACTORY");
         String owner = auth.login("pia@pi.test", "clave-de-pia-123").token();
         String other = person(w, "Otro", "otro@pi.test");
 

@@ -69,8 +69,12 @@ SPRING_MAIL_HOST=smtp.hostinger.com
 SPRING_MAIL_PORT=587
 SPRING_MAIL_USERNAME=
 SPRING_MAIL_PASSWORD=
-BOARD_MAIL_FROM=Kuador Factory <no-reply@kuador.com>
+BOARD_MAIL_FROM=Kuador Go <no-reply@kuador.com>
 BOARD_MAIL_LOG_CODES=false
+
+# Quién administra la plataforma (planes y licencias de todos los espacios): correos separados por coma.
+# Esa persona ve «Plataforma» en el menú. Vacío = nadie.
+BOARD_PLATFORM_ADMINS=
 
 # Avisos por Telegram (opcional). Crea el bot con @BotFather (/newbot) y copia su token y su nombre.
 # Al arrancar, la API registra sola el webhook en https://go-api.kuador.com/api/telegram/webhook.

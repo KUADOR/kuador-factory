@@ -1,6 +1,7 @@
 package ec.kuador.board.auth.infrastructure.security;
 
 import ec.kuador.board.auth.application.AuthService;
+import ec.kuador.board.auth.application.PlatformAdmins;
 import ec.kuador.board.shared.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,15 +25,21 @@ class BearerTokenFilter extends OncePerRequestFilter {
     private static final String PREFIX = "Bearer ";
 
     private final AuthService auth;
+    private final PlatformAdmins platform;
 
-    BearerTokenFilter(AuthService auth) {
+    BearerTokenFilter(AuthService auth, PlatformAdmins platform) {
         this.auth = auth;
+        this.platform = platform;
     }
 
     /** Rutas que acepta la conexión de agentes locales de una persona. */
     static boolean runnerPath(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         return path.equals("/mcp") || path.equals("/api/agent-kit") || path.equals("/api/agent-kit.zip");
+    }
+
+    static boolean platformPath(HttpServletRequest request) {
+        return request.getRequestURI().substring(request.getContextPath().length()).startsWith("/api/platform/");
     }
 
     @Override
@@ -45,12 +52,17 @@ class BearerTokenFilter extends OncePerRequestFilter {
                         // La conexión de agentes locales solo abre el servidor MCP y la descarga del kit.
                         .filter(who -> !who.runner() || runnerPath(request))
                         .ifPresent(who -> {
+                    TenantContext.set(who.workspaceId());
                     var kind = new SimpleGrantedAuthority(who.runner() ? "ROLE_RUNNER" : who.agent() ? "ROLE_AGENT" : "ROLE_HUMAN");
                     // ROLE_EDITOR: puede escribir en el tablero. Quien solo mira (y la conexión de agentes locales) no lo recibe.
-                    var authorities = who.viewOnly() || who.runner() ? List.of(kind) : List.of(kind, new SimpleGrantedAuthority("ROLE_EDITOR"));
+                    var authorities = new java.util.ArrayList<SimpleGrantedAuthority>(List.of(kind));
+                    if (!who.viewOnly() && !who.runner()) authorities.add(new SimpleGrantedAuthority("ROLE_EDITOR"));
+                    // ROLE_PLATFORM: administra planes y licencias; se consulta solo en esas rutas.
+                    if (!who.agent() && !who.runner() && platformPath(request) && platform.isAdmin(who.memberId())) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_PLATFORM"));
+                    }
                     SecurityContextHolder.getContext().setAuthentication(
                             UsernamePasswordAuthenticationToken.authenticated(who, null, authorities));
-                    TenantContext.set(who.workspaceId());
                 });
             }
             chain.doFilter(request, response);

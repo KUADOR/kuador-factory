@@ -14,7 +14,7 @@ class EmailChannel implements Channel {
     private final ObjectProvider<JavaMailSender> sender;
     private final String from;
 
-    EmailChannel(ObjectProvider<JavaMailSender> sender, @Value("${board.mail.from:Kuador Factory <no-reply@kuador.com>}") String from) {
+    EmailChannel(ObjectProvider<JavaMailSender> sender, @Value("${board.mail.from:Kuador Go <no-reply@kuador.com>}") String from) {
         this.sender = sender;
         this.from = from;
     }

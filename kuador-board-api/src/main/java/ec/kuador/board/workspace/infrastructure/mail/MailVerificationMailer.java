@@ -24,7 +24,7 @@ public class MailVerificationMailer implements VerificationMailer {
     private final String from;
     private final boolean logCodes;
 
-    public MailVerificationMailer(ObjectProvider<JavaMailSender> sender, @Value("${board.mail.from:Kuador Factory <no-reply@kuador.com>}") String from,
+    public MailVerificationMailer(ObjectProvider<JavaMailSender> sender, @Value("${board.mail.from:Kuador Go <no-reply@kuador.com>}") String from,
             @Value("${board.mail.log-codes:false}") boolean logCodes) {
         this.sender = sender;
         this.from = from;
@@ -44,11 +44,11 @@ public class MailVerificationMailer implements VerificationMailer {
         SimpleMailMessage m = new SimpleMailMessage();
         m.setFrom(from);
         m.setTo(email);
-        m.setSubject("Tu código para Kuador Factory: " + code);
+        m.setSubject("Tu código para Kuador Go: " + code);
         m.setText("""
                 Tu código de verificación es: %s
 
-                Vence en 10 minutos. Si no pediste crear un espacio de trabajo en Kuador Factory, ignora este correo.
+                Vence en 10 minutos. Si no pediste crear un espacio de trabajo en Kuador Go, ignora este correo.
                 """.formatted(code));
         try {
             smtp.send(m);

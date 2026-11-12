@@ -324,7 +324,51 @@ export interface Me {
   role: string;
   avatarColor: string;
   access: MemberAccess;
+  /** Administra planes y licencias de la plataforma. */
+  platformAdmin: boolean;
 }
+
+/** Plan que se vende. Límites nulos = sin límite; `factory` incluye la fábrica de software. */
+export interface Plan {
+  code: string;
+  name: string;
+  tagline: string;
+  priceMonthly: number;
+  currency: string;
+  features: string[];
+  maxMembers: number | null;
+  maxProjects: number | null;
+  factory: boolean;
+  trialDays: number;
+  highlighted: boolean;
+  sortOrder: number;
+  active: boolean;
+}
+
+export type LicenseStatus = "TRIAL" | "ACTIVE" | "PENDING_PAYMENT" | "CANCELED";
+
+/** Plan del espacio; `effective` es el que rige hoy (el gratuito si venció la prueba o falta el pago). */
+export interface WorkspacePlan {
+  plan: Plan;
+  effective: Plan;
+  status: LicenseStatus;
+  trialEndsAt: string | null;
+  paidUntil: string | null;
+  trialUsed: boolean;
+}
+
+export interface WorkspaceLicense {
+  workspaceId: string;
+  slug: string;
+  name: string;
+  createdAt: string;
+  plan: string | null;
+  status: LicenseStatus | null;
+  trialEndsAt: string | null;
+  paidUntil: string | null;
+}
+
+export type PlanInput = Omit<Plan, "code">;
 
 export interface Session {
   token: string;

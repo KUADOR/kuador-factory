@@ -14,7 +14,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2.5">
           <span aria-hidden className="size-2.5 rounded-full bg-sol" />
-          <span className="text-sm font-semibold tracking-tight text-fg-strong">Kuador Factory</span>
+          <span className="text-sm font-semibold tracking-tight text-fg-strong">Kuador Go</span>
         </div>
         <div className="rounded-lg border border-line bg-surface p-6 shadow-float">
           <h1 className="text-lg font-semibold tracking-tight text-fg-strong">Entrar</h1>

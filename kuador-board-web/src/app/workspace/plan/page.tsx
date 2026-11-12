@@ -1,0 +1,34 @@
+import type { Metadata } from "next";
+
+import { PageHeader } from "@/components/shell/PageHeader";
+import { PlanChooser } from "@/components/billing/PlanChooser";
+import { EmptyState } from "@/components/ui/Section";
+import { boardApi } from "@/lib/api";
+import { failPage } from "@/lib/page-errors";
+import { requireEditor } from "@/lib/require-editor";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Plan" };
+
+export default async function WorkspacePlanPage() {
+  await requireEditor();
+  let data;
+  try {
+    const [current, plans, projects, members] = await Promise.all([boardApi.workspacePlan(), boardApi.plans(), boardApi.projects(), boardApi.members()]);
+    data = { current, plans, projects: projects.length, people: members.filter((m) => m.kind === "HUMAN").length };
+  } catch (e) {
+    return failPage(e);
+  }
+  return (
+    <>
+      <PageHeader title="Plan" />
+      <div className="flex flex-col gap-6 px-6 py-6">
+        {data.current ? (
+          <PlanChooser current={data.current} plans={data.plans} usage={{ people: data.people, projects: data.projects }} />
+        ) : (
+          <EmptyState title="Este espacio no tiene planes">Es una instalación propia: no hay límites de personas, tableros ni funciones.</EmptyState>
+        )}
+      </div>
+    </>
+  );
+}

@@ -169,7 +169,7 @@ class NotifyIT {
     void aPersonGetsEmailAndTelegramWhenSomethingNeedsThem() throws Exception {
         signup.requestCode("noa@nt.test");
         signup.complete(signup.verifyCode("noa@nt.test", INBOX.get("noa@nt.test")),
-                new SignupService.Company("Nt", null, null, null, null, null), "Noa", "clave-de-noa-123");
+                new SignupService.Company("Nt", null, null, null, null, null), "Noa", "clave-de-noa-123", "FACTORY");
         String owner = auth.login("noa@nt.test", "clave-de-noa-123").token();
         JsonNode view = call("GET", "/api/notifications", null, owner).body();
         assertThat(view.get("emailAvailable").asBoolean()).isTrue();

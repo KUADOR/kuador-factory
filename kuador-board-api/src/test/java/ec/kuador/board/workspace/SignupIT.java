@@ -67,7 +67,7 @@ class SignupIT {
                 .isInstanceOf(DomainException.class).hasMessageContaining("4 intento(s)");
         String token = signup.verifyCode("ana@andes.test", code);
 
-        Workspace w = signup.complete(token, new SignupService.Company("Clínica Andes", null, "Salud en Quito", "#E11D48", null, LOGO), "Ana", "clave-de-ana-123");
+        Workspace w = signup.complete(token, new SignupService.Company("Clínica Andes", null, "Salud en Quito", "#E11D48", null, LOGO), "Ana", "clave-de-ana-123", "FACTORY");
 
         assertThat(w.slug()).isEqualTo("clinica-andes");
         assertThat(w.brandColor()).isEqualTo("#e11d48");
@@ -78,7 +78,7 @@ class SignupIT {
         assertThat(TenantContext.call(w.id(), () -> catalog.methodologies())).hasSize(3);
         assertThat(TenantContext.call(w.id(), () -> members.list())).hasSize(9);
 
-        assertThatThrownBy(() -> signup.complete(token, new SignupService.Company("Otra", null, null, null, null, null), "Ana", "clave-de-ana-123"))
+        assertThatThrownBy(() -> signup.complete(token, new SignupService.Company("Otra", null, null, null, null, null), "Ana", "clave-de-ana-123", "FACTORY"))
                 .as("el token de alta se usa una sola vez").hasMessageContaining("venció");
     }
 
@@ -90,12 +90,12 @@ class SignupIT {
         assertThatThrownBy(() -> signup.requestCode("no-es-correo")).isInstanceOf(DomainException.class);
 
         String token = signup.verifyCode("beto@beta.test", INBOX.get("beto@beta.test"));
-        signup.complete(token, new SignupService.Company("Beta", "beta", null, null, null, null), "Beto", "clave-de-beto-123");
+        signup.complete(token, new SignupService.Company("Beta", "beta", null, null, null, null), "Beto", "clave-de-beto-123", "FACTORY");
 
         assertThat(signup.suggestSlug("Beta")).isEqualTo("beta-2");
         signup.requestCode("carla@gamma.test");
         String other = signup.verifyCode("carla@gamma.test", INBOX.get("carla@gamma.test"));
-        assertThatThrownBy(() -> signup.complete(other, new SignupService.Company("Beta", "beta", null, null, null, null), "Carla", "clave-de-carla-123"))
+        assertThatThrownBy(() -> signup.complete(other, new SignupService.Company("Beta", "beta", null, null, null, null), "Carla", "clave-de-carla-123", "FACTORY"))
                 .isInstanceOf(ConflictException.class).hasMessageContaining("identificador beta");
     }
 }

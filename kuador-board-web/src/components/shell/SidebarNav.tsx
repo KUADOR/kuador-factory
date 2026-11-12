@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookMarked, Building2, LogOut, Plug, Plus, SquareTerminal, Users } from "lucide-react";
+import { BookMarked, Building2, CreditCard, LogOut, Plug, Plus, ShieldCheck, SquareTerminal, Users } from "lucide-react";
 import { clsx } from "clsx";
 
 import { logoutAction } from "@/app/actions";
@@ -78,8 +78,11 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
           </NavLink>
           {editor && (
             <>
-              <NavLink href="/workspace" active={path.startsWith("/workspace")}>
+              <NavLink href="/workspace" active={path === "/workspace"}>
                 <Building2 className="size-4 shrink-0" aria-hidden /> Empresa e idiomas
+              </NavLink>
+              <NavLink href="/workspace/plan" active={path.startsWith("/workspace/plan")}>
+                <CreditCard className="size-4 shrink-0" aria-hidden /> Plan
               </NavLink>
               <NavLink href="/catalog" active={path.startsWith("/catalog")}>
                 <BookMarked className="size-4 shrink-0" aria-hidden /> Catálogo
@@ -91,6 +94,11 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
                 <SquareTerminal className="size-4 shrink-0" aria-hidden /> Agentes locales
               </NavLink>
             </>
+          )}
+          {me.platformAdmin && (
+            <NavLink href="/plataforma" active={path.startsWith("/plataforma")}>
+              <ShieldCheck className="size-4 shrink-0" aria-hidden /> Plataforma
+            </NavLink>
           )}
         </div>
       </nav>

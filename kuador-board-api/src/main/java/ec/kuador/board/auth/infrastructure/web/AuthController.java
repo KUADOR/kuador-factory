@@ -30,10 +30,12 @@ class AuthController {
 
     private final AuthService auth;
     private final MemberApi members;
+    private final ec.kuador.board.auth.application.PlatformAdmins platform;
 
-    AuthController(AuthService auth, MemberApi members) {
+    AuthController(AuthService auth, MemberApi members, ec.kuador.board.auth.application.PlatformAdmins platform) {
         this.auth = auth;
         this.members = members;
+        this.platform = platform;
     }
 
     // ---- Sesión ----
@@ -41,7 +43,7 @@ class AuthController {
     @PostMapping("/api/auth/login")
     SessionResponse login(@Valid @RequestBody LoginRequest r) {
         AuthService.Session s = auth.login(r.email(), r.password());
-        return new SessionResponse(s.token(), s.expiresAt(), MeResponse.from(s.member()));
+        return new SessionResponse(s.token(), s.expiresAt(), MeResponse.from(s.member(), platform.isAdmin(s.member().id())));
     }
 
     @PostMapping("/api/auth/logout")
@@ -52,7 +54,7 @@ class AuthController {
 
     @GetMapping("/api/auth/me")
     MeResponse me(@AuthenticationPrincipal AuthenticatedMember who) {
-        return MeResponse.from(auth.me(who));
+        return MeResponse.from(auth.me(who), !who.agent() && !who.runner() && platform.isAdmin(who.memberId()));
     }
 
     @PutMapping("/api/auth/password")
@@ -152,9 +154,11 @@ class AuthController {
 
     record CreateTokenRequest(@NotBlank @Size(max = 80) String name) {}
 
-    record MeResponse(UUID id, UUID workspaceId, String name, String kind, String role, String avatarColor, String access) {
-        static MeResponse from(MemberView m) {
-            return new MeResponse(m.id(), m.workspaceId(), m.name(), m.agent() ? "AGENT" : "HUMAN", m.role(), m.avatarColor(), m.access().name());
+    /** {@code platformAdmin}: administra planes y licencias de la plataforma. */
+    record MeResponse(UUID id, UUID workspaceId, String name, String kind, String role, String avatarColor, String access, boolean platformAdmin) {
+        static MeResponse from(MemberView m, boolean platformAdmin) {
+            return new MeResponse(m.id(), m.workspaceId(), m.name(), m.agent() ? "AGENT" : "HUMAN", m.role(), m.avatarColor(), m.access().name(),
+                    platformAdmin);
         }
     }
 

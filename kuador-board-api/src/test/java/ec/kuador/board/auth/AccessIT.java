@@ -79,7 +79,7 @@ class AccessIT {
     void aViewOnlyClientWatchesAndOnlyClosesItsGates() throws Exception {
         signup.requestCode("olga@omega.test");
         String signupToken = signup.verifyCode("olga@omega.test", INBOX.get("olga@omega.test"));
-        Workspace w = signup.complete(signupToken, new SignupService.Company("Omega", null, null, null, null, null), "Olga", "clave-de-olga-123");
+        Workspace w = signup.complete(signupToken, new SignupService.Company("Omega", null, null, null, null, null), "Olga", "clave-de-olga-123", "FACTORY");
         String owner = auth.login("olga@omega.test", "clave-de-olga-123").token();
 
         // Un cliente nuevo queda en solo lectura por defecto.

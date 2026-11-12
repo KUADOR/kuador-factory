@@ -1,4 +1,4 @@
-# Kuador Factory
+# Kuador Go
 
 Fábrica de software de Kuador: un **tablero tipo Jira** donde personas y **agentes especialistas**
 (PO, arquitecto, backend Spring Boot, frontend React/Angular, DevOps, QA, marketing) trabajan en el
@@ -49,6 +49,18 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
   logo y **color base**) → persona dueña. Sin correo verificado no se crea nada. El SMTP se configura
   en el `.env` de la API con `spring.mail.*`; en local, `BOARD_MAIL_LOG_CODES=true` escribe el código
   en el log de la API (nunca en producción).
+- **Planes y licencias** (módulo `billing`): los planes que se venden viven en la tabla `plan`
+  (nombre, frase, precio mensual, moneda, características, máximo de personas y de tableros, si
+  incluyen la **fábrica de software**, días de prueba, orden, recomendado, a la venta). Se ven sin
+  sesión en `GET /api/public/plans` (presentación y alta) y los edita en *Plataforma* quien figura en
+  `BOARD_PLATFORM_ADMINS`. Cada espacio tiene una fila en `workspace_subscription`: al crearlo elige
+  plan (los de pago empiezan con su prueba, una sola por espacio); desde *Espacio de trabajo → Plan*
+  lo cambia. Rige el plan contratado mientras está activo o en prueba vigente; si no, el gratuito.
+  Bajar de plan no borra nada: solo impide crear personas o tableros por encima del límite y usar la
+  fábrica (plantilla *Fábrica de software*, metodologías con agentes, piezas en GitHub y
+  `create_tasks`). El cobro en línea aún no está conectado: un pago se registra a mano en
+  *Plataforma* (estado activo y hasta cuándo). Los espacios sin fila (instalación propia o anteriores
+  a los planes) no tienen límites.
 - **Marca del espacio** (*Marca y empresa*): el color base pinta botones principales, selección y foco
   para todo el equipo; de ese color se derivan los tonos y el texto legible en ambos temas.
 - El catálogo de fábrica tiene **versión** (`catalog/defaults.yaml`, `version` y `releases`): al
@@ -351,7 +363,7 @@ Cada inicio de sesión queda como una conexión de esa persona en **Agentes loca
 
 **En paralelo:** `/pendientes --paralelo` lanza a la vez (hasta 3) los subagentes de las tareas libres; cada uno trabaja en su propio `git worktree`. Consume más rápido los límites de tu suscripción.
 
-**Presentación del producto** (`/producto`): quien entra a la raíz sin sesión ve la landing de Kuador Factory (marca de kuador.com: emblema, paleta noche + sol ecuatorial, Archivo semiexpandido y Martian Mono); con sesión, la raíz sigue siendo el tablero. Sin clientes ni cifras inventadas: la vista del tablero usa datos de ejemplo.
+**Presentación del producto** (`/producto`): quien entra a la raíz sin sesión ve la landing de Kuador Go (marca de kuador.com: emblema, paleta noche + sol ecuatorial, Archivo semiexpandido y Martian Mono); con sesión, la raíz sigue siendo el tablero. Sin clientes ni cifras inventadas: la vista del tablero usa datos de ejemplo.
 
 **Asistente de inicio** (`/projects/<clave>/inicio`): al crear un proyecto se abre solo y lo deja listo en pasos que se pueden saltar: metodología, repositorio y piezas (con la GitHub App o vinculando uno existente), cliente de IA, notificaciones y primer trabajo (una épica «Esqueleto del sistema» que entra a la etapa del PO). El tablero muestra «Faltan N pasos» hasta terminar (se puede ocultar) y Configuración tiene el acceso para volver.
 

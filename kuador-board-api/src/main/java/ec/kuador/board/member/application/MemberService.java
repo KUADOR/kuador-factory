@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import ec.kuador.board.billing.BillingApi;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,11 +26,13 @@ public class MemberService implements MemberApi, CatalogUsage {
     private final MemberRepository members;
     private final CatalogApi catalog;
     private final Clock clock;
+    private final BillingApi billing;
 
-    MemberService(MemberRepository members, CatalogApi catalog, Clock clock) {
+    MemberService(MemberRepository members, CatalogApi catalog, Clock clock, BillingApi billing) {
         this.members = members;
         this.catalog = catalog;
         this.clock = clock;
+        this.billing = billing;
     }
 
     @Transactional(readOnly = true)
@@ -43,6 +46,7 @@ public class MemberService implements MemberApi, CatalogUsage {
         if (kind == MemberKind.AGENT && catalog.role(role).isEmpty()) {
             throw new DomainException("El rol " + role + " no existe en el catálogo del espacio. Créalo primero en Catálogo → Roles.");
         }
+        if (kind == MemberKind.HUMAN) billing.requireRoom(BillingApi.Limit.MEMBERS, members.findAll().stream().filter(m -> m.kind() == MemberKind.HUMAN).count());
         MemberAccess level = kind == MemberKind.AGENT ? MemberAccess.EDIT : access != null ? access : MemberAccess.defaultFor(role);
         return members.save(Member.create(name, kind, role, description, avatarColor, level, clock.instant()));
     }

@@ -37,7 +37,7 @@ class SecurityConfiguration {
             AuthorizationManagers.allOf(AuthorityAuthorizationManager.hasRole("HUMAN"), AuthorityAuthorizationManager.hasRole("EDITOR"));
 
     @Bean
-    SecurityFilterChain api(HttpSecurity http, AuthService auth,
+    SecurityFilterChain api(HttpSecurity http, AuthService auth, ec.kuador.board.auth.application.PlatformAdmins platform,
             @org.springframework.beans.factory.annotation.Value("${board.public-url:http://localhost:8091}") String configuredPublicUrl) throws Exception {
         String publicUrl = configuredPublicUrl.replaceAll("/+$", "");
         http.csrf(c -> c.disable()) // API sin cookies: el token va en un header que el navegador no envía solo.
@@ -49,6 +49,9 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         // Alta pública de espacios (modo SaaS): verificación por correo, ver SignupService.
                         .requestMatchers("/api/signup/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/plans").permitAll()
+                        .requestMatchers("/api/platform/**").hasRole("PLATFORM")
+                        .requestMatchers(HttpMethod.PUT, "/api/workspace/plan").access(HUMAN_EDITOR)
                         .requestMatchers("/actuator/health/**", "/actuator/health", "/v3/api-docs/**", "/swagger-ui/**",
                                 "/swagger-ui.html", "/error").permitAll()
                         // OAuth del servidor MCP: metadatos, registro de clientes y canje del código (ver OAuthController).
@@ -96,7 +99,7 @@ class SecurityConfiguration {
                         .accessDeniedHandler((req, res, ex) -> problem(res, 403, "Sin permiso", viewOnly()
                                 ? "Tu acceso a este espacio es de solo lectura."
                                 : "Esta acción está reservada a personas del equipo.")))
-                .addFilterBefore(new BearerTokenFilter(auth), AnonymousAuthenticationFilter.class);
+                .addFilterBefore(new BearerTokenFilter(auth, platform), AnonymousAuthenticationFilter.class);
         return http.build();
     }
 

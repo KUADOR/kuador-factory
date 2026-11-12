@@ -66,7 +66,7 @@ class LiveIT {
     private String owner(String email, String company) {
         signup.requestCode(email);
         String t = signup.verifyCode(email, INBOX.get(email));
-        signup.complete(t, new SignupService.Company(company, null, null, null, null, null), "Persona", "clave-larga-de-prueba-1");
+        signup.complete(t, new SignupService.Company(company, null, null, null, null, null), "Persona", "clave-larga-de-prueba-1", "FACTORY");
         return auth.login(email, "clave-larga-de-prueba-1").token();
     }
 

@@ -39,7 +39,7 @@ const shellData = cache(async function shellData(): Promise<{ me: Me; workspace:
 export async function generateMetadata(): Promise<Metadata> {
   const name = (await shellData())?.workspace?.name;
   return {
-    title: name ? { default: name, template: `%s · ${name}` } : { default: "Kuador Factory", template: "%s · Kuador Factory" },
+    title: name ? { default: name, template: `%s · ${name}` } : { default: "Kuador Go", template: "%s · Kuador Go" },
     description: "Tablero de trabajo: personas y agentes de IA en el mismo flujo.",
     robots: { index: false, follow: false },
   };

@@ -29,7 +29,7 @@ export function Emblem({ size = 40, className }: { size?: number; className?: st
 }
 
 /** Logo del producto: emblema, KUADOR y el nombre del producto separados por una línea fina. */
-export function ProductLogo({ product = "Factory" }: { product?: string }) {
+export function ProductLogo({ product = "Go" }: { product?: string }) {
   return (
     <span role="img" aria-label={`Kuador ${product}`} className="inline-flex items-center gap-3 leading-none whitespace-nowrap">
       <Emblem size={28} />

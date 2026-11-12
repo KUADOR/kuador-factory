@@ -17,6 +17,7 @@ import ec.kuador.board.shared.error.NotFoundException;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import ec.kuador.board.billing.BillingApi;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,13 +28,19 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     private final ColumnUsage usage;
     private final CatalogApi catalog;
     private final Clock clock;
+    private final BillingApi billing;
 
-    ProjectService(ProjectRepository projects, ColumnUsage usage, CatalogApi catalog, Clock clock) {
+    ProjectService(ProjectRepository projects, ColumnUsage usage, CatalogApi catalog, Clock clock, BillingApi billing) {
         this.projects = projects;
         this.usage = usage;
         this.catalog = catalog;
         this.clock = clock;
+        this.billing = billing;
     }
+
+    /** Plantillas y metodologías que son parte de la fábrica de software (planes que la incluyen). */
+    static final String FACTORY_TEMPLATE = "SOFTWARE_FACTORY";
+    static final String FREE_METHODOLOGY = "FREE";
 
     public record ProjectWithColumns(Project project, List<ColumnDef> columns) {}
 
@@ -52,6 +59,8 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     public ProjectWithColumns create(String key, String name, String description, String templateKey) {
         WorkflowTemplate template = catalog.workflowTemplate(templateKey)
                 .orElseThrow(() -> new NotFoundException("No existe la plantilla de flujo " + templateKey + "."));
+        billing.requireRoom(BillingApi.Limit.PROJECTS, projects.findAll().size());
+        if (FACTORY_TEMPLATE.equals(template.key())) billing.requireFactory("La plantilla «" + template.name() + "»");
         // Del catálogo se copian columnas, tipos, etapas (roles y puertas) y pasos del flujo.
         Transitions transitions = template.transitions().isEmpty() ? Transitions.FREE
                 : new Transitions(true, template.transitions().stream().map(t -> new Transitions.Transition(t.from(), t.to())).toList());
@@ -112,6 +121,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         if (methodologyKey != null && catalog.methodology(methodologyKey).isEmpty()) {
             throw new NotFoundException("No existe la metodología " + methodologyKey + " en el catálogo.");
         }
+        if (methodologyKey != null && !FREE_METHODOLOGY.equals(methodologyKey)) billing.requireFactory("Trabajar con una metodología de agentes");
         Project updated = load(key).withMethodology(methodologyKey); // valida que sea de software
         projects.updateMethodology(key, methodologyKey);
         return new ProjectWithColumns(updated, projects.findColumns(key));

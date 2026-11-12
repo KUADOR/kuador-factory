@@ -50,6 +50,11 @@ import type {
   MemberKind,
   Project,
   Session,
+  Plan,
+  PlanInput,
+  WorkspaceLicense,
+  WorkspacePlan,
+  LicenseStatus,
 } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
@@ -101,6 +106,15 @@ export const boardApi = {
     request<Session>("/api/auth/login", { ...json("POST", { email, password }), anonymous: true }),
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   me: () => request<Me>("/api/auth/me"),
+  plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
+  /** `undefined`: el espacio no tiene planes (instalación propia, sin límites). */
+  workspacePlan: () => request<WorkspacePlan | undefined>("/api/workspace/plan"),
+  changePlan: (plan: string) => request<WorkspacePlan>("/api/workspace/plan", json("PUT", { plan })),
+  platformPlans: () => request<Plan[]>("/api/platform/plans"),
+  savePlan: (code: string, input: PlanInput) => request<Plan>(`/api/platform/plans/${encodeURIComponent(code)}`, json("PUT", input)),
+  platformWorkspaces: () => request<WorkspaceLicense[]>("/api/platform/workspaces"),
+  setLicense: (workspaceId: string, input: { plan: string; status: LicenseStatus; trialEndsAt: string | null; paidUntil: string | null }) =>
+    request<WorkspaceLicense>(`/api/platform/workspaces/${encodeURIComponent(workspaceId)}/license`, json("PUT", input)),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<void>("/api/auth/password", json("PUT", { currentPassword, newPassword })),
   accounts: () => request<Account[]>("/api/auth/accounts"),
@@ -153,6 +167,7 @@ export const boardApi = {
     logo: string | null;
     ownerName: string;
     password: string;
+    plan: string | null;
   }) => request<{ slug: string; name: string }>("/api/signup/workspace", { ...json("POST", input), anonymous: true }),
 
   updateProject: (key: string, input: { name: string; description: string | null }) =>

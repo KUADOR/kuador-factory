@@ -119,7 +119,7 @@ class GitHubAppIT {
     void registerInstallAndCreateARepositoryWithItsBases() throws Exception {
         signup.requestCode("ana@acme.test");
         Workspace w = signup.complete(signup.verifyCode("ana@acme.test", INBOX.get("ana@acme.test")),
-                new SignupService.Company("Acme Lab", null, null, null, null, null), "Ana", "clave-de-ana-123");
+                new SignupService.Company("Acme Lab", null, null, null, null, null), "Ana", "clave-de-ana-123", "FACTORY");
         assertThat(w.slug()).isEqualTo("acme-lab");
         String owner = auth.login("ana@acme.test", "clave-de-ana-123").token();
         Member dev = TenantContext.call(w.id(), () -> members.create("Dev", MemberKind.HUMAN, "DEV", null, "#cccccc", null));

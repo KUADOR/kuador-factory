@@ -42,7 +42,8 @@ class SignupController {
             @Size(max = 7) String brandOnColor,
             @Size(max = Workspace.MAX_LOGO) String logo,
             @NotBlank @Size(max = 120) String ownerName,
-            @NotBlank @Size(max = 128) String password) {}
+            @NotBlank @Size(max = 128) String password,
+            @Size(max = 30) String plan) {}
 
     record CompleteResponse(String slug, String name) {}
 
@@ -61,7 +62,7 @@ class SignupController {
     @ResponseStatus(HttpStatus.CREATED)
     CompleteResponse complete(@Valid @RequestBody CompleteRequest r) {
         Workspace w = signup.complete(r.signupToken(),
-                new SignupService.Company(r.companyName(), r.slug(), r.description(), r.brandColor(), r.brandOnColor(), r.logo()), r.ownerName(), r.password());
+                new SignupService.Company(r.companyName(), r.slug(), r.description(), r.brandColor(), r.brandOnColor(), r.logo()), r.ownerName(), r.password(), r.plan());
         return new CompleteResponse(w.slug(), w.name());
     }
 

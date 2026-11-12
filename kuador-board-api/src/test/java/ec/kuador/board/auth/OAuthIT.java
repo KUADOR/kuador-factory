@@ -108,7 +108,7 @@ class OAuthIT {
     void anAiClientLogsInWithPkceAndGetsItsPersonsConnection() throws Exception {
         signup.requestCode("ole@oa.test");
         signup.complete(signup.verifyCode("ole@oa.test", INBOX.get("ole@oa.test")),
-                new SignupService.Company("Oa", null, null, null, null, null), "Ole", "clave-de-ole-123");
+                new SignupService.Company("Oa", null, null, null, null, null), "Ole", "clave-de-ole-123", "FACTORY");
         String session = auth.login("ole@oa.test", "clave-de-ole-123").token();
 
         // 1. Sin token, /mcp responde 401 y dice dónde están los metadatos del recurso.

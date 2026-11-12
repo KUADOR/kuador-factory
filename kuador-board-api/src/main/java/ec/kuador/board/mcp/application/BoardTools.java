@@ -1,5 +1,6 @@
 package ec.kuador.board.mcp.application;
 
+import ec.kuador.board.billing.BillingApi;
 import ec.kuador.board.agents.AgentWorkApi;
 import ec.kuador.board.catalog.AgentRole;
 import ec.kuador.board.catalog.CatalogApi;
@@ -46,6 +47,7 @@ public class BoardTools {
     private final AgentKit kit;
     private final RepositoriesApi repositories;
     private final FactoryRules rules;
+    private final BillingApi billing;
     private final Map<String, Definition> tools = new LinkedHashMap<>();
     /** Cliente de IA de la llamada en curso (p. ej. «codex»): queda en la ejecución del agente. */
     private static final ThreadLocal<String> CLIENT = new ThreadLocal<>();
@@ -54,7 +56,8 @@ public class BoardTools {
     private record Definition(Tool tool, BiFunction<Map<String, String>, UUID, Object> run) {}
 
     BoardTools(IssueApi issues, ProjectApi projects, DocsApi docs, CatalogApi catalog, MemberApi members, AgentWorkApi work, AgentKit kit, RepositoriesApi repositories,
-            FactoryRules rules) {
+            FactoryRules rules, BillingApi billing) {
+        this.billing = billing;
         this.repositories = repositories;
         this.rules = rules;
         this.issues = issues;
@@ -346,6 +349,11 @@ public class BoardTools {
     }
 
     private Object createTasks(Map<String, String> a, UUID person) {
+        try {
+            billing.requireFactory("Repartir una épica en tareas");
+        } catch (ec.kuador.board.shared.error.DomainException e) {
+            throw new ToolException(e.getMessage());
+        }
         IssueContext c = ownIssue(a, person);
         MemberView agent = agent(a);
         if (!agent.id().equals(c.assigneeId())) throw new ToolException("Toma primero " + c.key() + " con take_issue.");

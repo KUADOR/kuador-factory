@@ -111,7 +111,7 @@ class EpicTasksIT {
     void anEpicIsSplitIntoTasksThatRunInParallelByRole() throws Exception {
         signup.requestCode("eva@ep.test");
         signup.complete(signup.verifyCode("eva@ep.test", INBOX.get("eva@ep.test")),
-                new SignupService.Company("Ep", null, null, null, null, null), "Eva", "clave-de-eva-123");
+                new SignupService.Company("Ep", null, null, null, null, null), "Eva", "clave-de-eva-123", "FACTORY");
         String owner = auth.login("eva@ep.test", "clave-de-eva-123").token();
         String runner = call("POST", "/api/auth/runner-tokens", Map.of("name", "Laptop"), owner).body().get("token").asString();
         call("POST", "/api/projects", Map.of("key", "EP", "name", "Ep", "templateKey", "SOFTWARE_FACTORY"), owner);

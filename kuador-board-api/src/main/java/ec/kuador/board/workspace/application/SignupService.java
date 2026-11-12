@@ -17,6 +17,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.regex.Pattern;
+import ec.kuador.board.billing.BillingApi;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -42,10 +43,12 @@ public class SignupService {
     private final WorkspaceService workspaces;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final BillingApi billing;
     private final SecureRandom random = new SecureRandom();
 
     SignupService(EmailVerificationRepository verifications, VerificationMailer mailer, WorkspaceService workspaces,
-            PlatformTransactionManager txManager, Clock clock) {
+            PlatformTransactionManager txManager, Clock clock, BillingApi billing) {
+        this.billing = billing;
         this.verifications = verifications;
         this.mailer = mailer;
         this.workspaces = workspaces;
@@ -97,8 +100,11 @@ public class SignupService {
         });
     }
 
-    /** Paso 3: crea el espacio con su marca y la persona dueña (con el correo verificado). */
-    public Workspace complete(String signupToken, Company company, String ownerName, String password) {
+    /**
+     * Paso 3: crea el espacio con su marca y la persona dueña (con el correo verificado) y su plan: los de pago
+     * arrancan con su prueba; {@code planCode} nulo = el plan gratuito.
+     */
+    public Workspace complete(String signupToken, Company company, String ownerName, String password, String planCode) {
         Instant now = clock.instant();
         EmailVerification v = root(() -> verifications.findBySignupTokenHash(hash(signupToken == null ? "" : signupToken)))
                 .filter(x -> x.signupUsable(now))
@@ -107,7 +113,10 @@ public class SignupService {
         Workspace workspace = workspaces.provision(
                 new WorkspaceService.Brand(slug, company.name(), company.description(), company.brandColor(), company.brandOnColor(), company.logo()),
                 new WorkspaceService.Owner(ownerName, v.email(), password));
-        root(() -> verifications.save(v.used(now)));
+        root(() -> {
+            billing.subscribe(workspace.id(), planCode);
+            return verifications.save(v.used(now));
+        });
         return workspace;
     }
 

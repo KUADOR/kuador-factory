@@ -4,9 +4,12 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { BoardPreview } from "@/components/landing/BoardPreview";
 import { Emblem, ProductLogo } from "@/components/landing/Emblem";
+import { PlanCard } from "@/components/billing/PlanCard";
+import { boardApi } from "@/lib/api";
+import type { Plan } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: { absolute: "Kuador · El tablero de tu empresa, con agentes de IA" },
+  title: { absolute: "Kuador Go · El tablero de tu empresa, con agentes de IA" },
   description:
     "Organiza ventas, operación, proyectos o software en un tablero donde personas y agentes de IA avanzan el mismo flujo. Tú apruebas lo que importa.",
   robots: { index: true, follow: true },
@@ -55,12 +58,14 @@ const NEXT: { area: string; text: string }[] = [
 ];
 
 /** Presentación del producto en go.kuador.com para quien todavía no entra. Una idea por sección; datos de ejemplo, sin cifras inventadas. */
-export default function ProductPage() {
+export default async function ProductPage() {
+  // Los planes viven en la base; si la API no responde, la página se muestra sin precios.
+  const plans: Plan[] = await boardApi.plans().catch(() => []);
   return (
     <div className="app-dark min-h-dvh bg-page text-fg">
       <header className="sticky top-0 z-20 border-b border-line/60 bg-page/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-6 px-4 sm:px-6">
-          <Link href="/" aria-label="Inicio">
+          <Link href="/" aria-label="Kuador Go, inicio">
             <ProductLogo />
           </Link>
           <div className="ml-auto flex items-center gap-2">
@@ -150,7 +155,7 @@ export default function ProductPage() {
             <div className="flex max-w-[48rem] flex-col gap-6">
               <span className="flex items-center gap-3 font-mono text-[12px] text-[#ffd66b]">
                 04
-                <span className="rounded-full border border-[#ffb81c]/40 px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-[#ffd66b]">Premium</span>
+                <span className="rounded-full border border-[#ffb81c]/40 px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-[#ffd66b]">Plan Factory</span>
               </span>
               <h2 id="fabrica-t" className={`${display} text-[2.25rem] leading-[1.05] tracking-[-0.035em] sm:text-[3.5rem]`}>
                 Si haces software, tienes una fábrica.
@@ -184,7 +189,34 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <Chapter id="en-camino" index="05" title="Lo que viene." lead="Software es el primer flujo que llevamos completo. Siguen otros, con agentes listos de fábrica.">
+        {plans.length > 0 && (
+          <Chapter id="planes" index="05" title="Elige cómo empezar." lead="Empieza gratis y cambia de plan cuando lo necesites. Los planes de pago traen días de prueba.">
+            <ul className={`grid gap-4 ${plans.length >= 3 ? "lg:grid-cols-3" : "md:grid-cols-2"}`}>
+              {plans.map((p) => (
+                <li key={p.code}>
+                  <PlanCard
+                    plan={p}
+                    tone="landing"
+                    action={
+                      <Link
+                        href={`/signup?plan=${encodeURIComponent(p.code)}`}
+                        className={
+                          p.highlighted
+                            ? "inline-flex h-11 items-center justify-center gap-2 rounded-md bg-sol px-5 text-[14px] font-semibold text-on-sol hover:brightness-110"
+                            : "inline-flex h-11 items-center justify-center rounded-md border border-line-strong px-5 text-[14px] font-medium text-fg-strong hover:bg-hover"
+                        }
+                      >
+                        {p.priceMonthly === 0 ? "Empezar gratis" : p.trialDays > 0 ? "Probar " + p.name : "Elegir " + p.name}
+                      </Link>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          </Chapter>
+        )}
+
+        <Chapter id="en-camino" index={plans.length > 0 ? "06" : "05"} title="Lo que viene." lead="Software es el primer flujo que llevamos completo. Siguen otros, con agentes listos de fábrica.">
           <ul className="grid gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-3">
             {NEXT.map((n) => (
               <li key={n.area} className="flex flex-col gap-4 bg-page p-8">

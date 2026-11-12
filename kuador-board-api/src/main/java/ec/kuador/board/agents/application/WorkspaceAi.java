@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Anthropic antes de guardarla, se guarda cifrada y nunca se vuelve a mostrar (solo sus últimos caracteres).
  */
 @Service
-public class WorkspaceAi {
+public class WorkspaceAi implements AiKeyProvider {
 
     /** Modelos que se ofrecen; el primero es el que se usa si no se elige otro. */
     public static final List<String> MODELS = List.of("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5");
@@ -75,6 +75,12 @@ public class WorkspaceAi {
     public Status remove() {
         store.deleteAiKey(TenantContext.require());
         return status();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> currentKey() {
+        return key().map(Key::apiKey);
     }
 
     /** La clave del espacio actual, si hay. */

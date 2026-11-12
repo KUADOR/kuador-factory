@@ -33,6 +33,7 @@ import org.springframework.stereotype.Component;
 class ClaudeProductOwnerModel implements ProductOwnerModel {
 
     private final AnthropicClient client;
+    private final String baseUrl;
     private final String model;
     private final OutputConfig.Effort effort;
     private final boolean refusalFallback;
@@ -50,6 +51,7 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
                 .maxRetries(2);
         if (!baseUrl.isBlank()) client.baseUrl(baseUrl.strip());
         this.client = apiKey.isBlank() ? null : client.build();
+        this.baseUrl = baseUrl.strip();
         this.model = model;
         this.effort = OutputConfig.Effort.of(effort.strip().toLowerCase());
         this.refusalFallback = refusalFallback;
@@ -66,8 +68,24 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
     }
 
     @Override
+    public Result propose(String apiKey, PoContext context) {
+        AnthropicOkHttpClient.Builder b = AnthropicOkHttpClient.builder().apiKey(apiKey.strip()).timeout(Duration.ofMinutes(10)).maxRetries(2);
+        if (!baseUrl.isEmpty()) b.baseUrl(baseUrl);
+        AnthropicClient own = b.build();
+        try {
+            return propose(own, context);
+        } finally {
+            own.close();
+        }
+    }
+
+    @Override
     public Result propose(PoContext context) {
         if (client == null) throw new AgentModelException(unavailableReason());
+        return propose(client, context);
+    }
+
+    private Result propose(AnthropicClient client, PoContext context) {
         StructuredMessageCreateParams.Builder<PoProposal> builder = MessageCreateParams.builder()
                 .model(model)
                 .maxTokens(16_000L)

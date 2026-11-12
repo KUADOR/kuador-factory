@@ -43,6 +43,8 @@ class ProductOwnerAgentTest {
     private final List<String> comments = new ArrayList<>();
     private final List<String> writes = new ArrayList<>();
     private final List<PoContext> seen = new ArrayList<>();
+    private final List<String> keysUsed = new ArrayList<>();
+    private String workspaceKey;
     private InMemoryProjects projects;
     private boolean available = true;
     private Function<PoContext, ProductOwnerModel.Result> modelBehaviour;
@@ -70,6 +72,7 @@ class ProductOwnerAgentTest {
             public boolean available() { return available; }
             public String unavailableReason() { return "falta ANTHROPIC_API_KEY"; }
             public Result propose(PoContext c) { seen.add(c); return modelBehaviour.apply(c); }
+            public Result propose(String key, PoContext c) { keysUsed.add(key); seen.add(c); return modelBehaviour.apply(c); }
         };
         IssueApi issues = new ec.kuador.board.testing.IssueApiStub() {
             public Optional<IssueRef> find(String k) { return Optional.empty(); }
@@ -101,7 +104,8 @@ class ProductOwnerAgentTest {
         };
         projects = new InMemoryProjects();
         projects.add("KUA", "SOFTWARE", "SDD");
-        agent = new ProductOwnerAgent(runRepo, model, issues, docs, projects, memberApi, new InMemoryCatalog(), new NoTx(), Clock.fixed(NOW, ZoneOffset.UTC));
+        agent = new ProductOwnerAgent(runRepo, model, issues, docs, projects, memberApi, new InMemoryCatalog(), new NoTx(), Clock.fixed(NOW, ZoneOffset.UTC),
+                () -> Optional.ofNullable(workspaceKey));
     }
 
     private static IssueApi.IssueContext issue(String key, String title, String type, Integer points, String parent, UUID assignee,
@@ -201,10 +205,19 @@ class ProductOwnerAgentTest {
 
         available = false;
         agent.onAssigned(assignedBy(PERSON, PO));
-        assertThat(onlyRun().summary()).contains("ANTHROPIC_API_KEY");
+        assertThat(onlyRun().summary()).contains("Conexiones → IA");
 
         assertThat(seen).as("en ningún caso se llamó al modelo").isEmpty();
         assertThat(comments).isEmpty();
+    }
+
+    @Test
+    void usesTheCompanyKeyWhenItHasOne() {
+        available = false; // el servidor no tiene clave propia
+        workspaceKey = "sk-ant-de-la-empresa";
+        agent.onAssigned(assignedBy(PERSON, PO));
+        assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);
+        assertThat(keysUsed).containsExactly("sk-ant-de-la-empresa");
     }
 
     @Test

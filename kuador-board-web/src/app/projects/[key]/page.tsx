@@ -30,11 +30,16 @@ export default async function BoardPage({ params, searchParams }: Props) {
       boardApi.agentRuns({ limit: 50 }).catch(() => []),
       boardApi.me(),
       boardApi.catalog("roles"),
+      boardApi.boardTeam(projectKey).catch(() => null),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, issues, members, runs, me, roles] = data;
+  const [project, issues, everyone, runs, me, roles, team] = data;
+  // En este tablero se asignan las personas y su equipo de agentes; se conservan los agentes que ya tienen tarjetas aquí.
+  const teamIds = new Set((team ?? []).filter((a) => a.inTeam).map((a) => a.id));
+  const assigned = new Set(issues.map((i) => i.assigneeId).filter(Boolean));
+  const members = team == null ? everyone : everyone.filter((m) => m.kind === "HUMAN" || teamIds.has(m.id) || assigned.has(m.id));
   const pending = canEdit(me) ? await pendingSetup(project, issues.length) : 0;
   return (
     <>

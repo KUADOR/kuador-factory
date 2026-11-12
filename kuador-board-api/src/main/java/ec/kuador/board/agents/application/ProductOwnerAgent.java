@@ -57,9 +57,11 @@ public class ProductOwnerAgent {
     private final CatalogApi catalog;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final AiKeyProvider keys;
 
     ProductOwnerAgent(AgentRunRepository runs, ProductOwnerModel model, IssueApi issues, DocsApi docs, ProjectApi projects,
-            MemberApi members, CatalogApi catalog, PlatformTransactionManager txManager, Clock clock) {
+            MemberApi members, CatalogApi catalog, PlatformTransactionManager txManager, Clock clock, AiKeyProvider keys) {
+        this.keys = keys;
         this.runs = runs;
         this.model = model;
         this.issues = issues;
@@ -103,8 +105,10 @@ public class ProductOwnerAgent {
             finish(run.skipped("El rol «" + roleName + "» no tiene automatización configurada en el catálogo.", now()));
             return;
         }
-        if (!model.available()) {
-            finish(run.skipped(model.unavailableReason(), now()));
+        // La clave de la empresa (Conexiones → IA); la del servidor solo como respaldo si existe.
+        Optional<String> key = tx.execute(s -> keys.currentKey());
+        if (key.isEmpty() && !model.available()) {
+            finish(run.skipped("Falta la clave de IA del espacio: ponla en Conexiones → IA y vuelve a asignar el issue.", now()));
             return;
         }
 
@@ -115,7 +119,7 @@ public class ProductOwnerAgent {
                 return;
             }
             log.info("{} trabajando en {} (ejecución {})", agent.get().name(), event.issueKey(), run.id());
-            ProductOwnerModel.Result result = model.propose(context);
+            ProductOwnerModel.Result result = key.isPresent() ? model.propose(key.get(), context) : model.propose(context);
             PoProposal proposal = validate(result.proposal());
             String summary = tx.execute(s -> apply(agent.get(), requester.get(), context, proposal));
             finish(run.succeeded(result.model(), result.inputTokens(), result.outputTokens(), summary, now()));

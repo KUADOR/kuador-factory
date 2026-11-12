@@ -10,6 +10,9 @@ public interface ProductOwnerModel {
 
     String unavailableReason();
 
-    /** Lanza {@link AgentModelException} si el modelo falla, declina o la respuesta no sirve. */
+    /** Con la clave del servidor. Lanza {@link AgentModelException} si el modelo falla, declina o la respuesta no sirve. */
     Result propose(PoContext context);
+
+    /** Con la clave de IA de la empresa. */
+    Result propose(String apiKey, PoContext context);
 }

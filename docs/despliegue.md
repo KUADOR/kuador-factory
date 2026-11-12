@@ -97,35 +97,17 @@ persona, con su propia suscripción, conectados al MCP.
 
 ## 3b. Garage (adjuntos)
 
-Los adjuntos de las tarjetas viven en Garage, compatible con S3, en la red interna. Sin Garage el
-tablero funciona igual y la pestaña *Adjuntos* dice que no están habilitados.
+Los adjuntos de las tarjetas viven en Garage (compatible con S3) en la red interna. Guía completa,
+con los pasos tal como se instaló y los problemas conocidos: **[garage.md](garage.md)**.
 
-1. En Dokploy: *Create Service → Compose*, desde este repositorio, con **Compose Path**
-   `infra/garage/compose.dokploy.yaml`.
-2. Variables del servicio (*Environment*), generadas en tu máquina:
-   ```
-   GARAGE_RPC_SECRET=   # openssl rand -hex 32
-   GARAGE_ADMIN_TOKEN=  # openssl rand -base64 32
-   ```
-3. *Deploy*. No lleva dominio ni puertos: el API lo alcanza como `http://garage:3900` por
-   `dokploy-network`.
-4. Una sola vez, por SSH en el servidor, desde una copia de `infra/garage/setup.sh`:
-   ```
-   CONTAINER=$(docker ps --filter ancestor=dxflrs/garage:v2.5.0 --format '{{.Names}}' | head -1) ./setup.sh
-   ```
-   Imprime las variables `BOARD_STORAGE_S3_*`; se puede volver a correr y da la misma clave.
-5. En el servicio del API agrega esas variables y redespliega:
-   ```
-   BOARD_STORAGE_S3_ENDPOINT=http://garage:3900
-   BOARD_STORAGE_S3_REGION=garage
-   BOARD_STORAGE_S3_BUCKET=kuador-adjuntos
-   BOARD_STORAGE_S3_ACCESS_KEY=GK…
-   BOARD_STORAGE_S3_SECRET_KEY=…
-   BOARD_STORAGE_MAX_FILE_SIZE=25MB   # opcional
-   ```
-   Al arrancar, el log del API dice `Adjuntos en el bucket kuador-adjuntos`.
+Resumen:
 
-Respaldo: los volúmenes `garage-meta` y `garage-data` del servicio.
+1. Servicio *Compose* en Dokploy con `infra/garage/compose.dokploy.yaml` y las variables
+   `GARAGE_RPC_SECRET` y `GARAGE_ADMIN_TOKEN`.
+2. Por SSH, una vez: copiar `infra/garage/setup.sh` al servidor y correr
+   `CONTAINER=$(docker ps --filter ancestor=dxflrs/garage:v2.5.0 --format '{{.Names}}' | head -1) ./setup.sh`.
+3. Pegar las variables `BOARD_STORAGE_S3_*` que imprime en el API, redesplegar y ver en el log
+   `Adjuntos en el bucket kuador-adjuntos`.
 
 ## 4. Servicio de la web
 

@@ -91,9 +91,8 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
   (`nosniff`). Al borrar una tarjeta se borran sus archivos.
 - Los agentes ven los adjuntos en `get_issue` y leen los de texto (Markdown, TXT, CSV, JSON, YAML,
   XML, hasta 200 KB) con `read_attachment`.
-- En local: `cd infra/garage && cp .env.example .env` (y completa los dos secretos),
-  `docker compose up -d`, `./setup.sh`, y pon las variables `BOARD_STORAGE_S3_*` que imprime en el
-  `.env` del API con `BOARD_STORAGE_S3_ENDPOINT=http://127.0.0.1:3900`.
+- Instalación en local y en Dokploy, problemas conocidos, respaldo y rotación de claves:
+  [docs/garage.md](docs/garage.md).
 
 ## Interfaz
 

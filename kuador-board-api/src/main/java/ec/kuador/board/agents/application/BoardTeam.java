@@ -109,8 +109,24 @@ public class BoardTeam extends TenantAwareListener {
     @org.springframework.scheduling.annotation.Async
     @TransactionalEventListener
     void on(ProjectCreated event) {
-        inTenantTransaction(event, () -> members.agents().stream().filter(m -> event.teamRoles().contains(m.role()))
-                .forEach(m -> store.addToTeam(event.workspaceId(), event.projectKey(), m.id())));
+        inTenantTransaction(event, () -> {
+            Map<UUID, AgentTeamStore.Profile> profiles = store.profiles(event.workspaceId());
+            // Un rol del equipo sin agente en el espacio (p. ej. un rol que llegó con una versión del catálogo): se crea su agente.
+            for (String roleKey : event.teamRoles()) {
+                if (members.agents().stream().anyMatch(m -> m.role().equals(roleKey))) continue;
+                catalog.role(roleKey).ifPresent(role -> {
+                    CatalogApi.AgentSeed seed = catalog.agentSeed(roleKey).orElse(new CatalogApi.AgentSeed(roleKey, "Agente " + role.name(), COLORS[0]));
+                    members.createAgent(role.key(), seed.memberName(), role.description(), seed.color());
+                });
+            }
+            members.agents().stream().filter(m -> event.teamRoles().contains(m.role())).forEach(m -> {
+                store.addToTeam(event.workspaceId(), event.projectKey(), m.id());
+                // Fuera de software nadie tiene un Claude Code abierto: el agente trabaja en el tablero (si nadie eligió otra cosa).
+                if (!event.software() && !profiles.containsKey(m.id())) {
+                    store.saveProfile(event.workspaceId(), new AgentTeamStore.Profile(m.id(), AgentMode.SERVER, null), clock.instant());
+                }
+            });
+        });
     }
 
     private TeamAgent view(MemberView m, AgentTeamStore.Profile p, boolean inTeam) {

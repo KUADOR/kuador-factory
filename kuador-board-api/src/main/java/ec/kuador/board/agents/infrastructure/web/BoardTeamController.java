@@ -23,10 +23,42 @@ class BoardTeamController {
 
     private final BoardTeam team;
     private final WorkspaceAi ai;
+    private final ec.kuador.board.agents.application.AiUsage usage;
 
-    BoardTeamController(BoardTeam team, WorkspaceAi ai) {
+    BoardTeamController(BoardTeam team, WorkspaceAi ai, ec.kuador.board.agents.application.AiUsage usage) {
         this.team = team;
         this.ai = ai;
+        this.usage = usage;
+    }
+
+    record BudgetRequest(java.math.BigDecimal budgetUsd) {}
+
+    record PriceRequest(@jakarta.validation.constraints.NotNull java.math.BigDecimal inputPerMTok,
+            @jakarta.validation.constraints.NotNull java.math.BigDecimal outputPerMTok) {}
+
+    @GetMapping("/api/workspace/ai/usage")
+    ec.kuador.board.agents.application.AiUsage.Report usage() {
+        return usage.report();
+    }
+
+    @PutMapping("/api/workspace/ai/budget")
+    ec.kuador.board.agents.application.AiUsage.Report budget(@RequestBody BudgetRequest r) {
+        return usage.setBudget(r.budgetUsd(), ai.status().configured());
+    }
+
+    @GetMapping("/api/platform/ai-prices")
+    List<ec.kuador.board.agents.domain.AiUsageStore.Price> prices() {
+        return usage.prices();
+    }
+
+    @PutMapping("/api/platform/ai-prices/{model}")
+    List<ec.kuador.board.agents.domain.AiUsageStore.Price> savePrice(@PathVariable String model, @Valid @RequestBody PriceRequest r) {
+        return usage.savePrice(model, r.inputPerMTok(), r.outputPerMTok());
+    }
+
+    @DeleteMapping("/api/platform/ai-prices/{model}")
+    List<ec.kuador.board.agents.domain.AiUsageStore.Price> deletePrice(@PathVariable String model) {
+        return usage.deletePrice(model);
     }
 
     record AddRequest(@NotNull UUID memberId) {}

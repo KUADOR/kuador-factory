@@ -22,6 +22,7 @@ const STEPS = ["Plan", "Tu correo", "Código", "Tu empresa", "Tu cuenta"] as con
 export function SignupFlow({ plans, initialPlan, packages = [] }: { plans: Plan[]; initialPlan: string | null; packages?: CatalogPackage[] }) {
   // A qué se dedica la empresa: arranca con el tablero de ese paquete y ve primero sus plantillas.
   const [packageCode, setPackageCode] = useState<string | null>(packages[0]?.code ?? null);
+  const starterKey = packages.find((p) => p.code === packageCode)?.starterKey ?? null;
   // Sin planes a la venta se salta el primer paso.
   const [step, setStep] = useState(plans.length > 0 ? 0 : 1);
   const [planCode, setPlanCode] = useState<string | null>(initialPlan);
@@ -246,8 +247,8 @@ export function SignupFlow({ plans, initialPlan, packages = [] }: { plans: Plan[
                       password: owner.password,
                       plan: planCode,
                       packageCode,
-                      // Con un plan de pago, al terminar se va a pagarlo (o a seguir con la prueba).
-                      next: plan && plan.priceMonthly > 0 ? "/workspace/plan?bienvenida=1" : undefined,
+                      // Al terminar: el asistente del tablero inicial del paquete; si no hay, a pagar el plan (o seguir con la prueba).
+                      next: starterKey ? `/projects/${starterKey}/inicio` : plan && plan.priceMonthly > 0 ? "/workspace/plan?bienvenida=1" : undefined,
                     });
                     if (r && !r.ok) fail(r.error);
                   });

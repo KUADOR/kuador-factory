@@ -97,4 +97,14 @@ public class InMemoryCatalog implements CatalogApi {
     public java.util.Optional<StarterBoard> choosePackage(String code) {
         return java.util.Optional.empty();
     }
+
+    @Override
+    public List<String> defaultTeam(String templateKey) {
+        return templates.stream().filter(t -> t.key().equals(templateKey)).findFirst().map(WorkflowTemplate::teamRoles).orElse(List.of());
+    }
+
+    @Override
+    public java.util.Optional<AgentSeed> agentSeed(String roleKey) {
+        return FACTORY.agentSeeds().stream().filter(a -> a.roleKey().equals(roleKey)).findFirst();
+    }
 }

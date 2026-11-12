@@ -129,6 +129,19 @@ public class CatalogService implements CatalogApi {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<String> defaultTeam(String templateKey) {
+        List<String> own = workflowTemplate(templateKey).map(WorkflowTemplate::teamRoles).orElse(List.of());
+        if (!own.isEmpty()) return own;
+        return factory.workflowTemplates().stream().filter(t -> t.key().equals(templateKey)).findFirst().map(WorkflowTemplate::teamRoles).orElse(List.of());
+    }
+
+    @Override
+    public Optional<AgentSeed> agentSeed(String roleKey) {
+        return factory.agentSeeds().stream().filter(s -> s.roleKey().equals(roleKey)).findFirst();
+    }
+
+    @Override
     @Transactional
     public Optional<StarterBoard> choosePackage(String code) {
         if (code == null || code.isBlank()) return Optional.empty();

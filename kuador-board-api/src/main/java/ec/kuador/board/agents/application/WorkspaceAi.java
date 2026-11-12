@@ -29,8 +29,10 @@ public class WorkspaceAi implements AiKeyProvider {
     private final BoardAgentModel model;
     private final SecretBox secrets;
     private final Clock clock;
+    private final AiUsage usage;
 
-    WorkspaceAi(AgentTeamStore store, BoardAgentModel model, SecretBox secrets, Clock clock) {
+    WorkspaceAi(AgentTeamStore store, BoardAgentModel model, SecretBox secrets, Clock clock, AiUsage usage) {
+        this.usage = usage;
         this.store = store;
         this.model = model;
         this.secrets = secrets;
@@ -75,6 +77,11 @@ public class WorkspaceAi implements AiKeyProvider {
     public Status remove() {
         store.deleteAiKey(TenantContext.require());
         return status();
+    }
+
+    @Override
+    public boolean overBudget() {
+        return usage.overBudget();
     }
 
     @Override

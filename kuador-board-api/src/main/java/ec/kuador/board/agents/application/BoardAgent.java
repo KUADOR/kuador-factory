@@ -107,6 +107,12 @@ public class BoardAgent {
             finish(run.skipped(why, clock.instant()));
             return;
         }
+        if (Boolean.TRUE.equals(tx.execute(s -> ai.overBudget()))) {
+            String why = "El espacio llegó a su tope mensual de IA. Quien administra puede subirlo en Conexiones → IA.";
+            tx.executeWithoutResult(s -> returnCard(agent.get(), requester.get(), event.issueKey(), "⚠️ No pude empezar: " + why));
+            finish(run.skipped(why, clock.instant()));
+            return;
+        }
         try {
             BoardAgentModel.Task task = tx.execute(s -> task(agent.get(), event.issueKey()));
             if (task == null) {

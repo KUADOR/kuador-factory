@@ -28,6 +28,15 @@ public interface CatalogApi {
     /** Datos de fábrica para sembrar un espacio nuevo, incluidos los agentes que nacen con él. */
     record AgentSeed(String roleKey, String memberName, String color) {}
 
+    /**
+     * Roles del equipo de agentes por defecto de una plantilla: los de la copia del espacio o, si no declara ninguno
+     * (copias anteriores a los equipos), los de la plantilla publicada en la plataforma.
+     */
+    java.util.List<String> defaultTeam(String templateKey);
+
+    /** Nombre y color del agente que nace con un rol (del catálogo de la plataforma). */
+    java.util.Optional<AgentSeed> agentSeed(String roleKey);
+
     /** El tablero con el que arranca un espacio según su paquete. */
     record StarterBoard(String key, String name, String templateKey) {}
 

@@ -107,6 +107,10 @@ public class ProductOwnerAgent {
         }
         // La clave de la empresa (Conexiones → IA); la del servidor solo como respaldo si existe.
         Optional<String> key = tx.execute(s -> keys.currentKey());
+        if (Boolean.TRUE.equals(tx.execute(s -> keys.overBudget()))) {
+            finish(run.skipped("El espacio llegó a su tope mensual de IA (Conexiones → IA).", now()));
+            return;
+        }
         if (key.isEmpty() && !model.available()) {
             finish(run.skipped("Falta la clave de IA del espacio: ponla en Conexiones → IA y vuelve a asignar el issue.", now()));
             return;

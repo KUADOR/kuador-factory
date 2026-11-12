@@ -421,6 +421,16 @@ MCP · 5 desarrollo y QA · 6 release.
   `ask_human`. El tablero adjunta lo que generó, comenta el resumen y devuelve la tarjeta a quien se la
   asignó (le llega el aviso). Si falta la clave o algo falla, lo dice en la tarjeta. Los archivos
   subidos y generados se borran de Anthropic al terminar.
+- **Consumo de IA** (*Conexiones → IA*): tokens y costo estimado del mes, en total y por agente, a
+  partir de las ejecuciones de los agentes en el tablero y de los precios por modelo que configura la
+  plataforma (*Plataforma → Precios de modelos de IA*, USD por millón de tokens; no están fijos en el
+  código). Con un **tope mensual**, los agentes no arrancan al llegar a él y lo dicen en la tarjeta.
+  No incluye el tiempo de ejecución de código ni a los agentes en la PC de una persona.
+- **Primera experiencia fuera de software**: el asistente de inicio de un tablero que no es de software
+  pide la clave de IA, los avisos y un *primer pedido* (qué necesitas, archivos y para qué agente, en un
+  paso); sus agentes nacen trabajando en el tablero, «Etapas» y «Reglas» quedan en *Avanzado* y
+  «Agentes locales» solo aparece si hay tableros de software. Tras el alta con paquete se entra directo
+  al asistente del tablero inicial. Si un rol del equipo no tiene agente en el espacio, se crea.
 - Ejemplo: el rol **Analista de datos e informes** (plantillas Ventas y Tareas): adjuntas un Excel con
   las ventas, le asignas «Informe de ventas diarias de octubre» y te devuelve un PDF con totales,
   gráficos y observaciones.

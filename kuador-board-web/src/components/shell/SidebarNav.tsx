@@ -90,9 +90,12 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
               <NavLink href="/conexiones" active={path.startsWith("/conexiones")}>
                 <Plug className="size-4 shrink-0" aria-hidden /> Conexiones
               </NavLink>
-              <NavLink href="/agentes-locales" active={path.startsWith("/agentes-locales")}>
-                <SquareTerminal className="size-4 shrink-0" aria-hidden /> Agentes locales
-              </NavLink>
+              {/* Conectar el Claude Code o Codex de cada persona solo tiene sentido con tableros de software. */}
+              {projects.some((p) => p.kind === "SOFTWARE") && (
+                <NavLink href="/agentes-locales" active={path.startsWith("/agentes-locales")}>
+                  <SquareTerminal className="size-4 shrink-0" aria-hidden /> Agentes locales
+                </NavLink>
+              )}
             </>
           )}
           {me.platformAdmin && (

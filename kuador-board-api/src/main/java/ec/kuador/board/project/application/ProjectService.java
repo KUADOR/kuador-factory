@@ -84,8 +84,8 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         }
         Project saved = projects.save(project);
         projects.saveColumns(saved.key(), template.columns());
-        events.publishEvent(new ec.kuador.board.project.ProjectCreated(UUID.randomUUID(), TenantContext.require(), saved.key(), template.teamRoles(),
-                clock.instant()));
+        events.publishEvent(new ec.kuador.board.project.ProjectCreated(UUID.randomUUID(), TenantContext.require(), saved.key(), catalog.defaultTeam(template.key()),
+                template.kind() == ec.kuador.board.catalog.ProjectKind.SOFTWARE, clock.instant()));
         return new ProjectWithColumns(saved, template.columns());
     }
 

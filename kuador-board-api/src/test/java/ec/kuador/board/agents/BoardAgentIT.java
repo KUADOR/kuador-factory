@@ -44,7 +44,8 @@ import tools.jackson.databind.ObjectMapper;
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
+        "board.sync.allowed-roots=", "board.platform.admins=flor@flores.test",
+        "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class BoardAgentIT {
 
     @Container
@@ -264,7 +265,7 @@ class BoardAgentIT {
                 .filter(a -> a.get("inTeam").asBoolean()).map(a -> a.get("role").asString()).toList().containsAll(List.of("ANALYST", "MARKETING")));
         JsonNode analyst = quiet("GET", "/api/projects/VEN/team", owner).valueStream().filter(a -> a.get("role").asString().equals("ANALYST"))
                 .findFirst().orElseThrow();
-        assertThat(analyst.get("mode").asString()).isEqualTo("LOCAL");
+        assertThat(analyst.get("mode").asString()).as("fuera de software, el agente trabaja en el tablero").isEqualTo("SERVER");
         String analystId = analyst.get("id").asString();
         assertThat(call("PUT", "/api/agents/" + analystId + "/profile", Map.of("mode", "SERVER"), owner).body().get("mode").asString()).isEqualTo("SERVER");
 
@@ -292,6 +293,25 @@ class BoardAgentIT {
                 .header("Authorization", "Bearer " + owner).build(), HttpResponse.BodyHandlers.ofByteArray());
         assertThat(pdf.body()).isEqualTo(PDF);
         assertThat(DELETED).as("no quedan archivos en Anthropic").contains("file_in_1", "file_out_1");
+
+        // Consumo del mes: con el precio del modelo (lo configura la plataforma), el costo estimado.
+        JsonNode usage = call("GET", "/api/workspace/ai/usage", null, owner).body();
+        assertThat(usage.get("runs").asLong()).isEqualTo(1);
+        assertThat(usage.get("inputTokens").asLong()).isEqualTo(1200);
+        assertThat(usage.get("costUsd").isNull()).as("sin precio no hay costo").isTrue();
+        assertThat(usage.get("unpricedModels").toString()).contains("claude-opus-5-5");
+        call("PUT", "/api/platform/ai-prices/claude-opus-5-5", Map.of("inputPerMTok", 5, "outputPerMTok", 25), owner);
+        usage = call("GET", "/api/workspace/ai/usage", null, owner).body();
+        assertThat(usage.get("costUsd").decimalValue()).as("1200 × 5 + 800 × 25 por millón").isEqualByComparingTo("0.03");
+        assertThat(usage.get("byAgent").get(0).get("name").asString()).isEqualTo(analyst.get("name").asString());
+
+        // Con el tope alcanzado, el agente no arranca y lo dice.
+        call("PUT", "/api/workspace/ai/budget", Map.of("budgetUsd", 0.01), owner);
+        String capped = call("POST", "/api/projects/VEN/issues", Map.of("title", "Informe con tope", "type", "TASK"), owner).body().get("key").asString();
+        call("PUT", "/api/issues/" + capped + "/assignee", Map.of("assigneeId", analystId), owner);
+        eventually("avisa el tope", () -> quiet("GET", "/api/issues/" + capped + "/comments", owner).toString().contains("tope mensual"));
+        assertThat(MESSAGES).as("no se llamó al modelo").hasSize(1);
+        call("PUT", "/api/workspace/ai/budget", java.util.Collections.singletonMap("budgetUsd", null), owner);
 
         // Sin clave, el agente no empieza y lo dice en la tarjeta.
         call("DELETE", "/api/workspace/ai", null, owner);

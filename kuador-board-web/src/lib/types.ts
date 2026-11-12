@@ -419,6 +419,24 @@ export interface TeamAgent {
   inTeam: boolean;
 }
 
+/** Consumo de IA del mes (agentes que trabajan en el tablero). Costos en USD; nulos si falta el precio de algún modelo. */
+export interface AiUsageReport {
+  month: string;
+  runs: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number | null;
+  byAgent: { agentId: string; name: string; runs: number; inputTokens: number; outputTokens: number; costUsd: number | null }[];
+  budgetUsd: number | null;
+  unpricedModels: string[];
+}
+
+export interface AiModelPrice {
+  model: string;
+  inputPerMTok: number;
+  outputPerMTok: number;
+}
+
 export interface WorkspaceAiStatus {
   configured: boolean;
   keyHint: string | null;

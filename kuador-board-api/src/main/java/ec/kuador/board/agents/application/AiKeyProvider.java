@@ -7,4 +7,9 @@ import java.util.Optional;
 public interface AiKeyProvider {
 
     Optional<String> currentKey();
+
+    /** Si el espacio llegó a su tope mensual de IA. */
+    default boolean overBudget() {
+        return false;
+    }
 }

@@ -8,7 +8,9 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Field, PasswordInput, SelectInput } from "@/components/ui/Field";
 import { Section } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
-import type { WorkspaceAiStatus } from "@/lib/types";
+import type { AiUsageReport, WorkspaceAiStatus } from "@/lib/types";
+
+import { AiUsageCard } from "./AiUsageCard";
 
 const MODEL_LABEL: Record<string, string> = {
   "claude-opus-5-5": "Claude Opus 5.5 (el más capaz)",
@@ -20,7 +22,7 @@ const MODEL_LABEL: Record<string, string> = {
  * Clave de IA de la empresa: con ella trabajan los agentes «en el tablero». Se comprueba con Anthropic, se guarda
  * cifrada y nunca se vuelve a mostrar. El consumo se cobra en la cuenta de Anthropic de la empresa.
  */
-export function AiConnection({ status: initial }: { status: WorkspaceAiStatus }) {
+export function AiConnection({ status: initial, usage }: { status: WorkspaceAiStatus; usage: AiUsageReport | null }) {
   const [status, setStatus] = useState(initial);
   const [key, setKey] = useState("");
   const [model, setModel] = useState(initial.defaultModel);
@@ -85,6 +87,7 @@ export function AiConnection({ status: initial }: { status: WorkspaceAiStatus })
             <Button loading={pending} disabled={model === status.defaultModel} onClick={() => save(null, model)}>Guardar modelo</Button>
           </div>
         )}
+        {status.configured && usage && <AiUsageCard usage={usage} />}
       </div>
       <ConfirmDialog
         open={confirm}

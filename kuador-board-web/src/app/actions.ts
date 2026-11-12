@@ -64,6 +64,8 @@ import type {
   CatalogPackage,
   PlatformCatalogEntry,
   PlatformCatalogSummary,
+  AiModelPrice,
+  AiUsageReport,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -157,6 +159,10 @@ export async function createIssueAction(
   input: IssueInput & { status: IssueStatus },
 ): Promise<ActionResult<Issue>> {
   return run(() => boardApi.createIssue(projectKey, input), boardPath(projectKey));
+}
+
+export async function assignIssueAction(projectKey: string, key: string, assigneeId: string | null): Promise<ActionResult<Issue>> {
+  return run(() => boardApi.assignIssue(key, assigneeId), boardPath(projectKey));
 }
 
 export async function updateIssueAction(
@@ -330,7 +336,8 @@ export async function signupCompleteAction(input: {
   const session = await run(() => boardApi.login(email, input.password));
   if (!session.ok) return session;
   await setSessionToken(session.data.token, session.data.expiresAt);
-  redirect(next === "/workspace/plan?bienvenida=1" ? next : "/");
+  // Solo destinos internos conocidos: el asistente del tablero inicial o el pago del plan.
+  redirect(next === "/workspace/plan?bienvenida=1" || (next && /^\/projects\/[A-Z0-9]{2,10}\/inicio$/.test(next)) ? next : "/");
 }
 
 export async function savePlatformCatalogEntryAction(
@@ -375,6 +382,18 @@ export async function removeFromTeamAction(key: string, memberId: string): Promi
 
 export async function setAgentProfileAction(memberId: string, input: { mode: AgentMode; model: string | null }): Promise<ActionResult<TeamAgent>> {
   return run(() => boardApi.setAgentProfile(memberId, input));
+}
+
+export async function setAiBudgetAction(budgetUsd: number | null): Promise<ActionResult<AiUsageReport>> {
+  return run(() => boardApi.setAiBudget(budgetUsd), "/conexiones");
+}
+
+export async function saveAiPriceAction(model: string, inputPerMTok: number, outputPerMTok: number): Promise<ActionResult<AiModelPrice[]>> {
+  return run(() => boardApi.saveAiPrice(model, inputPerMTok, outputPerMTok), "/plataforma");
+}
+
+export async function deleteAiPriceAction(model: string): Promise<ActionResult<AiModelPrice[]>> {
+  return run(() => boardApi.deleteAiPrice(model), "/plataforma");
 }
 
 export async function saveWorkspaceAiAction(input: { apiKey: string | null; defaultModel: string }): Promise<ActionResult<WorkspaceAiStatus>> {

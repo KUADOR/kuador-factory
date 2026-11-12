@@ -71,6 +71,8 @@ import type {
   CatalogPackage,
   PlatformCatalogEntry,
   PlatformCatalogSummary,
+  AiModelPrice,
+  AiUsageReport,
 } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
@@ -151,6 +153,12 @@ export const boardApi = {
     request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team/${encodeURIComponent(memberId)}`, { method: "DELETE" }),
   setAgentProfile: (memberId: string, input: { mode: AgentMode; model: string | null }) =>
     request<TeamAgent>(`/api/agents/${encodeURIComponent(memberId)}/profile`, json("PUT", input)),
+  aiUsage: () => request<AiUsageReport>("/api/workspace/ai/usage"),
+  setAiBudget: (budgetUsd: number | null) => request<AiUsageReport>("/api/workspace/ai/budget", json("PUT", { budgetUsd })),
+  aiPrices: () => request<AiModelPrice[]>("/api/platform/ai-prices"),
+  saveAiPrice: (model: string, inputPerMTok: number, outputPerMTok: number) =>
+    request<AiModelPrice[]>(`/api/platform/ai-prices/${encodeURIComponent(model)}`, json("PUT", { inputPerMTok, outputPerMTok })),
+  deleteAiPrice: (model: string) => request<AiModelPrice[]>(`/api/platform/ai-prices/${encodeURIComponent(model)}`, { method: "DELETE" }),
   workspaceAi: () => request<WorkspaceAiStatus>("/api/workspace/ai"),
   saveWorkspaceAi: (input: { apiKey: string | null; defaultModel: string }) => request<WorkspaceAiStatus>("/api/workspace/ai", json("PUT", input)),
   removeWorkspaceAi: () => request<WorkspaceAiStatus>("/api/workspace/ai", { method: "DELETE" }),
@@ -351,6 +359,7 @@ export const boardApi = {
   issues: (projectKey: string) => request<Issue[]>(`/api/projects/${encodeURIComponent(projectKey)}/issues`),
   createIssue: (projectKey: string, input: IssueInput & { status: IssueStatus }) =>
     request<Issue>(`/api/projects/${encodeURIComponent(projectKey)}/issues`, json("POST", input)),
+  assignIssue: (key: string, assigneeId: string | null) => request<Issue>(`/api/issues/${encodeURIComponent(key)}/assignee`, json("PUT", { assigneeId })),
   updateIssue: (key: string, input: IssueInput) =>
     request<Issue>(`/api/issues/${encodeURIComponent(key)}`, json("PUT", input)),
   moveIssue: (key: string, status: IssueStatus, index: number) =>

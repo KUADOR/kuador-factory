@@ -36,12 +36,14 @@ export default async function ProjectOnboardingPage({ params, searchParams }: Pa
       boardApi.agentKit("claude-code", []),
       boardApi.notifications().catch((): NotificationView | null => null),
       boardApi.issues(key),
+      software ? null : boardApi.workspaceAi().catch(() => null),
+      software ? [] : boardApi.boardTeam(key).catch(() => []),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, methodologies, link, github, templates, connections, kit, notifications, issues] = data;
-  const done = setupDone(project, link, connections, notifications, issues.length);
+  const [project, methodologies, link, github, templates, connections, kit, notifications, issues, ai, team] = data;
+  const done = setupDone(project, link, connections, notifications, issues.length, !!ai?.configured);
   const steps = setupSteps(project);
   const requested = typeof paso === "string" && steps.includes(paso as StepId) ? (paso as StepId) : null;
   return (
@@ -58,6 +60,8 @@ export default async function ProjectOnboardingPage({ params, searchParams }: Pa
       kit={kit}
       notifications={notifications}
       issueCount={issues.length}
+      ai={ai}
+      boardAgents={team.filter((a) => a.inTeam && a.mode === "SERVER")}
     />
   );
 }

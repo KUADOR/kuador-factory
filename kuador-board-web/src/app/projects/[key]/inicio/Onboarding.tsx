@@ -7,12 +7,25 @@ import { clsx } from "clsx";
 import { useState, useTransition } from "react";
 
 import { NotificationSettingsForm } from "@/app/account/NotificationSettingsForm";
-import { createIssueAction } from "@/app/actions";
+import { assignIssueAction, createIssueAction } from "@/app/actions";
+import { AiConnection } from "@/app/conexiones/AiConnection";
+import { SelectInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Field, TextArea, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
 import type { StepId } from "@/lib/onboarding";
-import type { AgentKit, ComponentTemplate, GitHubOverview, Methodology, NotificationView, Project, RepositoryLink, RunnerToken } from "@/lib/types";
+import type {
+  AgentKit,
+  ComponentTemplate,
+  GitHubOverview,
+  Methodology,
+  NotificationView,
+  Project,
+  RepositoryLink,
+  RunnerToken,
+  TeamAgent,
+  WorkspaceAiStatus,
+} from "@/lib/types";
 
 import { MethodologyPicker } from "../settings/MethodologyPicker";
 import { RepositoryForm } from "../settings/RepositoryForm";
@@ -20,6 +33,7 @@ import { PiecesSetupForm } from "../settings/repositorio/Pieces";
 
 
 const STEPS: Record<StepId, { title: string; description: string }> = {
+  ia: { title: "IA de la empresa", description: "La clave con la que trabajan tus agentes en el tablero. El consumo va a la cuenta de Anthropic de tu empresa y le puedes poner un tope." },
   metodologia: { title: "Metodología", description: "Qué documentos pide el proyecto (spec, plan, tareas…) y qué escribe cada agente." },
   repositorio: { title: "Repositorio y piezas", description: "Dónde vive el código: el tablero crea los repos con sus bases, o vinculas uno que ya existe." },
   agentes: { title: "Tu cliente de IA", description: "Tus agentes trabajan en tu Claude Code (o Codex) con tu suscripción, conectados al tablero." },
@@ -47,6 +61,8 @@ export function Onboarding({
   kit,
   notifications,
   issueCount,
+  ai = null,
+  boardAgents = [],
 }: {
   project: Project;
   steps: StepId[];
@@ -60,6 +76,8 @@ export function Onboarding({
   kit: AgentKit;
   notifications: NotificationView | null;
   issueCount: number;
+  ai?: WorkspaceAiStatus | null;
+  boardAgents?: TeamAgent[];
 }) {
   const router = useRouter();
   const base = `/projects/${project.key}/inicio`;
@@ -90,7 +108,7 @@ export function Onboarding({
             >
               {done[s] ? <Check className="size-3" aria-label="Listo" /> : i + 1}
             </span>
-            {STEPS[s].title}
+            {stepTitle(s, project)}
           </Link>
         ))}
       </nav>
@@ -102,9 +120,9 @@ export function Onboarding({
           <>
             <header>
               <h2 className="text-base font-semibold text-fg-strong">
-                {index + 1}. {STEPS[current].title}
+                {index + 1}. {stepTitle(current, project)}
               </h2>
-              <p className="mt-0.5 text-[13px] text-fg-muted">{STEPS[current].description}</p>
+              <p className="mt-0.5 text-[13px] text-fg-muted">{stepDescription(current, project)}</p>
             </header>
             <div className="rounded-lg border border-line bg-surface p-5">
               {current === "metodologia" && <MethodologyPicker project={project} methodologies={methodologies} />}
@@ -112,7 +130,13 @@ export function Onboarding({
               {current === "agentes" && <AgentsStep connections={connections} kit={kit} onCheck={() => router.refresh()} />}
               {current === "avisos" &&
                 (notifications ? <NotificationSettingsForm initial={notifications} /> : <p className="text-[13px] text-fg-muted">No se pudieron leer tus avisos.</p>)}
-              {current === "trabajo" && <FirstWork project={project} existing={issueCount} onCreated={() => go(next ?? "fin")} />}
+              {current === "ia" && (ai ? <AiConnection status={ai} usage={null} /> : <p className="text-[13px] text-fg-muted">No se pudo leer la IA del espacio.</p>)}
+              {current === "trabajo" &&
+                (project.kind === "SOFTWARE" ? (
+                  <FirstWork project={project} existing={issueCount} onCreated={() => go(next ?? "fin")} />
+                ) : (
+                  <FirstRequest project={project} agents={boardAgents} aiReady={!!ai?.configured} />
+                ))}
             </div>
             <div className="flex items-center justify-between">
               <Link href={`/projects/${project.key}`} className="k-link text-[13px]">
@@ -223,6 +247,121 @@ function startColumn(project: Project): string {
   return stage?.column ?? project.columns[0].key;
 }
 
+/** En tableros que no son de software, el primer trabajo es un pedido a un agente que trabaja en el tablero. */
+function stepTitle(step: StepId, project: Project): string {
+  return step === "trabajo" && project.kind !== "SOFTWARE" ? "Primer pedido" : STEPS[step].title;
+}
+
+function stepDescription(step: StepId, project: Project): string {
+  return step === "trabajo" && project.kind !== "SOFTWARE"
+    ? "Pídele algo a un agente del tablero, con tus archivos: por ejemplo, un informe de ventas a partir de tu Excel."
+    : STEPS[step].description;
+}
+
+/**
+ * Primer pedido a un agente del tablero: la tarjeta, sus archivos y la asignación en un solo paso. Se asigna al final,
+ * cuando los archivos ya están adjuntos, para que el agente los tenga al empezar.
+ */
+function FirstRequest({ project, agents, aiReady }: { project: Project; agents: TeamAgent[]; aiReady: boolean }) {
+  const router = useRouter();
+  const analyst = agents.find((a) => a.role === "ANALYST") ?? agents[0];
+  const [agentId, setAgentId] = useState<string | null>(analyst?.id ?? null);
+  const [title, setTitle] = useState(analyst?.role === "ANALYST" ? "Informe de ventas del último mes" : "");
+  const [description, setDescription] = useState(
+    analyst?.role === "ANALYST"
+      ? "Con el Excel adjunto, arma un informe en PDF de las ventas diarias del último mes: total del mes, promedio por día, los mejores y peores días, los productos que más se vendieron y una comparación con el mes anterior si los datos lo permiten."
+      : "",
+  );
+  const [files, setFiles] = useState<File[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  if (agents.length === 0) {
+    return (
+      <p className="text-[13px] text-fg-muted">
+        Este tablero no tiene agentes que trabajen en el tablero.{" "}
+        <Link href={`/projects/${project.key}/settings/equipo`} className="k-link">
+          Súmalos en Configuración → Equipo de agentes
+        </Link>
+        .
+      </p>
+    );
+  }
+
+  return (
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!agentId) return;
+        start(async () => {
+          const created = await createIssueAction(project.key, {
+            title: title.trim(),
+            description: description.trim() || null,
+            type: project.issueTypes.find((t) => t.type === "TASK")?.type ?? project.issueTypes[0].type,
+            priority: "MEDIUM",
+            storyPoints: null,
+            assigneeId: null,
+            parentKey: null,
+            labels: [],
+            status: project.columns[0].key,
+          });
+          if (!created.ok) return setError(created.error);
+          const key = created.data.key;
+          for (const file of files) {
+            const form = new FormData();
+            form.append("file", file);
+            const res = await fetch(`/adjuntos/${encodeURIComponent(key)}`, { method: "POST", body: form });
+            if (!res.ok) {
+              const problem = (await res.json().catch(() => null)) as { detail?: string } | null;
+              return setError(`Se creó ${key}, pero no se pudo adjuntar ${file.name}: ${problem?.detail ?? `error ${res.status}`}. Adjúntalo desde la tarjeta y asígnasela.`);
+            }
+          }
+          const assigned = await assignIssueAction(project.key, key, agentId);
+          if (!assigned.ok) return setError(assigned.error);
+          const name = agents.find((a) => a.id === agentId)?.name ?? "El agente";
+          notify.ok(`${name} está trabajando en ${key}`, "Te avisamos cuando entregue o si tiene una pregunta.");
+          router.push(`/projects/${project.key}?issue=${key}`);
+        });
+      }}
+    >
+      {!aiReady && (
+        <p role="status" className="rounded-md bg-warn/10 px-3 py-2 text-[13px] text-fg">
+          Primero guarda la clave de IA de la empresa (paso 1): sin ella el agente no puede empezar.
+        </p>
+      )}
+      <Field label="Para quién">
+        {(id) => <SelectInput id={id} value={agentId} onChange={setAgentId} options={agents.map((a) => ({ value: a.id, label: `${a.name} · ${a.roleName}` }))} />}
+      </Field>
+      <Field label="Qué necesitas">{(id) => <TextInput id={id} required maxLength={255} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
+      <Field label="Detalle" hint="Cuanto más claro (periodo, moneda, qué comparar), mejor. Si falta algo, el agente te pregunta.">
+        {(id) => <TextArea id={id} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} />}
+      </Field>
+      <Field label="Archivos" hint="Excel, CSV, PDF o imágenes, hasta 25 MB cada uno.">
+        {(id) => (
+          <input
+            id={id}
+            type="file"
+            multiple
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+            className="block w-full text-[13px] text-fg file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-[13px] file:text-fg-strong"
+          />
+        )}
+      </Field>
+      {error && (
+        <p role="alert" className="text-[13px] text-danger">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end">
+        <Button type="submit" tone="primary" loading={pending} disabled={!title.trim() || !agentId || !aiReady}>
+          Enviar pedido
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function FirstWork({ project, existing, onCreated }: { project: Project; existing: number; onCreated: () => void }) {
   const epic = project.issueTypes.some((t) => t.type === "EPIC");
   const [title, setTitle] = useState(project.kind === "SOFTWARE" ? "Esqueleto del sistema" : "");
@@ -284,7 +423,7 @@ function Finish({ project, issueCount, pending }: { project: Project; issueCount
       <h2 className="text-base font-semibold text-fg-strong">{pending.length === 0 ? "El proyecto está listo" : "Casi listo"}</h2>
       {pending.length > 0 && (
         <p className="text-[13px] text-fg-muted">
-          Quedaron sin hacer: {pending.map((s) => STEPS[s].title.charAt(0).toLowerCase() + STEPS[s].title.slice(1)).join(", ")}. Puedes volver a este asistente cuando quieras desde Configuración.
+          Quedaron sin hacer: {pending.map((s) => stepTitle(s, project).charAt(0).toLowerCase() + stepTitle(s, project).slice(1)).join(", ")}. Puedes volver a este asistente cuando quieras desde Configuración.
         </p>
       )}
       <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-[13px] text-fg">
@@ -297,10 +436,14 @@ function Finish({ project, issueCount, pending }: { project: Project; issueCount
             : los agentes las siguen en cada etapa.
           </li>
         )}
-        <li>
-          En tu repo, abre Claude Code y escribe <code className="font-mono text-xs">/pendientes</code>
-          {issueCount > 0 ? ": el PO empieza por tu primer trabajo." : "."}
-        </li>
+        {project.kind === "SOFTWARE" ? (
+          <li>
+            En tu repo, abre Claude Code y escribe <code className="font-mono text-xs">/pendientes</code>
+            {issueCount > 0 ? ": el PO empieza por tu primer trabajo." : "."}
+          </li>
+        ) : (
+          <li>Para pedirle algo a un agente, crea una tarjeta, adjunta lo que necesite y asígnasela: trabaja solo y te la devuelve con el resultado.</li>
+        )}
         <li>Te avisaremos cuando algo te necesite: una pregunta de un agente, una aprobación o un reparto de tareas.</li>
       </ol>
       <div>

@@ -77,7 +77,14 @@ class NoticeDispatcher implements ec.kuador.board.notify.infrastructure.web.Tele
     @Scheduled(fixedDelay = 3000, initialDelay = 5000)
     void poll() {
         if (webhooks()) return;
-        for (TelegramBotConfig bot : TenantContext.asRoot(bots::all)) {
+        java.util.List<TelegramBotConfig> all;
+        try {
+            all = TenantContext.asRoot(bots::all);
+        } catch (RuntimeException e) {
+            log.debug("No se pudieron leer los bots de Telegram: {}", e.getMessage());
+            return;
+        }
+        for (TelegramBotConfig bot : all) {
             if (skip.contains(bot.key())) continue;
             try {
                 for (JsonNode u : telegram.updates(bot.token(), offsets.getOrDefault(bot.key(), 0L))) {

@@ -1,28 +1,30 @@
 /**
- * Vista del tablero para la presentación: columnas por etapa, agentes trabajando, una tarea que espera a otra y una
- * puerta que aprueba una persona. Datos de ejemplo, no de un cliente.
+ * Vista del tablero para la presentación: trabajo de varias áreas, agentes avanzando tarjetas y una columna que aprueba
+ * una persona. Datos de ejemplo, no de un cliente.
  */
 type Card = { key: string; title: string; chips?: { text: string; tone: "role" | "wait" | "epic" | "gate" }[]; working?: string; who?: string };
 
 const COLUMNS: { name: string; note: string; cards: Card[] }[] = [
   {
-    name: "Refinamiento",
-    note: "Product Owner",
-    cards: [{ key: "CLI-21", title: "Recordatorios por WhatsApp", working: "Agente PO escribiendo la spec" }],
-  },
-  {
-    name: "Desarrollo",
-    note: "Backend · Frontend · DevOps",
+    name: "Pendiente",
+    note: "Lo que entra esta semana",
     cards: [
-      { key: "CLI-14", title: "API de citas", chips: [{ text: "Agenda", tone: "epic" }, { text: "Backend", tone: "role" }], working: "Agente Backend trabajando" },
-      { key: "CLI-15", title: "Pantalla de agenda", chips: [{ text: "Agenda", tone: "epic" }, { text: "Espera a CLI-14", tone: "wait" }] },
-      { key: "CLI-16", title: "Pipeline y contenedores", chips: [{ text: "DevOps", tone: "role" }], working: "Agente DevOps trabajando" },
+      { key: "OPS-31", title: "Reporte semanal de ventas", chips: [{ text: "Operación", tone: "epic" }], working: "Agente preparando el reporte" },
+      { key: "MKT-08", title: "Post del lanzamiento", chips: [{ text: "Marketing", tone: "role" }] },
     ],
   },
   {
-    name: "Revisión de PR",
-    note: "Aprueba una persona",
-    cards: [{ key: "CLI-12", title: "Alta de pacientes", chips: [{ text: "Por aprobar", tone: "gate" }], who: "D" }],
+    name: "En curso",
+    note: "Personas y agentes",
+    cards: [
+      { key: "VEN-14", title: "Seguimiento a Clínica Norte", chips: [{ text: "Ventas", tone: "wait" }], who: "A" },
+      { key: "CLI-14", title: "API de citas", chips: [{ text: "Software", tone: "role" }], working: "Agente Backend trabajando" },
+    ],
+  },
+  {
+    name: "Por aprobar",
+    note: "Decide una persona",
+    cards: [{ key: "MKT-05", title: "Campaña de diciembre", chips: [{ text: "Por aprobar", tone: "gate" }], who: "D" }],
   },
 ];
 
@@ -37,18 +39,18 @@ export function BoardPreview() {
   return (
     <div
       role="img"
-      aria-label="Ejemplo de tablero: un agente PO escribe una spec, los agentes de backend y DevOps trabajan en paralelo, el frontend espera al backend y un PR espera la aprobación de una persona."
+      aria-label="Ejemplo de tablero: un agente prepara un reporte, una persona da seguimiento a un cliente, un agente de backend programa y una campaña espera la aprobación de una persona."
       className="overflow-hidden rounded-xl border border-line-strong bg-[#0d1219] shadow-[0_24px_80px_-24px_rgb(0_0_0/0.8)]"
     >
       <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
         <span className="size-2 rounded-full bg-[#2a3644]" />
         <span className="size-2 rounded-full bg-[#2a3644]" />
         <span className="size-2 rounded-full bg-[#2a3644]" />
-        <span className="ml-3 font-mono text-[11px] text-fg-faint">go.kuador.com/projects/CLI</span>
+        <span className="ml-3 font-mono text-[11px] text-fg-faint">go.kuador.com</span>
       </div>
       <div className="grid grid-cols-2 gap-2.5 p-3 sm:grid-cols-3 sm:gap-3 sm:p-4">
         {COLUMNS.map((col, i) => (
-          // En pantallas chicas caben dos columnas: la tercera (la puerta) aparece desde sm.
+          // En pantallas chicas caben dos columnas: la tercera (la aprobación) aparece desde sm.
           <div key={col.name} className={i === 2 ? "hidden min-w-0 flex-col gap-2 sm:flex" : "flex min-w-0 flex-col gap-2"}>
             <div className="px-1">
               <p className="truncate text-[12px] font-semibold text-fg-strong">{col.name}</p>

@@ -78,6 +78,14 @@ class PaymentIT {
         }
     }
 
+    /** Clave de cifrado propia de la prueba (las credenciales de la pasarela se guardan cifradas). */
+    @org.springframework.test.context.DynamicPropertySource
+    static void props(org.springframework.test.context.DynamicPropertyRegistry r) {
+        byte[] key = new byte[32];
+        new java.security.SecureRandom().nextBytes(key);
+        r.add("board.secrets-key", () -> java.util.Base64.getEncoder().encodeToString(key));
+    }
+
     @TestConfiguration
     static class Mail {
         @Bean

@@ -82,6 +82,13 @@ class SignupIT {
 
         assertThatThrownBy(() -> signup.complete(token, new SignupService.Company("Otra", null, null, null, null, null), "Ana", "clave-de-ana-123", "FACTORY"))
                 .as("el token de alta se usa una sola vez").hasMessageContaining("venció");
+
+        // Con cuenta: al verificar el código (ya probó que el correo es suyo) se le dice que entre o recupere su contraseña.
+        workspaces.provision(new WorkspaceService.Brand("existe", "Existe", null, null, null, null),
+                new WorkspaceService.Owner("Eli", "eli@existe.test", "clave-de-eli-123"));
+        signup.requestCode("eli@existe.test");
+        assertThatThrownBy(() -> signup.verifyCode("eli@existe.test", INBOX.get("eli@existe.test")))
+                .isInstanceOf(SignupService.AccountExistsException.class).hasMessageContaining("ya tiene una cuenta");
     }
 
     @Test

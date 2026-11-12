@@ -69,7 +69,7 @@ async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<A
     if (error instanceof ApiError && error.status === 401) {
       expired = true;
     } else if (error instanceof ApiError) {
-      return { ok: false, error: error.message };
+      return { ok: false, error: error.message, status: error.status };
     } else {
       console.error(error);
       return { ok: false, error: "No se pudo conectar con la API del tablero." };

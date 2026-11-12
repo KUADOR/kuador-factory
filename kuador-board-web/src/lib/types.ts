@@ -591,7 +591,8 @@ export interface AgentsStatus {
   model: string;
 }
 
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+/** `status`: el código HTTP de la API cuando falló (p. ej. 409 si algo ya existe). */
+export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string; status?: number };
 
 /** Conexión de agentes locales de una persona (token que solo abre el servidor MCP del tablero). */
 export type RunnerToken = AgentToken;

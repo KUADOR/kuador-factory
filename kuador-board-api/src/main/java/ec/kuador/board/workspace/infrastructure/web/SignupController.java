@@ -71,6 +71,14 @@ class SignupController {
         return new CompleteResponse(signup.suggestSlug(name), name);
     }
 
+    @ExceptionHandler(SignupService.AccountExistsException.class)
+    ProblemDetail exists(SignupService.AccountExistsException e) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        pd.setTitle("Cuenta existente");
+        pd.setProperty("code", "ACCOUNT_EXISTS");
+        return pd;
+    }
+
     @ExceptionHandler(SignupService.TooManyRequestsException.class)
     ProblemDetail tooMany(SignupService.TooManyRequestsException e) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());

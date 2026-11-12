@@ -33,6 +33,8 @@ export function SignupFlow({ plans, initialPlan }: { plans: Plan[]; initialPlan:
   const [owner, setOwner] = useState({ name: "", password: "", confirm: "" });
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  // El correo verificado ya tiene cuenta: se ofrece entrar o recuperar la contraseña.
+  const [exists, setExists] = useState(false);
   const [pending, start] = useTransition();
 
   const fail = (message: string) => {
@@ -119,13 +121,34 @@ export function SignupFlow({ plans, initialPlan }: { plans: Plan[]; initialPlan:
               </form>
             )}
 
-            {step === 2 && (
+            {step === 2 && exists && (
+              <div className="flex flex-col gap-4">
+                <p className="text-[13px] text-fg">
+                  <span className="font-medium text-fg-strong">{email}</span> ya tiene una cuenta en Kuador Go. Entra con tu contraseña o recupérala si no la recuerdas.
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button href="/login" tone="primary" className="flex-1">Entrar</Button>
+                  <Button href="/recuperar" className="flex-1">Recuperar contraseña</Button>
+                </div>
+                <button type="button" className="k-link self-start text-xs" onClick={() => { setExists(false); setStep(1); setCode(""); }}>
+                  Usar otro correo
+                </button>
+              </div>
+            )}
+
+            {step === 2 && !exists && (
               <form
                 className="flex flex-col gap-4"
                 onSubmit={(e) => {
                   e.preventDefault();
                   start(async () => {
                     const r = await signupVerifyAction(email, code);
+                    if (!r.ok && r.status === 409) {
+                      setInfo(null);
+                      setError(null);
+                      setExists(true);
+                      return;
+                    }
                     if (!r.ok) return fail(r.error);
                     setToken(r.data.signupToken);
                     setError(null);

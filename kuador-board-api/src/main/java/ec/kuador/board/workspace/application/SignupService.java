@@ -17,6 +17,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.regex.Pattern;
+import ec.kuador.board.auth.AuthApi;
 import ec.kuador.board.billing.BillingApi;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -44,11 +45,13 @@ public class SignupService {
     private final TransactionTemplate tx;
     private final Clock clock;
     private final BillingApi billing;
+    private final AuthApi auth;
     private final SecureRandom random = new SecureRandom();
 
     SignupService(EmailVerificationRepository verifications, VerificationMailer mailer, WorkspaceService workspaces,
-            PlatformTransactionManager txManager, Clock clock, BillingApi billing) {
+            PlatformTransactionManager txManager, Clock clock, BillingApi billing, AuthApi auth) {
         this.billing = billing;
+        this.auth = auth;
         this.verifications = verifications;
         this.mailer = mailer;
         this.workspaces = workspaces;
@@ -96,11 +99,14 @@ public class SignupService {
                 int left = EmailVerification.MAX_ATTEMPTS - failed.attempts();
                 return new String[] {null, left > 0 ? "El código no es correcto. Te quedan " + left + " intento(s)." : "El código no es correcto. Pide uno nuevo."};
             }
+            // Ya demostró que el correo es suyo: si tiene cuenta se le dice ahora, no al final del alta.
+            if (auth.emailInUse(email)) return new String[] {null, null};
             String token = newToken();
             verifications.save(v.verified(hash(token), now));
             return new String[] {token, null};
         });
         if (result[1] != null) throw new DomainException(result[1]);
+        if (result[0] == null) throw new AccountExistsException();
         return result[0];
     }
 
@@ -166,6 +172,13 @@ public class SignupService {
     /** La tabla de verificaciones es global: se trabaja como root en una transacción corta. */
     private <T> T root(java.util.function.Supplier<T> work) {
         return TenantContext.asRoot(() -> tx.execute(s -> work.get()));
+    }
+
+    /** El correo verificado ya tiene cuenta: debe entrar o recuperar su contraseña. */
+    public static class AccountExistsException extends RuntimeException {
+        AccountExistsException() {
+            super("Ese correo ya tiene una cuenta en Kuador Go. Entra con tu contraseña o recupérala si no la recuerdas.");
+        }
     }
 
     public static class TooManyRequestsException extends RuntimeException {

@@ -416,6 +416,14 @@ export async function setLicenseAction(
   return run(() => boardApi.setLicense(workspaceId, input), "/plataforma");
 }
 
+/** Borra el tablero con todo su contenido y vuelve a la lista de proyectos. */
+export async function deleteProjectAction(key: string, confirm: string): Promise<ActionResult<void>> {
+  const r = await run(() => boardApi.deleteProject(key, confirm));
+  if (!r.ok) return r;
+  revalidatePath("/", "layout");
+  redirect("/");
+}
+
 export async function updateProjectAction(key: string, input: { name: string; description: string | null }): Promise<ActionResult<Project>> {
   return run(() => boardApi.updateProject(key, input), `/projects/${key}`);
 }

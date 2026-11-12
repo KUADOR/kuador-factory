@@ -10,6 +10,9 @@ public interface AttachmentStore {
 
     List<Attachment> byIssue(UUID workspaceId, String issueKey);
 
+    /** Los de todas las tarjetas de un tablero (sus claves empiezan con «CLAVE-»). */
+    List<Attachment> byProject(UUID workspaceId, String projectKey);
+
     Optional<Attachment> find(UUID workspaceId, UUID id);
 
     void delete(UUID workspaceId, UUID id);

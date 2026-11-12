@@ -33,6 +33,13 @@ class ActivityRecorder extends TenantAwareListener {
         inTenantTransaction(event, () -> record(event.eventId(), ActivityEntries.from(event)));
     }
 
+    /** Se borró un tablero: su actividad también. */
+    @Async
+    @TransactionalEventListener
+    void on(ec.kuador.board.project.ProjectDeleted event) {
+        inTenantTransaction(event, () -> activity.deleteByProject(event.workspaceId(), event.projectKey()));
+    }
+
     @Async
     @TransactionalEventListener
     void on(DocumentSaved event) {

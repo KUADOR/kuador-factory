@@ -17,6 +17,10 @@ interface SpringDataActivityRepository extends JpaRepository<ActivityEntity, UUI
     List<ActivityEntity> findByIssueKeyOrderByOccurredAtDescFieldAsc(String issueKey, Limit limit);
 
     List<ActivityEntity> findByProjectKeyOrderByOccurredAtDescFieldAsc(String projectKey, Limit limit);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("delete from ActivityEntity a where a.workspaceId = :workspaceId and a.projectKey = :projectKey")
+    void deleteByProject(UUID workspaceId, String projectKey);
 }
 
 @Repository
@@ -31,6 +35,11 @@ class JpaActivityRepository implements ActivityRepository {
     @Override
     public boolean existsByEventId(UUID eventId) {
         return jpa.existsByEventId(eventId);
+    }
+
+    @Override
+    public void deleteByProject(UUID workspaceId, String projectKey) {
+        jpa.deleteByProject(workspaceId, projectKey);
     }
 
     @Override

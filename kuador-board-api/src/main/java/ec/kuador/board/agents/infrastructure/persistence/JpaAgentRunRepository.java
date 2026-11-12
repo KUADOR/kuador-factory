@@ -22,6 +22,10 @@ interface SpringDataAgentRuns extends JpaRepository<AgentRunEntity, UUID> {
     List<AgentRunEntity> findRecent(UUID agentId, String issueKey, Limit limit);
 
     List<AgentRunEntity> findByStatusAndCreatedAtBefore(AgentRun.Status status, Instant before);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("delete from AgentRunEntity r where r.workspaceId = :workspaceId and r.projectKey = :projectKey")
+    void deleteByProject(UUID workspaceId, String projectKey);
 }
 
 @Repository
@@ -31,6 +35,11 @@ class JpaAgentRunRepository implements AgentRunRepository {
 
     JpaAgentRunRepository(SpringDataAgentRuns jpa) {
         this.jpa = jpa;
+    }
+
+    @Override
+    public void deleteByProject(UUID workspaceId, String projectKey) {
+        jpa.deleteByProject(workspaceId, projectKey);
     }
 
     @Override

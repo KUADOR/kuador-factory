@@ -178,6 +178,8 @@ export const boardApi = {
 
   projects: () => request<Project[]>("/api/projects"),
   project: (key: string) => request<Project>(`/api/projects/${encodeURIComponent(key)}`),
+  deleteProject: (key: string, confirm: string) =>
+    request<void>(`/api/projects/${encodeURIComponent(key)}?confirm=${encodeURIComponent(confirm)}`, { method: "DELETE" }),
   createProject: (input: { key: string; name: string; description: string | null; templateKey: string }) =>
     request<Project>("/api/projects", json("POST", input)),
   setMethodology: (key: string, methodology: string | null) =>

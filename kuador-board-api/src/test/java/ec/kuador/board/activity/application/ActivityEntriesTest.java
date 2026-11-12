@@ -49,6 +49,7 @@ class ActivityEntriesTest {
             public void saveAll(List<ActivityEntry> entries) { stored.addAll(entries); }
             public List<ActivityEntry> findByIssue(String key, int limit) { return stored; }
             public List<ActivityEntry> findByProject(String key, int limit) { return stored; }
+            public void deleteByProject(UUID workspaceId, String projectKey) { stored.removeIf(e -> e.projectKey().equals(projectKey)); }
         };
         ActivityRecorder recorder = new ActivityRecorder(repo, new NoTx());
         IssueMoved event = new IssueMoved(UUID.randomUUID(), TestTenant.WORKSPACE, "KUA-1", "KUA", ACTOR, NOW, "TODO", "DONE", "TODO", "DONE");

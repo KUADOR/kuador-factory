@@ -81,6 +81,14 @@ class JpaProjectRepository implements ProjectRepository {
     }
 
     @Override
+    public void delete(String key) {
+        jpa.findByKey(key).ifPresent(p -> {
+            jpa.delete(p);
+            jpa.flush();
+        });
+    }
+
+    @Override
     public boolean existsByKey(String key) {
         return jpa.existsByKey(key);
     }

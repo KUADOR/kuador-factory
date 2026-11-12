@@ -64,6 +64,7 @@ class ProductOwnerAgentTest {
             public void save(AgentRun r) { runs.put(r.id(), r); }
             public List<AgentRun> findRecent(UUID a, String i, int l) { return List.copyOf(runs.values()); }
             public List<AgentRun> findStuck(Instant b) { return runs.values().stream().filter(r -> r.status() == AgentRun.Status.RUNNING).toList(); }
+            public void deleteByProject(UUID workspaceId, String projectKey) { runs.values().removeIf(r -> r.projectKey().equals(projectKey)); }
         };
         ProductOwnerModel model = new ProductOwnerModel() {
             public boolean available() { return available; }

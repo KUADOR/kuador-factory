@@ -38,6 +38,12 @@ class JdbcAttachmentStore implements AttachmentStore {
     }
 
     @Override
+    public List<Attachment> byProject(UUID workspaceId, String projectKey) {
+        return jdbc.sql("select " + COLUMNS + " from attachment where workspace_id = ? and issue_key like ? order by created_at")
+                .params(workspaceId, projectKey.replace("\\", "").replace("%", "").replace("_", "\\_") + "-%").query((rs, n) -> map(rs)).list();
+    }
+
+    @Override
     public Optional<Attachment> find(UUID workspaceId, UUID id) {
         return jdbc.sql("select " + COLUMNS + " from attachment where workspace_id = ? and id = ?").params(workspaceId, id)
                 .query((rs, n) -> map(rs)).optional();

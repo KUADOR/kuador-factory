@@ -101,6 +101,7 @@ class AttachmentIT {
 
     @Autowired SignupService signup;
     @Autowired AuthService auth;
+    @Autowired org.springframework.jdbc.core.simple.JdbcClient jdbc;
     @LocalServerPort int port;
 
     private final HttpClient http = HttpClient.newHttpClient();
@@ -174,6 +175,42 @@ class AttachmentIT {
         assertThat(call("DELETE", "/api/attachments/" + imageId, null, owner).status()).isEqualTo(204);
         assertThat(call("GET", "/api/attachments/" + imageId + "/content", null, owner).status()).isEqualTo(404);
         assertThat(call("GET", "/api/issues/" + key + "/attachments", null, owner).body().get("items").size()).isEqualTo(1);
+    }
+
+    @Test
+    void deletingABoardRemovesEverythingItHad() throws Exception {
+        signup.requestCode("bea@borrar.test");
+        signup.complete(signup.verifyCode("bea@borrar.test", INBOX.get("bea@borrar.test")),
+                new SignupService.Company("Borrar", null, null, null, null, null), "Bea", "clave-de-bea-123", "FACTORY");
+        String owner = auth.login("bea@borrar.test", "clave-de-bea-123").token();
+        call("POST", "/api/projects", Map.of("key", "TMP", "name", "Pruebas", "templateKey", "TASKS"), owner);
+        call("POST", "/api/projects", Map.of("key", "TMPX", "name", "Otro", "templateKey", "TASKS"), owner);
+        String key = call("POST", "/api/projects/TMP/issues", Map.of("title", "Basura", "type", "TASK"), owner).body().get("key").asString();
+        String other = call("POST", "/api/projects/TMPX/issues", Map.of("title", "Se queda", "type", "TASK"), owner).body().get("key").asString();
+        call("POST", "/api/issues/" + key + "/comments", Map.of("body", "Un comentario"), owner);
+        String file = upload(key, "nota.txt", "text/plain", "hola".getBytes(StandardCharsets.UTF_8), owner).body().get("id").asString();
+        upload(other, "queda.txt", "text/plain", "sigo".getBytes(StandardCharsets.UTF_8), owner);
+        String agentId = call("GET", "/api/members", null, owner).body().valueStream().filter(m -> "AGENT".equals(m.get("kind").asString()))
+                .findFirst().orElseThrow().get("id").asString();
+        String agent = call("POST", "/api/members/" + agentId + "/tokens", Map.of("name", "bot"), owner).body().get("token").asString();
+
+        assertThat(call("DELETE", "/api/projects/TMP?confirm=OTRO", null, owner).body().get("detail").asString()).contains("escribe su clave, TMP");
+        assertThat(call("DELETE", "/api/projects/TMP?confirm=TMP", null, agent).status()).as("un agente no borra tableros").isEqualTo(403);
+        assertThat(call("DELETE", "/api/projects/TMP?confirm=tmp", null, owner).status()).isEqualTo(204);
+
+        assertThat(call("GET", "/api/projects/TMP", null, owner).status()).isEqualTo(404);
+        assertThat(call("GET", "/api/attachments/" + file + "/content", null, owner).status()).isEqualTo(404);
+        for (int i = 0; i < 50 && count("select count(*) from attachment where issue_key = ?", key) > 0; i++) Thread.sleep(200);
+        assertThat(count("select count(*) from attachment where issue_key = ?", key)).as("adjuntos del tablero").isZero();
+        for (int i = 0; i < 50 && count("select count(*) from activity where project_key = ?", "TMP") > 0; i++) Thread.sleep(200);
+        assertThat(count("select count(*) from activity where project_key = ?", "TMP")).as("actividad del tablero").isZero();
+        assertThat(count("select count(*) from issue where project_key = ?", "TMP")).isZero();
+        assertThat(count("select count(*) from issue_comment c join issue i on i.id = c.issue_id where i.project_key = ?", "TMP")).isZero();
+        assertThat(call("GET", "/api/issues/" + other + "/attachments", null, owner).body().get("items").size()).as("el otro tablero no se toca").isEqualTo(1);
+    }
+
+    private long count(String sql, String param) {
+        return jdbc.sql(sql).param(param).query(Long.class).single();
     }
 
     private JsonNode tool(String runner, String name, Map<String, Object> args) throws Exception {

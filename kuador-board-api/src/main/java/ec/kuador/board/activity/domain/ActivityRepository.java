@@ -9,6 +9,9 @@ public interface ActivityRepository {
 
     void saveAll(List<ActivityEntry> entries);
 
+    /** Borra la actividad de un tablero borrado. */
+    void deleteByProject(java.util.UUID workspaceId, String projectKey);
+
     /** Más recientes primero. */
     List<ActivityEntry> findByIssue(String issueKey, int limit);
 

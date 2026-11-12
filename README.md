@@ -87,6 +87,15 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
   herramientas, automatización) y servidores MCP. Lo de fábrica se edita y se restaura; lo propio se
   crea y se borra si nadie lo usa (409 si está en uso). Solo las personas lo editan.
 
+## Eliminar un tablero
+
+*Configuración → General → Eliminar tablero*, escribiendo la clave para confirmar (`DELETE
+/api/projects/{clave}?confirm={clave}`; solo personas que editan, nunca un agente). La base borra en
+cascada columnas, tarjetas, comentarios, documentos con sus versiones, sincronización, enlace al repo
+y piezas; con el evento `ProjectDeleted` cada módulo borra lo suyo que no cuelga del tablero:
+actividad, corridas de agentes y adjuntos (con sus archivos en Garage). Los repositorios en GitHub
+no se tocan. Libera el cupo de tableros del plan.
+
 ## Adjuntos
 
 - Cada tarjeta tiene la pestaña **Adjuntos**: se sueltan o se eligen archivos (hasta

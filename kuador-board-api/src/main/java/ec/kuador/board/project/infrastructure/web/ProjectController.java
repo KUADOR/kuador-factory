@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +52,17 @@ class ProjectController {
     @ResponseStatus(HttpStatus.CREATED)
     ProjectResponse create(@Valid @RequestBody CreateProjectRequest r) {
         return ProjectResponse.from(service.create(r.key(), r.name(), r.description(), r.templateKey()));
+    }
+
+    /**
+     * Borra el tablero con todo su contenido. {@code confirm} debe ser la clave del tablero. Solo personas que
+     * editan (lo fija la seguridad); los repositorios en GitHub no se tocan.
+     */
+    @DeleteMapping("/{key}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void delete(@PathVariable String key, @org.springframework.web.bind.annotation.RequestParam(required = false) String confirm,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal(expression = "memberId()") java.util.UUID actorId) {
+        service.delete(key, confirm, actorId);
     }
 
     /** Reemplaza el flujo completo, en el orden recibido. {@code key} nulo = columna nueva. */

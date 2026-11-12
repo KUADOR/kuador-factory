@@ -5,6 +5,7 @@ import { PROJECT_KIND_LABEL } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
 
 import { SettingsSection } from "../SettingsSection";
+import { DeleteProject } from "./DeleteProject";
 import { ProjectDetailsForm } from "./ProjectDetailsForm";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
           </div>
         ))}
       </dl>
+      <DeleteProject projectKey={project.key} projectName={project.name} issues={issues.length} software={project.kind === "SOFTWARE"} />
     </SettingsSection>
   );
 }

@@ -11,6 +11,9 @@ public interface ProjectRepository {
 
     Optional<Project> findByKey(String key);
 
+    /** Borra el tablero; la base borra en cascada columnas, tarjetas, comentarios, documentos y conexiones. */
+    void delete(String key);
+
     boolean existsByKey(String key);
 
     /** Inserta un proyecto nuevo. */

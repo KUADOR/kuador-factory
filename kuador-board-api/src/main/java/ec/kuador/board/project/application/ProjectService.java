@@ -6,6 +6,7 @@ import ec.kuador.board.catalog.ColumnDef;
 import ec.kuador.board.catalog.StageDef;
 import ec.kuador.board.catalog.WorkflowTemplate;
 import ec.kuador.board.project.ColumnUsage;
+import ec.kuador.board.project.ProjectDeleted;
 import ec.kuador.board.project.ProjectApi;
 import ec.kuador.board.project.ProjectView;
 import ec.kuador.board.project.Transitions;
@@ -13,10 +14,13 @@ import ec.kuador.board.project.domain.Project;
 import ec.kuador.board.project.domain.ProjectRepository;
 import ec.kuador.board.project.domain.Workflow;
 import ec.kuador.board.shared.error.ConflictException;
+import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.shared.error.NotFoundException;
+import ec.kuador.board.shared.tenant.TenantContext;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import ec.kuador.board.billing.BillingApi;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,8 +33,11 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     private final CatalogApi catalog;
     private final Clock clock;
     private final BillingApi billing;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
-    ProjectService(ProjectRepository projects, ColumnUsage usage, CatalogApi catalog, Clock clock, BillingApi billing) {
+    ProjectService(ProjectRepository projects, ColumnUsage usage, CatalogApi catalog, Clock clock, BillingApi billing,
+            org.springframework.context.ApplicationEventPublisher events) {
+        this.events = events;
         this.projects = projects;
         this.usage = usage;
         this.catalog = catalog;
@@ -114,6 +121,20 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         Transitions valid = transitions.validatedFor(columns);
         projects.updateTransitions(key, valid);
         return new ProjectWithColumns(project.withTransitions(valid), columns);
+    }
+
+    /**
+     * Borra el tablero con todo su contenido. {@code confirmation} debe ser la clave del tablero: evita borrar uno
+     * por error. Los repositorios en GitHub no se tocan.
+     */
+    @Transactional
+    public void delete(String key, String confirmation, UUID actorId) {
+        Project project = load(key);
+        if (confirmation == null || !confirmation.strip().equalsIgnoreCase(project.key())) {
+            throw new DomainException("Para borrar el tablero escribe su clave, " + project.key() + ".");
+        }
+        projects.delete(project.key());
+        events.publishEvent(new ProjectDeleted(UUID.randomUUID(), TenantContext.require(), project.key(), project.name(), actorId, clock.instant()));
     }
 
     @Transactional

@@ -113,6 +113,15 @@ public class AttachmentService implements AttachmentApi {
         }));
     }
 
+    /** Se borró un tablero: los adjuntos de todas sus tarjetas, con sus archivos. */
+    @ApplicationModuleListener
+    void on(ec.kuador.board.project.ProjectDeleted e) {
+        TenantContext.run(e.workspaceId(), () -> store.byProject(e.workspaceId(), e.projectKey()).forEach(a -> {
+            store.delete(a.workspaceId(), a.id());
+            forget(a.storageKey());
+        }));
+    }
+
     private Attachment find(UUID id) {
         return store.find(TenantContext.require(), id).orElseThrow(() -> new NotFoundException("No existe ese adjunto."));
     }

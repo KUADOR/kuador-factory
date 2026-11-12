@@ -85,19 +85,23 @@ public class SignupService {
     public String verifyCode(String rawEmail, String code) {
         String email = normalize(rawEmail);
         Instant now = clock.instant();
-        return root(() -> {
+        // El intento fallido se guarda (la transacción termina bien) y el error se lanza afuera: si se lanzara
+        // adentro, el rollback borraría el intento y el código se podría adivinar sin límite.
+        String[] result = root(() -> {
             EmailVerification v = verifications.findLatest(email).filter(x -> x.codeUsable(now))
                     .orElseThrow(() -> new DomainException("El código venció o se usaron todos los intentos. Pide uno nuevo."));
             if (code == null || !MessageDigest.isEqual(hash(email + ":" + code.strip()).getBytes(StandardCharsets.UTF_8),
                     v.codeHash().getBytes(StandardCharsets.UTF_8))) {
                 EmailVerification failed = verifications.save(v.failedAttempt());
                 int left = EmailVerification.MAX_ATTEMPTS - failed.attempts();
-                throw new DomainException(left > 0 ? "El código no es correcto. Te quedan " + left + " intento(s)." : "El código no es correcto. Pide uno nuevo.");
+                return new String[] {null, left > 0 ? "El código no es correcto. Te quedan " + left + " intento(s)." : "El código no es correcto. Pide uno nuevo."};
             }
             String token = newToken();
             verifications.save(v.verified(hash(token), now));
-            return token;
+            return new String[] {token, null};
         });
+        if (result[1] != null) throw new DomainException(result[1]);
+        return result[0];
     }
 
     /**

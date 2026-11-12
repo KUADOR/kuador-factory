@@ -77,11 +77,4 @@ class SignupController {
         pd.setTitle("Demasiadas solicitudes");
         return pd;
     }
-
-    @ExceptionHandler(ec.kuador.board.workspace.infrastructure.mail.MailVerificationMailer.MailUnavailableException.class)
-    ProblemDetail mailDown(RuntimeException e) {
-        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
-        pd.setTitle("Correo no disponible");
-        return pd;
-    }
 }

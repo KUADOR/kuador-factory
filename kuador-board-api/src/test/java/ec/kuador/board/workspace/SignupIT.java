@@ -65,6 +65,8 @@ class SignupIT {
 
         assertThatThrownBy(() -> signup.verifyCode("ana@andes.test", code.equals("000000") ? "111111" : "000000"))
                 .isInstanceOf(DomainException.class).hasMessageContaining("4 intento(s)");
+        assertThatThrownBy(() -> signup.verifyCode("ana@andes.test", code.equals("000000") ? "111111" : "000000"))
+                .as("cada intento fallido queda guardado").isInstanceOf(DomainException.class).hasMessageContaining("3 intento(s)");
         String token = signup.verifyCode("ana@andes.test", code);
 
         Workspace w = signup.complete(token, new SignupService.Company("Clínica Andes", null, "Salud en Quito", "#E11D48", null, LOGO), "Ana", "clave-de-ana-123", "FACTORY");

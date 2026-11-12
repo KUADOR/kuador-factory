@@ -106,6 +106,9 @@ export const boardApi = {
     request<Session>("/api/auth/login", { ...json("POST", { email, password }), anonymous: true }),
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   me: () => request<Me>("/api/auth/me"),
+  requestPasswordReset: (email: string) => request<void>("/api/auth/password-reset", { ...json("POST", { email }), anonymous: true }),
+  confirmPasswordReset: (input: { token: string | null; email: string | null; code: string | null; password: string }) =>
+    request<void>("/api/auth/password-reset/confirm", { ...json("POST", input), anonymous: true }),
   plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
   /** `undefined`: el espacio no tiene planes (instalación propia, sin límites). */
   workspacePlan: () => request<WorkspacePlan | undefined>("/api/workspace/plan"),

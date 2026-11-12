@@ -90,6 +90,11 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
 - Todo va en `Authorization: Bearer <token>`. La base solo guarda el SHA-256 del token.
 - La primera cuenta se crea al arrancar si no existe ninguna, con `BOARD_BOOTSTRAP_ADMIN_EMAIL` y
   `BOARD_BOOTSTRAP_ADMIN_PASSWORD`. A partir de ahí, se da acceso a otras personas desde **Equipo**.
+- **Recuperar la contraseña** (`/recuperar`, enlace en el login): llega un correo con un enlace y un
+  código de 6 dígitos; con cualquiera de los dos se elige la nueva y se cierran todas las sesiones.
+  Vale 30 minutos, una vez, con 5 intentos de código; un correo por minuto y 5 por hora por
+  dirección. La respuesta es la misma exista o no la cuenta. El correo sale por `Mailer`
+  (`shared/mail`), el mismo SMTP del alta.
 - El autor de issues y comentarios es quien está autenticado; el body no puede suplantarlo.
 - Solo las personas crean proyectos y miembros, dan accesos y emiten o revocan tokens. Un agente
   recibe 403 si lo intenta.

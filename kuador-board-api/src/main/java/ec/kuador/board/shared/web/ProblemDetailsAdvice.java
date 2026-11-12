@@ -29,6 +29,11 @@ class ProblemDetailsAdvice {
         return problem(HttpStatus.FORBIDDEN, "No permitido", e.getMessage());
     }
 
+    @ExceptionHandler(ec.kuador.board.shared.mail.Mailer.MailUnavailableException.class)
+    ProblemDetail mailDown(RuntimeException e) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "Correo no disponible", e.getMessage());
+    }
+
     @ExceptionHandler(ConflictException.class)
     ProblemDetail conflict(ConflictException e) {
         return problem(HttpStatus.CONFLICT, "Conflicto", e.getMessage());

@@ -20,6 +20,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <h1 className="text-lg font-semibold tracking-tight text-fg-strong">Entrar</h1>
           <p className="mt-1 mb-6 text-[13px] text-fg-muted">Con el correo que te dio tu espacio de trabajo.</p>
           <LoginForm next={safeNext(typeof next === "string" ? next : undefined)} />
+          <Link href="/recuperar" className="k-link mt-4 inline-block text-xs">
+            ¿Olvidaste tu contraseña?
+          </Link>
         </div>
         <div className="mt-4 rounded-lg border border-line bg-surface px-6 py-4">
           <p className="text-[13px] font-medium text-fg-strong">¿Tu empresa todavía no usa el tablero?</p>

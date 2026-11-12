@@ -310,6 +310,19 @@ export async function signupCompleteAction(input: {
   redirect("/");
 }
 
+export async function requestPasswordResetAction(email: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.requestPasswordReset(email));
+}
+
+export async function confirmPasswordResetAction(input: {
+  token: string | null;
+  email: string | null;
+  code: string | null;
+  password: string;
+}): Promise<ActionResult<void>> {
+  return run(() => boardApi.confirmPasswordReset(input));
+}
+
 export async function changePlanAction(plan: string): Promise<ActionResult<WorkspacePlan>> {
   return run(() => boardApi.changePlan(plan), "/workspace/plan");
 }

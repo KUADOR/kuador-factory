@@ -49,6 +49,7 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         // Alta pública de espacios (modo SaaS): verificación por correo, ver SignupService.
                         .requestMatchers("/api/signup/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/password-reset", "/api/auth/password-reset/confirm").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/public/plans").permitAll()
                         .requestMatchers("/api/platform/**").hasRole("PLATFORM")
                         .requestMatchers(HttpMethod.PUT, "/api/workspace/plan").access(HUMAN_EDITOR)

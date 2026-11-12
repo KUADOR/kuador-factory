@@ -372,6 +372,29 @@ export interface WorkspaceLicense {
 
 export type PlanInput = Omit<Plan, "code">;
 
+/** Dónde trabaja un agente: en la PC de una persona (MCP) o en el tablero con la clave de IA de la empresa. */
+export type AgentMode = "LOCAL" | "SERVER";
+
+export interface TeamAgent {
+  id: string;
+  name: string;
+  role: string;
+  roleName: string;
+  description: string | null;
+  avatarColor: string;
+  mode: AgentMode;
+  /** null = el modelo por defecto del espacio. */
+  model: string | null;
+  inTeam: boolean;
+}
+
+export interface WorkspaceAiStatus {
+  configured: boolean;
+  keyHint: string | null;
+  defaultModel: string;
+  models: string[];
+}
+
 export interface Attachment {
   id: string;
   issueKey: string;

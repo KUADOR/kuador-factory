@@ -58,6 +58,9 @@ import type {
   PaymentMode,
   PaymentProviderView,
   AttachmentListing,
+  AgentMode,
+  TeamAgent,
+  WorkspaceAiStatus,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -324,6 +327,33 @@ export async function signupCompleteAction(input: {
   if (!session.ok) return session;
   await setSessionToken(session.data.token, session.data.expiresAt);
   redirect(next === "/workspace/plan?bienvenida=1" ? next : "/");
+}
+
+export async function addToTeamAction(key: string, memberId: string): Promise<ActionResult<TeamAgent[]>> {
+  return run(() => boardApi.addToTeam(key, memberId), `/projects/${key}`);
+}
+
+export async function createTeamAgentAction(
+  key: string,
+  input: { name: string; role: string; description: string | null; mode: AgentMode; model: string | null },
+): Promise<ActionResult<TeamAgent[]>> {
+  return run(() => boardApi.createTeamAgent(key, input), `/projects/${key}`);
+}
+
+export async function removeFromTeamAction(key: string, memberId: string): Promise<ActionResult<TeamAgent[]>> {
+  return run(() => boardApi.removeFromTeam(key, memberId), `/projects/${key}`);
+}
+
+export async function setAgentProfileAction(memberId: string, input: { mode: AgentMode; model: string | null }): Promise<ActionResult<TeamAgent>> {
+  return run(() => boardApi.setAgentProfile(memberId, input));
+}
+
+export async function saveWorkspaceAiAction(input: { apiKey: string | null; defaultModel: string }): Promise<ActionResult<WorkspaceAiStatus>> {
+  return run(() => boardApi.saveWorkspaceAi(input), "/conexiones");
+}
+
+export async function removeWorkspaceAiAction(): Promise<ActionResult<WorkspaceAiStatus>> {
+  return run(() => boardApi.removeWorkspaceAi(), "/conexiones");
 }
 
 export async function saveBillingSettingsAction(reminderDays: number[]): Promise<ActionResult<{ reminderDays: number[] }>> {

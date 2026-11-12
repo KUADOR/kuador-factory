@@ -27,12 +27,19 @@ class AgentDispatcher implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(AgentDispatcher.class);
 
     private final ProductOwnerAgent productOwner;
+    private final BoardAgent boardAgent;
+    private final ec.kuador.board.member.MemberApi members;
+    private final ec.kuador.board.catalog.CatalogApi catalog;
     private final AgentRunRepository runs;
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    AgentDispatcher(ProductOwnerAgent productOwner, AgentRunRepository runs, PlatformTransactionManager txManager, Clock clock) {
+    AgentDispatcher(ProductOwnerAgent productOwner, BoardAgent boardAgent, ec.kuador.board.member.MemberApi members,
+            ec.kuador.board.catalog.CatalogApi catalog, AgentRunRepository runs, PlatformTransactionManager txManager, Clock clock) {
         this.productOwner = productOwner;
+        this.boardAgent = boardAgent;
+        this.members = members;
+        this.catalog = catalog;
         this.runs = runs;
         this.tx = new TransactionTemplate(txManager);
         this.clock = clock;
@@ -41,7 +48,17 @@ class AgentDispatcher implements ApplicationRunner {
     @Async
     @TransactionalEventListener
     void on(IssueAssigned event) {
-        productOwner.onAssigned(event);
+        // Un solo agente atiende cada asignación: el de refinamiento (rol con REFINE_ISSUE) o el del tablero.
+        if (event.toAssigneeId() != null && refines(event)) productOwner.onAssigned(event);
+        else boardAgent.onAssigned(event);
+    }
+
+    private boolean refines(IssueAssigned event) {
+        return Boolean.TRUE.equals(TenantContext.call(event.workspaceId(), () -> tx.execute(s -> members.find(event.toAssigneeId())
+                .filter(ec.kuador.board.member.MemberView::agent)
+                .flatMap(m -> catalog.role(m.role()))
+                .map(r -> r.automation() == ec.kuador.board.catalog.AgentRole.Automation.REFINE_ISSUE)
+                .orElse(false))));
     }
 
     /** Al arrancar, una ejecución en RUNNING quedó a medias por un reinicio (de cualquier espacio). */

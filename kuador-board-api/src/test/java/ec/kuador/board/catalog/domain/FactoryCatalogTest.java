@@ -59,7 +59,9 @@ class FactoryCatalogTest {
                 .contains("BACKEND", "FRONTEND", "MICROFRONTEND", "SHELL");
         assertThat(factory.componentTemplates()).as("cada empresa apunta sus propias plantillas").allMatch(c -> c.templateRepo() == null);
         assertThat(factory.componentTemplates()).allSatisfy(c -> assertThat(c.commands().test()).isNotBlank());
-        assertThat(factory.addedAfter(3)).extracting(e -> e.getKey().name()).containsOnly("COMPONENT_TEMPLATE");
+        assertThat(factory.addedAfter(3)).extracting(e -> e.getKey().name()).contains("COMPONENT_TEMPLATE");
+        // La versión 5 suma el rol Analista (informes a partir de planillas) a los espacios existentes.
+        assertThat(factory.addedAfter(4)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_ROLE:ANALYST");
     }
 
     @Test

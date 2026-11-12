@@ -392,6 +392,29 @@ MCP · 5 desarrollo y QA · 6 release.
 > producción y usa una contraseña inicial fuerte. Si hay varias instancias, mueve el bloqueo de login
 > (hoy en memoria) a la base o a Redis.
 
+## Agentes en el tablero (con la clave de IA de la empresa)
+
+- Cada agente trabaja **en la PC de una persona** (LOCAL: su Claude Code o Codex por MCP, con
+  `/pendientes`; ideal para software, que necesita repo y terminal) o **en el tablero** (SERVER: trabaja
+  solo cuando una persona le asigna una tarjeta). Se elige en *Configuración → Equipo de agentes* de
+  cada tablero (tabla `agent_profile`, con modelo opcional por agente).
+- **Equipo por tablero** (`project_agent`): un tablero nuevo trae el de su plantilla (`agents` en la
+  plantilla, o los roles de sus etapas); después se suman agentes del espacio, se crean desde el
+  tablero (rol del catálogo + especialidad + dónde trabaja) o se quitan.
+- **Clave de IA** (*Conexiones → IA*, `workspace_ai`): la clave de API de Anthropic de la empresa, que
+  se comprueba con Anthropic, se guarda cifrada y nunca se vuelve a mostrar; el consumo va a su cuenta.
+  Modelo por defecto del espacio y, si se quiere, uno por agente.
+- **Cómo trabaja un agente en el tablero** (`BoardAgent`): arma el pedido con el manual de su rol, las
+  reglas del tablero y la tarjeta (descripción y comentarios), sube los adjuntos al entorno de
+  ejecución de código de Anthropic (pandas, openpyxl, matplotlib, reportlab), calcula con código
+  (nunca estima cifras), deja sus entregables en `$OUTPUT_DIR`, y termina con `deliver` o
+  `ask_human`. El tablero adjunta lo que generó, comenta el resumen y devuelve la tarjeta a quien se la
+  asignó (le llega el aviso). Si falta la clave o algo falla, lo dice en la tarjeta. Los archivos
+  subidos y generados se borran de Anthropic al terminar.
+- Ejemplo: el rol **Analista de datos e informes** (plantillas Ventas y Tareas): adjuntas un Excel con
+  las ventas, le asignas «Informe de ventas diarias de octubre» y te devuelve un PDF con totales,
+  gráficos y observaciones.
+
 ## Agentes locales (Fase 2)
 
 El servidor MCP del tablero es estándar: sirve cualquier cliente de IA con MCP (Claude Code, Codex, Cursor, OpenCode, Cline…). Todo lleva el nombre del espacio de trabajo, no el del producto: en el espacio `adma`, el servidor se llama `adma`.

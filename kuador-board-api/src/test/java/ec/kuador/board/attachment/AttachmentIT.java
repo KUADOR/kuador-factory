@@ -67,7 +67,16 @@ class AttachmentIT {
     /** Lo mismo que hace infra/garage/setup.sh: nodo, bucket y una clave con acceso. */
     @DynamicPropertySource
     static void storage(DynamicPropertyRegistry r) throws Exception {
-        String node = garage("node", "id", "-q").strip().split("@")[0];
+        // Recién arrancado, Garage tarda un momento en generar la clave del nodo.
+        String node = null;
+        for (int i = 0; i < 50 && node == null; i++) {
+            try {
+                node = garage("node", "id", "-q").strip().split("@")[0];
+            } catch (IllegalStateException e) {
+                Thread.sleep(200);
+            }
+        }
+        if (node == null) node = garage("node", "id", "-q").strip().split("@")[0];
         garage("layout", "assign", "-z", "dc1", "-c", "1G", node);
         garage("layout", "apply", "--version", "1");
         garage("bucket", "create", "adjuntos-prueba");

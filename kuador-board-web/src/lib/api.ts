@@ -65,6 +65,9 @@ import type {
   PaymentProviderView,
   PaymentType,
   AttachmentListing,
+  AgentMode,
+  TeamAgent,
+  WorkspaceAiStatus,
 } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
@@ -124,6 +127,17 @@ export const boardApi = {
   plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
   attachments: (key: string) => request<AttachmentListing>(`/api/issues/${encodeURIComponent(key)}/attachments`),
   deleteAttachment: (id: string) => request<void>(`/api/attachments/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  boardTeam: (key: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`),
+  addToTeam: (key: string, memberId: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`, json("POST", { memberId })),
+  createTeamAgent: (key: string, input: { name: string; role: string; description: string | null; mode: AgentMode; model: string | null }) =>
+    request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team/agents`, json("POST", input)),
+  removeFromTeam: (key: string, memberId: string) =>
+    request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team/${encodeURIComponent(memberId)}`, { method: "DELETE" }),
+  setAgentProfile: (memberId: string, input: { mode: AgentMode; model: string | null }) =>
+    request<TeamAgent>(`/api/agents/${encodeURIComponent(memberId)}/profile`, json("PUT", input)),
+  workspaceAi: () => request<WorkspaceAiStatus>("/api/workspace/ai"),
+  saveWorkspaceAi: (input: { apiKey: string | null; defaultModel: string }) => request<WorkspaceAiStatus>("/api/workspace/ai", json("PUT", input)),
+  removeWorkspaceAi: () => request<WorkspaceAiStatus>("/api/workspace/ai", { method: "DELETE" }),
   billingSettings: () => request<{ reminderDays: number[] }>("/api/platform/billing-settings"),
   saveBillingSettings: (reminderDays: number[]) => request<{ reminderDays: number[] }>("/api/platform/billing-settings", json("PUT", { reminderDays })),
   paymentTypes: () => request<PaymentType[]>("/api/platform/payment-types"),

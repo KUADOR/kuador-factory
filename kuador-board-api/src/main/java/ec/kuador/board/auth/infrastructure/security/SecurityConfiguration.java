@@ -79,6 +79,10 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/projects", "/api/members", "/api/members/*/tokens").access(HUMAN_EDITOR)
                         // Borrar un tablero: solo personas, nunca un agente.
                         .requestMatchers(HttpMethod.DELETE, "/api/projects/*").access(HUMAN_EDITOR)
+                        // Equipo de agentes, dónde trabajan y la clave de IA: solo personas que editan.
+                        .requestMatchers(HttpMethod.POST, "/api/projects/*/team", "/api/projects/*/team/agents").access(HUMAN_EDITOR)
+                        .requestMatchers(HttpMethod.DELETE, "/api/projects/*/team/*").access(HUMAN_EDITOR)
+                        .requestMatchers("/api/agents/*/profile", "/api/workspace/ai").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.PUT, "/api/projects/*", "/api/projects/*/columns", "/api/projects/*/methodology",
                                 "/api/projects/*/transitions", "/api/projects/*/stages", "/api/workspace", "/api/workspace/languages", "/api/members/*/access").access(HUMAN_EDITOR)
                         // El catálogo lo lee cualquiera del espacio; solo personas que editan lo cambian.

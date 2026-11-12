@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class CatalogRulesTest {
 
     private static WorkflowTemplate template(List<ColumnDef> columns, List<IssueTypeDef> types) {
-        return new WorkflowTemplate(null, "KANBAN", "Kanban", null, ProjectKind.GENERAL, columns, types, List.of(), List.of(), false, 0);
+        return new WorkflowTemplate(null, "KANBAN", "Kanban", null, ProjectKind.GENERAL, columns, types, List.of(), List.of(), List.of(), false, 0);
     }
 
     private static DocumentDef doc(String kind, DocumentDef.Scope scope, String path) {

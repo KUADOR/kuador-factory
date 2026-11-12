@@ -17,6 +17,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
       items: [
         { slug: "columnas", label: "Columnas" },
         { slug: "etapas", label: "Etapas y responsables" },
+        { slug: "equipo", label: "Equipo de agentes" },
         { slug: "transiciones", label: "Reglas de transición" },
       ],
     },

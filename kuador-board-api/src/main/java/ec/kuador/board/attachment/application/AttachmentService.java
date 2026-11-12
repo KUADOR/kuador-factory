@@ -48,6 +48,7 @@ public class AttachmentService implements AttachmentApi {
     /** Un archivo abierto para descargar; quien lo recibe cierra {@code content}. */
     public record Download(Attachment attachment, InputStream content) {}
 
+    @Override
     public boolean available() {
         return storage.available();
     }
@@ -95,6 +96,26 @@ public class AttachmentService implements AttachmentApi {
         } catch (IOException e) {
             throw new DomainException("No se pudo leer el adjunto: " + e.getMessage());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<FileContent> content(String issueKey, UUID id) {
+        if (!storage.available()) return Optional.empty();
+        Optional<Attachment> found = store.find(TenantContext.require(), id).filter(a -> a.issueKey().equals(issueKey));
+        if (found.isEmpty()) return Optional.empty();
+        Attachment a = found.get();
+        try (InputStream in = storage.get(a.storageKey())) {
+            return Optional.of(new FileContent(a.fileName(), a.contentType(), in.readAllBytes()));
+        } catch (IOException e) {
+            throw new DomainException("No se pudo leer el adjunto " + a.fileName() + ": " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public AttachmentInfo attach(String issueKey, String fileName, String contentType, byte[] content, UUID actorId) {
+        return info(upload(issueKey, fileName, contentType, content.length, new java.io.ByteArrayInputStream(content), actorId));
     }
 
     @Transactional

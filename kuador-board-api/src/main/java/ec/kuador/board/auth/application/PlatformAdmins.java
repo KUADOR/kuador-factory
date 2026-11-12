@@ -26,6 +26,15 @@ public class PlatformAdmins {
         this.credentials = credentials;
     }
 
+    /** Si ese correo administra la plataforma (no se puede asignar a mano a un miembro: se usa al registrarse). */
+    public boolean isAdminEmail(String rawEmail) {
+        try {
+            return emails.contains(Credential.normalizeEmail(rawEmail));
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
     @Transactional(readOnly = true)
     public boolean isAdmin(UUID memberId) {
         return !emails.isEmpty() && credentials.findByMemberId(memberId).map(c -> emails.contains(c.email())).orElse(false);

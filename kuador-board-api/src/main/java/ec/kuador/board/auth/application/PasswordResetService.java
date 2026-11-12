@@ -37,7 +37,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class PasswordResetService {
 
     static final int PER_HOUR = 5;
-    static final int GLOBAL_PER_MINUTE = 30;
+    static final int GLOBAL_PER_MINUTE = 120;
 
     private final PasswordResetStore resets;
     private final CredentialRepository credentials;
@@ -108,18 +108,22 @@ public class PasswordResetService {
                 String email = Credential.normalizeEmail(rawEmail);
                 reset = resets.findLatest(email).filter(r -> r.usable(now))
                         .orElseThrow(() -> new DomainException("El código venció o se usaron todos los intentos. Pide uno nuevo."));
+                // El intento se cuenta antes de comparar y en una sola sentencia: aunque lleguen muchos a la vez, no pasan
+                // más de MAX_ATTEMPTS. Se guarda aunque falle (la transacción termina bien y el error se lanza afuera).
+                int used = resets.claimAttempt(reset.id(), PasswordReset.MAX_ATTEMPTS);
+                if (used < 0) return "El código venció o se usaron todos los intentos. Pide uno nuevo.";
                 if (code == null || !MessageDigest.isEqual(hash(email + ":" + code.strip()).getBytes(StandardCharsets.UTF_8),
                         reset.codeHash().getBytes(StandardCharsets.UTF_8))) {
-                    // Se guarda el intento (la transacción termina bien) y el error se lanza afuera.
-                    resets.failedAttempt(reset.id());
-                    int left = PasswordReset.MAX_ATTEMPTS - reset.attempts() - 1;
+                    int left = PasswordReset.MAX_ATTEMPTS - used;
                     return left > 0 ? "El código no es correcto. Te quedan " + left + " intento(s)." : "El código no es correcto. Pide uno nuevo.";
                 }
             }
             Credential c = credentials.findByMemberId(reset.memberId())
                     .orElseThrow(() -> new DomainException("Esa cuenta ya no tiene acceso. Pide a tu equipo que te lo dé de nuevo."));
             credentials.save(new Credential(c.memberId(), c.email(), hasher.hash(newPassword), c.createdAt(), now));
-            tokens.findActiveSessions(c.memberId()).forEach(t -> tokens.save(t.revoke(now)));
+            // Se cierra todo lo que entra en su nombre: sesiones y conexiones de agentes locales o de clientes de IA.
+            java.util.stream.Stream.concat(tokens.findActiveSessions(c.memberId()).stream(), tokens.findActiveRunnerTokens(c.memberId()).stream())
+                    .forEach(t -> tokens.save(t.revoke(now)));
             resets.markUsed(reset.id(), now);
             return (String) null;
         });

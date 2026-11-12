@@ -29,7 +29,7 @@ export async function clearSessionToken() {
 
 /** Evita redirecciones abiertas: solo rutas internas. */
 export function safeNext(next: unknown): string {
-  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")
-    ? next
-    : "/";
+  // Solo rutas internas: «/algo», nunca «//otro.com», «/\\otro.com» ni con caracteres de control (el navegador quita
+  // tabulaciones y saltos, y «/\t/otro.com» terminaría siendo «//otro.com»).
+  return typeof next === "string" && /^\/(?![\/\\])/.test(next) && !/[\u0000-\u001f\u007f\\]/.test(next) ? next : "/";
 }

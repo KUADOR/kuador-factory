@@ -25,6 +25,13 @@ final class DataRoom implements AutoCloseable {
 
     static final int MAX_RESULT_ROWS = 500;
     private static final Pattern READ_ONLY = Pattern.compile("(?is)^\\s*(select|with|values|table)\\b.*");
+    /**
+     * Funciones que no hacen falta para analizar datos y sirven para fabricar resultados enormes (y agotar la memoria) o
+     * tocar el sistema. Las de archivos y enlaces ya las bloquea el usuario sin permisos; aquí van igual por las dudas.
+     */
+    private static final Pattern FORBIDDEN = Pattern.compile("(?i)\\b(recursive|repeat|space|lpad|rpad|system_range|generate_series|sleep|"
+            + "file_read|file_write|csvread|csvwrite|link_schema|memory_free|memory_used|compress|expand|zero|secure_rand|random_uuid|"
+            + "database_path|disk_space_used|signal|cancel_session|abort_session)\\s*\\(|\\brecursive\\b");
 
     record Result(List<String> columns, List<List<Object>> rows, boolean truncated) {}
 
@@ -46,6 +53,8 @@ final class DataRoom implements AutoCloseable {
                     st.execute(ddl.append(')').toString());
                     load(s);
                 }
+                // Un resultado grande va a un archivo temporal en vez de quedarse en la memoria del servidor.
+                st.execute("SET MAX_MEMORY_ROWS 20000");
                 st.execute("CREATE USER LECTOR PASSWORD '" + password + "'");
                 st.execute("GRANT SELECT ON SCHEMA PUBLIC TO LECTOR");
             }
@@ -77,8 +86,10 @@ final class DataRoom implements AutoCloseable {
         if (q.length() > 10_000) throw new IllegalArgumentException("La consulta es demasiado larga.");
         if (q.contains(";")) throw new IllegalArgumentException("Una sola consulta por vez, sin «;».");
         if (!READ_ONLY.matcher(q).matches()) throw new IllegalArgumentException("Solo se permiten consultas SELECT (o WITH … SELECT).");
+        var forbidden = FORBIDDEN.matcher(q);
+        if (forbidden.find()) throw new IllegalArgumentException("No se permite " + forbidden.group().replace("(", "").strip().toUpperCase(java.util.Locale.ROOT) + " en las consultas.");
         try (Statement st = reader.createStatement()) {
-            st.setQueryTimeout(20);
+            st.setQueryTimeout(15);
             st.setMaxRows(MAX_RESULT_ROWS + 1);
             try (ResultSet rs = st.executeQuery(q)) {
                 ResultSetMetaData md = rs.getMetaData();

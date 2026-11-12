@@ -58,6 +58,10 @@ board:
   web-url: ${BOARD_WEB_URL:http://localhost:3600}
   # true cuando la API tiene dominio propio: por el host de public-url solo entran /mcp, el kit, el webhook y la salud.
   public-host-gate: ${BOARD_PUBLIC_HOST_GATE:false}
+  # Secreto compartido con la web (el mismo valor en los dos servicios): confiar en la IP que reenvía y, con el
+  # dominio público protegido, abrir el resto de la API solo a la web.
+  web:
+    secret: ${BOARD_WEB_SECRET:}
   agents:
     # Sin clave, los agentes quedan desactivados (cada asignación se registra como SKIPPED).
     anthropic-api-key: ${ANTHROPIC_API_KEY:}

@@ -61,6 +61,10 @@ BOARD_PUBLIC_URL=https://go-api.kuador.com
 BOARD_WEB_URL=https://go.kuador.com
 # Por go-api.kuador.com solo entran /mcp, su OAuth, el kit, el webhook y la salud.
 BOARD_PUBLIC_HOST_GATE=true
+# openssl rand -hex 32 — el MISMO valor que en la web. Con él, el resto de la API solo responde a la web (por
+# cualquier dominio o IP) y la auditoría confía en la IP de cada persona que reenvía la web.
+# Ponlo primero en la web y después en la API: si solo lo tiene la API, la web deja de funcionar.
+BOARD_WEB_SECRET=
 
 # Primera cuenta (solo si la base está vacía). Cámbiala después de entrar.
 BOARD_BOOTSTRAP_ADMIN_EMAIL=
@@ -118,6 +122,8 @@ path `/`, puerto `3600`, HTTPS.
 BOARD_API_URL=http://<app-name-de-la-api>:8091
 BOARD_PUBLIC_API_URL=https://go-api.kuador.com
 PRIMEUI_LICENSE=
+# El mismo valor que en la API (ver arriba).
+BOARD_WEB_SECRET=
 ```
 
 ## 5. GitHub App

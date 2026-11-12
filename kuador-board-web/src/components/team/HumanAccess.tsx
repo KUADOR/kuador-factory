@@ -53,7 +53,7 @@ export function HumanAccess({ memberId, email, invitation }: { memberId: string;
       {mode === "idle" && (
         <div className="flex flex-wrap gap-2">
           {email ? (
-            <Button size="sm" onClick={() => setMode("password")}>Restablecer contraseña</Button>
+            <p className="text-xs text-fg-muted">Si olvida su contraseña, la recupera con «¿Olvidaste tu contraseña?» al iniciar sesión.</p>
           ) : invitation ? (
             <>
               <Button size="sm" tone="primary" loading={pending} onClick={() => act(() => resendInvitationAction(invitation.id), "Invitación reenviada")}>

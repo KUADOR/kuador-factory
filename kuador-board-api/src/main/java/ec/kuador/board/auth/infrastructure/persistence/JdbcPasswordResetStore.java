@@ -58,6 +58,12 @@ class JdbcPasswordResetStore implements PasswordResetStore {
     }
 
     @Override
+    public int claimAttempt(UUID id, int max) {
+        return jdbc.sql("update password_reset set attempts = attempts + 1 where id = ? and attempts < ? returning attempts").params(id, max)
+                .query(Integer.class).optional().orElse(-1);
+    }
+
+    @Override
     public void markUsed(UUID id, Instant now) {
         jdbc.sql("update password_reset set used_at = ? where id = ?").params(Timestamp.from(now), id).update();
     }

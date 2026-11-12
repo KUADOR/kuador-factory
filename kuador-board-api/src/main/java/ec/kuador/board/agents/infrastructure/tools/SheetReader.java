@@ -27,6 +27,9 @@ import org.dhatim.fastexcel.reader.Row;
 final class SheetReader {
 
     static final int MAX_ROWS = 200_000;
+    /** Columnas por hoja y celdas por archivo: más que eso no es una planilla de trabajo y podría agotar la memoria. */
+    static final int MAX_COLUMNS = 256;
+    static final long MAX_CELLS = 3_000_000;
     private static final int HEADER_SCAN = 20;
     private static final Pattern DATE_FORMAT = Pattern.compile("(?i)(^|[^\"\\\\])(y|d|mmm)");
     private static final Pattern ISO_DATE = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
@@ -57,7 +60,9 @@ final class SheetReader {
 
     /** Las hojas con datos de un Excel. {@code taken}: nombres de tabla ya usados (se completan). */
     static List<Sheet> excel(String fileName, byte[] content, Set<String> taken) throws IOException {
+        ZipGuard.check(content);
         List<Sheet> sheets = new ArrayList<>();
+        long cells = 0;
         try (ReadableWorkbook wb = new ReadableWorkbook(new ByteArrayInputStream(content), new ReadingOptions(true, false))) {
             List<org.dhatim.fastexcel.reader.Sheet> all = wb.getSheets().toList();
             for (org.dhatim.fastexcel.reader.Sheet sheet : all) {
@@ -65,12 +70,13 @@ final class SheetReader {
                 boolean truncated = false;
                 try (var rows = sheet.openStream()) {
                     for (Row row : (Iterable<Row>) rows::iterator) {
-                        if (raw.size() > MAX_ROWS) {
+                        cells += row.getCellCount();
+                        if (raw.size() > MAX_ROWS || cells > MAX_CELLS) {
                             truncated = true;
                             break;
                         }
                         List<Object> values = new ArrayList<>();
-                        for (int i = 0; i < row.getCellCount(); i++) values.add(value(row.getCell(i)));
+                        for (int i = 0; i < Math.min(row.getCellCount(), MAX_COLUMNS); i++) values.add(value(row.getCell(i)));
                         raw.add(values);
                     }
                 }
@@ -93,7 +99,7 @@ final class SheetReader {
                 truncated = true;
                 break;
             }
-            raw.add(new ArrayList<>(line.stream().map(SheetReader::parseText).toList()));
+            raw.add(new ArrayList<>(line.stream().limit(MAX_COLUMNS).map(SheetReader::parseText).toList()));
         }
         return build(unique(identifier(baseName(fileName), "tabla"), taken), fileName, raw, truncated);
     }

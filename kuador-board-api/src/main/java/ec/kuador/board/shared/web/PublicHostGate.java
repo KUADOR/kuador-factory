@@ -23,17 +23,30 @@ public final class PublicHostGate extends OncePerRequestFilter {
             "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness");
 
     private final String publicHost;
+    private final WebSecret web;
 
-    public PublicHostGate(String publicUrl) {
+    public PublicHostGate(String publicUrl, WebSecret web) {
         this.publicHost = URI.create(publicUrl).getHost().toLowerCase(Locale.ROOT);
+        this.web = web;
+    }
+
+    /**
+     * Si la petición puede usar el resto de la API. Con el secreto de la web configurado, solo la web (que lo manda),
+     * por cualquier host: así no importa por qué dominio o IP se llegue. Sin él, todo host que no sea el público
+     * (comparado sin mayúsculas ni el punto final que aceptan los navegadores).
+     */
+    boolean fullAccess(HttpServletRequest request) {
+        if (web.configured()) return web.fromWeb(request);
+        String host = request.getServerName() == null ? "" : request.getServerName().toLowerCase(Locale.ROOT);
+        while (host.endsWith(".")) host = host.substring(0, host.length() - 1);
+        return !host.equals(publicHost);
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String host = request.getServerName() == null ? "" : request.getServerName().toLowerCase(Locale.ROOT);
         String path = request.getRequestURI();
-        if (host.equals(publicHost) && !OPEN_PATHS.contains(path) && !path.matches("^/api/(telegram|payments)/webhook/[A-Za-z0-9_-]{1,64}$")) {
+        if (!fullAccess(request) && !OPEN_PATHS.contains(path) && !path.matches("^/api/(telegram|payments)/webhook/[A-Za-z0-9_-]{1,64}$")) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             response.setContentType("application/problem+json;charset=UTF-8");
             response.getWriter().write("{\"status\":404,\"title\":\"No encontrado\"}");

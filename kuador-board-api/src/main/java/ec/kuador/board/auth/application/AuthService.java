@@ -45,7 +45,7 @@ public class AuthService implements AuthApi {
     private final MemberApi members;
     private final Clock clock;
     private final TransactionTemplate tx;
-    private final LoginAttempts attempts = new LoginAttempts(5, Duration.ofMinutes(15));
+    private final LoginAttempts attempts = new LoginAttempts();
     private final String dummyHash;
 
     AuthService(CredentialRepository credentials, AccessTokenRepository tokens, PasswordHasher hasher, MemberApi members, Clock clock,
@@ -81,6 +81,11 @@ public class AuthService implements AuthApi {
     // ---- Sin espacio todavía: corren como root ----
 
     public Session login(String rawEmail, String password) {
+        return login(rawEmail, password, null);
+    }
+
+    /** {@code ip}: desde dónde se intenta (para frenar la fuerza bruta sin dejar que nadie bloquee a otro). */
+    public Session login(String rawEmail, String password, String ip) {
         Instant now = clock.instant();
         String email;
         try {
@@ -88,7 +93,7 @@ public class AuthService implements AuthApi {
         } catch (DomainException e) {
             throw new BadCredentialsException();
         }
-        if (attempts.isBlocked(email, now)) {
+        if (attempts.isBlocked(email, ip, now)) {
             throw new LoginBlockedException();
         }
         Session session = TenantContext.asRoot(() -> tx.execute(s -> {
@@ -104,10 +109,10 @@ public class AuthService implements AuthApi {
             return new Session(secret, expiresAt, m);
         }));
         if (session == null) {
-            attempts.recordFailure(email, now);
+            attempts.recordFailure(email, ip, now);
             throw new BadCredentialsException();
         }
-        attempts.reset(email);
+        attempts.reset(email, ip);
         return session;
     }
 
@@ -157,12 +162,24 @@ public class AuthService implements AuthApi {
         Credential.checkPassword(newPassword);
         Instant now = clock.instant();
         credentials.save(new Credential(credential.memberId(), credential.email(), hasher.hash(newPassword), credential.createdAt(), now));
-        tokens.findActiveSessions(who.memberId()).stream()
-                .filter(t -> !t.id().equals(who.tokenId()))
+        revokeAll(who.memberId(), who.tokenId(), now);
+    }
+
+    /**
+     * Cierra todo lo que entra en nombre de la persona (sesiones y conexiones de agentes locales o de clientes de IA),
+     * salvo {@code keep} (la sesión desde la que cambió su contraseña).
+     */
+    public void revokeAll(UUID memberId, UUID keep, Instant now) {
+        java.util.stream.Stream.concat(tokens.findActiveSessions(memberId).stream(), tokens.findActiveRunnerTokens(memberId).stream())
+                .filter(t -> !t.id().equals(keep))
                 .forEach(t -> tokens.save(t.revoke(now)));
     }
 
-    /** Da o restablece el acceso web de una persona del espacio actual. Cierra sus sesiones abiertas. */
+    /**
+     * Da el primer acceso web a una persona del espacio actual (alta, invitación aceptada o contraseña temporal). Nunca
+     * sobre alguien que ya tiene acceso: así nadie del espacio puede quedarse con la cuenta de otro. Quien olvidó su
+     * contraseña la recupera por correo.
+     */
     @Override
     @Transactional
     public void grantAccess(UUID memberId, String rawEmail, String password) {
@@ -172,13 +189,15 @@ public class AuthService implements AuthApi {
         }
         String email = Credential.normalizeEmail(rawEmail);
         Credential.checkPassword(password);
+        if (credentials.findByMemberId(memberId).isPresent()) {
+            throw new ConflictException(member.name() + " ya tiene acceso. Si olvidó su contraseña, que la recupere con «¿Olvidaste tu contraseña?» al iniciar sesión.");
+        }
         if (credentials.existsByEmailForOtherMember(email, memberId)) {
             throw new ConflictException("Ese correo ya lo usa otra persona.");
         }
         Instant now = clock.instant();
-        Instant createdAt = credentials.findByMemberId(memberId).map(Credential::createdAt).orElse(now);
-        credentials.save(new Credential(memberId, email, hasher.hash(password), createdAt, now));
-        tokens.findActiveSessions(memberId).forEach(t -> tokens.save(t.revoke(now)));
+        credentials.save(new Credential(memberId, email, hasher.hash(password), now, now));
+        revokeAll(memberId, null, now);
     }
 
     @Override

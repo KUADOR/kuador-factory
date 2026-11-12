@@ -33,7 +33,10 @@ class AuthController {
     private final MemberApi members;
     private final ec.kuador.board.auth.application.PlatformAdmins platform;
 
-    AuthController(AuthService auth, MemberApi members, ec.kuador.board.auth.application.PlatformAdmins platform) {
+    private final ec.kuador.board.shared.web.WebSecret web;
+
+    AuthController(AuthService auth, MemberApi members, ec.kuador.board.auth.application.PlatformAdmins platform, ec.kuador.board.shared.web.WebSecret web) {
+        this.web = web;
         this.auth = auth;
         this.members = members;
         this.platform = platform;
@@ -42,9 +45,9 @@ class AuthController {
     // ---- Sesión ----
 
     @PostMapping("/api/auth/login")
-    SessionResponse login(@Valid @RequestBody LoginRequest r) {
+    SessionResponse login(@Valid @RequestBody LoginRequest r, jakarta.servlet.http.HttpServletRequest request) {
         AuditHints.subject(r.email());
-        AuthService.Session s = auth.login(r.email(), r.password());
+        AuthService.Session s = auth.login(r.email(), r.password(), web.clientIp(request));
         AuditHints.actor(new AuditHints.Actor(s.member().workspaceId(), s.member().id(), s.member().name(), AuditHints.Kind.HUMAN));
         return new SessionResponse(s.token(), s.expiresAt(), MeResponse.from(s.member(), platform.isAdmin(s.member().id())));
     }
@@ -75,6 +78,8 @@ class AuthController {
 
     @PutMapping("/api/members/{memberId}/credentials")
     AccountResponse grantAccess(@PathVariable UUID memberId, @Valid @RequestBody GrantAccessRequest r) {
+        // Un correo de quien administra la plataforma solo entra con su propio registro (correo verificado), nunca asignado por otro.
+        if (platform.isAdminEmail(r.email())) throw new ec.kuador.board.shared.error.ConflictException("Ese correo está reservado: esa persona debe registrarse ella misma.");
         auth.grantAccess(memberId, r.email(), r.password());
         return auth.accounts().stream().filter(a -> a.memberId().equals(memberId)).findFirst()
                 .map(a -> new AccountResponse(a.memberId(), a.email())).orElseThrow();

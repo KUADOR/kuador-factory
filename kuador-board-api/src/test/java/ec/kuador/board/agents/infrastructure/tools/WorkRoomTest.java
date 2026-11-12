@@ -82,6 +82,11 @@ public class WorkRoomTest {
                 assertThat(r).as(sql).startsWith("Error:");
             }
             assertThat(room.call("query_data", args("{\"sql\":\"select count(*) from v\"}"))).contains("| 4 |");
+            // Funciones que solo sirven para fabricar resultados enormes y agotar la memoria.
+            for (String sql : List.of("select repeat('x', 2000000000)", "select * from system_range(1, 1000000000)",
+                    "with recursive r(n) as (select 1 union all select n + 1 from r) select count(*) from r")) {
+                assertThat(room.call("query_data", JSON.createObjectNode().put("sql", sql))).as(sql).startsWith("Error: No se permite");
+            }
             // Solo se ve a sí mismo: ningún usuario con permisos de administración.
             assertThat(room.call("query_data", args("{\"sql\":\"select user_name, is_admin from information_schema.users\"}"))).contains("| LECTOR | false |").doesNotContain("true");
         }
@@ -137,5 +142,20 @@ public class WorkRoomTest {
         assertThat(SheetReader.parseText("31/10/2026")).isEqualTo(LocalDate.of(2026, 10, 31));
         assertThat(SheetReader.identifier("Año", "x")).isEqualTo("ano");
         assertThat(SheetReader.identifier("Order", "x")).isEqualTo("order_");
+    }
+
+    @Test
+    void rejectsZipBombsDisguisedAsOfficeFiles() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(out)) {
+            zip.putNextEntry(new java.util.zip.ZipEntry("xl/worksheets/sheet1.xml"));
+            byte[] zeros = new byte[1024 * 1024];
+            for (int i = 0; i < 160; i++) zip.write(zeros); // 160 MB de ceros: pocos cientos de KB comprimidos
+            zip.closeEntry();
+        }
+        assertThat(out.size()).isLessThan(1024 * 1024);
+        try (WorkRoom room = new WorkRoom(List.of(new InputFile("bomba.xlsx", null, out.toByteArray())))) {
+            assertThat(room.overview()).contains("No se pudo leer la planilla");
+        }
     }
 }

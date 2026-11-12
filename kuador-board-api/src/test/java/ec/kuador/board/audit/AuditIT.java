@@ -40,7 +40,7 @@ import tools.jackson.databind.ObjectMapper;
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
+        "board.sync.allowed-roots=", "board.web.secret=secreto-de-la-web", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class AuditIT {
 
     @Container
@@ -70,12 +70,18 @@ class AuditIT {
     record Reply(int status, String raw, JsonNode body) {}
 
     private Reply call(String method, String path, Object body, String token) throws Exception {
+        return call(method, path, body, token, "secreto-de-la-web");
+    }
+
+    /** Como la web: con su secreto, la IP y el navegador de la persona. */
+    private Reply call(String method, String path, Object body, String token, String webSecret) throws Exception {
         var req = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
                 .header("Content-Type", "application/json")
                 .header("X-Kuador-Client-IP", "190.152.10.20")
                 .header("X-Kuador-Client-Agent", "Chrome de prueba")
                 .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
         if (token != null) req.header("Authorization", "Bearer " + token);
+        if (webSecret != null) req.header("X-Kuador-Web-Secret", webSecret);
         HttpResponse<String> res = http.send(req.build(), HttpResponse.BodyHandlers.ofString());
         boolean isJson = res.headers().firstValue("Content-Type").orElse("").contains("json") && !res.body().isBlank();
         return new Reply(res.statusCode(), res.body(), isJson ? json.readTree(res.body()) : null);
@@ -118,6 +124,10 @@ class AuditIT {
         Reply csv = call("GET", "/api/workspace/audit/export", null, owner);
         assertThat(csv.status()).isEqualTo(200);
         assertThat(csv.raw()).contains("fecha_utc,persona", "Creó un tablero", "190.152.10.20");
+
+        // Sin el secreto de la web, la IP que diga el cliente no cuenta: queda la de la conexión.
+        call("POST", "/api/auth/login", Map.of("email", "falso@ventas.test", "password", "x"), null, null);
+        assertThat(jdbc.sql("select ip from audit_log where target = 'falso@ventas.test'").query(String.class).single()).isNotEqualTo("190.152.10.20");
 
         assertThatThrownBy(() -> jdbc.sql("update audit_log set actor_name = 'otro'").update()).hasMessageContaining("no se modifica");
         assertThatThrownBy(() -> jdbc.sql("delete from audit_log").update()).hasMessageContaining("no se modifica");

@@ -1,52 +1,34 @@
 package ec.kuador.board.auth.application;
 
+import ec.kuador.board.shared.web.RateLimiter;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Freno a la fuerza bruta: tras {@code maxFailures} fallos en {@code window} para el mismo correo,
- * se bloquea el login de ese correo hasta que los fallos salgan de la ventana. En memoria: basta
- * con una sola instancia de la API.
+ * Freno a la fuerza bruta en tres niveles, para que nadie pueda bloquear a otra persona con poco esfuerzo:
+ * <ul>
+ *   <li>el mismo correo desde la misma IP: 5 fallos en 15 minutos;</li>
+ *   <li>una IP contra cualquier correo (probar una clave en muchas cuentas): 30 fallos en 15 minutos;</li>
+ *   <li>un correo desde cualquier IP (ataque repartido): 50 fallos en una hora.</li>
+ * </ul>
  */
 class LoginAttempts {
 
-    private final int maxFailures;
-    private final Duration window;
-    private final Map<String, Deque<Instant>> failures = new ConcurrentHashMap<>();
+    private final RateLimiter pair = new RateLimiter(5, Duration.ofMinutes(15));
+    private final RateLimiter byIp = new RateLimiter(30, Duration.ofMinutes(15));
+    private final RateLimiter byEmail = new RateLimiter(50, Duration.ofHours(1));
 
-    LoginAttempts(int maxFailures, Duration window) {
-        this.maxFailures = maxFailures;
-        this.window = window;
+    boolean isBlocked(String email, String ip, Instant now) {
+        return pair.exceeded(email + "|" + ip, now) || (ip != null && byIp.exceeded(ip, now)) || byEmail.exceeded(email, now);
     }
 
-    boolean isBlocked(String email, Instant now) {
-        Deque<Instant> list = failures.get(email);
-        if (list == null) return false;
-        synchronized (list) {
-            prune(list, now);
-            return list.size() >= maxFailures;
-        }
+    void recordFailure(String email, String ip, Instant now) {
+        pair.record(email + "|" + ip, now);
+        if (ip != null) byIp.record(ip, now);
+        byEmail.record(email, now);
     }
 
-    void recordFailure(String email, Instant now) {
-        Deque<Instant> list = failures.computeIfAbsent(email, k -> new ArrayDeque<>());
-        synchronized (list) {
-            prune(list, now);
-            list.addLast(now);
-        }
-    }
-
-    void reset(String email) {
-        failures.remove(email);
-    }
-
-    private void prune(Deque<Instant> list, Instant now) {
-        while (!list.isEmpty() && !list.peekFirst().isAfter(now.minus(window))) {
-            list.pollFirst();
-        }
+    void reset(String email, String ip) {
+        pair.reset(email + "|" + ip);
     }
 }

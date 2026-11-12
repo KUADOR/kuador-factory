@@ -100,9 +100,16 @@ async function clientHeaders(): Promise<Record<string, string>> {
     const hops = (h.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     const ip = hops.at(-1) ?? h.get("x-real-ip") ?? "";
     const agent = h.get("user-agent") ?? "";
-    return { ...(ip ? { "X-Kuador-Client-IP": ip } : {}), ...(agent ? { "X-Kuador-Client-Agent": agent.slice(0, 300) } : {}) };
+    // El secreto compartido le dice al API que la petición viene de la web: solo entonces confía en la IP reenviada.
+    const secret = process.env.BOARD_WEB_SECRET;
+    return {
+      ...(secret ? { "X-Kuador-Web-Secret": secret } : {}),
+      ...(ip ? { "X-Kuador-Client-IP": ip } : {}),
+      ...(agent ? { "X-Kuador-Client-Agent": agent.slice(0, 300) } : {}),
+    };
   } catch {
-    return {}; // fuera de una petición (p. ej. al compilar)
+    // Fuera de una petición (p. ej. al compilar): sin IP, pero con el secreto.
+    return process.env.BOARD_WEB_SECRET ? { "X-Kuador-Web-Secret": process.env.BOARD_WEB_SECRET } : {};
   }
 }
 

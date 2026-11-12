@@ -20,6 +20,9 @@ final class DocumentText {
     /** {@code text} nulo si no se pudo leer; {@code note} explica qué es o por qué no se leyó. */
     record Extracted(String kind, String text, String note) {}
 
+    /** Páginas que se leen de un PDF: más que eso es un libro, no un adjunto de trabajo. */
+    static final int MAX_PAGES = 500;
+
     private DocumentText() {}
 
     static Extracted extract(String name, String contentType, byte[] content) {
@@ -48,7 +51,7 @@ final class DocumentText {
             if (doc.isEncrypted() && !doc.getCurrentAccessPermission().canExtractContent()) {
                 return new Extracted("PDF", null, "El PDF está protegido y no permite extraer su texto.");
             }
-            int pages = doc.getNumberOfPages();
+            int pages = Math.min(doc.getNumberOfPages(), MAX_PAGES);
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
             StringBuilder text = new StringBuilder();
@@ -69,6 +72,7 @@ final class DocumentText {
 
     /** El texto de un .docx: párrafos, tabulaciones y celdas de tablas (sin formato). */
     private static String docx(byte[] content) throws IOException {
+        ZipGuard.check(content);
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(content))) {
             for (ZipEntry e; (e = zip.getNextEntry()) != null; ) {
                 if (!e.getName().equals("word/document.xml")) continue;

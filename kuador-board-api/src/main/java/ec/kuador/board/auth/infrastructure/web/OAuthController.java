@@ -35,8 +35,12 @@ class OAuthController {
     private final String publicUrl;
     private final String webUrl;
 
+    private final ec.kuador.board.shared.web.RateLimiter registerPerIp = new ec.kuador.board.shared.web.RateLimiter(20, java.time.Duration.ofHours(1));
+    private final ec.kuador.board.shared.web.WebSecret web;
+
     OAuthController(OAuthService oauth, @Value("${board.public-url:http://localhost:8091}") String publicUrl,
-            @Value("${board.web-url:http://localhost:3600}") String webUrl) {
+            @Value("${board.web-url:http://localhost:3600}") String webUrl, ec.kuador.board.shared.web.WebSecret web) {
+        this.web = web;
         this.oauth = oauth;
         this.publicUrl = publicUrl.replaceAll("/+$", "");
         this.webUrl = webUrl.replaceAll("/+$", "");
@@ -76,7 +80,11 @@ class OAuthController {
     record RegistrationRequest(String client_name, List<String> redirect_uris) {}
 
     @PostMapping(value = "/oauth/register", consumes = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<Map<String, Object>> register(@RequestBody RegistrationRequest r) {
+    ResponseEntity<Map<String, Object>> register(@RequestBody RegistrationRequest r, jakarta.servlet.http.HttpServletRequest http) {
+        // Registro abierto (lo pide el protocolo de los clientes de IA), pero con tope por IP para no llenar la tabla.
+        if (registerPerIp.hit(web.clientIp(http), java.time.Instant.now())) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Demasiados registros desde esta IP; reintenta más tarde.");
+        }
         OAuthClient c = oauth.register(r.client_name(), r.redirect_uris());
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("client_id", c.clientId());

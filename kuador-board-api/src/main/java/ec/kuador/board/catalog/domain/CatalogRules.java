@@ -137,6 +137,9 @@ public final class CatalogRules {
         if (c.commands() == null) throw new DomainException("Indica los comandos (pueden quedar vacíos).");
     }
 
+    /** Lanzadores que puede usar un servidor MCP STDIO del catálogo. */
+    static final java.util.List<String> MCP_COMMANDS = java.util.List.of("npx", "uvx", "bunx", "pnpx", "docker", "node", "deno", "pipx");
+
     private static void mcp(McpServer s) {
         name(s.name());
         text(s.description(), "La descripción");
@@ -148,6 +151,15 @@ public final class CatalogRules {
             throw new DomainException("Un servidor HTTP necesita una URL http(s).");
         }
         if (s.args() == null || s.envVars() == null) throw new DomainException("Indica argumentos y variables (pueden ser listas vacías).");
+        // El comando termina en la PC de cada persona del equipo (kit y .mcp.json): solo lanzadores conocidos, sin rutas.
+        if (s.transport() == McpServer.Transport.STDIO && !MCP_COMMANDS.contains(s.command().strip())) {
+            throw new DomainException("El comando debe ser uno de: " + String.join(", ", MCP_COMMANDS) + ". El servidor va en los argumentos.");
+        }
+        for (String a : s.args()) {
+            if (a == null || a.length() > 300 || a.chars().anyMatch(Character::isISOControl)) {
+                throw new DomainException("Argumento no válido: sin saltos de línea y de hasta 300 caracteres.");
+            }
+        }
         for (McpServer.EnvVar v : s.envVars()) {
             if (v.name() == null || !ENV_NAME.matcher(v.name()).matches()) {
                 throw new DomainException("Nombre de variable no válido: " + v.name() + " (mayúsculas, números o _).");

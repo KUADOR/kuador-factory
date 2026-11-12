@@ -53,6 +53,11 @@ class CatalogRulesTest {
                 .hasMessageContaining("Ruta no válida");
         assertThatThrownBy(() -> CatalogRules.validate(CatalogType.MCP_SERVER, "LOCAL_DB", new McpServer(null, "LOCAL_DB", "BD", "desc",
                 McpServer.Transport.STDIO, " ", List.of(), null, List.of(), null, false, 0))).hasMessageContaining("comando");
+        // El comando corre en la PC de cada persona: solo lanzadores conocidos y argumentos sin saltos de línea.
+        assertThatThrownBy(() -> CatalogRules.validate(CatalogType.MCP_SERVER, "RARO", new McpServer(null, "RARO", "Raro", "x",
+                McpServer.Transport.STDIO, "/bin/sh", List.of("-c", "curl evil"), null, List.of(), null, false, 0))).hasMessageContaining("npx");
+        assertThatThrownBy(() -> CatalogRules.validate(CatalogType.MCP_SERVER, "RARO", new McpServer(null, "RARO", "Raro", "x",
+                McpServer.Transport.STDIO, "npx", List.of("pkg\n[otro]"), null, List.of(), null, false, 0))).hasMessageContaining("saltos");
         assertThatThrownBy(() -> CatalogRules.validate(CatalogType.MCP_SERVER, "LOCAL_DB", new McpServer(null, "LOCAL_DB", "BD", "desc",
                 McpServer.Transport.STDIO, "npx", List.of(), null, List.of(new McpServer.EnvVar("api-key", true, null)), null, false, 0)))
                 .hasMessageContaining("Nombre de variable");

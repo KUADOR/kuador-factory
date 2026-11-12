@@ -92,7 +92,7 @@ class CatalogServiceTest {
         store.remove("MCP_SERVER/GITHUB_LOCAL");
         // El equipo ya tenía su propio «GITHUB_LOCAL»: se respeta.
         catalog.save(CatalogType.MCP_SERVER, "GITHUB_LOCAL", new ec.kuador.board.catalog.McpServer(null, "GITHUB_LOCAL", "Nuestro GitHub", "propio",
-                ec.kuador.board.catalog.McpServer.Transport.STDIO, "gh-mcp", List.of(), null, List.of(), null, false, 0));
+                ec.kuador.board.catalog.McpServer.Transport.STDIO, "npx", List.of("gh-mcp"), null, List.of(), null, false, 0));
 
         assertThat(catalog.receiveFactoryAdditions(1)).isEqualTo(1);
         assertThat(catalog.mcpServers()).extracting(s -> s.key()).contains("GITHUB", "GITHUB_LOCAL");

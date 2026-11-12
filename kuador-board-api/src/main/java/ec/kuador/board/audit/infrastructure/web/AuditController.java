@@ -54,7 +54,7 @@ class AuditController {
     /** CSV sin fórmulas: un valor que empieza con = + - @ se antepone con ' para que Excel no lo ejecute. */
     private static String field(String v) {
         if (v == null) return "";
-        String s = v.matches("^[=+\\-@\\t\\r].*") ? "'" + v : v;
+        String s = !v.isEmpty() && "=+-@\t\r".indexOf(v.charAt(0)) >= 0 ? "'" + v : v;
         return s.contains(",") || s.contains("\"") || s.contains("\n") ? "\"" + s.replace("\"", "\"\"") + "\"" : s;
     }
 }

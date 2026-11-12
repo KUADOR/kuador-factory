@@ -427,6 +427,14 @@ MCP · 5 desarrollo y QA · 6 release.
   (accesos, permisos, claves, conexiones, pagos) o «Todo»; filtros por periodo y texto; exportación CSV.
   La tabla `audit_log` es solo de agregar: un disparador impide editar, borrar o vaciarla. Nunca guarda
   contenidos, contraseñas ni claves. La web reenvía la IP de la persona (`X-Kuador-Client-IP`).
+- **Seguridad**: el primer acceso de una persona solo se da una vez (después solo ella cambia o recupera su
+  contraseña); un correo de administración de la plataforma no se asigna a mano; cambiar o recuperar la
+  contraseña cierra también las conexiones de agentes locales; los códigos de 6 dígitos cuentan cada intento
+  de forma atómica; el login frena por correo+IP, por IP y por correo (nadie bloquea a otro desde fuera);
+  límites por IP en recuperación, alta y registro OAuth; los agentes no pueden fabricar resultados enormes
+  (funciones prohibidas, tope de celdas, bombas zip, dos trabajos a la vez); los servidores MCP STDIO solo
+  con lanzadores conocidos; cabeceras anti-iframe en la web. `BOARD_WEB_SECRET` (el mismo en web y API)
+  cierra el resto de la API a todo lo que no sea la web y hace confiable la IP de la auditoría.
 - **Proveedores de IA** (*Plataforma → Proveedores de IA*): Claude (Anthropic), ChatGPT (OpenAI) y
   DeepSeek, editables (dirección de la API, modelos, activo). Cada empresa elige uno en *Conexiones → IA*
   con su clave de API (cambiar de proveedor pide su clave). Con Claude el agente ejecuta código en el

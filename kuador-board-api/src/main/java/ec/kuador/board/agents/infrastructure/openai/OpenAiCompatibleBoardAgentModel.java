@@ -35,6 +35,7 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
     /** Vueltas máximas (cada una, una respuesta del modelo con sus llamadas a herramientas) antes de rendirse. */
     private static final int MAX_TURNS = 30;
     private static final int MAX_TOOL_RESULT = 60_000;
+    private static final java.util.concurrent.Semaphore SLOTS = new java.util.concurrent.Semaphore(2);
 
     private static final String ENVIRONMENT = """
 
@@ -70,6 +71,23 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
 
     @Override
     public Result work(Endpoint endpoint, String model, Task task) {
+        // Pocos trabajos a la vez en este servidor: cada uno carga planillas en memoria.
+        try {
+            if (!SLOTS.tryAcquire(10, java.util.concurrent.TimeUnit.MINUTES)) {
+                throw new AgentModelException("Hay muchos trabajos de agentes en curso; reintenta en unos minutos.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AgentModelException("Se interrumpió la espera para trabajar.", e);
+        }
+        try {
+            return run(endpoint, model, task);
+        } finally {
+            SLOTS.release();
+        }
+    }
+
+    private Result run(Endpoint endpoint, String model, Task task) {
         try (WorkRoom room = new WorkRoom(task.files())) {
             ArrayNode tools = json.createArrayNode();
             for (WorkRoom.ToolSpec t : room.tools()) tools.add(tool(t.name(), t.description(), t.parameters()));

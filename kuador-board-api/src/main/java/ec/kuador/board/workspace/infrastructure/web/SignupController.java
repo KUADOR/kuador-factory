@@ -24,7 +24,14 @@ class SignupController {
 
     private final SignupService signup;
 
-    SignupController(SignupService signup) {
+    private static final org.springframework.web.server.ResponseStatusException TOO_MANY = new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Demasiados intentos desde esta conexión. Espera unos minutos e inténtalo de nuevo.");
+    private final ec.kuador.board.shared.web.RateLimiter perIp = new ec.kuador.board.shared.web.RateLimiter(10, java.time.Duration.ofMinutes(10));
+    private final ec.kuador.board.shared.web.RateLimiter verifyPerIp = new ec.kuador.board.shared.web.RateLimiter(20, java.time.Duration.ofMinutes(10));
+    private final ec.kuador.board.shared.web.WebSecret web;
+
+    SignupController(SignupService signup, ec.kuador.board.shared.web.WebSecret web) {
+        this.web = web;
         this.signup = signup;
     }
 
@@ -51,13 +58,15 @@ class SignupController {
 
     @PostMapping("/code")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void code(@Valid @RequestBody CodeRequest r) {
+    void code(@Valid @RequestBody CodeRequest r, jakarta.servlet.http.HttpServletRequest http) {
+        if (perIp.hit(web.clientIp(http), java.time.Instant.now())) throw TOO_MANY;
         AuditHints.subject(r.email());
         signup.requestCode(r.email());
     }
 
     @PostMapping("/verify")
-    VerifyResponse verify(@Valid @RequestBody VerifyRequest r) {
+    VerifyResponse verify(@Valid @RequestBody VerifyRequest r, jakarta.servlet.http.HttpServletRequest http) {
+        if (verifyPerIp.hit(web.clientIp(http), java.time.Instant.now())) throw TOO_MANY;
         AuditHints.subject(r.email());
         return new VerifyResponse(signup.verifyCode(r.email(), r.code()));
     }

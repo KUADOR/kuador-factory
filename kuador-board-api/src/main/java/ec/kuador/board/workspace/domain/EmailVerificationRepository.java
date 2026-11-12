@@ -16,4 +16,7 @@ public interface EmailVerificationRepository {
     long countAllSince(Instant since);
 
     Optional<EmailVerification> findBySignupTokenHash(String hash);
+
+    /** Suma un intento si quedan (atómico). Devuelve los intentos usados, o -1 si ya no quedaban. */
+    int claimAttempt(java.util.UUID id, int max);
 }

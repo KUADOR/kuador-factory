@@ -36,7 +36,7 @@ public class SignupService {
 
     static final Duration RESEND_AFTER = Duration.ofMinutes(1);
     static final int CODES_PER_HOUR = 5;
-    static final int GLOBAL_CODES_PER_MINUTE = 30;
+    static final int GLOBAL_CODES_PER_MINUTE = 120;
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@]{1,64}@[^\\s@]{1,190}\\.[^\\s@]{2,63}$");
 
     private final EmailVerificationRepository verifications;
@@ -99,16 +99,19 @@ public class SignupService {
         String[] result = root(() -> {
             EmailVerification v = verifications.findLatest(email).filter(x -> x.codeUsable(now))
                     .orElseThrow(() -> new DomainException("El código venció o se usaron todos los intentos. Pide uno nuevo."));
+            // El intento se cuenta antes de comparar y en una sola sentencia: aunque lleguen muchos a la vez, no pasan del máximo.
+            int used = verifications.claimAttempt(v.id(), EmailVerification.MAX_ATTEMPTS);
+            if (used < 0) return new String[] {null, "El código venció o se usaron todos los intentos. Pide uno nuevo."};
             if (code == null || !MessageDigest.isEqual(hash(email + ":" + code.strip()).getBytes(StandardCharsets.UTF_8),
                     v.codeHash().getBytes(StandardCharsets.UTF_8))) {
-                EmailVerification failed = verifications.save(v.failedAttempt());
-                int left = EmailVerification.MAX_ATTEMPTS - failed.attempts();
+                int left = EmailVerification.MAX_ATTEMPTS - used;
                 return new String[] {null, left > 0 ? "El código no es correcto. Te quedan " + left + " intento(s)." : "El código no es correcto. Pide uno nuevo."};
             }
             // Ya demostró que el correo es suyo: si tiene cuenta se le dice ahora, no al final del alta.
             if (auth.emailInUse(email)) return new String[] {null, null};
             String token = newToken();
-            verifications.save(v.verified(hash(token), now));
+            verifications.save(new EmailVerification(v.id(), v.email(), v.codeHash(), used, v.expiresAt(), v.verifiedAt(), v.signupTokenHash(),
+                    v.signupExpiresAt(), v.usedAt(), v.createdAt()).verified(hash(token), now));
             return new String[] {token, null};
         });
         if (result[1] != null) throw new DomainException(result[1]);

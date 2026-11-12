@@ -129,6 +129,29 @@ class AuthServiceTest {
     }
 
     @Test
+    void nobodyCanTakeOverSomeoneWhoAlreadyHasAccessAndAPasswordChangeClosesEverything() {
+        // Ni otro editor ni nadie: quien ya entra solo cambia su contraseña él mismo (o la recupera por correo).
+        assertThatThrownBy(() -> auth.grantAccess(HUMAN, "atacante@otro.test", "clave-del-atacante"))
+                .isInstanceOf(ec.kuador.board.shared.error.ConflictException.class).hasMessageContaining("ya tiene acceso");
+        assertThat(auth.login("admin@kuador.local", PASSWORD).token()).isNotBlank();
+
+        String current = auth.login("admin@kuador.local", PASSWORD).token();
+        AuthService.IssuedToken runner = auth.issueRunnerToken(TestTenant.WORKSPACE, HUMAN, "PC robada");
+        assertThat(auth.authenticate(runner.token())).isPresent();
+        auth.changePassword(auth.authenticate(current).orElseThrow(), PASSWORD, "nueva-clave-segura");
+        assertThat(auth.authenticate(runner.token())).as("la conexión de agentes locales también se cierra").isEmpty();
+    }
+
+    @Test
+    void anotherConnectionCannotLockSomeoneOut() {
+        for (int i = 0; i < 6; i++) {
+            assertThatThrownBy(() -> auth.login("admin@kuador.local", "mala-clave-xx", "203.0.113.9")).isInstanceOf(RuntimeException.class);
+        }
+        assertThatThrownBy(() -> auth.login("admin@kuador.local", PASSWORD, "203.0.113.9")).isInstanceOf(AuthService.LoginBlockedException.class);
+        assertThat(auth.login("admin@kuador.local", PASSWORD, "190.152.1.1").token()).as("desde su propia conexión sigue entrando").isNotBlank();
+    }
+
+    @Test
     void rejectsShortPasswords() {
         assertThatThrownBy(() -> auth.grantAccess(HUMAN, "admin@kuador.local", "corta")).isInstanceOf(DomainException.class);
     }

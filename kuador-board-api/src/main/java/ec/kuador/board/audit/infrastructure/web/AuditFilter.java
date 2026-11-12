@@ -3,6 +3,7 @@ package ec.kuador.board.audit.infrastructure.web;
 import ec.kuador.board.audit.application.AuditLog;
 import ec.kuador.board.audit.domain.AuditActions;
 import ec.kuador.board.shared.web.AuditHints;
+import ec.kuador.board.shared.web.WebSecret;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,14 +20,13 @@ import org.springframework.web.servlet.HandlerMapping;
  */
 class AuditFilter extends OncePerRequestFilter {
 
-    /** La web reenvía la IP y el navegador de la persona (el API lo ve llegar desde el servidor de la web). */
-    static final String CLIENT_IP = "X-Kuador-Client-IP";
-    static final String CLIENT_AGENT = "X-Kuador-Client-Agent";
-
     private final AuditLog audit;
+    /** La IP y el navegador que reenvía la web cuentan solo si la petición trae el secreto de la web. */
+    private final WebSecret web;
 
-    AuditFilter(AuditLog audit) {
+    AuditFilter(AuditLog audit, WebSecret web) {
         this.audit = audit;
+        this.web = web;
     }
 
     @Override
@@ -60,7 +60,7 @@ class AuditFilter extends OncePerRequestFilter {
                 : !resolved.values().isEmpty() ? String.join(" · ", resolved.values()) : target(request);
         audit.record(new AuditLog.Record(actor == null ? null : actor.workspaceId(), actor == null ? null : actor.memberId(),
                 actor == null ? null : actor.name(), (actor == null ? AuditHints.Kind.ANONYMOUS : actor.kind()).name(), method, cut(action, 120),
-                cut(target, 200), status, cut(ip(request), 64), cut(agent(request), 300)));
+                cut(target, 200), status, cut(web.clientIp(request), 64), cut(web.clientAgent(request), 300)));
     }
 
     /** Los valores de la ruta (p. ej. VEN-12, o el código del plan). */
@@ -69,22 +69,6 @@ class AuditFilter extends OncePerRequestFilter {
         Object vars = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
         if (!(vars instanceof Map<?, ?> map) || map.isEmpty()) return null;
         return String.join(" · ", new TreeMap<>((Map<String, String>) map).values());
-    }
-
-    private static String ip(HttpServletRequest request) {
-        String fromWeb = request.getHeader(CLIENT_IP);
-        if (fromWeb != null && !fromWeb.isBlank()) return fromWeb.strip();
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            String[] hops = forwarded.split(",");
-            return hops[hops.length - 1].strip(); // el que agregó nuestro proxy, no lo que dijo el cliente
-        }
-        return request.getRemoteAddr();
-    }
-
-    private static String agent(HttpServletRequest request) {
-        String fromWeb = request.getHeader(CLIENT_AGENT);
-        return fromWeb != null && !fromWeb.isBlank() ? fromWeb : request.getHeader("User-Agent");
     }
 
     private static String cut(String s, int max) {

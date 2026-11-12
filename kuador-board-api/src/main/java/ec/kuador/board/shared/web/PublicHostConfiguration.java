@@ -13,8 +13,8 @@ import org.springframework.core.Ordered;
 class PublicHostConfiguration {
 
     @Bean
-    FilterRegistrationBean<PublicHostGate> publicHostGate(@Value("${board.public-url}") String publicUrl) {
-        FilterRegistrationBean<PublicHostGate> registration = new FilterRegistrationBean<>(new PublicHostGate(publicUrl));
+    FilterRegistrationBean<PublicHostGate> publicHostGate(@Value("${board.public-url}") String publicUrl, WebSecret web) {
+        FilterRegistrationBean<PublicHostGate> registration = new FilterRegistrationBean<>(new PublicHostGate(publicUrl, web));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return registration;
     }

@@ -216,7 +216,22 @@ public class AgentKit implements RepositoryInstructions {
     }
 
     private static String quote(String v) {
-        return "\"" + v.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        // Cadena básica de TOML: además de \\ y \", los saltos de línea y otros controles van escapados.
+        StringBuilder sb = new StringBuilder("\"");
+        for (char ch : v.toCharArray()) {
+            switch (ch) {
+                case '\\' -> sb.append("\\\\");
+                case '"' -> sb.append("\\\"");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (Character.isISOControl(ch)) sb.append(String.format("\\u%04X", (int) ch));
+                    else sb.append(ch);
+                }
+            }
+        }
+        return sb.append('"').toString();
     }
 
     // ---- Instrucciones ----

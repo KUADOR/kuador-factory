@@ -376,7 +376,15 @@ Cada inicio de sesión queda como una conexión de esa persona en **Agentes loca
 
 **Asistente de inicio** (`/projects/<clave>/inicio`): al crear un proyecto se abre solo y lo deja listo en pasos que se pueden saltar: metodología, repositorio y piezas (con la GitHub App o vinculando uno existente), cliente de IA, notificaciones y primer trabajo (una épica «Esqueleto del sistema» que entra a la etapa del PO). El tablero muestra «Faltan N pasos» hasta terminar (se puede ocultar) y Configuración tiene el acceso para volver.
 
-**Notificaciones** (Mi cuenta → Notificaciones): avisos por correo (el mismo SMTP del alta) y por Telegram (un bot creado con @BotFather; `BOARD_TELEGRAM_BOT_TOKEN` y `BOARD_TELEGRAM_BOT_USERNAME`) solo cuando algo necesita a la persona: le asignan un issue (p. ej. un agente le pide una decisión, con la pregunta en el aviso), un issue espera su aprobación en una puerta o un reparto de tareas espera que lo apruebe. Cada persona vincula su Telegram con un enlace de un solo uso, elige canales y avisos, y puede enviarse una prueba. Los envíos van por una cola con reintentos. En local, el bot recibe mensajes con `getUpdates` (en producción, por webhook).
+**Notificaciones** (Mi cuenta → Notificaciones): avisos por correo (el mismo SMTP del alta) y por Telegram solo cuando algo necesita a la persona: le asignan un issue (p. ej. un agente le pide una decisión, con la pregunta en el aviso), un issue espera su aprobación en una puerta o un reparto de tareas espera que lo apruebe. Cada persona vincula su Telegram con un enlace de un solo uso, elige canales y avisos, y puede enviarse una prueba. Los envíos van por una cola con reintentos. En local, el bot recibe mensajes con `getUpdates` (en producción, por webhook).
+
+**Telegram por espacio** (Conexiones → Telegram): cada empresa conecta su propio bot (lo crea con
+@BotFather y pega el token, que se valida con `getMe` y se guarda cifrado con `BOARD_SECRETS_KEY`) y
+vincula grupos: agrega el bot al grupo y escribe ahí `/vincular CÓDIGO` (un uso, 15 minutos). Cada
+grupo elige qué recibe (aprobaciones, repartos, asignaciones) y recibe un aviso por evento, no uno por
+persona. Cada bot tiene su webhook `/api/telegram/webhook/{espacio}` con su propio secreto. Cambiar o
+quitar el bot desvincula los chats y grupos del anterior. Sin bot propio, el espacio usa el de la
+plataforma (`BOARD_TELEGRAM_BOT_TOKEN`/`_USERNAME`, opcional).
 
 **Idiomas** (Empresa e idiomas): idioma del equipo (specs, planes, comentarios, textos para el usuario final; por defecto español) e idioma del código (nombres, comentarios, pruebas, commits, PRs, OpenAPI; por defecto inglés). Todos los agentes lo reciben como regla de la fábrica.
 

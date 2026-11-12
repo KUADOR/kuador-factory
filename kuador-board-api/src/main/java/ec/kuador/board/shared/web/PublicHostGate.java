@@ -32,7 +32,8 @@ public final class PublicHostGate extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String host = request.getServerName() == null ? "" : request.getServerName().toLowerCase(Locale.ROOT);
-        if (host.equals(publicHost) && !OPEN_PATHS.contains(request.getRequestURI())) {
+        String path = request.getRequestURI();
+        if (host.equals(publicHost) && !OPEN_PATHS.contains(path) && !path.matches("^/api/telegram/webhook/[A-Za-z0-9-]{1,64}$")) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             response.setContentType("application/problem+json;charset=UTF-8");
             response.getWriter().write("{\"status\":404,\"title\":\"No encontrado\"}");

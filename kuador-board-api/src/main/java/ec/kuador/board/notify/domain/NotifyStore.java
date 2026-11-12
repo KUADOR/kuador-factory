@@ -12,7 +12,11 @@ public interface NotifyStore {
 
     void saveSettings(UUID workspaceId, NotificationSettings settings, Instant now);
 
+    /** {@code memberId} nulo = código para vincular un grupo. */
     void saveLinkCode(String codeHash, UUID workspaceId, UUID memberId, Instant expiresAt);
+
+    /** Mira el código sin consumirlo. */
+    Optional<LinkTarget> findLinkCode(String codeHash, Instant now);
 
     /** Consume el código (una sola vez): espacio y persona, si existía y no venció. */
     Optional<LinkTarget> consumeLinkCode(String codeHash, Instant now);
@@ -29,4 +33,26 @@ public interface NotifyStore {
     void markRetry(UUID id, int attempts, Instant nextAttempt, String error);
 
     void markFailed(UUID id, int attempts, String error);
+
+    // ---- Bot propio del espacio (token cifrado) y grupos ----
+
+    /** Bot propio del espacio: token cifrado, nombre y secreto del webhook. */
+    record StoredBot(UUID workspaceId, String tokenEncrypted, String username, String webhookSecret) {}
+
+    Optional<StoredBot> bot(UUID workspaceId);
+
+    List<StoredBot> bots();
+
+    void saveBot(StoredBot bot, Instant now);
+
+    void deleteBot(UUID workspaceId);
+
+    /** Al cambiar o quitar el bot, los chats vinculados con el anterior dejan de servir. */
+    void clearTelegramLinks(UUID workspaceId);
+
+    List<TelegramGroup> groups(UUID workspaceId);
+
+    void saveGroup(TelegramGroup group, Instant now);
+
+    void deleteGroup(UUID workspaceId, UUID groupId);
 }

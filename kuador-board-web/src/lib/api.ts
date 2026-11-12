@@ -57,6 +57,8 @@ import type {
   LicenseStatus,
   Invitation,
   InvitationPreview,
+  TelegramGroup,
+  TelegramSetup,
 } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
@@ -112,6 +114,13 @@ export const boardApi = {
   confirmPasswordReset: (input: { token: string | null; email: string | null; code: string | null; password: string }) =>
     request<void>("/api/auth/password-reset/confirm", { ...json("POST", input), anonymous: true }),
   plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
+  telegramSetup: () => request<TelegramSetup>("/api/workspace/telegram"),
+  connectTelegramBot: (token: string) => request<TelegramSetup>("/api/workspace/telegram", json("PUT", { token })),
+  disconnectTelegramBot: () => request<TelegramSetup>("/api/workspace/telegram", { method: "DELETE" }),
+  telegramGroupCode: () => request<{ command: string; bot: string }>("/api/workspace/telegram/group-code", { method: "POST" }),
+  updateTelegramGroup: (id: string, input: { onAssigned: boolean; onGates: boolean; onPlans: boolean }) =>
+    request<TelegramGroup>(`/api/workspace/telegram/groups/${encodeURIComponent(id)}`, json("PUT", input)),
+  removeTelegramGroup: (id: string) => request<void>(`/api/workspace/telegram/groups/${encodeURIComponent(id)}`, { method: "DELETE" }),
   invitations: () => request<Invitation[]>("/api/invitations"),
   invite: (input: { memberId?: string; name?: string; role?: string; access?: MemberAccess; email: string }) =>
     request<Invitation>("/api/invitations", json("POST", input)),

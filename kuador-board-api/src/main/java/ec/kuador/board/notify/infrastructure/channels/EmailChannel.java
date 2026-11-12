@@ -30,7 +30,7 @@ class EmailChannel implements Channel {
     }
 
     @Override
-    public void send(String address, String subject, String body, String link) {
+    public void send(java.util.UUID workspaceId, String address, String subject, String body, String link) {
         JavaMailSender smtp = sender.getIfAvailable();
         if (smtp == null) throw new IllegalStateException("No hay SMTP configurado.");
         SimpleMailMessage m = new SimpleMailMessage();

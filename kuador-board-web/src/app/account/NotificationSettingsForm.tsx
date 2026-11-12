@@ -78,7 +78,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-fg-strong">Telegram</p>
             {!view.telegramAvailable ? (
-              <p className="text-xs text-fg-muted">El servidor todavía no tiene un bot de Telegram configurado.</p>
+              <p className="text-xs text-fg-muted">Tu espacio todavía no tiene un bot de Telegram. Quien administra lo conecta en Conexiones → Telegram.</p>
             ) : s.telegramChatId != null ? (
               <p className="text-xs text-fg-muted">
                 Conectado a @{view.telegramBot}.{" "}

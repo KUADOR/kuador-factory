@@ -45,6 +45,9 @@ class NotifyIT {
     /** Telegram falso: guarda lo que el bot envía y entrega los mensajes encolados por getUpdates. */
     static final List<Map<String, String>> SENT = new java.util.concurrent.CopyOnWriteArrayList<>();
     static final java.util.Queue<String> INCOMING = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    /** Mensajes para otros bots, por token: un objeto «message» en JSON. */
+    static final Map<String, java.util.Queue<String>> INCOMING_BY_TOKEN = new ConcurrentHashMap<>();
+    static final String OWN_TOKEN = "987654:ABCdefGHIjklMNOpqrSTUvwxYZ0123456789";
     static final List<org.springframework.mail.SimpleMailMessage> MAILS = new java.util.concurrent.CopyOnWriteArrayList<>();
     static com.sun.net.httpserver.HttpServer telegram;
     static int updateId = 1;
@@ -60,10 +63,23 @@ class NotifyIT {
                     if (kv.length == 2) form.put(kv[0], java.net.URLDecoder.decode(kv[1], java.nio.charset.StandardCharsets.UTF_8));
                 }
                 String path = ex.getRequestURI().getPath();
+                String token = path.replaceFirst("^/bot", "").replaceFirst("/[^/]+$", "");
                 String result;
                 if (path.endsWith("/sendMessage")) {
+                    form.put("_token", token);
                     SENT.add(form);
                     result = "{}";
+                } else if (path.endsWith("/getMe")) {
+                    result = "{\"username\":\"propio_bot\"}";
+                } else if (path.endsWith("/getUpdates") && !token.equals("123:abc")) {
+                    StringBuilder list = new StringBuilder("[");
+                    java.util.Queue<String> queue = INCOMING_BY_TOKEN.computeIfAbsent(token, k -> new java.util.concurrent.ConcurrentLinkedQueue<>());
+                    String message;
+                    while ((message = queue.poll()) != null) {
+                        if (list.length() > 1) list.append(',');
+                        list.append("{\"update_id\":").append(updateId++).append(",\"message\":").append(message).append('}');
+                    }
+                    result = list.append(']').toString();
                 } else if (path.endsWith("/getUpdates")) {
                     StringBuilder list = new StringBuilder("[");
                     String text;
@@ -224,5 +240,55 @@ class NotifyIT {
         eventually("llega la prueba", () -> MAILS.stream().anyMatch(m -> m.getSubject().equals("Prueba de avisos del tablero")));
         assertThat(call("DELETE", "/api/notifications/telegram", null, owner).body().get("settings").get("telegramChatId").isNull()).isTrue();
         assertThat(call("GET", "/api/notifications", null, runner).status()).as("la conexión de agentes no abre esto").isEqualTo(401);
+    }
+
+    @Test
+    void aWorkspaceUsesItsOwnBotAndLinksGroups() throws Exception {
+        signup.requestCode("gus@grp.test");
+        signup.complete(signup.verifyCode("gus@grp.test", INBOX.get("gus@grp.test")),
+                new SignupService.Company("Grp", null, null, null, null, null), "Gus", "clave-de-gus-123", "FACTORY");
+        String owner = auth.login("gus@grp.test", "clave-de-gus-123").token();
+
+        assertThat(call("PUT", "/api/workspace/telegram", Map.of("token", "no-es-un-token"), owner).status()).isEqualTo(422);
+        JsonNode setup = call("PUT", "/api/workspace/telegram", Map.of("token", OWN_TOKEN), owner).body();
+        assertThat(setup.get("ownBot").asString()).isEqualTo("propio_bot");
+        assertThat(setup.toString()).doesNotContain(OWN_TOKEN);
+
+        // La persona se vincula con el bot del espacio, no con el de la plataforma.
+        String url = call("POST", "/api/notifications/telegram/link", null, owner).body().get("url").asString();
+        assertThat(url).startsWith("https://t.me/propio_bot?start=");
+        String code = url.substring(url.indexOf("start=") + 6);
+        // El mismo código por el bot de la plataforma no sirve y no se gasta.
+        INCOMING.add("/start " + code);
+        eventually("el bot de la plataforma lo rechaza", () -> SENT.stream().anyMatch(m -> "123:abc".equals(m.get("_token")) && m.get("text").contains("ya se usó o venció")));
+        queue("{\"chat\":{\"id\":555,\"type\":\"private\"},\"text\":\"/start " + code + "\"}");
+        eventually("vinculado con el bot propio", () -> SENT.stream().anyMatch(m -> OWN_TOKEN.equals(m.get("_token")) && m.get("text").contains("Listo, Gus")));
+
+        // Un grupo: se agrega el bot y se escribe el comando con el código.
+        String command = call("POST", "/api/workspace/telegram/group-code", null, owner).body().get("command").asString();
+        assertThat(command).startsWith("/vincular ");
+        queue("{\"chat\":{\"id\":-1001,\"type\":\"supergroup\",\"title\":\"Equipo Grp\"},\"text\":\"" + command.replace("/vincular", "/vincular@propio_bot") + "\"}");
+        eventually("grupo vinculado", () -> {
+            try {
+                return call("GET", "/api/workspace/telegram", null, owner).body().get("groups").size() == 1;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+        JsonNode group = call("GET", "/api/workspace/telegram", null, owner).body().get("groups").get(0);
+        assertThat(group.get("title").asString()).isEqualTo("Equipo Grp");
+        assertThat(group.get("onGates").asBoolean()).isTrue();
+        assertThat(call("PUT", "/api/workspace/telegram/groups/" + group.get("id").asString(), Map.of("onAssigned", true, "onGates", false, "onPlans", true), owner)
+                .body().get("onAssigned").asBoolean()).isTrue();
+
+        // Al quitar el bot propio, chats y grupos quedan desvinculados.
+        JsonNode after = call("DELETE", "/api/workspace/telegram", null, owner).body();
+        assertThat(after.get("ownBot").isNull()).isTrue();
+        assertThat(after.get("groups").size()).isZero();
+        assertThat(call("GET", "/api/notifications", null, owner).body().get("settings").get("telegramChatId").isNull()).isTrue();
+    }
+
+    private static void queue(String message) {
+        INCOMING_BY_TOKEN.computeIfAbsent(OWN_TOKEN, k -> new java.util.concurrent.ConcurrentLinkedQueue<>()).add(message);
     }
 }

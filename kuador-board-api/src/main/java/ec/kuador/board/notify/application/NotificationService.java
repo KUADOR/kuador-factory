@@ -9,7 +9,9 @@ import ec.kuador.board.notify.domain.Notice;
 import ec.kuador.board.notify.domain.NoticeKind;
 import ec.kuador.board.notify.domain.NotificationSettings;
 import ec.kuador.board.notify.domain.NotifyStore;
+import ec.kuador.board.notify.domain.TelegramBotConfig;
 import ec.kuador.board.notify.domain.TelegramGateway;
+import ec.kuador.board.notify.domain.TelegramGroup;
 import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.shared.error.ForbiddenException;
 import ec.kuador.board.shared.tenant.TenantContext;
@@ -46,18 +48,20 @@ public class NotificationService {
 
     private final NotifyStore store;
     private final Map<Channel.Kind, Channel> channels;
-    private final TelegramGateway bot;
+    private final TelegramGateway telegram;
+    private final TelegramBots bots;
     private final AuthApi auth;
     private final MemberApi members;
     private final WorkspaceApi workspace;
     private final Clock clock;
     private final TransactionTemplate tx;
 
-    NotificationService(NotifyStore store, List<Channel> channels, TelegramGateway bot, AuthApi auth, MemberApi members, WorkspaceApi workspace, Clock clock,
-            PlatformTransactionManager txManager) {
+    NotificationService(NotifyStore store, List<Channel> channels, TelegramGateway telegram, TelegramBots bots, AuthApi auth, MemberApi members,
+            WorkspaceApi workspace, Clock clock, PlatformTransactionManager txManager) {
         this.store = store;
         this.channels = channels.stream().collect(Collectors.toMap(Channel::kind, Function.identity()));
-        this.bot = bot;
+        this.telegram = telegram;
+        this.bots = bots;
         this.auth = auth;
         this.members = members;
         this.workspace = workspace;
@@ -70,8 +74,9 @@ public class NotificationService {
 
     public View view(AuthenticatedMember who) {
         requirePerson(who);
+        Optional<TelegramBotConfig> bot = bots.forWorkspace(who.workspaceId());
         return new View(settings(who.memberId()), auth.emailOf(who.memberId()).orElse(null), channels.get(Channel.Kind.EMAIL).available(),
-                bot.configured(), bot.configured() ? bot.username() : null);
+                bot.isPresent(), bot.map(TelegramBotConfig::username).orElse(null));
     }
 
     /** Guarda canales y avisos; el chat de Telegram no se toca aquí (se vincula con el bot). */
@@ -86,10 +91,9 @@ public class NotificationService {
     /** Enlace para vincular Telegram: abre el bot con un código de un solo uso. */
     public String telegramLink(AuthenticatedMember who) {
         requirePerson(who);
-        if (!bot.configured()) throw new DomainException("El tablero todavía no tiene un bot de Telegram configurado.");
-        byte[] b = new byte[18];
-        RANDOM.nextBytes(b);
-        String code = Base64.getUrlEncoder().withoutPadding().encodeToString(b);
+        TelegramBotConfig bot = bots.forWorkspace(who.workspaceId())
+                .orElseThrow(() -> new DomainException("Tu espacio todavía no tiene un bot de Telegram. Configúralo en Conexiones → Telegram."));
+        String code = newCode();
         store.saveLinkCode(hash(code), who.workspaceId(), who.memberId(), clock.instant().plus(LINK_TTL));
         return "https://t.me/" + bot.username() + "?start=" + code;
     }
@@ -125,7 +129,7 @@ public class NotificationService {
                 used.add(Channel.Kind.EMAIL);
             });
         }
-        if (s.telegram() && s.telegramChatId() != null && bot.configured()) {
+        if (s.telegram() && s.telegramChatId() != null && bots.forWorkspace(workspaceId).isPresent()) {
             store.enqueue(new Notice(UUID.randomUUID(), workspaceId, memberId, Channel.Kind.TELEGRAM, String.valueOf(s.telegramChatId()), subject, body + footer,
                     link, 0, now), now);
             used.add(Channel.Kind.TELEGRAM);
@@ -133,34 +137,93 @@ public class NotificationService {
         return used;
     }
 
-    // ---- Telegram: mensajes que llegan al bot ----
-
-    /** Un mensaje al bot. «/start CÓDIGO» vincula el chat con la persona que pidió el enlace. */
-    public void onTelegramMessage(long chatId, String text) {
-        String t = text == null ? "" : text.strip();
-        if (t.startsWith("/start ")) {
-            String code = t.substring("/start ".length()).strip();
-            Optional<NotifyStore.LinkTarget> target = tx.execute(s -> store.consumeLinkCode(hash(code), clock.instant()));
-            if (target.isPresent()) {
-                String name = TenantContext.call(target.get().workspaceId(), () -> {
-                    store.saveSettings(target.get().workspaceId(), settings(target.get().memberId()).withTelegramChat(chatId), clock.instant());
-                    return members.find(target.get().memberId()).map(MemberView::name).orElse("") + " · tablero de " + workspace.identity().name();
-                });
-                reply(chatId, "Listo, " + name + ". Te avisaré aquí cuando algo te necesite: una pregunta de un agente, una aprobación o un reparto de tareas.");
-                return;
-            }
-            reply(chatId, "Ese enlace ya se usó o venció. Pide uno nuevo en el tablero: Mi cuenta → Notificaciones → Conectar Telegram.");
-            return;
+    /**
+     * Un aviso para los grupos de Telegram del espacio que lo quieren (uno por evento, no uno por persona).
+     * Corre en el espacio del aviso.
+     */
+    public void enqueueGroups(UUID workspaceId, NoticeKind kind, String subject, String body, String link) {
+        if (bots.forWorkspace(workspaceId).isEmpty()) return;
+        String footer = "\n\n— Tablero de " + workspace.identity().name();
+        Instant now = clock.instant();
+        for (TelegramGroup g : store.groups(workspaceId)) {
+            if (!g.wants(kind)) continue;
+            store.enqueue(new Notice(UUID.randomUUID(), workspaceId, null, Channel.Kind.TELEGRAM, String.valueOf(g.chatId()), subject, body + footer, link, 0, now), now);
         }
-        reply(chatId, "Este bot envía los avisos del tablero. Conéctalo desde Mi cuenta → Notificaciones → Conectar Telegram.");
     }
 
-    private void reply(long chatId, String text) {
+    // ---- Telegram: mensajes que llegan a un bot ----
+
+    /** Código para vincular un grupo: se escribe «/vincular CÓDIGO» en el grupo donde está el bot. */
+    String newGroupCode(UUID workspaceId) {
+        String code = newCode();
+        store.saveLinkCode(hash(code), workspaceId, null, clock.instant().plus(LINK_TTL));
+        return code;
+    }
+
+    /**
+     * Un mensaje a un bot ({@code botKey}). En un chat directo, «/start CÓDIGO» vincula a la persona que pidió el
+     * enlace; en un grupo, «/vincular CÓDIGO» vincula el grupo al espacio. El código debe ser de un espacio que avisa
+     * con ese mismo bot.
+     */
+    public void onTelegramMessage(String botKey, long chatId, String chatType, String chatTitle, String text) {
+        Optional<TelegramBotConfig> bot = bots.byKey(botKey);
+        if (bot.isEmpty()) return;
+        String t = text == null ? "" : text.strip();
+        boolean group = "group".equals(chatType) || "supergroup".equals(chatType);
+        if (group) {
+            // En grupos el comando puede llegar como «/vincular@NombreDelBot CÓDIGO».
+            if (!t.matches("(?s)^/vincular(@\\w+)?\\s+\\S+.*")) return;
+            String code = t.replaceFirst("^/vincular(@\\w+)?\\s+", "").split("\\s+")[0];
+            Optional<NotifyStore.LinkTarget> target = consume(code, bot.get()).filter(x -> x.memberId() == null);
+            if (target.isEmpty()) {
+                reply(bot.get(), chatId, "Ese código ya se usó o venció. Genera otro en el tablero: Conexiones → Telegram → Vincular grupo.");
+                return;
+            }
+            String name = TenantContext.call(target.get().workspaceId(), () -> tx.execute(s -> {
+                store.saveGroup(new TelegramGroup(UUID.randomUUID(), target.get().workspaceId(), chatId, chatTitle == null || chatTitle.isBlank() ? "Grupo" : chatTitle,
+                        false, true, true), clock.instant());
+                return workspace.identity().name();
+            }));
+            reply(bot.get(), chatId, "Listo: este grupo recibirá los avisos del tablero de " + name + " (aprobaciones y repartos de tareas). Ajústalo en Conexiones → Telegram.");
+            return;
+        }
+        if (t.startsWith("/start ")) {
+            String code = t.substring("/start ".length()).strip();
+            Optional<NotifyStore.LinkTarget> target = consume(code, bot.get()).filter(x -> x.memberId() != null);
+            if (target.isPresent()) {
+                String name = TenantContext.call(target.get().workspaceId(), () -> tx.execute(s -> {
+                    store.saveSettings(target.get().workspaceId(), settings(target.get().memberId()).withTelegramChat(chatId), clock.instant());
+                    return members.find(target.get().memberId()).map(MemberView::name).orElse("") + " · tablero de " + workspace.identity().name();
+                }));
+                reply(bot.get(), chatId, "Listo, " + name + ". Te avisaré aquí cuando algo te necesite: una pregunta de un agente, una aprobación o un reparto de tareas.");
+                return;
+            }
+            reply(bot.get(), chatId, "Ese enlace ya se usó o venció. Pide uno nuevo en el tablero: Mi cuenta → Notificaciones → Conectar Telegram.");
+            return;
+        }
+        reply(bot.get(), chatId, "Este bot envía los avisos del tablero. Conéctalo desde Mi cuenta → Notificaciones → Conectar Telegram.");
+    }
+
+    /** Consume el código solo si su espacio avisa con el bot que recibió el mensaje (si no, el código sigue sirviendo). */
+    private Optional<NotifyStore.LinkTarget> consume(String code, TelegramBotConfig receivedBy) {
+        Optional<NotifyStore.LinkTarget> target = tx.execute(s -> store.findLinkCode(hash(code), clock.instant())
+                .filter(x -> bots.forWorkspace(x.workspaceId()).map(TelegramBotConfig::key).filter(receivedBy.key()::equals).isPresent())
+                .flatMap(x -> store.consumeLinkCode(hash(code), clock.instant())));
+        return target == null ? Optional.empty() : target;
+    }
+
+    private void reply(TelegramBotConfig bot, long chatId, String text) {
         try {
-            bot.sendMessage(chatId, text);
+            telegram.sendMessage(bot.token(), chatId, text);
         } catch (RuntimeException e) {
             log.warn("No se pudo responder en Telegram: {}", e.getMessage());
         }
+    }
+
+    private static String newCode() {
+        byte[] b = new byte[18];
+        RANDOM.nextBytes(b);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
     }
 
     // ---- Despacho ----
@@ -172,7 +235,7 @@ public class NotificationService {
             Instant now = clock.instant();
             for (Notice n : store.lockDue(now, limit)) {
                 try {
-                    channels.get(n.channel()).send(n.address(), n.subject(), n.body(), n.link());
+                    channels.get(n.channel()).send(n.workspaceId(), n.address(), n.subject(), n.body(), n.link());
                     store.markSent(n.id(), clock.instant());
                     ok++;
                 } catch (RuntimeException e) {

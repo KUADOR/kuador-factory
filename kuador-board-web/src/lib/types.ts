@@ -370,6 +370,22 @@ export interface WorkspaceLicense {
 
 export type PlanInput = Omit<Plan, "code">;
 
+export interface TelegramGroup {
+  id: string;
+  chatId: number;
+  title: string;
+  onAssigned: boolean;
+  onGates: boolean;
+  onPlans: boolean;
+}
+
+/** Telegram del espacio: su bot propio (si tiene), el de respaldo de la plataforma y los grupos vinculados. */
+export interface TelegramSetup {
+  ownBot: string | null;
+  platformBot: string | null;
+  groups: TelegramGroup[];
+}
+
 /** Invitación por correo pendiente de aceptar. */
 export interface Invitation {
   id: string;

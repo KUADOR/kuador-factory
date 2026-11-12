@@ -1,8 +1,12 @@
 package ec.kuador.board.notify.infrastructure.channels;
 
 import ec.kuador.board.notify.application.NotificationService;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import ec.kuador.board.notify.application.TelegramBots;
+import ec.kuador.board.notify.domain.TelegramBotConfig;
+import ec.kuador.board.shared.tenant.TenantContext;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,8 +17,8 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Despacha la cola cada pocos segundos y recibe los mensajes del bot. Con la API en HTTPS (producción), Telegram los
- * entrega por webhook; en local (sin HTTPS), se piden con getUpdates.
+ * Despacha la cola cada pocos segundos y recibe los mensajes de los bots. Con la API en HTTPS (producción), Telegram
+ * los entrega por webhook (uno por bot); en local (sin HTTPS), se piden con getUpdates a cada bot.
  */
 @Component
 class NoticeDispatcher implements ec.kuador.board.notify.infrastructure.web.TelegramWebhook {
@@ -22,15 +26,28 @@ class NoticeDispatcher implements ec.kuador.board.notify.infrastructure.web.Tele
     private static final Logger log = LoggerFactory.getLogger(NoticeDispatcher.class);
 
     private final NotificationService notifications;
-    private final TelegramBot bot;
+    private final TelegramBots bots;
+    private final TelegramBot telegram;
     private final String publicUrl;
-    private final AtomicBoolean polling = new AtomicBoolean(false);
-    private final AtomicLong offset = new AtomicLong(0);
+    private final Map<String, Long> offsets = new ConcurrentHashMap<>();
+    /** Bots que entregan por webhook en otro servidor: en local no se les pide getUpdates. */
+    private final Set<String> skip = ConcurrentHashMap.newKeySet();
 
-    NoticeDispatcher(NotificationService notifications, TelegramBot bot, @Value("${board.public-url:http://localhost:8091}") String publicUrl) {
+    NoticeDispatcher(NotificationService notifications, TelegramBots bots, TelegramBot telegram,
+            @Value("${board.public-url:http://localhost:8091}") String publicUrl) {
         this.notifications = notifications;
-        this.bot = bot;
+        this.bots = bots;
+        this.telegram = telegram;
         this.publicUrl = publicUrl.replaceAll("/+$", "");
+    }
+
+    boolean webhooks() {
+        return publicUrl.startsWith("https://");
+    }
+
+    /** URL del webhook de un bot. */
+    String webhookUrl(TelegramBotConfig bot) {
+        return publicUrl + "/api/telegram/webhook/" + bot.key();
     }
 
     @Scheduled(fixedDelayString = "${board.notifications.dispatch-every:5000}", initialDelay = 5000)
@@ -43,48 +60,49 @@ class NoticeDispatcher implements ec.kuador.board.notify.infrastructure.web.Tele
         }
     }
 
+    /** Al arrancar, en producción, cada bot (re)registra su webhook. */
     @EventListener(ApplicationReadyEvent.class)
-    void connectBot() {
-        if (!bot.configured()) return;
-        if (publicUrl.startsWith("https://")) {
+    void connectBots() {
+        if (!webhooks()) return;
+        for (TelegramBotConfig bot : TenantContext.asRoot(bots::all)) {
             try {
-                bot.call("setWebhook", java.util.Map.of("url", publicUrl + "/api/telegram/webhook", "secret_token", bot.webhookSecret(),
-                        "allowed_updates", "[\"message\"]"));
+                telegram.setWebhook(bot.token(), webhookUrl(bot), bot.webhookSecret());
                 log.info("Bot de Telegram @{} recibe mensajes por webhook", bot.username());
             } catch (RuntimeException e) {
-                log.warn("No se pudo registrar el webhook de Telegram: {}", e.getMessage());
+                log.warn("No se pudo registrar el webhook de @{}: {}", bot.username(), e.getMessage());
             }
-        } else {
-            polling.set(true);
-            log.info("Bot de Telegram @{} en modo local: mensajes con getUpdates", bot.username());
         }
     }
 
     @Scheduled(fixedDelay = 3000, initialDelay = 5000)
     void poll() {
-        if (!polling.get()) return;
-        try {
-            JsonNode updates = bot.call("getUpdates", java.util.Map.of("offset", String.valueOf(offset.get()), "timeout", "0", "allowed_updates", "[\"message\"]"));
-            for (JsonNode u : updates) {
-                offset.set(u.path("update_id").asLong() + 1);
-                handle(u);
-            }
-        } catch (TelegramBot.TelegramException e) {
-            if (e.status == 409) {
-                // El bot ya entrega por webhook (lo usa otro servidor): en local no se puede vincular con este bot.
-                polling.set(false);
-                log.warn("El bot de Telegram tiene un webhook activo en otro servidor; en local usa otro bot para vincular.");
-            } else {
-                log.debug("getUpdates falló: {}", e.getMessage());
+        if (webhooks()) return;
+        for (TelegramBotConfig bot : TenantContext.asRoot(bots::all)) {
+            if (skip.contains(bot.key())) continue;
+            try {
+                for (JsonNode u : telegram.updates(bot.token(), offsets.getOrDefault(bot.key(), 0L))) {
+                    offsets.put(bot.key(), u.path("update_id").asLong() + 1);
+                    handle(u, bot.key());
+                }
+            } catch (TelegramBot.TelegramException e) {
+                if (e.status == 409) {
+                    skip.add(bot.key());
+                    log.warn("El bot @{} tiene un webhook activo en otro servidor; en local usa otro bot para vincular.", bot.username());
+                } else {
+                    log.debug("getUpdates de @{} falló: {}", bot.username(), e.getMessage());
+                }
+            } catch (RuntimeException e) {
+                log.debug("No se pudieron leer los mensajes de @{}: {}", bot.username(), e.getMessage());
             }
         }
     }
 
     @Override
-    public void handle(JsonNode update) {
+    public void handle(JsonNode update, String botKey) {
         JsonNode message = update.path("message");
         if (message.isMissingNode() || !message.path("chat").has("id")) return;
-        if (!"private".equals(message.path("chat").path("type").asString("private"))) return; // solo chats directos con el bot
-        notifications.onTelegramMessage(message.path("chat").path("id").asLong(), message.path("text").asString(""));
+        JsonNode chat = message.path("chat");
+        notifications.onTelegramMessage(botKey, chat.path("id").asLong(), chat.path("type").asString("private"), chat.path("title").asString(""),
+                message.path("text").asString(""));
     }
 }

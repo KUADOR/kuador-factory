@@ -74,6 +74,7 @@ class NoticeRouter {
                 body = "«" + issue.title() + "»" + actor.map(a -> "\n\nTe lo asignó " + a.name() + ".").orElse("");
             }
             notifications.enqueue(e.workspaceId(), to.id(), NoticeKind.ASSIGNED, subject, body, link(e.projectKey(), e.issueKey()));
+            notifications.enqueueGroups(e.workspaceId(), NoticeKind.ASSIGNED, e.issueKey() + " · ahora lo tiene " + to.name(), body, link(e.projectKey(), e.issueKey()));
         });
     }
 
@@ -87,10 +88,13 @@ class NoticeRouter {
             Optional<StageDef> stage = project.stage(e.toStatus());
             String column = project.column(e.toStatus()).map(c -> c.name()).orElse(e.toStatus());
             if (stage.isPresent() && stage.get().gate()) {
+                String body = "«" + issue.title() + "» llegó a «" + column + "». Apruébalo o recházalo con un motivo desde el tablero.";
                 for (UUID person : approvers(project, stage.get(), e.issueKey(), e.actorId())) {
-                    notifications.enqueue(e.workspaceId(), person, NoticeKind.GATE, e.issueKey() + " · espera tu aprobación en «" + column + "»",
-                            "«" + issue.title() + "» llegó a «" + column + "». Apruébalo o recházalo con un motivo desde el tablero.", link(e.projectKey(), e.issueKey()));
+                    notifications.enqueue(e.workspaceId(), person, NoticeKind.GATE, e.issueKey() + " · espera tu aprobación en «" + column + "»", body,
+                            link(e.projectKey(), e.issueKey()));
                 }
+                notifications.enqueueGroups(e.workspaceId(), NoticeKind.GATE, e.issueKey() + " · espera aprobación en «" + column + "»", body,
+                        link(e.projectKey(), e.issueKey()));
                 return;
             }
             if ("EPIC".equals(issue.type()) && stage.isPresent() && !stage.get().roles().isEmpty()) {
@@ -99,10 +103,13 @@ class NoticeRouter {
                 if (waiting.isEmpty() || issue.assigneeId() != null) return;
                 StringBuilder list = new StringBuilder();
                 waiting.forEach(t -> list.append("\n• ").append(t.key()).append(" ").append(t.title()).append(" (").append(t.workRole()).append(")"));
+                String body = "«" + issue.title() + "» llegó a «" + column + "». Revisa el reparto y apruébalo o pide cambios:" + list;
                 for (UUID person : supervisorOrOwners(e.issueKey(), e.actorId())) {
                     notifications.enqueue(e.workspaceId(), person, NoticeKind.PLAN, e.issueKey() + " · el reparto de " + waiting.size() + " tareas espera tu aprobación",
-                            "«" + issue.title() + "» llegó a «" + column + "». Revisa el reparto y apruébalo o pide cambios:" + list, link(e.projectKey(), e.issueKey()));
+                            body, link(e.projectKey(), e.issueKey()));
                 }
+                notifications.enqueueGroups(e.workspaceId(), NoticeKind.PLAN, e.issueKey() + " · el reparto de " + waiting.size() + " tareas espera aprobación",
+                        body, link(e.projectKey(), e.issueKey()));
             }
         });
     }

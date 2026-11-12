@@ -76,8 +76,9 @@ BOARD_MAIL_LOG_CODES=false
 # Esa persona ve «Plataforma» en el menú. Vacío = nadie.
 BOARD_PLATFORM_ADMINS=
 
-# Avisos por Telegram (opcional). Crea el bot con @BotFather (/newbot) y copia su token y su nombre.
-# Al arrancar, la API registra sola el webhook en https://go-api.kuador.com/api/telegram/webhook.
+# Bot de Telegram de respaldo de la plataforma (opcional). Cada espacio conecta el suyo desde la web
+# (Conexiones → Telegram); este solo se usa para los espacios que no tienen bot propio.
+# Al arrancar, la API registra el webhook de cada bot en https://go-api.kuador.com/api/telegram/webhook/{clave}.
 BOARD_TELEGRAM_BOT_TOKEN=
 BOARD_TELEGRAM_BOT_USERNAME=
 

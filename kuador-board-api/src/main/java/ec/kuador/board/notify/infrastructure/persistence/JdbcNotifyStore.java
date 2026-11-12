@@ -4,6 +4,7 @@ import ec.kuador.board.notify.domain.Channel;
 import ec.kuador.board.notify.domain.Notice;
 import ec.kuador.board.notify.domain.NotificationSettings;
 import ec.kuador.board.notify.domain.NotifyStore;
+import ec.kuador.board.notify.domain.TelegramGroup;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -53,6 +54,14 @@ class JdbcNotifyStore implements NotifyStore {
     }
 
     @Override
+    public Optional<LinkTarget> findLinkCode(String codeHash, Instant now) {
+        return jdbc.sql("select workspace_id, member_id from telegram_link where code_hash = ? and expires_at > ?")
+                .params(codeHash, Timestamp.from(now))
+                .query((rs, n) -> new LinkTarget(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class)))
+                .optional();
+    }
+
+    @Override
     public Optional<LinkTarget> consumeLinkCode(String codeHash, Instant now) {
         return jdbc.sql("delete from telegram_link where code_hash = ? and expires_at > ? returning workspace_id, member_id")
                 .params(codeHash, Timestamp.from(now))
@@ -96,6 +105,63 @@ class JdbcNotifyStore implements NotifyStore {
     @Override
     public void markFailed(UUID id, int attempts, String error) {
         jdbc.sql("update notification set status = 'FAILED', attempts = ?, error = ? where id = ?").params(attempts, truncate(error), id).update();
+    }
+
+    @Override
+    public Optional<StoredBot> bot(UUID workspaceId) {
+        return jdbc.sql("select workspace_id, token_enc, username, webhook_secret from telegram_bot where workspace_id = ?").param(workspaceId)
+                .query((rs, n) -> new StoredBot(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4))).optional();
+    }
+
+    @Override
+    public List<StoredBot> bots() {
+        return jdbc.sql("select workspace_id, token_enc, username, webhook_secret from telegram_bot")
+                .query((rs, n) -> new StoredBot(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4))).list();
+    }
+
+    @Override
+    public void saveBot(StoredBot b, Instant now) {
+        jdbc.sql("""
+                insert into telegram_bot (workspace_id, token_enc, username, webhook_secret, updated_at) values (?, ?, ?, ?, ?)
+                on conflict (workspace_id) do update set token_enc = excluded.token_enc, username = excluded.username,
+                    webhook_secret = excluded.webhook_secret, updated_at = excluded.updated_at""")
+                .params(b.workspaceId(), b.tokenEncrypted(), b.username(), b.webhookSecret(), Timestamp.from(now)).update();
+    }
+
+    @Override
+    public void deleteBot(UUID workspaceId) {
+        jdbc.sql("delete from telegram_bot where workspace_id = ?").param(workspaceId).update();
+    }
+
+    @Override
+    public void clearTelegramLinks(UUID workspaceId) {
+        jdbc.sql("update notification_settings set telegram_chat_id = null where workspace_id = ?").param(workspaceId).update();
+        jdbc.sql("delete from telegram_group where workspace_id = ?").param(workspaceId).update();
+        jdbc.sql("delete from telegram_link where workspace_id = ?").param(workspaceId).update();
+    }
+
+    @Override
+    public List<TelegramGroup> groups(UUID workspaceId) {
+        return jdbc.sql("select id, workspace_id, chat_id, title, on_assigned, on_gates, on_plans from telegram_group where workspace_id = ? order by created_at")
+                .param(workspaceId)
+                .query((rs, n) -> new TelegramGroup(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getLong(3), rs.getString(4),
+                        rs.getBoolean(5), rs.getBoolean(6), rs.getBoolean(7)))
+                .list();
+    }
+
+    @Override
+    public void saveGroup(TelegramGroup g, Instant now) {
+        jdbc.sql("""
+                insert into telegram_group (id, workspace_id, chat_id, title, on_assigned, on_gates, on_plans, created_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict (workspace_id, chat_id) do update set title = excluded.title, on_assigned = excluded.on_assigned,
+                    on_gates = excluded.on_gates, on_plans = excluded.on_plans""")
+                .params(g.id(), g.workspaceId(), g.chatId(), g.title(), g.onAssigned(), g.onGates(), g.onPlans(), Timestamp.from(now)).update();
+    }
+
+    @Override
+    public void deleteGroup(UUID workspaceId, UUID groupId) {
+        jdbc.sql("delete from telegram_group where workspace_id = ? and id = ?").params(workspaceId, groupId).update();
     }
 
     private static String truncate(String s) {

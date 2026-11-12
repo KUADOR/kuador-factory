@@ -1,5 +1,12 @@
 package ec.kuador.board.notify.infrastructure.web;
 
+import ec.kuador.board.notify.application.TelegramBots;
+import ec.kuador.board.notify.application.TelegramSetupService;
+import ec.kuador.board.notify.domain.TelegramBotConfig;
+import ec.kuador.board.notify.domain.TelegramGroup;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+import org.springframework.web.bind.annotation.PathVariable;
 import ec.kuador.board.auth.AuthenticatedMember;
 import ec.kuador.board.notify.application.NotificationService;
 import ec.kuador.board.notify.domain.Channel;
@@ -21,12 +28,14 @@ import tools.jackson.databind.JsonNode;
 class NotificationController {
 
     private final NotificationService service;
-    private final ec.kuador.board.notify.infrastructure.channels.TelegramBot bot;
+    private final TelegramBots bots;
+    private final TelegramSetupService setup;
     private final TelegramWebhook webhook;
 
-    NotificationController(NotificationService service, ec.kuador.board.notify.infrastructure.channels.TelegramBot bot, TelegramWebhook webhook) {
+    NotificationController(NotificationService service, TelegramBots bots, TelegramSetupService setup, TelegramWebhook webhook) {
         this.service = service;
-        this.bot = bot;
+        this.bots = bots;
+        this.setup = setup;
         this.webhook = webhook;
     }
 
@@ -57,13 +66,54 @@ class NotificationController {
         return Map.of("channels", service.test(who));
     }
 
-    /** Telegram entrega aquí los mensajes al bot; solo con el secreto que se le dio al registrar el webhook. */
-    @PostMapping("/api/telegram/webhook")
-    ResponseEntity<Void> telegram(@RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secret, @RequestBody JsonNode update) {
-        if (!bot.configured() || secret == null || !java.security.MessageDigest.isEqual(secret.getBytes(), bot.webhookSecret().getBytes())) {
+    /** Telegram entrega aquí los mensajes de un bot; solo con el secreto que se le dio al registrar su webhook. */
+    @PostMapping({"/api/telegram/webhook", "/api/telegram/webhook/{key}"})
+    ResponseEntity<Void> telegram(@PathVariable(required = false) String key,
+            @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secret, @RequestBody JsonNode update) {
+        String botKey = key == null ? TelegramBotConfig.PLATFORM : key;
+        var bot = bots.byKey(botKey);
+        if (bot.isEmpty() || secret == null
+                || !java.security.MessageDigest.isEqual(secret.getBytes(StandardCharsets.UTF_8), bot.get().webhookSecret().getBytes(StandardCharsets.UTF_8))) {
             return ResponseEntity.status(401).build();
         }
-        webhook.handle(update);
+        webhook.handle(update, botKey);
         return ResponseEntity.ok().build();
+    }
+
+    // ---- Telegram del espacio (personas que editan) ----
+
+    record BotRequest(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 100) String token) {}
+
+    record GroupRequest(boolean onAssigned, boolean onGates, boolean onPlans) {}
+
+    @GetMapping("/api/workspace/telegram")
+    TelegramSetupService.Setup setup() {
+        return setup.setup();
+    }
+
+    @PutMapping("/api/workspace/telegram")
+    TelegramSetupService.Setup connect(@jakarta.validation.Valid @RequestBody BotRequest r) {
+        return setup.connect(r.token());
+    }
+
+    @DeleteMapping("/api/workspace/telegram")
+    TelegramSetupService.Setup disconnect() {
+        return setup.disconnect();
+    }
+
+    @PostMapping("/api/workspace/telegram/group-code")
+    TelegramSetupService.GroupCode groupCode() {
+        return setup.groupCode();
+    }
+
+    @PutMapping("/api/workspace/telegram/groups/{id}")
+    TelegramGroup updateGroup(@PathVariable UUID id, @RequestBody GroupRequest r) {
+        return setup.updateGroup(id, r.onAssigned(), r.onGates(), r.onPlans());
+    }
+
+    @DeleteMapping("/api/workspace/telegram/groups/{id}")
+    ResponseEntity<Void> removeGroup(@PathVariable UUID id) {
+        setup.removeGroup(id);
+        return ResponseEntity.noContent().build();
     }
 }

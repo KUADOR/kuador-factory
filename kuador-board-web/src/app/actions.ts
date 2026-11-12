@@ -53,6 +53,8 @@ import type {
   WorkspaceLicense,
   WorkspacePlan,
   Invitation,
+  TelegramGroup,
+  TelegramSetup,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -309,6 +311,30 @@ export async function signupCompleteAction(input: {
   if (!session.ok) return session;
   await setSessionToken(session.data.token, session.data.expiresAt);
   redirect("/");
+}
+
+export async function telegramSetupAction(): Promise<ActionResult<TelegramSetup>> {
+  return run(() => boardApi.telegramSetup());
+}
+
+export async function connectTelegramBotAction(token: string): Promise<ActionResult<TelegramSetup>> {
+  return run(() => boardApi.connectTelegramBot(token), "/conexiones");
+}
+
+export async function disconnectTelegramBotAction(): Promise<ActionResult<TelegramSetup>> {
+  return run(() => boardApi.disconnectTelegramBot(), "/conexiones");
+}
+
+export async function telegramGroupCodeAction(): Promise<ActionResult<{ command: string; bot: string }>> {
+  return run(() => boardApi.telegramGroupCode());
+}
+
+export async function updateTelegramGroupAction(id: string, input: { onAssigned: boolean; onGates: boolean; onPlans: boolean }): Promise<ActionResult<TelegramGroup>> {
+  return run(() => boardApi.updateTelegramGroup(id, input), "/conexiones");
+}
+
+export async function removeTelegramGroupAction(id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.removeTelegramGroup(id), "/conexiones");
 }
 
 export async function inviteAction(input: { memberId?: string; name?: string; role?: string; access?: MemberAccess; email: string }): Promise<ActionResult<Invitation>> {

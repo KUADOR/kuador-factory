@@ -1,13 +1,15 @@
 package ec.kuador.board.notify.domain;
 
-/** Puerto: el bot de Telegram del tablero. */
+/** Puerto: la Bot API de Telegram, con el token del bot que corresponda. */
 public interface TelegramGateway {
 
-    /** Hay token y nombre de bot configurados. */
-    boolean configured();
+    /** Valida el token y devuelve el nombre del bot (sin «@»). */
+    String username(String token);
 
-    /** Nombre del bot, sin «@» (para el enlace t.me). */
-    String username();
+    void sendMessage(String token, long chatId, String text);
 
-    void sendMessage(long chatId, String text);
+    /** Telegram entregará los mensajes del bot en {@code url} con ese secreto. */
+    void setWebhook(String token, String url, String secret);
+
+    void deleteWebhook(String token);
 }

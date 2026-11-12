@@ -79,6 +79,22 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
   herramientas, automatización) y servidores MCP. Lo de fábrica se edita y se restaura; lo propio se
   crea y se borra si nadie lo usa (409 si está en uso). Solo las personas lo editan.
 
+## Adjuntos
+
+- Cada tarjeta tiene la pestaña **Adjuntos**: se sueltan o se eligen archivos (hasta
+  `BOARD_STORAGE_MAX_FILE_SIZE`, 25 MB por defecto); las imágenes se ven en miniatura y los PDF se
+  abren en otra pestaña. Suben y borran quienes editan; ven y descargan todos.
+- El archivo vive en un almacenamiento compatible con S3, **Garage** (`infra/garage`), en la red
+  interna; la tabla `attachment` guarda nombre, tipo, tamaño y la clave del objeto
+  (`espacio/tarjeta/id`, nunca el nombre). Las descargas pasan por la web (`/adjuntos/archivo/{id}`) y
+  la API con la sesión; solo imágenes y PDF se muestran en línea, el resto se descarga
+  (`nosniff`). Al borrar una tarjeta se borran sus archivos.
+- Los agentes ven los adjuntos en `get_issue` y leen los de texto (Markdown, TXT, CSV, JSON, YAML,
+  XML, hasta 200 KB) con `read_attachment`.
+- En local: `cd infra/garage && cp .env.example .env` (y completa los dos secretos),
+  `docker compose up -d`, `./setup.sh`, y pon las variables `BOARD_STORAGE_S3_*` que imprime en el
+  `.env` del API con `BOARD_STORAGE_S3_ENDPOINT=http://127.0.0.1:3900`.
+
 ## Interfaz
 
 - PrimeReact 11 (`@primereact/ui`) con el preset `src/theme/kuador-preset.ts`: un solo preset para

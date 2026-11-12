@@ -1,0 +1,26 @@
+# Garage para producción en Dokploy (servicio de tipo Compose apuntando a este archivo).
+# Sin puertos publicados: el API lo alcanza por la red de Dokploy en http://garage:3900.
+# Variables del servicio en Dokploy: GARAGE_RPC_SECRET (openssl rand -hex 32) y GARAGE_ADMIN_TOKEN (openssl rand -base64 32).
+services:
+  garage:
+    image: dxflrs/garage:v2.5.0
+    restart: unless-stopped
+    environment:
+      GARAGE_RPC_SECRET: "${GARAGE_RPC_SECRET:?falta; genera uno con openssl rand -hex 32}"
+      GARAGE_ADMIN_TOKEN: "${GARAGE_ADMIN_TOKEN:?falta; genera uno con openssl rand -base64 32}"
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    networks:
+      dokploy-network:
+        aliases:
+          - garage
+
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  garage-meta:
+  garage-data:

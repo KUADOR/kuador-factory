@@ -57,6 +57,7 @@ import type {
   TelegramSetup,
   PaymentMode,
   PaymentProviderView,
+  AttachmentListing,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -183,6 +184,14 @@ export async function listAgentRunsAction(issueKey: string): Promise<ActionResul
 
 export async function listActivityAction(key: string): Promise<ActionResult<Activity[]>> {
   return run(() => boardApi.issueActivity(key));
+}
+
+export async function listAttachmentsAction(key: string): Promise<ActionResult<AttachmentListing>> {
+  return run(() => boardApi.attachments(key));
+}
+
+export async function deleteAttachmentAction(id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteAttachment(id));
 }
 
 export async function listCommentsAction(key: string): Promise<ActionResult<Comment[]>> {

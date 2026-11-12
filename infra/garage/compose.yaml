@@ -1,0 +1,20 @@
+# Garage para los adjuntos. En local: `docker compose up -d` y luego `./setup.sh`.
+# En producción (Dokploy) se despliega igual, en la misma red que el API; el puerto 3900 no se publica a Internet.
+services:
+  garage:
+    image: dxflrs/garage:v2.5.0
+    restart: unless-stopped
+    environment:
+      GARAGE_RPC_SECRET: "${GARAGE_RPC_SECRET:?falta; genera uno con openssl rand -hex 32}"
+      GARAGE_ADMIN_TOKEN: "${GARAGE_ADMIN_TOKEN:?falta; genera uno con openssl rand -base64 32}"
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    ports:
+      # Solo para desarrollo local; en producción quita esta línea y usa la red interna (http://garage:3900).
+      - "127.0.0.1:3900:3900"
+
+volumes:
+  garage-meta:
+  garage-data:

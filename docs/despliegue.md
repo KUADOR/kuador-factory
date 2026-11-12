@@ -12,14 +12,16 @@ Internet ──HTTPS──▶ Traefik (Dokploy)
                       │  go-api.kuador.com  ──▶ kuador-board-api (:8091), solo /mcp, OAuth, el kit, el webhook y la salud
                       ▼
         kuador-board-web ──red interna──▶ kuador-board-api ──▶ PostgreSQL (servicio de BD de Dokploy)
+                                                          └──▶ Garage (adjuntos, S3, http://garage:3900)
 ```
 
 - **Por el dominio de la API solo entran** el MCP de los clientes de IA de cada persona
   (`/mcp`), su inicio de sesión OAuth (`/.well-known/oauth-protected-resource[/mcp]`,
   `/.well-known/oauth-authorization-server`, `/oauth/register`, `/oauth/token`; la pantalla de permiso
   es `https://go.kuador.com/oauth/authorize`, por eso `BOARD_WEB_URL` debe ser la URL pública de la web),
-  el kit de agentes (`/api/agent-kit`, `/api/agent-kit.zip`), el webhook del bot de Telegram
-  (`/api/telegram/webhook`, con su secreto), el webhook de GitHub
+  el kit de agentes (`/api/agent-kit`, `/api/agent-kit.zip`), los webhooks de los bots de Telegram
+  (`/api/telegram/webhook[/{clave}]`, con su secreto), los avisos de las pasarelas de pago
+  (`/api/payments/webhook/{código}`, verificados con la pasarela), el webhook de GitHub
   (`/api/github/webhook`) y `/actuator/health`. Lo hace la propia API (`BOARD_PUBLIC_HOST_GATE=true`):
   cualquier otra ruta pedida con el host de `BOARD_PUBLIC_URL` responde 404. El resto de la API lo
   llama el servidor de Next por la red interna, con el host interno; el navegador nunca habla con la API.
@@ -92,6 +94,38 @@ SPRINGDOC_SWAGGER_UI_ENABLED=false
 
 Sin `ANTHROPIC_API_KEY`: los agentes corren en el Claude Code (o Codex, u otro cliente) de cada
 persona, con su propia suscripción, conectados al MCP.
+
+## 3b. Garage (adjuntos)
+
+Los adjuntos de las tarjetas viven en Garage, compatible con S3, en la red interna. Sin Garage el
+tablero funciona igual y la pestaña *Adjuntos* dice que no están habilitados.
+
+1. En Dokploy: *Create Service → Compose*, desde este repositorio, con **Compose Path**
+   `infra/garage/compose.dokploy.yaml`.
+2. Variables del servicio (*Environment*), generadas en tu máquina:
+   ```
+   GARAGE_RPC_SECRET=   # openssl rand -hex 32
+   GARAGE_ADMIN_TOKEN=  # openssl rand -base64 32
+   ```
+3. *Deploy*. No lleva dominio ni puertos: el API lo alcanza como `http://garage:3900` por
+   `dokploy-network`.
+4. Una sola vez, por SSH en el servidor, desde una copia de `infra/garage/setup.sh`:
+   ```
+   CONTAINER=$(docker ps --filter ancestor=dxflrs/garage:v2.5.0 --format '{{.Names}}' | head -1) ./setup.sh
+   ```
+   Imprime las variables `BOARD_STORAGE_S3_*`; se puede volver a correr y da la misma clave.
+5. En el servicio del API agrega esas variables y redespliega:
+   ```
+   BOARD_STORAGE_S3_ENDPOINT=http://garage:3900
+   BOARD_STORAGE_S3_REGION=garage
+   BOARD_STORAGE_S3_BUCKET=kuador-adjuntos
+   BOARD_STORAGE_S3_ACCESS_KEY=GK…
+   BOARD_STORAGE_S3_SECRET_KEY=…
+   BOARD_STORAGE_MAX_FILE_SIZE=25MB   # opcional
+   ```
+   Al arrancar, el log del API dice `Adjuntos en el bucket kuador-adjuntos`.
+
+Respaldo: los volúmenes `garage-meta` y `garage-data` del servicio.
 
 ## 4. Servicio de la web
 

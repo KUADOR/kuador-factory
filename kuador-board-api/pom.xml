@@ -23,6 +23,7 @@
         <springdoc.version>3.1.1</springdoc.version>
         <anthropic.version>3.3.0</anthropic.version>
         <testcontainers.version>2.0.5</testcontainers.version>
+        <awssdk.version>2.46.7</awssdk.version>
     </properties>
 
     <dependencyManagement>
@@ -88,6 +89,27 @@
             <groupId>com.anthropic</groupId>
             <artifactId>anthropic-java</artifactId>
             <version>${anthropic.version}</version>
+        </dependency>
+        <!-- Adjuntos: almacenamiento compatible con S3 (Garage). Cliente HTTP del JDK, sin Netty ni Apache. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${awssdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+            <version>${awssdk.version}</version>
         </dependency>
         <!-- Catálogo de fábrica (catalog/defaults.yaml) -->
         <dependency>

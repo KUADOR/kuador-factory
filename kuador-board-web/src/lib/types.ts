@@ -370,6 +370,23 @@ export interface WorkspaceLicense {
 
 export type PlanInput = Omit<Plan, "code">;
 
+export interface Attachment {
+  id: string;
+  issueKey: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedBy: string | null;
+  createdAt: string;
+}
+
+/** Adjuntos de una tarjeta; `available` es falso si el servidor no tiene almacenamiento configurado. */
+export interface AttachmentListing {
+  available: boolean;
+  maxBytes: number;
+  items: Attachment[];
+}
+
 export interface PaymentField {
   key: string;
   label: string;

@@ -32,6 +32,11 @@ spring:
     properties:
       mail.smtp.starttls.enable: true
       mail.smtp.starttls.required: true
+  servlet:
+    multipart:
+      # Adjuntos: el máximo por archivo lo decide board.storage.max-file-size (un poco más aquí por el sobre del formulario).
+      max-file-size: ${BOARD_STORAGE_MAX_FILE_SIZE:25MB}
+      max-request-size: 26MB
   mvc:
     problemdetails:
       enabled: true
@@ -71,6 +76,15 @@ board:
   platform:
     # Correos (separados por coma) de quienes administran la plataforma: planes y licencias de todos los espacios.
     admins: ${BOARD_PLATFORM_ADMINS:}
+  storage:
+    # Adjuntos en un almacenamiento compatible con S3 (Garage en la red interna). Sin endpoint, deshabilitados.
+    max-file-size: ${BOARD_STORAGE_MAX_FILE_SIZE:25MB}
+    s3:
+      endpoint: ${BOARD_STORAGE_S3_ENDPOINT:}
+      region: ${BOARD_STORAGE_S3_REGION:garage}
+      bucket: ${BOARD_STORAGE_S3_BUCKET:kuador-adjuntos}
+      access-key: ${BOARD_STORAGE_S3_ACCESS_KEY:}
+      secret-key: ${BOARD_STORAGE_S3_SECRET_KEY:}
   telegram:
     # Bot para los avisos (lo crea @BotFather). Sin token, Telegram no aparece como canal.
     bot-token: ${BOARD_TELEGRAM_BOT_TOKEN:}

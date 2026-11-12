@@ -64,6 +64,7 @@ import type {
   PaymentOption,
   PaymentProviderView,
   PaymentType,
+  AttachmentListing,
 } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
@@ -105,9 +106,11 @@ export const kitQuery = (client: string, mcp: string[]) => new URLSearchParams([
  * Descarga binaria con la sesión (el .zip del kit). Devuelve la respuesta de la API tal cual para
  * reenviarla al navegador desde un route handler.
  */
-export async function fetchWithSession(path: string, signal?: AbortSignal): Promise<Response> {
+export async function fetchWithSession(path: string, signal?: AbortSignal, init?: RequestInit & { duplex?: "half" }): Promise<Response> {
   const token = await getSessionToken();
-  return fetch(`${BASE_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store", signal });
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(`${BASE_URL}${path}`, { ...init, headers, cache: "no-store", signal });
 }
 
 export const boardApi = {
@@ -119,6 +122,8 @@ export const boardApi = {
   confirmPasswordReset: (input: { token: string | null; email: string | null; code: string | null; password: string }) =>
     request<void>("/api/auth/password-reset/confirm", { ...json("POST", input), anonymous: true }),
   plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
+  attachments: (key: string) => request<AttachmentListing>(`/api/issues/${encodeURIComponent(key)}/attachments`),
+  deleteAttachment: (id: string) => request<void>(`/api/attachments/${encodeURIComponent(id)}`, { method: "DELETE" }),
   paymentTypes: () => request<PaymentType[]>("/api/platform/payment-types"),
   paymentProviders: () => request<PaymentProviderView[]>("/api/platform/payment-providers"),
   savePaymentProvider: (

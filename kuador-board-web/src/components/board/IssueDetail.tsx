@@ -34,6 +34,7 @@ import { parentLabel, documentsOf } from "@/lib/labels";
 import type { Activity, AgentRun, Comment, DocumentMeta, Issue, Me, Member, Methodology, Project } from "@/lib/types";
 
 import { EpicPlan } from "./EpicPlan";
+import { IssueAttachments } from "./IssueAttachments";
 import { IssueForm, valuesOf } from "./IssueForm";
 import { StageBar } from "./StageBar";
 
@@ -172,7 +173,7 @@ export function IssueDetail({
 }
 
 function IssueTabs({ issueKey, members, project }: { issueKey: string; members: Member[]; project: Project }) {
-  const [tab, setTab] = useState<"comments" | "history" | "docs">("comments");
+  const [tab, setTab] = useState<"comments" | "files" | "history" | "docs">("comments");
   // Documentos solo en proyectos de software con metodología.
   const withDocs = project.kind === "SOFTWARE" && project.methodology != null;
   return (
@@ -183,6 +184,7 @@ function IssueTabs({ issueKey, members, project }: { issueKey: string; members: 
         onChange={setTab}
         items={[
           { value: "comments", label: "Comentarios", content: <Comments issueKey={issueKey} members={members} /> },
+          { value: "files", label: "Adjuntos", content: <IssueAttachments issueKey={issueKey} members={members} /> },
           { value: "history", label: "Historial", content: <IssueHistory issueKey={issueKey} members={members} project={project} /> },
           ...(withDocs ? [{ value: "docs" as const, label: "Documentos", content: <IssueDocs issueKey={issueKey} project={project} /> }] : []),
         ]}

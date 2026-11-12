@@ -43,12 +43,24 @@ export function PlanChooser({
       window.location.assign(r.data.payUrl);
     });
   };
-  const payButtons = (p: Plan) =>
-    options.map((o) => (
-      <Button key={o.code} tone="primary" className="w-full" loading={pending && target === `${p.code}:${o.code}`} disabled={pending} onClick={() => pay(p, o)}>
-        Pagar {months === 12 ? "12 meses" : "1 mes"} con {o.name}
-      </Button>
-    ));
+  // Pagar el plan vigente con fecha por delante es renovar: el periodo se suma después de esa fecha.
+  const paidAhead =
+    current.status === "ACTIVE" && current.paidUntil != null && new Date(current.paidUntil) > new Date() ? new Date(current.paidUntil) : null;
+  const payButtons = (p: Plan) => {
+    const renew = p.code === plan.code && paidAhead != null;
+    const until = renew ? new Date(paidAhead) : null;
+    until?.setMonth(until.getMonth() + months);
+    return (
+      <>
+        {options.map((o) => (
+          <Button key={o.code} tone="primary" className="w-full" loading={pending && target === `${p.code}:${o.code}`} disabled={pending} onClick={() => pay(p, o)}>
+            {renew ? "Renovar" : "Pagar"} {months === 12 ? "12 meses" : "1 mes"} con {o.name}
+          </Button>
+        ))}
+        {until && <p className="text-[12px] text-fg-muted">Quedaría pagado hasta el {dateLabel(until.toISOString())}.</p>}
+      </>
+    );
+  };
   const { plan, effective, status } = current;
   const downgraded = effective.code !== plan.code;
 

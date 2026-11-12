@@ -28,6 +28,7 @@ class CatalogServiceTest {
     @BeforeEach
     void setUp() {
         CatalogRepository repo = new CatalogRepository() {
+            public String payloadOf(Object entry) { return ec.kuador.board.catalog.infrastructure.CatalogJson.payload(entry); }
             public <T> List<T> list(CatalogType type, Class<T> c) {
                 return store.entrySet().stream().filter(e -> e.getKey().startsWith(type + "/")).sorted(Map.Entry.comparingByKey())
                         .map(e -> c.cast(e.getValue()[0])).toList(); // como la base: por clave
@@ -52,7 +53,7 @@ class CatalogServiceTest {
             public long projectsUsingMethodology(String k) { return methodologyUsers; }
             public long membersWithRole(String k) { return 0; }
         });
-        catalog = new CatalogService(repo, InMemoryCatalog.FACTORY, beans.getBeanProvider(CatalogUsage.class));
+        catalog = new CatalogService(repo, InMemoryCatalog.FACTORY, beans.getBeanProvider(CatalogUsage.class), null);
         catalog.provisionDefaults();
     }
 

@@ -11,12 +11,15 @@ import { Badge } from "@/components/ui/Section";
 import type { WorkflowTemplate } from "@/lib/types";
 
 /** Las plantillas vienen del catálogo del espacio: cada una trae columnas y tipos de trabajo. */
-export function CreateProjectForm({ templates, onCancel }: { templates: WorkflowTemplate[]; onCancel: () => void }) {
+export function CreateProjectForm({ templates: all, recommended = [], onCancel }: { templates: WorkflowTemplate[]; recommended?: string[]; onCancel: () => void }) {
+  // Las plantillas del paquete de la empresa van primero, en su orden.
+  const rank = (key: string) => (recommended.includes(key) ? recommended.indexOf(key) : recommended.length);
+  const templates = [...all].sort((a, b) => rank(a.key) - rank(b.key));
   const router = useRouter();
   const [key, setKey] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [templateKey, setTemplateKey] = useState(templates.find((t) => t.kind === "SOFTWARE")?.key ?? templates[0]?.key ?? "");
+  const [templateKey, setTemplateKey] = useState(recommended.find((k) => templates.some((t) => t.key === k)) ?? templates.find((t) => t.kind === "SOFTWARE")?.key ?? templates[0]?.key ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const template = templates.find((t) => t.key === templateKey);
@@ -65,7 +68,7 @@ export function CreateProjectForm({ templates, onCancel }: { templates: Workflow
             value: t.key,
             label: t.name,
             hint: t.description ?? undefined,
-            badge: t.kind === "SOFTWARE" ? <Badge tone="info">Software</Badge> : undefined,
+            badge: recommended.includes(t.key) ? <Badge tone="sol">Recomendada</Badge> : t.kind === "SOFTWARE" ? <Badge tone="info">Software</Badge> : undefined,
           }))}
         />
         {template && (

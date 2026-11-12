@@ -15,15 +15,13 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.List;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Component;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
 /**
- * Lee {@code catalog/defaults.yaml} al arrancar y lo valida con las mismas reglas que una edición:
- * un valor de fábrica roto impide arrancar en vez de llegar a un espacio.
+ * Lee {@code catalog/defaults.yaml} y lo valida con las mismas reglas que una edición. Es la semilla del catálogo de
+ * la plataforma: se copia a la base la primera vez; desde ahí lo edita quien administra la plataforma.
  */
-@Component
 public class YamlFactoryCatalog implements FactoryCatalog {
 
     static final String RESOURCE = "catalog/defaults.yaml";
@@ -67,6 +65,13 @@ public class YamlFactoryCatalog implements FactoryCatalog {
                 }
             }
         }
+    }
+
+    /** Versiones de la semilla: número y lo que agregó cada una. */
+    public java.util.Map<Integer, List<java.util.Map.Entry<CatalogType, String>>> releasesByVersion() {
+        java.util.Map<Integer, List<java.util.Map.Entry<CatalogType, String>>> out = new java.util.TreeMap<>();
+        for (Release r : releases()) out.put(r.version(), r.added().stream().map(a -> java.util.Map.entry(a.type(), a.key())).toList());
+        return out;
     }
 
     private List<Release> releases() {

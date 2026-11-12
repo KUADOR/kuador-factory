@@ -82,6 +82,16 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
 - El catálogo de fábrica tiene **versión** (`catalog/defaults.yaml`, `version` y `releases`): al
   arrancar, cada espacio recibe una sola vez lo que se agregó después de su versión, sin tocar lo que
   el equipo editó ni revivir lo que borró. Así llegaron los servidores MCP de GitHub.
+- **Catálogo de la plataforma** (*Plataforma → Catálogo de la plataforma*, solo `BOARD_PLATFORM_ADMINS`):
+  lo que reciben todos los espacios vive en la base (`platform_catalog_entry`), sembrado la primera
+  vez desde `catalog/defaults.yaml`. Se edita en borrador y se **publica una versión**
+  (`platform_catalog_release`): lo agregado llega a todos los espacios; lo actualizado llega a los
+  espacios que no habían modificado esa entrada (se compara con lo publicado antes) y se respeta la
+  versión de los que sí. Quitar una entrada solo deja de repartirla. En roles se edita también el
+  agente que nace con cada espacio (nombre y color).
+- **Paquetes por industria** (`catalog_package`, editables en *Plataforma*): al registrarse la empresa
+  elige a qué se dedica; arranca con el tablero inicial del paquete (con su equipo de agentes) y al
+  crear tableros ve primero sus plantillas («Recomendada»).
 - El **catálogo** es configurable por espacio en la web (*Catálogo*): plantillas de flujo,
   metodologías (documentos, rutas en el repo, quién los escribe), roles de agentes (instrucciones,
   herramientas, automatización) y servidores MCP. Lo de fábrica se edita y se restaura; lo propio se

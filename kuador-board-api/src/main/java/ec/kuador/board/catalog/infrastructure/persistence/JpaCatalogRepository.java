@@ -60,6 +60,11 @@ class JpaCatalogRepository implements CatalogRepository {
         jpa.findByTypeAndKey(type, key).ifPresent(jpa::delete);
     }
 
+    @Override
+    public String payloadOf(Object entry) {
+        return CatalogJson.payload(entry);
+    }
+
     private static <T> T toRecord(CatalogEntryEntity e, Class<T> recordType) {
         return CatalogJson.read(e.payload, e.id, e.builtIn, e.version, recordType);
     }

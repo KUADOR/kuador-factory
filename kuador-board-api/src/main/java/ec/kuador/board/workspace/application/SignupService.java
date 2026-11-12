@@ -46,10 +46,15 @@ public class SignupService {
     private final Clock clock;
     private final BillingApi billing;
     private final AuthApi auth;
+    private final ec.kuador.board.catalog.CatalogApi catalog;
+    private final ec.kuador.board.project.ProjectApi projects;
     private final SecureRandom random = new SecureRandom();
 
     SignupService(EmailVerificationRepository verifications, VerificationMailer mailer, WorkspaceService workspaces,
-            PlatformTransactionManager txManager, Clock clock, BillingApi billing, AuthApi auth) {
+            PlatformTransactionManager txManager, Clock clock, BillingApi billing, AuthApi auth, ec.kuador.board.catalog.CatalogApi catalog,
+            ec.kuador.board.project.ProjectApi projects) {
+        this.catalog = catalog;
+        this.projects = projects;
         this.billing = billing;
         this.auth = auth;
         this.verifications = verifications;
@@ -116,6 +121,11 @@ public class SignupService {
      * arrancan con su prueba; {@code planCode} nulo = el plan gratuito.
      */
     public Workspace complete(String signupToken, Company company, String ownerName, String password, String planCode) {
+        return complete(signupToken, company, ownerName, password, planCode, null);
+    }
+
+    /** Igual, con el paquete por industria: se guarda y, si trae tablero inicial, el espacio arranca con él y su equipo. */
+    public Workspace complete(String signupToken, Company company, String ownerName, String password, String planCode, String packageCode) {
         Instant now = clock.instant();
         EmailVerification v = root(() -> verifications.findBySignupTokenHash(hash(signupToken == null ? "" : signupToken)))
                 .filter(x -> x.signupUsable(now))
@@ -128,7 +138,19 @@ public class SignupService {
             billing.subscribe(workspace.id(), planCode);
             return verifications.save(v.used(now));
         });
+        starter(workspace, packageCode);
         return workspace;
+    }
+
+    /** El paquete elegido y su tablero inicial. Si el tablero no se puede crear (p. ej. el plan no lo permite), el alta sigue igual. */
+    private void starter(Workspace workspace, String packageCode) {
+        if (packageCode == null || packageCode.isBlank()) return;
+        try {
+            TenantContext.run(workspace.id(), () -> tx.executeWithoutResult(s -> catalog.choosePackage(packageCode)
+                    .ifPresent(b -> projects.createBoard(b.key(), b.name(), b.templateKey()))));
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(SignupService.class).warn("No se pudo crear el tablero inicial de {}: {}", workspace.slug(), e.getMessage());
+        }
     }
 
     /** Identificador sugerido y libre para un nombre de empresa. */

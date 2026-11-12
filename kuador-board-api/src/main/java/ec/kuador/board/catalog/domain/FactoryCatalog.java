@@ -30,14 +30,21 @@ public interface FactoryCatalog {
     /** Entradas (tipo y clave) agregadas en versiones posteriores a {@code version}. */
     List<java.util.Map.Entry<CatalogType, String>> addedAfter(int version);
 
-    default Optional<Object> entry(CatalogType type, String key) {
-        List<?> all = switch (type) {
+    /** Tras publicar una versión, vuelve a leer lo publicado. */
+    default void reload() {}
+
+    /** Las entradas de un tipo. */
+    default List<?> entries(CatalogType type) {
+        return switch (type) {
             case WORKFLOW_TEMPLATE -> workflowTemplates();
             case METHODOLOGY -> methodologies();
             case AGENT_ROLE -> roles();
             case MCP_SERVER -> mcpServers();
             case COMPONENT_TEMPLATE -> componentTemplates();
         };
-        return all.stream().filter(e -> key.equals(CatalogKeys.of(e))).map(e -> (Object) e).findFirst();
+    }
+
+    default Optional<Object> entry(CatalogType type, String key) {
+        return entries(type).stream().filter(e -> key.equals(CatalogKeys.of(e))).map(e -> (Object) e).findFirst();
     }
 }

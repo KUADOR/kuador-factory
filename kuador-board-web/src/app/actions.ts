@@ -61,6 +61,9 @@ import type {
   AgentMode,
   TeamAgent,
   WorkspaceAiStatus,
+  CatalogPackage,
+  PlatformCatalogEntry,
+  PlatformCatalogSummary,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -317,6 +320,7 @@ export async function signupCompleteAction(input: {
   ownerName: string;
   password: string;
   plan: string | null;
+  packageCode?: string | null;
   /** A dónde ir al terminar (p. ej. a pagar el plan elegido). */
   next?: string;
 }): Promise<ActionResult<void>> {
@@ -327,6 +331,31 @@ export async function signupCompleteAction(input: {
   if (!session.ok) return session;
   await setSessionToken(session.data.token, session.data.expiresAt);
   redirect(next === "/workspace/plan?bienvenida=1" ? next : "/");
+}
+
+export async function savePlatformCatalogEntryAction(
+  type: CatalogType,
+  key: string,
+  entry: unknown,
+  extra: { memberName?: string | null; color?: string | null },
+): Promise<ActionResult<PlatformCatalogEntry>> {
+  return run(() => boardApi.savePlatformCatalogEntry(type, key, entry, extra), "/plataforma");
+}
+
+export async function discardPlatformCatalogEntryAction(type: CatalogType, key: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.discardPlatformCatalogEntry(type, key), "/plataforma");
+}
+
+export async function removePlatformCatalogEntryAction(type: CatalogType, key: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.removePlatformCatalogEntry(type, key), "/plataforma");
+}
+
+export async function publishPlatformCatalogAction(): Promise<ActionResult<PlatformCatalogSummary>> {
+  return run(() => boardApi.publishPlatformCatalog(), "/plataforma");
+}
+
+export async function savePlatformPackageAction(p: CatalogPackage): Promise<ActionResult<CatalogPackage>> {
+  return run(() => boardApi.savePlatformPackage(p), "/plataforma");
 }
 
 export async function addToTeamAction(key: string, memberId: string): Promise<ActionResult<TeamAgent[]>> {

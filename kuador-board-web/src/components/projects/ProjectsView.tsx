@@ -14,7 +14,17 @@ import { PROJECT_KIND_LABEL } from "@/lib/labels";
 import type { Methodology, Project, WorkflowTemplate } from "@/lib/types";
 
 /** Proyectos del espacio en una tabla; el formulario de alta se abre al costado (también con ?nuevo=1). */
-export function ProjectsView({ projects, templates, methodologies }: { projects: Project[]; templates: WorkflowTemplate[]; methodologies: Methodology[] }) {
+export function ProjectsView({
+  projects,
+  templates,
+  methodologies,
+  recommended = [],
+}: {
+  projects: Project[];
+  templates: WorkflowTemplate[];
+  methodologies: Methodology[];
+  recommended?: string[];
+}) {
   const router = useRouter();
   const { canEdit } = useAccess();
   const asked = useSearchParams().get("nuevo") === "1";
@@ -85,7 +95,7 @@ export function ProjectsView({ projects, templates, methodologies }: { projects:
         )}
       </div>
       <SidePanel open={creating} onClose={() => setCreating(false)} width="narrow" title="Nuevo proyecto">
-        {creating && <CreateProjectForm templates={templates} onCancel={() => setCreating(false)} />}
+        {creating && <CreateProjectForm templates={templates} recommended={recommended} onCancel={() => setCreating(false)} />}
       </SidePanel>
     </>
   );

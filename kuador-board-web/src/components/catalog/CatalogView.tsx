@@ -4,24 +4,45 @@ import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, Sparkle, Trash } from "lucide-react";
 import { useState, useTransition } from "react";
 
-import { deleteCatalogEntryAction, restoreCatalogEntryAction, saveCatalogEntryAction } from "@/app/actions";
+import {
+  deleteCatalogEntryAction,
+  discardPlatformCatalogEntryAction,
+  removePlatformCatalogEntryAction,
+  restoreCatalogEntryAction,
+  saveCatalogEntryAction,
+  savePlatformCatalogEntryAction,
+} from "@/app/actions";
+import { Field, TextInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Badge } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
-import type { AgentRole, CatalogEntries, CatalogType, ComponentTemplate, McpServer, Methodology, WorkflowTemplate } from "@/lib/types";
+import type { AgentRole, CatalogEntries, CatalogType, ComponentTemplate, McpServer, Methodology, PlatformEntryStatus, WorkflowTemplate } from "@/lib/types";
 
 import { CATALOG_SECTIONS, type CatalogSection } from "./catalogTypes";
 import { McpEditor, MethodologyEditor, RoleEditor, TemplateEditor, blankEntry, ComponentEditor, COMPONENT_KIND_LABEL } from "./editors";
 
 type AnyEntry = CatalogEntries[CatalogType];
 
-/** Una sección del catálogo: tabla de entradas y editor al costado (crear, editar, restaurar, borrar). */
-export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["slug"]; entries: AnyEntry[]; roles: AgentRole[] }) {
+/** En la plataforma: estado de cada entrada frente a lo publicado y, en roles, el agente que nace con cada espacio. */
+export type PlatformInfo = Record<string, { status: PlatformEntryStatus; memberName: string | null; color: string | null }>;
+
+const STATUS_BADGE: Record<PlatformEntryStatus, { label: string; tone: "neutral" | "info" | "sol" }> = {
+  PUBLISHED: { label: "Publicada", tone: "neutral" },
+  MODIFIED: { label: "Cambios sin publicar", tone: "sol" },
+  NEW: { label: "Nueva", tone: "info" },
+};
+
+/**
+ * Una sección del catálogo: tabla de entradas y editor al costado. En un espacio se crea, edita, restaura y borra;
+ * en la plataforma ({@code platform}) se edita en borrador, se descartan cambios o se quita la entrada.
+ */
+export function CatalogView({ slug, entries, roles, platform }: { slug: CatalogSection["slug"]; entries: AnyEntry[]; roles: AgentRole[]; platform?: PlatformInfo }) {
   const section = CATALOG_SECTIONS.find((s) => s.slug === slug)!;
   const router = useRouter();
+  const [extra, setExtra] = useState<{ memberName: string; color: string }>({ memberName: "", color: "" });
   const [draft, setDraft] = useState<AnyEntry | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +52,8 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
   const open = (entry: AnyEntry | null) => {
     setIsNew(entry == null);
     setDraft(entry ? structuredClone(entry) : blankEntry(section.type));
+    const info = entry && platform?.[entry.key];
+    setExtra({ memberName: info?.memberName ?? "", color: info?.color ?? "" });
     setError(null);
   };
   const close = () => setDraft(null);
@@ -43,8 +66,10 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
   const save = () =>
     draft &&
     startTransition(async () => {
-      const r = await saveCatalogEntryAction(section.type, draft as never);
-      if (r.ok) done(isNew ? `«${draft.name}» creado` : `«${draft.name}» guardado`);
+      const r = platform
+        ? await savePlatformCatalogEntryAction(section.type, draft.key, draft, section.type === "roles" ? { memberName: extra.memberName || null, color: extra.color || null } : {})
+        : await saveCatalogEntryAction(section.type, draft as never);
+      if (r.ok) done(platform ? `«${draft.name}» guardado en borrador` : isNew ? `«${draft.name}» creado` : `«${draft.name}» guardado`);
       else setError(r.error);
     });
 
@@ -64,7 +89,7 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
               <th scope="col" className="px-5 py-2 font-medium">Nombre</th>
               <th scope="col" className="hidden w-44 px-3 py-2 font-medium sm:table-cell">Clave</th>
               <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">Detalle</th>
-              <th scope="col" className="w-28 px-5 py-2 text-right font-medium">Origen</th>
+              <th scope="col" className="w-40 px-5 py-2 text-right font-medium">{platform ? "Estado" : "Origen"}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -77,7 +102,15 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
                 </td>
                 <td className="tabular hidden px-3 py-2.5 font-mono text-xs text-fg-muted sm:table-cell">{e.key}</td>
                 <td className="hidden px-3 py-2.5 text-xs text-fg-muted md:table-cell">{detail(section.type, e)}</td>
-                <td className="px-5 py-2.5 text-right">{e.builtIn ? <Badge>De fábrica</Badge> : <Badge tone="info">Propia</Badge>}</td>
+                <td className="px-5 py-2.5 text-right">
+                  {platform ? (
+                    <Badge tone={STATUS_BADGE[platform[e.key]?.status ?? "PUBLISHED"].tone}>{STATUS_BADGE[platform[e.key]?.status ?? "PUBLISHED"].label}</Badge>
+                  ) : e.builtIn ? (
+                    <Badge>De fábrica</Badge>
+                  ) : (
+                    <Badge tone="info">Propia</Badge>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -91,12 +124,22 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
         footer={
           draft && (
             <div className="flex flex-wrap items-center gap-2">
-              {!isNew && !draft.builtIn && (
+              {platform && !isNew && (
+                <Button tone="danger" size="sm" icon={Trash} disabled={pending} onClick={() => setConfirming("delete")}>
+                  Quitar del catálogo
+                </Button>
+              )}
+              {platform && !isNew && platform[draft.key]?.status !== "PUBLISHED" && (
+                <Button tone="ghost" size="sm" icon={RotateCcw} disabled={pending} onClick={() => setConfirming("restore")}>
+                  Descartar cambios
+                </Button>
+              )}
+              {!platform && !isNew && !draft.builtIn && (
                 <Button tone="danger" size="sm" icon={Trash} disabled={pending} onClick={() => setConfirming("delete")}>
                   Eliminar
                 </Button>
               )}
-              {!isNew && draft.builtIn && (
+              {!platform && !isNew && draft.builtIn && (
                 <Button tone="ghost" size="sm" icon={RotateCcw} disabled={pending} onClick={() => setConfirming("restore")}>
                   Restaurar valores de fábrica
                 </Button>
@@ -123,6 +166,16 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
             {section.type === "workflow-templates" && <TemplateEditor value={draft as WorkflowTemplate} onChange={setDraft} isNew={isNew} />}
             {section.type === "methodologies" && <MethodologyEditor value={draft as Methodology} onChange={setDraft} isNew={isNew} roles={roles} />}
             {section.type === "roles" && <RoleEditor value={draft as AgentRole} onChange={setDraft} isNew={isNew} />}
+            {platform && section.type === "roles" && (
+              <div className="mt-5 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
+                <Field label="Agente que nace con cada espacio" hint="Vacío = «Agente» y el nombre del rol.">
+                  {(id) => <TextInput id={id} maxLength={120} value={extra.memberName} onChange={(e) => setExtra({ ...extra, memberName: e.target.value })} />}
+                </Field>
+                <Field label="Color del agente" hint="Formato #RRGGBB.">
+                  {(id) => <TextInput id={id} maxLength={7} value={extra.color} onChange={(e) => setExtra({ ...extra, color: e.target.value })} placeholder="#8fb4ff" className="font-mono" />}
+                </Field>
+              </div>
+            )}
             {section.type === "mcp-servers" && <McpEditor value={draft as McpServer} onChange={setDraft} isNew={isNew} />}
             {section.type === "component-templates" && <ComponentEditor value={draft as ComponentTemplate} onChange={setDraft} isNew={isNew} />}
           </div>
@@ -132,16 +185,20 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
       <ConfirmDialog
         open={confirming === "delete"}
         onCancel={() => setConfirming(null)}
-        title={`¿Eliminar «${draft?.name}»?`}
-        message="Solo se puede borrar si ningún proyecto o miembro la usa. No se puede deshacer."
-        confirmLabel="Eliminar"
+        title={platform ? `¿Quitar «${draft?.name}» del catálogo?` : `¿Eliminar «${draft?.name}»?`}
+        message={
+          platform
+            ? "Los espacios nuevos ya no la reciben; los que ya la tienen la conservan. No se puede deshacer."
+            : "Solo se puede borrar si ningún proyecto o miembro la usa. No se puede deshacer."
+        }
+        confirmLabel={platform ? "Quitar" : "Eliminar"}
         pending={pending}
         onConfirm={() =>
           draft &&
           startTransition(async () => {
-            const r = await deleteCatalogEntryAction(section.type, draft.key);
+            const r = platform ? await removePlatformCatalogEntryAction(section.type, draft.key) : await deleteCatalogEntryAction(section.type, draft.key);
             setConfirming(null);
-            if (r.ok) done(`«${draft.name}» eliminado`);
+            if (r.ok) done(platform ? `«${draft.name}» quitado del catálogo` : `«${draft.name}» eliminado`);
             else setError(r.error);
           })
         }
@@ -149,13 +206,24 @@ export function CatalogView({ slug, entries, roles }: { slug: CatalogSection["sl
       <ConfirmDialog
         open={confirming === "restore"}
         onCancel={() => setConfirming(null)}
-        title={`¿Restaurar «${draft?.name}»?`}
-        message="Vuelve a los valores de fábrica del catálogo. Se pierden los cambios que el equipo le hizo."
-        confirmLabel="Restaurar"
+        title={platform ? `¿Descartar los cambios de «${draft?.name}»?` : `¿Restaurar «${draft?.name}»?`}
+        message={
+          platform
+            ? "Vuelve a lo publicado (o la quita si nunca se publicó). Se pierden los cambios en borrador."
+            : "Vuelve a los valores de fábrica del catálogo. Se pierden los cambios que el equipo le hizo."
+        }
+        confirmLabel={platform ? "Descartar" : "Restaurar"}
         pending={pending}
         onConfirm={() =>
           draft &&
           startTransition(async () => {
+            if (platform) {
+              const r = await discardPlatformCatalogEntryAction(section.type, draft.key);
+              setConfirming(null);
+              if (r.ok) done(`Cambios de «${draft.name}» descartados`);
+              else setError(r.error);
+              return;
+            }
             const r = await restoreCatalogEntryAction(section.type, draft.key);
             setConfirming(null);
             if (r.ok) done(`«${r.data.name}» restaurado`);

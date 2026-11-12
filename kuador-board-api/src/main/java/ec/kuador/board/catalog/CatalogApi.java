@@ -28,6 +28,21 @@ public interface CatalogApi {
     /** Datos de fábrica para sembrar un espacio nuevo, incluidos los agentes que nacen con él. */
     record AgentSeed(String roleKey, String memberName, String color) {}
 
+    /** El tablero con el que arranca un espacio según su paquete. */
+    record StarterBoard(String key, String name, String templateKey) {}
+
+    /**
+     * Guarda el paquete por industria que eligió el espacio actual y devuelve su tablero inicial, si tiene. Un código
+     * desconocido o inactivo se ignora.
+     */
+    java.util.Optional<StarterBoard> choosePackage(String code);
+
+    /**
+     * Aplica las entradas actualizadas de una versión publicada del catálogo de la plataforma al espacio actual: solo
+     * las de fábrica que el equipo no modificó (su contenido es igual al publicado antes). Devuelve cuántas cambió.
+     */
+    int applyFactoryUpdates(java.util.List<FactoryCatalogPublished.Update> updates);
+
     /** Copia el catálogo de fábrica al espacio actual y devuelve los agentes a crear. */
     List<AgentSeed> provisionDefaults();
 

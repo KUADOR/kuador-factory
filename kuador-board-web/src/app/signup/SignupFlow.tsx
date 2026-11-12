@@ -13,12 +13,15 @@ import { BrandPreview } from "@/components/workspace/BrandPreview";
 import { DEFAULT_BRAND } from "@/theme/brand";
 import { PlanCard } from "@/components/billing/PlanCard";
 import { priceLabel } from "@/components/billing/format";
-import type { Plan } from "@/lib/types";
+import type { CatalogPackage, Plan } from "@/lib/types";
+import { ChoiceCards } from "@/components/ui/ChoiceCards";
 
 const STEPS = ["Plan", "Tu correo", "Código", "Tu empresa", "Tu cuenta"] as const;
 
 /** Onboarding de un espacio nuevo: correo verificado con código, marca de la empresa y la persona dueña. */
-export function SignupFlow({ plans, initialPlan }: { plans: Plan[]; initialPlan: string | null }) {
+export function SignupFlow({ plans, initialPlan, packages = [] }: { plans: Plan[]; initialPlan: string | null; packages?: CatalogPackage[] }) {
+  // A qué se dedica la empresa: arranca con el tablero de ese paquete y ve primero sus plantillas.
+  const [packageCode, setPackageCode] = useState<string | null>(packages[0]?.code ?? null);
   // Sin planes a la venta se salta el primer paso.
   const [step, setStep] = useState(plans.length > 0 ? 0 : 1);
   const [planCode, setPlanCode] = useState<string | null>(initialPlan);
@@ -200,6 +203,20 @@ export function SignupFlow({ plans, initialPlan }: { plans: Plan[]; initialPlan:
                     }
                   }}
                 />
+                {packages.length > 0 && (
+                  <ChoiceCards
+                    name="package"
+                    label="¿A qué se dedica tu empresa?"
+                    columns={packages.length >= 3 ? 3 : 2}
+                    value={packageCode}
+                    onChange={setPackageCode}
+                    choices={packages.map((p) => ({
+                      value: p.code,
+                      label: p.name,
+                      hint: p.description + (p.starterName ? ` Arrancas con el tablero «${p.starterName}».` : ""),
+                    }))}
+                  />
+                )}
                 <Field label="Identificador del espacio" hint="Minúsculas, números o guiones. Identifica a tu empresa en el tablero.">
                   {(id) => <TextInput id={id} required pattern="[a-z0-9][a-z0-9\-]{1,39}" maxLength={40} value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} className="font-mono text-xs" />}
                 </Field>
@@ -228,6 +245,7 @@ export function SignupFlow({ plans, initialPlan }: { plans: Plan[]; initialPlan:
                       ownerName: owner.name,
                       password: owner.password,
                       plan: planCode,
+                      packageCode,
                       // Con un plan de pago, al terminar se va a pagarlo (o a seguir con la prueba).
                       next: plan && plan.priceMonthly > 0 ? "/workspace/plan?bienvenida=1" : undefined,
                     });

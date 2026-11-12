@@ -87,4 +87,14 @@ public class InMemoryCatalog implements CatalogApi {
     public java.util.Optional<ec.kuador.board.catalog.ComponentTemplate> componentTemplate(String key) {
         return components.stream().filter(c -> c.key().equals(key)).findFirst();
     }
+
+    @Override
+    public int applyFactoryUpdates(List<ec.kuador.board.catalog.FactoryCatalogPublished.Update> updates) {
+        return 0;
+    }
+
+    @Override
+    public java.util.Optional<StarterBoard> choosePackage(String code) {
+        return java.util.Optional.empty();
+    }
 }

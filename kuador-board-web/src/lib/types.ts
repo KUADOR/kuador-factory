@@ -372,6 +372,37 @@ export interface WorkspaceLicense {
 
 export type PlanInput = Omit<Plan, "code">;
 
+/** Estado de una entrada del catálogo de la plataforma frente a lo publicado. */
+export type PlatformEntryStatus = "PUBLISHED" | "MODIFIED" | "NEW";
+
+export interface PlatformCatalogEntry<T = CatalogEntries[CatalogType]> {
+  key: string;
+  status: PlatformEntryStatus;
+  entry: T;
+  /** Solo roles: nombre y color del agente que nace con cada espacio. */
+  memberName: string | null;
+  color: string | null;
+}
+
+export interface PlatformCatalogSummary {
+  version: number;
+  pending: number;
+  releases: { version: number; added: Record<string, string>[]; updated: Record<string, string>[]; publishedAt: string }[];
+}
+
+/** Paquete por industria: plantillas recomendadas y el tablero con el que arranca un espacio nuevo. */
+export interface CatalogPackage {
+  code: string;
+  name: string;
+  description: string;
+  templates: string[];
+  starterTemplate: string | null;
+  starterKey: string | null;
+  starterName: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
 /** Dónde trabaja un agente: en la PC de una persona (MCP) o en el tablero con la clave de IA de la empresa. */
 export type AgentMode = "LOCAL" | "SERVER";
 

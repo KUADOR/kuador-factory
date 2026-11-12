@@ -68,6 +68,9 @@ import type {
   AgentMode,
   TeamAgent,
   WorkspaceAiStatus,
+  CatalogPackage,
+  PlatformCatalogEntry,
+  PlatformCatalogSummary,
 } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
@@ -127,6 +130,19 @@ export const boardApi = {
   plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
   attachments: (key: string) => request<AttachmentListing>(`/api/issues/${encodeURIComponent(key)}/attachments`),
   deleteAttachment: (id: string) => request<void>(`/api/attachments/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  platformCatalogSummary: () => request<PlatformCatalogSummary>("/api/platform/catalog"),
+  platformCatalog: <T extends CatalogType>(type: T) => request<PlatformCatalogEntry<CatalogEntries[T]>[]>(`/api/platform/catalog/${type}`),
+  savePlatformCatalogEntry: (type: CatalogType, key: string, entry: unknown, extra: { memberName?: string | null; color?: string | null }) =>
+    request<PlatformCatalogEntry>(`/api/platform/catalog/${type}/${encodeURIComponent(key)}`, json("PUT", { entry, ...extra })),
+  discardPlatformCatalogEntry: (type: CatalogType, key: string) =>
+    request<void>(`/api/platform/catalog/${type}/${encodeURIComponent(key)}/discard`, { method: "POST" }),
+  removePlatformCatalogEntry: (type: CatalogType, key: string) =>
+    request<void>(`/api/platform/catalog/${type}/${encodeURIComponent(key)}`, { method: "DELETE" }),
+  publishPlatformCatalog: () => request<PlatformCatalogSummary>("/api/platform/catalog/publish", { method: "POST" }),
+  platformPackages: () => request<CatalogPackage[]>("/api/platform/packages"),
+  savePlatformPackage: (p: CatalogPackage) => request<CatalogPackage>(`/api/platform/packages/${encodeURIComponent(p.code)}`, json("PUT", p)),
+  packages: () => request<CatalogPackage[]>("/api/public/packages", { anonymous: true }),
+  workspacePackage: () => request<CatalogPackage | undefined>("/api/workspace/package"),
   boardTeam: (key: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`),
   addToTeam: (key: string, memberId: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`, json("POST", { memberId })),
   createTeamAgent: (key: string, input: { name: string; role: string; description: string | null; mode: AgentMode; model: string | null }) =>
@@ -229,6 +245,7 @@ export const boardApi = {
     ownerName: string;
     password: string;
     plan: string | null;
+    packageCode?: string | null;
   }) => request<{ slug: string; name: string }>("/api/signup/workspace", { ...json("POST", input), anonymous: true }),
 
   updateProject: (key: string, input: { name: string; description: string | null }) =>

@@ -50,7 +50,7 @@ class SecurityConfiguration {
                         // Alta pública de espacios (modo SaaS): verificación por correo, ver SignupService.
                         .requestMatchers("/api/signup/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/password-reset", "/api/auth/password-reset/confirm").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/public/plans", "/api/public/invitations").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/plans", "/api/public/invitations", "/api/public/packages").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/public/invitations/accept").permitAll()
                         .requestMatchers("/api/invitations", "/api/invitations/**").access(HUMAN_EDITOR)
                         .requestMatchers("/api/platform/**").hasRole("PLATFORM")

@@ -70,6 +70,20 @@ public class WorkspaceService implements ec.kuador.board.workspace.WorkspaceApi 
     }
 
     /**
+     * Se publicó una versión del catálogo de la plataforma: cada espacio recibe lo agregado y, en lo actualizado, la
+     * versión nueva de las entradas que no modificó. En otro hilo, después del commit.
+     */
+    @org.springframework.scheduling.annotation.Async
+    @org.springframework.transaction.event.TransactionalEventListener(fallbackExecution = true)
+    void on(ec.kuador.board.catalog.FactoryCatalogPublished event) {
+        upgradeCatalogs();
+        if (event.updates().isEmpty()) return;
+        for (java.util.UUID id : TenantContext.asRoot(() -> tx.execute(s -> workspaces.allIds()))) {
+            TenantContext.run(id, () -> tx.executeWithoutResult(s -> catalog.applyFactoryUpdates(event.updates())));
+        }
+    }
+
+    /**
      * Lleva cada espacio a la versión actual del catálogo de fábrica: recibe una sola vez las
      * entradas nuevas (p. ej. un servidor MCP), sin tocar lo que el equipo editó o borró.
      */

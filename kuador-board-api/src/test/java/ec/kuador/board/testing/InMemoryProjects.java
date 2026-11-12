@@ -55,4 +55,9 @@ public class InMemoryProjects implements ProjectApi {
     public int allocateIssueNumber(String projectKey) {
         return counters.merge(projectKey, 1, Integer::sum);
     }
+
+    @Override
+    public void createBoard(String key, String name, String templateKey) {
+        throw new UnsupportedOperationException();
+    }
 }

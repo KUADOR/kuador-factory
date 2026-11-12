@@ -9,14 +9,19 @@ export const dynamic = "force-dynamic";
 export default async function ProjectsPage() {
   let data;
   try {
-    data = await Promise.all([boardApi.projects(), boardApi.catalog("workflow-templates"), boardApi.catalog("methodologies")]);
+    data = await Promise.all([
+      boardApi.projects(),
+      boardApi.catalog("workflow-templates"),
+      boardApi.catalog("methodologies"),
+      boardApi.workspacePackage().catch(() => undefined),
+    ]);
   } catch (e) {
     return failPage(e);
   }
-  const [projects, templates, methodologies] = data;
+  const [projects, templates, methodologies, pkg] = data;
   return (
     <Suspense>
-      <ProjectsView projects={projects} templates={templates} methodologies={methodologies} />
+      <ProjectsView projects={projects} templates={templates} methodologies={methodologies} recommended={pkg?.templates ?? []} />
     </Suspense>
   );
 }

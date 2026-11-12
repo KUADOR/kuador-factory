@@ -61,6 +61,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         return new ProjectWithColumns(load(key), projects.findColumns(key));
     }
 
+    @Override
+    @Transactional
+    public void createBoard(String key, String name, String templateKey) {
+        create(key, name, null, templateKey);
+    }
+
     /** Crea el proyecto copiando la plantilla de flujo del catálogo del espacio. */
     @Transactional
     public ProjectWithColumns create(String key, String name, String description, String templateKey) {

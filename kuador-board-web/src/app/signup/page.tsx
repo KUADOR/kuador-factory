@@ -12,6 +12,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   const { plan } = await searchParams;
   // Sin planes (la API no responde o es una instalación propia) el alta sigue sin el paso del plan.
   const plans: Plan[] = await boardApi.plans().catch(() => []);
+  const packages = await boardApi.packages().catch(() => []);
   const chosen = plans.find((p) => p.code === plan?.toUpperCase()) ?? plans.find((p) => p.highlighted) ?? plans[0] ?? null;
-  return <SignupFlow plans={plans} initialPlan={chosen?.code ?? null} />;
+  return <SignupFlow plans={plans} initialPlan={chosen?.code ?? null} packages={packages} />;
 }

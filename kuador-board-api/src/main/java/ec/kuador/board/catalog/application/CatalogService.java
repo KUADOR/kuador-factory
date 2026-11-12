@@ -27,11 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogService implements CatalogApi {
 
     private final CatalogRepository entries;
+    private final ec.kuador.board.catalog.domain.PlatformCatalogStore platform;
     private final FactoryCatalog factory;
     // Quienes usan el catálogo también dependen de él: se resuelven recién al borrar (evita el ciclo).
     private final ObjectProvider<CatalogUsage> usages;
 
-    CatalogService(CatalogRepository entries, FactoryCatalog factory, ObjectProvider<CatalogUsage> usages) {
+    CatalogService(CatalogRepository entries, FactoryCatalog factory, ObjectProvider<CatalogUsage> usages,
+            ec.kuador.board.catalog.domain.PlatformCatalogStore platform) {
+        this.platform = platform;
         this.entries = entries;
         this.factory = factory;
         this.usages = usages;
@@ -116,11 +119,50 @@ public class CatalogService implements CatalogApi {
         for (var addition : factory.addedAfter(fromVersion)) {
             CatalogType type = addition.getKey();
             if (entries.find(type, addition.getValue(), type.recordType()).isPresent()) continue;
-            Object entry = factory.entry(type, addition.getValue()).orElseThrow();
-            insert(type, entry, true);
+            // Una entrada que la plataforma quitó después de anunciarla ya no se reparte.
+            Optional<Object> entry = factory.entry(type, addition.getValue());
+            if (entry.isEmpty()) continue;
+            insert(type, entry.get(), true);
             added++;
         }
         return added;
+    }
+
+    @Override
+    @Transactional
+    public Optional<StarterBoard> choosePackage(String code) {
+        if (code == null || code.isBlank()) return Optional.empty();
+        Optional<ec.kuador.board.catalog.domain.PlatformCatalogStore.Package> p = platform.pkg(code.strip().toUpperCase())
+                .filter(ec.kuador.board.catalog.domain.PlatformCatalogStore.Package::active);
+        if (p.isEmpty()) return Optional.empty();
+        platform.choosePackage(ec.kuador.board.shared.tenant.TenantContext.require(), p.get().code(), java.time.Instant.now());
+        return p.filter(x -> x.starterTemplate() != null).map(x -> new StarterBoard(x.starterKey(), x.starterName(), x.starterTemplate()));
+    }
+
+    /** Paquete del espacio actual (sus plantillas se recomiendan al crear un tablero). */
+    @Transactional(readOnly = true)
+    public Optional<ec.kuador.board.catalog.domain.PlatformCatalogStore.Package> currentPackage() {
+        return platform.packageOf(ec.kuador.board.shared.tenant.TenantContext.require()).flatMap(platform::pkg);
+    }
+
+    @Override
+    @Transactional
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public int applyFactoryUpdates(List<ec.kuador.board.catalog.FactoryCatalogPublished.Update> updates) {
+        int changed = 0;
+        for (var u : updates) {
+            CatalogType type = CatalogType.valueOf(u.type());
+            Optional<?> current = entries.find(type, u.key(), type.recordType());
+            if (current.isEmpty() || !builtIn(current.get())) continue;
+            // Si el equipo la modificó, se respeta su versión.
+            if (!entries.payloadOf(current.get()).equals(u.previousPayload())) continue;
+            Optional<Object> fresh = factory.entry(type, u.key());
+            if (fresh.isEmpty()) continue;
+            Class recordType = type.recordType();
+            entries.save(type, u.key(), fresh.get(), true, versionOf(current.get()), recordType);
+            changed++;
+        }
+        return changed;
     }
 
     // ---- Administración (personas) ----

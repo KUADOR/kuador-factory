@@ -20,4 +20,7 @@ public interface CatalogRepository {
     <T> T save(CatalogType type, String key, T entry, boolean builtIn, Long expectedVersion, Class<T> recordType);
 
     void delete(CatalogType type, String key);
+
+    /** La entrada en su forma guardada (JSON canónico, sin id, builtIn ni versión): para comparar contenidos. */
+    String payloadOf(Object entry);
 }

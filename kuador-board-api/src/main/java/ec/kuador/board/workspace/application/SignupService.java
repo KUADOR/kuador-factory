@@ -77,11 +77,12 @@ public class SignupService {
             if (verifications.countSince(email, now.minus(Duration.ofHours(1))) >= CODES_PER_HOUR) {
                 throw new TooManyRequestsException("Pediste demasiados códigos. Intenta de nuevo en una hora.");
             }
-            verifications.save(EmailVerification.start(email, hash(email + ":" + code), now));
             return null;
         });
-        // Fuera de la transacción: si el correo falla, el código guardado simplemente no se usa.
+        // Primero el correo y después el registro: si el correo no sale, el pedido no cuenta para los límites
+        // (la persona puede reintentar enseguida) y no queda un código que nadie recibió.
         mailer.sendCode(email, code);
+        root(() -> verifications.save(EmailVerification.start(email, hash(email + ":" + code), now)));
     }
 
     /** Paso 2: comprueba el código. Devuelve el token de alta (se muestra una sola vez). */

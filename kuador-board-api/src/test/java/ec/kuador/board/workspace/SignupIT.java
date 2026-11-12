@@ -39,13 +39,18 @@ class SignupIT {
 
     /** Buzón en memoria: guarda el último código enviado a cada correo. */
     static final Map<String, String> INBOX = new ConcurrentHashMap<>();
+    /** Correos que fallan una vez (SMTP caído). */
+    static final java.util.Set<String> FAIL_ONCE = ConcurrentHashMap.newKeySet();
 
     @TestConfiguration
     static class Mail {
         @Bean
         @Primary
         VerificationMailer inbox() {
-            return INBOX::put;
+            return (email, code) -> {
+                if (FAIL_ONCE.remove(email)) throw new ec.kuador.board.shared.mail.Mailer.MailUnavailableException();
+                INBOX.put(email, code);
+            };
         }
     }
 
@@ -89,6 +94,14 @@ class SignupIT {
         signup.requestCode("eli@existe.test");
         assertThatThrownBy(() -> signup.verifyCode("eli@existe.test", INBOX.get("eli@existe.test")))
                 .isInstanceOf(SignupService.AccountExistsException.class).hasMessageContaining("ya tiene una cuenta");
+    }
+
+    @Test
+    void aFailedEmailDoesNotBlockRetrying() {
+        FAIL_ONCE.add("fio@falla.test");
+        assertThatThrownBy(() -> signup.requestCode("fio@falla.test")).isInstanceOf(ec.kuador.board.shared.mail.Mailer.MailUnavailableException.class);
+        signup.requestCode("fio@falla.test");
+        assertThat(INBOX.get("fio@falla.test")).as("el reintento inmediato sí envía el código").matches("\\d{6}");
     }
 
     @Test

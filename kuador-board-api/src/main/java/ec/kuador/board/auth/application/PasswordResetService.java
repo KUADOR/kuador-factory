@@ -67,18 +67,17 @@ public class PasswordResetService {
         Instant now = clock.instant();
         String token = newToken();
         String code = "%06d".formatted(random.nextInt(1_000_000));
-        boolean send = root(() -> {
+        java.util.UUID memberId = root(() -> {
             if (resets.countAllSince(now.minus(Duration.ofMinutes(1))) >= GLOBAL_PER_MINUTE) {
                 throw new DomainException("Hay demasiadas solicitudes en este momento. Intenta en un minuto.");
             }
             Optional<PasswordReset> latest = resets.findLatest(email);
-            if (latest.isPresent() && latest.get().createdAt().plus(Duration.ofMinutes(1)).isAfter(now)) return false;
-            if (resets.countSince(email, now.minus(Duration.ofHours(1))) >= PER_HOUR) return false;
-            Optional<Credential> credential = credentials.findByEmail(email);
-            credential.ifPresent(c -> resets.save(PasswordReset.start(c.memberId(), email, hash(token), hash(email + ":" + code), now)));
-            return credential.isPresent();
+            if (latest.isPresent() && latest.get().createdAt().plus(Duration.ofMinutes(1)).isAfter(now)) return null;
+            if (resets.countSince(email, now.minus(Duration.ofHours(1))) >= PER_HOUR) return null;
+            return credentials.findByEmail(email).map(Credential::memberId).orElse(null);
         });
-        if (!send) return;
+        if (memberId == null) return;
+        // Primero el correo y después el registro: si el correo no sale, el pedido no cuenta para los límites.
         mailer.send(email, "Recupera tu contraseña de Kuador Go", """
                 Pediste cambiar tu contraseña de Kuador Go.
 
@@ -90,6 +89,10 @@ public class PasswordResetService {
                 El enlace y el código vencen en 30 minutos y sirven una sola vez. Si no lo pediste, ignora este correo:
                 tu contraseña no cambia.
                 """.formatted(webUrl, token, code));
+        root(() -> {
+            resets.save(PasswordReset.start(memberId, email, hash(token), hash(email + ":" + code), now));
+            return null;
+        });
     }
 
     /** Con el enlace del correo ({@code token}) o con el correo y su código, pone la contraseña nueva. */

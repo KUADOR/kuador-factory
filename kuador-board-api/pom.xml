@@ -111,6 +111,33 @@
             <artifactId>url-connection-client</artifactId>
             <version>${awssdk.version}</version>
         </dependency>
+        <!-- Herramientas de los agentes con proveedores sin ejecución de código: leer adjuntos (Excel, PDF), consultar datos y crear documentos. -->
+        <dependency>
+            <groupId>org.dhatim</groupId>
+            <artifactId>fastexcel-reader</artifactId>
+            <version>0.19.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.3.232</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>2.2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dhatim</groupId>
+            <artifactId>fastexcel</artifactId>
+            <version>0.19.0</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Catálogo de fábrica (catalog/defaults.yaml) -->
         <dependency>
             <groupId>tools.jackson.dataformat</groupId>

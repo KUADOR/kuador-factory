@@ -19,63 +19,113 @@ const MODEL_LABEL: Record<string, string> = {
 };
 
 /**
- * Clave de IA de la empresa: con ella trabajan los agentes «en el tablero». Se comprueba con Anthropic, se guarda
- * cifrada y nunca se vuelve a mostrar. El consumo se cobra en la cuenta de Anthropic de la empresa.
+ * La IA de la empresa: el proveedor que usa (Claude, ChatGPT, DeepSeek…) y su clave de API. Con ella trabajan los
+ * agentes «en el tablero». Se comprueba con el proveedor, se guarda cifrada y nunca se vuelve a mostrar. El consumo se
+ * cobra en la cuenta de la empresa con ese proveedor.
  */
 export function AiConnection({ status: initial, usage }: { status: WorkspaceAiStatus; usage: AiUsageReport | null }) {
   const [status, setStatus] = useState(initial);
+  const [provider, setProvider] = useState(initial.provider ?? initial.providers[0]?.code ?? "");
   const [key, setKey] = useState("");
   const [model, setModel] = useState(initial.defaultModel);
   const [editing, setEditing] = useState(!initial.configured);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const current = status.providers.find((p) => p.code === status.provider);
+  const chosen = status.providers.find((p) => p.code === provider);
 
   const save = (apiKey: string | null, defaultModel: string) =>
     start(async () => {
-      const r = await saveWorkspaceAiAction({ apiKey, defaultModel });
+      const r = await saveWorkspaceAiAction({ provider, apiKey, defaultModel });
       if (!r.ok) {
         setError(r.error);
         return;
       }
       setStatus(r.data);
+      setModel(r.data.defaultModel);
       setKey("");
       setError(null);
       setEditing(false);
       notify.ok(apiKey ? "Clave de IA guardada" : "Modelo actualizado");
     });
 
+  if (status.providers.length === 0) {
+    return (
+      <Section title="IA" description="La IA con la que trabajan los agentes «en el tablero».">
+        <p className="text-[13px] text-fg-muted">Todavía no hay proveedores de IA habilitados. Escríbenos y te ayudamos a activarlos.</p>
+      </Section>
+    );
+  }
+
   return (
     <Section
       title="IA"
-      description="La clave de API de Anthropic de tu empresa. Con ella trabajan los agentes «en el tablero» (por ejemplo, el Analista que arma informes de tus planillas). El consumo se cobra en tu cuenta de Anthropic."
+      description="El proveedor de IA de tu empresa y su clave de API. Con ella trabajan los agentes «en el tablero» (por ejemplo, el Analista que arma informes). El consumo se cobra en tu cuenta con ese proveedor."
     >
       <div className="flex flex-col gap-4">
         {status.configured && !editing ? (
           <div className="flex flex-wrap items-center gap-3 text-[13px]">
             <p className="min-w-0 flex-1 text-fg">
-              Clave guardada <span className="font-mono text-fg-strong">sk-ant-{status.keyHint}</span>
+              {current?.name ?? status.provider} · clave <span className="font-mono text-fg-strong">{status.keyHint}</span>
             </p>
-            <Button size="sm" onClick={() => setEditing(true)}>Cambiar clave</Button>
+            <Button size="sm" onClick={() => setEditing(true)}>Cambiar proveedor o clave</Button>
             <Button size="sm" tone="ghost" onClick={() => setConfirm(true)}>Quitar</Button>
           </div>
         ) : (
-          <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); save(key, model); }}>
-            <ol className="list-decimal space-y-1 pl-5 text-[13px] text-fg-muted">
-              <li>Entra a <span className="font-medium text-fg">console.anthropic.com</span> con la cuenta de tu empresa.</li>
-              <li>En <span className="font-medium text-fg">API Keys</span>, crea una clave (por ejemplo «Kuador Go») y cópiala.</li>
-              <li>Pégala aquí. La comprobamos con Anthropic y la guardamos cifrada.</li>
-            </ol>
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save(key, chosen?.models.includes(model) ? model : (chosen?.models[0] ?? model));
+            }}
+          >
+            <div className="w-80">
+              <Field label="Proveedor">
+                {(id) => (
+                  <SelectInput
+                    id={id}
+                    value={provider}
+                    onChange={(v) => {
+                      if (!v) return;
+                      setProvider(v);
+                      setModel(status.providers.find((p) => p.code === v)?.models[0] ?? "");
+                      setError(null);
+                    }}
+                    options={status.providers.map((p) => ({ value: p.code, label: p.name }))}
+                  />
+                )}
+              </Field>
+            </div>
+            {chosen && !chosen.codeExecution && (
+              <p className="text-xs text-fg-muted">
+                Con {chosen.name}, los agentes leen tus archivos (PDF, Word, Excel, CSV), hacen cuentas exactas sobre tus planillas y entregan
+                documentos en PDF con las herramientas del tablero. No pueden ver imágenes ni PDF escaneados.
+              </p>
+            )}
+            {chosen?.keyHint && <p className="text-[13px] text-fg-muted">{chosen.keyHint} Es una clave de API: se paga según el uso, aparte de cualquier suscripción de chat.</p>}
             <Field label="Clave de API" error={error}>
-              {(id) => <PasswordInput id={id} required autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-ant-…" />}
+              {(id) => <PasswordInput id={id} required autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-…" />}
             </Field>
             <div className="flex justify-end gap-2">
-              {status.configured && <Button tone="ghost" onClick={() => { setEditing(false); setError(null); }}>Cancelar</Button>}
+              {status.configured && (
+                <Button
+                  tone="ghost"
+                  onClick={() => {
+                    setEditing(false);
+                    setError(null);
+                    setProvider(status.provider ?? provider);
+                    setModel(status.defaultModel);
+                  }}
+                >
+                  Cancelar
+                </Button>
+              )}
               <Button type="submit" tone="primary" loading={pending}>Guardar clave</Button>
             </div>
           </form>
         )}
-        {status.configured && (
+        {status.configured && !editing && (
           <div className="flex flex-wrap items-end gap-3 border-t border-line pt-4">
             <div className="w-80">
               <Field label="Modelo por defecto" hint="Cada agente puede usar otro en el equipo de su tablero.">

@@ -69,17 +69,17 @@ class JdbcAgentTeamStore implements AgentTeamStore {
 
     @Override
     public Optional<AiKey> aiKey(UUID workspaceId) {
-        return jdbc.sql("select api_key_enc, key_hint, default_model from workspace_ai where workspace_id = ?").param(workspaceId)
-                .query((rs, n) -> new AiKey(rs.getString(1), rs.getString(2), rs.getString(3))).optional();
+        return jdbc.sql("select provider, api_key_enc, key_hint, default_model from workspace_ai where workspace_id = ?").param(workspaceId)
+                .query((rs, n) -> new AiKey(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4))).optional();
     }
 
     @Override
     public void saveAiKey(UUID workspaceId, AiKey key, Instant now) {
         jdbc.sql("""
-                insert into workspace_ai (workspace_id, api_key_enc, key_hint, default_model, updated_at) values (?, ?, ?, ?, ?)
-                on conflict (workspace_id) do update set api_key_enc = excluded.api_key_enc, key_hint = excluded.key_hint,
-                    default_model = excluded.default_model, updated_at = excluded.updated_at""")
-                .params(workspaceId, key.encryptedKey(), key.hint(), key.defaultModel(), Timestamp.from(now)).update();
+                insert into workspace_ai (workspace_id, provider, api_key_enc, key_hint, default_model, updated_at) values (?, ?, ?, ?, ?, ?)
+                on conflict (workspace_id) do update set provider = excluded.provider, api_key_enc = excluded.api_key_enc,
+                    key_hint = excluded.key_hint, default_model = excluded.default_model, updated_at = excluded.updated_at""")
+                .params(workspaceId, key.provider(), key.encryptedKey(), key.hint(), key.defaultModel(), Timestamp.from(now)).update();
     }
 
     @Override

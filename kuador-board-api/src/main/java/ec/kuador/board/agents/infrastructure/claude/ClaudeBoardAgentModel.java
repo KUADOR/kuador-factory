@@ -22,6 +22,7 @@ import com.anthropic.models.messages.ThinkingConfigAdaptive;
 import com.anthropic.models.messages.Tool;
 import com.anthropic.models.messages.ToolUseBlock;
 import ec.kuador.board.agents.domain.AgentModelException;
+import ec.kuador.board.agents.domain.AiProvider;
 import ec.kuador.board.agents.domain.BoardAgentModel;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -51,21 +52,39 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
     private static final int MAX_TURNS = 12;
     private static final long MAX_OUTPUT_BYTES = 30L * 1024 * 1024;
 
-    private final String baseUrl;
+    /** Cómo es su entorno: se suma a las reglas del tablero. */
+    private static final String ENVIRONMENT = """
 
-    ClaudeBoardAgentModel(@Value("${board.agents.anthropic-base-url:}") String baseUrl) {
-        this.baseUrl = baseUrl == null ? "" : baseUrl.strip();
+            Tu entorno:
+            - Puedes ejecutar código (Python y bash) con pandas, openpyxl, matplotlib y reportlab, sin Internet (para leer un PDF, revisa qué librería hay instalada). Los archivos de la \
+            tarjeta ya están ahí; si no los ves en el directorio actual, búscalos por nombre con find.
+            - Para cálculos sobre datos usa código, no cuentas de cabeza.
+            - Los archivos que entregas (PDF, Excel, CSV, imágenes) van copiados a $OUTPUT_DIR con un nombre claro; en el mismo comando lista \
+            $OUTPUT_DIR para confirmar que quedaron.
+            """;
+
+    /** Para pruebas: si está, manda sobre la dirección del proveedor. */
+    private final String overrideUrl;
+
+    ClaudeBoardAgentModel(@Value("${board.agents.anthropic-base-url:}") String overrideUrl) {
+        this.overrideUrl = overrideUrl == null ? "" : overrideUrl.strip();
     }
 
-    private AnthropicClient client(String apiKey) {
-        AnthropicOkHttpClient.Builder b = AnthropicOkHttpClient.builder().apiKey(apiKey.strip()).timeout(Duration.ofMinutes(10)).maxRetries(2);
-        if (!baseUrl.isEmpty()) b.baseUrl(baseUrl);
+    @Override
+    public AiProvider.Protocol protocol() {
+        return AiProvider.Protocol.ANTHROPIC;
+    }
+
+    private AnthropicClient client(Endpoint endpoint) {
+        AnthropicOkHttpClient.Builder b = AnthropicOkHttpClient.builder().apiKey(endpoint.apiKey().strip()).timeout(Duration.ofMinutes(10)).maxRetries(2);
+        String url = !overrideUrl.isEmpty() ? overrideUrl : endpoint.baseUrl();
+        if (url != null && !url.isBlank()) b.baseUrl(url.strip());
         return b.build();
     }
 
     @Override
-    public void checkKey(String apiKey) {
-        AnthropicClient client = client(apiKey);
+    public void checkKey(Endpoint endpoint) {
+        AnthropicClient client = client(endpoint);
         try {
             client.models().list();
         } catch (UnauthorizedException | PermissionDeniedException e) {
@@ -78,8 +97,8 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
     }
 
     @Override
-    public Result work(String apiKey, String model, Task task) {
-        AnthropicClient client = client(apiKey);
+    public Result work(Endpoint endpoint, String model, Task task) {
+        AnthropicClient client = client(endpoint);
         List<String> uploaded = new ArrayList<>();
         Set<String> produced = new LinkedHashSet<>();
         try {
@@ -96,7 +115,7 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
             MessageCreateParams.Builder params = MessageCreateParams.builder()
                     .model(model)
                     .maxTokens(32_000L)
-                    .system(task.system())
+                    .system(task.system() + ENVIRONMENT)
                     .thinking(ThinkingConfigAdaptive.builder().build())
                     .addTool(CodeExecutionTool20260120.builder().build())
                     .addTool(tool("deliver", "Entrega el trabajo terminado. Los archivos para la persona deben estar ya copiados en $OUTPUT_DIR.",

@@ -33,7 +33,7 @@ import { PiecesSetupForm } from "../settings/repositorio/Pieces";
 
 
 const STEPS: Record<StepId, { title: string; description: string }> = {
-  ia: { title: "IA de la empresa", description: "La clave con la que trabajan tus agentes en el tablero. El consumo va a la cuenta de Anthropic de tu empresa y le puedes poner un tope." },
+  ia: { title: "IA de la empresa", description: "El proveedor de IA de tu empresa (Claude, ChatGPT, DeepSeek…) y su clave: con ella trabajan tus agentes en el tablero. El consumo va a tu cuenta con ese proveedor." },
   metodologia: { title: "Metodología", description: "Qué documentos pide el proyecto (spec, plan, tareas…) y qué escribe cada agente." },
   repositorio: { title: "Repositorio y piezas", description: "Dónde vive el código: el tablero crea los repos con sus bases, o vinculas uno que ya existe." },
   agentes: { title: "Tu cliente de IA", description: "Tus agentes trabajan en tu Claude Code (o Codex) con tu suscripción, conectados al tablero." },

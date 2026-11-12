@@ -65,6 +65,7 @@ import type {
   PlatformCatalogEntry,
   PlatformCatalogSummary,
   AiModelPrice,
+  AiProvider,
   AiUsageReport,
 } from "@/lib/types";
 
@@ -396,7 +397,11 @@ export async function deleteAiPriceAction(model: string): Promise<ActionResult<A
   return run(() => boardApi.deleteAiPrice(model), "/plataforma");
 }
 
-export async function saveWorkspaceAiAction(input: { apiKey: string | null; defaultModel: string }): Promise<ActionResult<WorkspaceAiStatus>> {
+export async function saveAiProviderAction(code: string, input: Omit<AiProvider, "code">): Promise<ActionResult<AiProvider[]>> {
+  return run(() => boardApi.saveAiProvider(code, input), "/plataforma");
+}
+
+export async function saveWorkspaceAiAction(input: { provider: string; apiKey: string | null; defaultModel: string }): Promise<ActionResult<WorkspaceAiStatus>> {
   return run(() => boardApi.saveWorkspaceAi(input), "/conexiones");
 }
 

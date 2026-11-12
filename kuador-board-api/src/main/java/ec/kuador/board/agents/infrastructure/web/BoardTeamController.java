@@ -24,8 +24,11 @@ class BoardTeamController {
     private final BoardTeam team;
     private final WorkspaceAi ai;
     private final ec.kuador.board.agents.application.AiUsage usage;
+    private final ec.kuador.board.agents.application.AiProviders providers;
 
-    BoardTeamController(BoardTeam team, WorkspaceAi ai, ec.kuador.board.agents.application.AiUsage usage) {
+    BoardTeamController(BoardTeam team, WorkspaceAi ai, ec.kuador.board.agents.application.AiUsage usage,
+            ec.kuador.board.agents.application.AiProviders providers) {
+        this.providers = providers;
         this.team = team;
         this.ai = ai;
         this.usage = usage;
@@ -68,7 +71,20 @@ class BoardTeamController {
 
     record ProfileRequest(@NotNull AgentMode mode, @Size(max = 60) String model) {}
 
-    record AiRequest(@Size(max = 300) String apiKey, @Size(max = 60) String defaultModel) {}
+    record AiRequest(@Size(max = 30) String provider, @Size(max = 300) String apiKey, @Size(max = 80) String defaultModel) {}
+
+    record ProviderRequest(@NotBlank @Size(max = 60) String name, @NotBlank String protocol, @NotBlank @Size(max = 200) String baseUrl,
+            List<@Size(max = 80) String> models, @Size(max = 120) String keyHint, boolean active, int sortOrder) {}
+
+    @GetMapping("/api/platform/ai-providers")
+    List<ec.kuador.board.agents.domain.AiProvider> providers() {
+        return providers.all();
+    }
+
+    @PutMapping("/api/platform/ai-providers/{code}")
+    List<ec.kuador.board.agents.domain.AiProvider> saveProvider(@PathVariable String code, @Valid @RequestBody ProviderRequest r) {
+        return providers.save(code, r.name(), r.protocol(), r.baseUrl(), r.models(), r.keyHint(), r.active(), r.sortOrder());
+    }
 
     @GetMapping("/api/projects/{key}/team")
     List<BoardTeam.TeamAgent> list(@PathVariable String key) {
@@ -102,7 +118,7 @@ class BoardTeamController {
 
     @PutMapping("/api/workspace/ai")
     WorkspaceAi.Status saveAi(@Valid @RequestBody AiRequest r) {
-        return ai.save(r.apiKey(), r.defaultModel());
+        return ai.save(r.provider(), r.apiKey(), r.defaultModel());
     }
 
     @DeleteMapping("/api/workspace/ai")

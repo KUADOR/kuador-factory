@@ -437,11 +437,36 @@ export interface AiModelPrice {
   outputPerMTok: number;
 }
 
+/** Un proveedor de IA que la empresa puede elegir para sus agentes en el tablero. */
+export interface AiProviderOption {
+  code: string;
+  name: string;
+  keyHint: string | null;
+  models: string[];
+  /** Con ejecución de código propia (Claude); los demás usan las herramientas del tablero. */
+  codeExecution: boolean;
+}
+
 export interface WorkspaceAiStatus {
   configured: boolean;
+  /** Proveedor de la clave guardada (o el sugerido si no hay clave). */
+  provider: string | null;
   keyHint: string | null;
   defaultModel: string;
   models: string[];
+  providers: AiProviderOption[];
+}
+
+/** Proveedor de IA tal como lo administra la plataforma. */
+export interface AiProvider {
+  code: string;
+  name: string;
+  protocol: "ANTHROPIC" | "OPENAI_COMPATIBLE";
+  baseUrl: string;
+  models: string[];
+  keyHint: string | null;
+  active: boolean;
+  sortOrder: number;
 }
 
 export interface Attachment {

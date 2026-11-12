@@ -112,7 +112,7 @@ public class ProductOwnerAgent {
             return;
         }
         if (key.isEmpty() && !model.available()) {
-            finish(run.skipped("Falta la clave de IA del espacio: ponla en Conexiones → IA y vuelve a asignar el issue.", now()));
+            finish(run.skipped("El Agente PO trabaja con Claude por ahora: falta una clave de Anthropic en Conexiones → IA. Ponla y vuelve a asignar el issue.", now()));
             return;
         }
 

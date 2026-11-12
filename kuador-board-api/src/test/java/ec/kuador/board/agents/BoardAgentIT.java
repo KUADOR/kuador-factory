@@ -66,6 +66,15 @@ class BoardAgentIT {
     static final List<String> DELETED = new CopyOnWriteArrayList<>();
     static final byte[] PDF = "%PDF-1.4 informe".getBytes(StandardCharsets.UTF_8);
     static com.sun.net.httpserver.HttpServer anthropic;
+    static final List<String> OPENAI_REQUESTS = new CopyOnWriteArrayList<>();
+    /** El modelo crea el documento con una cifra que sale de una consulta sobre el CSV, y entrega. */
+    static final String DEEPSEEK_REPLY = """
+            {"model":"deepseek-prueba","usage":{"prompt_tokens":900,"completion_tokens":300},
+             "choices":[{"finish_reason":"tool_calls","message":{"role":"assistant","content":null,"tool_calls":[
+               {"id":"c1","type":"function","function":{"name":"create_document","arguments":"{\\"file_name\\":\\"resumen.pdf\\",\\"title\\":\\"Resumen de ventas\\",\\"blocks\\":[{\\"type\\":\\"table\\",\\"sql\\":\\"select sum(monto) as vendido from ventas\\"}]}"}},
+               {"id":"c2","type":"function","function":{"name":"deliver","arguments":"{\\"summary\\":\\"Vendiste 100 en dos días. Adjunté el resumen.\\"}"}}
+             ]}}]}
+            """;
 
     static {
         try {
@@ -110,6 +119,22 @@ class BoardAgentIT {
                 }
                 ex.getResponseHeaders().add("Content-Type", type);
                 ex.sendResponseHeaders(status, out.length);
+                ex.getResponseBody().write(out);
+                ex.close();
+            });
+            // Un proveedor compatible con OpenAI (como DeepSeek): sin ejecución de código, usa las herramientas del tablero.
+            anthropic.createContext("/deepseek/", ex -> {
+                boolean ok = "Bearer sk-deepseek-prueba-0123456789".equals(ex.getRequestHeaders().getFirst("authorization"));
+                byte[] body = ex.getRequestBody().readAllBytes();
+                byte[] out;
+                if (!ok) out = "{\"error\":{\"message\":\"Authentication Fails\"}}".getBytes();
+                else if (ex.getRequestURI().getPath().endsWith("/models")) out = "{\"object\":\"list\",\"data\":[]}".getBytes();
+                else {
+                    OPENAI_REQUESTS.add(new String(body, StandardCharsets.UTF_8));
+                    out = DEEPSEEK_REPLY.getBytes(StandardCharsets.UTF_8);
+                }
+                ex.getResponseHeaders().add("Content-Type", "application/json");
+                ex.sendResponseHeaders(ok ? 200 : 401, out.length);
                 ex.getResponseBody().write(out);
                 ex.close();
             });
@@ -312,6 +337,34 @@ class BoardAgentIT {
         eventually("avisa el tope", () -> quiet("GET", "/api/issues/" + capped + "/comments", owner).toString().contains("tope mensual"));
         assertThat(MESSAGES).as("no se llamó al modelo").hasSize(1);
         call("PUT", "/api/workspace/ai/budget", java.util.Collections.singletonMap("budgetUsd", null), owner);
+
+        // La empresa usa DeepSeek: la plataforma lo habilita con su dirección y modelos, y la empresa cambia de proveedor.
+        String deepseek = "http://127.0.0.1:" + anthropic.getAddress().getPort() + "/deepseek";
+        call("PUT", "/api/platform/ai-providers/DEEPSEEK", Map.of("name", "DeepSeek", "protocol", "OPENAI_COMPATIBLE", "baseUrl", deepseek,
+                "models", List.of("deepseek-prueba"), "active", true, "sortOrder", 30), owner);
+        assertThat(call("PUT", "/api/workspace/ai", Map.of("provider", "DEEPSEEK"), owner).body().get("detail").asString())
+                .as("cambiar de proveedor pide su clave").contains("Pega la clave de API de DeepSeek");
+        JsonNode switched = call("PUT", "/api/workspace/ai", Map.of("provider", "DEEPSEEK", "apiKey", "sk-deepseek-prueba-0123456789"), owner).body();
+        assertThat(switched.get("provider").asString()).as(switched.toString()).isEqualTo("DEEPSEEK");
+        assertThat(switched.get("defaultModel").asString()).isEqualTo("deepseek-prueba");
+        assertThat(switched.get("providers").findValuesAsString("code")).contains("ANTHROPIC", "DEEPSEEK").doesNotContain("OPENAI");
+
+        String summary = call("POST", "/api/projects/VEN/issues", Map.of("title", "Resumen de ventas", "type", "TASK",
+                "description", "Resume lo vendido en un PDF."), owner).body().get("key").asString();
+        upload(summary, "ventas.csv", "text/csv", "fecha,monto\n2026-10-01,40\n2026-10-02,60\n".getBytes(StandardCharsets.UTF_8), owner);
+        call("PUT", "/api/issues/" + summary + "/assignee", Map.of("assigneeId", analystId), owner);
+        eventually("entrega con DeepSeek", () -> quiet("GET", "/api/issues/" + summary + "/attachments", owner).get("items").findValuesAsString("fileName")
+                .contains("resumen.pdf"));
+        eventually("comenta", () -> quiet("GET", "/api/issues/" + summary + "/comments", owner).toString().contains("Vendiste 100"));
+        assertThat(OPENAI_REQUESTS.getFirst()).contains("deepseek-prueba", "Tabla ventas", "query_data", "Resume lo vendido");
+        JsonNode made = quiet("GET", "/api/issues/" + summary + "/attachments", owner).get("items").valueStream()
+                .filter(a -> a.get("fileName").asString().equals("resumen.pdf")).findFirst().orElseThrow();
+        byte[] madePdf = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/attachments/" + made.get("id").asString() + "/content"))
+                .header("Authorization", "Bearer " + owner).build(), HttpResponse.BodyHandlers.ofByteArray()).body();
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(madePdf)) {
+            assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(doc)).contains("Resumen de ventas", "vendido", "100");
+        }
+        assertThat(call("GET", "/api/workspace/ai/usage", null, owner).body().get("unpricedModels").toString()).contains("deepseek-prueba");
 
         // Sin clave, el agente no empieza y lo dice en la tarjeta.
         call("DELETE", "/api/workspace/ai", null, owner);

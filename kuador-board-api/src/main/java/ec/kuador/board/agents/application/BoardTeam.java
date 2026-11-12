@@ -36,8 +36,11 @@ public class BoardTeam extends TenantAwareListener {
     private final ProjectApi projects;
     private final CatalogApi catalog;
     private final Clock clock;
+    private final AiProviders providers;
 
-    BoardTeam(AgentTeamStore store, MemberApi members, ProjectApi projects, CatalogApi catalog, Clock clock, PlatformTransactionManager txManager) {
+    BoardTeam(AgentTeamStore store, MemberApi members, ProjectApi projects, CatalogApi catalog, Clock clock, PlatformTransactionManager txManager,
+            AiProviders providers) {
+        this.providers = providers;
         super(txManager);
         this.store = store;
         this.members = members;
@@ -143,9 +146,9 @@ public class BoardTeam extends TenantAwareListener {
         if (!projects.exists(projectKey)) throw new NotFoundException("No existe el tablero " + projectKey + ".");
     }
 
-    private static String cleanModel(String model) {
+    private String cleanModel(String model) {
         if (model == null || model.isBlank()) return null;
-        if (!WorkspaceAi.MODELS.contains(model.strip())) throw new DomainException("Elige uno de los modelos de la lista.");
+        if (!providers.anyOffers(model.strip())) throw new DomainException("Elige uno de los modelos de la lista.");
         return model.strip();
     }
 }

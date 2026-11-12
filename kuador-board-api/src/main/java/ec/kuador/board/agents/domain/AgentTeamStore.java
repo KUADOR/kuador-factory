@@ -27,7 +27,8 @@ public interface AgentTeamStore {
 
     void removeFromTeam(UUID workspaceId, String projectKey, UUID memberId);
 
-    record AiKey(String encryptedKey, String hint, String defaultModel) {}
+    /** La clave del espacio: de un proveedor de IA ({@code provider}, código de {@link AiProvider}). */
+    record AiKey(String provider, String encryptedKey, String hint, String defaultModel) {}
 
     Optional<AiKey> aiKey(UUID workspaceId);
 

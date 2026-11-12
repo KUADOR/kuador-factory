@@ -421,6 +421,14 @@ MCP · 5 desarrollo y QA · 6 release.
   `ask_human`. El tablero adjunta lo que generó, comenta el resumen y devuelve la tarjeta a quien se la
   asignó (le llega el aviso). Si falta la clave o algo falla, lo dice en la tarjeta. Los archivos
   subidos y generados se borran de Anthropic al terminar.
+- **Proveedores de IA** (*Plataforma → Proveedores de IA*): Claude (Anthropic), ChatGPT (OpenAI) y
+  DeepSeek, editables (dirección de la API, modelos, activo). Cada empresa elige uno en *Conexiones → IA*
+  con su clave de API (cambiar de proveedor pide su clave). Con Claude el agente ejecuta código en el
+  entorno de Anthropic; con los compatibles con OpenAI usa las **herramientas del tablero**: leer adjuntos
+  (PDF, Word, Excel, CSV, texto), consultar planillas con SQL de solo lectura en una base en memoria
+  (usuario sin permisos de administración) y crear PDF con títulos, indicadores, tablas y gráficos, o CSV.
+  El agente decide qué usar según lo que pide la tarjeta. No ven imágenes ni PDF escaneados. El Agente PO
+  sigue trabajando solo con Claude.
 - **Consumo de IA** (*Conexiones → IA*): tokens y costo estimado del mes, en total y por agente, a
   partir de las ejecuciones de los agentes en el tablero y de los precios por modelo que configura la
   plataforma (*Plataforma → Precios de modelos de IA*, USD por millón de tokens; no están fijos en el

@@ -12,7 +12,7 @@ import type { AiModelPrice } from "@/lib/types";
 
 /**
  * Precios de los modelos de IA (USD por millón de tokens), para estimar el consumo de cada espacio y aplicar su tope.
- * Se copian de la página de precios de Anthropic; cambian con el tiempo, por eso no están fijos en el código.
+ * Se copian de la página de precios de cada proveedor; cambian con el tiempo, por eso no están fijos en el código.
  */
 export function AiPricesEditor({ prices: initial, models }: { prices: AiModelPrice[]; models: string[] }) {
   const [prices, setPrices] = useState(initial);
@@ -23,7 +23,7 @@ export function AiPricesEditor({ prices: initial, models }: { prices: AiModelPri
   return (
     <Section
       title="Precios de modelos de IA"
-      description="USD por millón de tokens, de la página de precios de Anthropic. Con ellos cada espacio ve su costo estimado y su tope mensual funciona. Sin precio, se muestran solo los tokens."
+      description="USD por millón de tokens, de la página de precios de cada proveedor. Con ellos cada espacio ve su costo estimado y su tope mensual funciona. Sin precio, se muestran solo los tokens."
     >
       <div className="flex flex-col gap-4">
         {prices.length > 0 && (

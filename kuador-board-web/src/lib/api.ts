@@ -72,6 +72,7 @@ import type {
   PlatformCatalogEntry,
   PlatformCatalogSummary,
   AiModelPrice,
+  AiProvider,
   AiUsageReport,
 } from "./types";
 
@@ -160,7 +161,10 @@ export const boardApi = {
     request<AiModelPrice[]>(`/api/platform/ai-prices/${encodeURIComponent(model)}`, json("PUT", { inputPerMTok, outputPerMTok })),
   deleteAiPrice: (model: string) => request<AiModelPrice[]>(`/api/platform/ai-prices/${encodeURIComponent(model)}`, { method: "DELETE" }),
   workspaceAi: () => request<WorkspaceAiStatus>("/api/workspace/ai"),
-  saveWorkspaceAi: (input: { apiKey: string | null; defaultModel: string }) => request<WorkspaceAiStatus>("/api/workspace/ai", json("PUT", input)),
+  aiProviders: () => request<AiProvider[]>("/api/platform/ai-providers"),
+  saveAiProvider: (code: string, input: Omit<AiProvider, "code">) =>
+    request<AiProvider[]>(`/api/platform/ai-providers/${encodeURIComponent(code)}`, json("PUT", input)),
+  saveWorkspaceAi: (input: { provider: string; apiKey: string | null; defaultModel: string }) => request<WorkspaceAiStatus>("/api/workspace/ai", json("PUT", input)),
   removeWorkspaceAi: () => request<WorkspaceAiStatus>("/api/workspace/ai", { method: "DELETE" }),
   billingSettings: () => request<{ reminderDays: number[] }>("/api/platform/billing-settings"),
   saveBillingSettings: (reminderDays: number[]) => request<{ reminderDays: number[] }>("/api/platform/billing-settings", json("PUT", { reminderDays })),

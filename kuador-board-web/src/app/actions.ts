@@ -52,6 +52,7 @@ import type {
   PlanInput,
   WorkspaceLicense,
   WorkspacePlan,
+  Invitation,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -305,6 +306,28 @@ export async function signupCompleteAction(input: {
   const created = await run(() => boardApi.signupComplete(body));
   if (!created.ok) return created;
   const session = await run(() => boardApi.login(email, input.password));
+  if (!session.ok) return session;
+  await setSessionToken(session.data.token, session.data.expiresAt);
+  redirect("/");
+}
+
+export async function inviteAction(input: { memberId?: string; name?: string; role?: string; access?: MemberAccess; email: string }): Promise<ActionResult<Invitation>> {
+  return run(() => boardApi.invite(input), "/team");
+}
+
+export async function resendInvitationAction(id: string): Promise<ActionResult<Invitation>> {
+  return run(() => boardApi.resendInvitation(id), "/team");
+}
+
+export async function cancelInvitationAction(id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.cancelInvitation(id), "/team");
+}
+
+/** Acepta la invitación y deja la sesión iniciada. */
+export async function acceptInvitationAction(token: string, password: string): Promise<ActionResult<void>> {
+  const accepted = await run(() => boardApi.acceptInvitation(token, password));
+  if (!accepted.ok) return accepted;
+  const session = await run(() => boardApi.login(accepted.data.email, password));
   if (!session.ok) return session;
   await setSessionToken(session.data.token, session.data.expiresAt);
   redirect("/");

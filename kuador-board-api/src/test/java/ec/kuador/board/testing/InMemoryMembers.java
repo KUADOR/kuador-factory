@@ -57,6 +57,12 @@ public class InMemoryMembers implements MemberApi {
     }
 
     @Override
+    public MemberView createHuman(String name, String role, String description, String avatarColor, ec.kuador.board.member.MemberAccess access) {
+        return add(new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, name, false, role, avatarColor, description,
+                access == null ? ec.kuador.board.member.MemberAccess.EDIT : access));
+    }
+
+    @Override
     public MemberView createAgent(String roleKey, String name, String description, String avatarColor) {
         return add(new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, name, true, roleKey, avatarColor, description));
     }

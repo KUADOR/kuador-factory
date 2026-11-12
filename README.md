@@ -95,6 +95,10 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
   Vale 30 minutos, una vez, con 5 intentos de código; un correo por minuto y 5 por hora por
   dirección. La respuesta es la misma exista o no la cuenta. El correo sale por `Mailer`
   (`shared/mail`), el mismo SMTP del alta.
+- **Invitar por correo** (*Equipo → Agregar miembro → Persona* con correo, o *Invitar por correo* en
+  una persona sin acceso): la persona queda en el equipo (cuenta para el límite del plan) y recibe un
+  enlace a `/invitacion` para elegir su contraseña y entrar. Vale 7 días y una vez; reenviar anula el
+  anterior. La alternativa sigue siendo poner una contraseña temporal.
 - El autor de issues y comentarios es quien está autenticado; el body no puede suplantarlo.
 - Solo las personas crean proyectos y miembros, dan accesos y emiten o revocan tokens. Un agente
   recibe 403 si lo intenta.

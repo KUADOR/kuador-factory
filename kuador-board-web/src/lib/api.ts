@@ -55,6 +55,8 @@ import type {
   WorkspaceLicense,
   WorkspacePlan,
   LicenseStatus,
+  Invitation,
+  InvitationPreview,
 } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
@@ -110,6 +112,14 @@ export const boardApi = {
   confirmPasswordReset: (input: { token: string | null; email: string | null; code: string | null; password: string }) =>
     request<void>("/api/auth/password-reset/confirm", { ...json("POST", input), anonymous: true }),
   plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
+  invitations: () => request<Invitation[]>("/api/invitations"),
+  invite: (input: { memberId?: string; name?: string; role?: string; access?: MemberAccess; email: string }) =>
+    request<Invitation>("/api/invitations", json("POST", input)),
+  resendInvitation: (id: string) => request<Invitation>(`/api/invitations/${encodeURIComponent(id)}/resend`, { method: "POST" }),
+  cancelInvitation: (id: string) => request<void>(`/api/invitations/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  invitationPreview: (token: string) => request<InvitationPreview>(`/api/public/invitations?token=${encodeURIComponent(token)}`, { anonymous: true }),
+  acceptInvitation: (token: string, password: string) =>
+    request<{ email: string }>("/api/public/invitations/accept", { ...json("POST", { token, password }), anonymous: true }),
   /** `undefined`: el espacio no tiene planes (instalación propia, sin límites). */
   workspacePlan: () => request<WorkspacePlan | undefined>("/api/workspace/plan"),
   changePlan: (plan: string) => request<WorkspacePlan>("/api/workspace/plan", json("PUT", { plan })),

@@ -109,6 +109,12 @@ public class MemberService implements MemberApi, CatalogUsage {
 
     @Override
     @Transactional
+    public MemberView createHuman(String name, String role, String description, String avatarColor, MemberAccess access) {
+        return view(create(name, MemberKind.HUMAN, role, description, avatarColor, access));
+    }
+
+    @Override
+    @Transactional
     public MemberView createAgent(String roleKey, String name, String description, String avatarColor) {
         return view(create(name, MemberKind.AGENT, roleKey, description, avatarColor, MemberAccess.EDIT));
     }

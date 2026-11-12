@@ -3,7 +3,7 @@
 import { Plus, Sparkle } from "lucide-react";
 import { useState, useTransition } from "react";
 
-import { createMemberAction } from "@/app/actions";
+import { createMemberAction, inviteAction } from "@/app/actions";
 import { AgentRunItem } from "@/components/agents/AgentRunItem";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
@@ -16,16 +16,16 @@ import { notify } from "@/components/ui/Toaster";
 import { useAccess } from "@/components/shell/AccessContext";
 import { ACCESS_LABEL, defaultAccessFor } from "@/lib/access";
 import { roleLabel } from "@/lib/labels";
-import type { Account, AgentRole, AgentRun, AgentToken, AgentsStatus, Member, MemberAccess, MemberKind } from "@/lib/types";
+import type { Account, AgentRole, AgentRun, AgentToken, AgentsStatus, Invitation, Member, MemberAccess, MemberKind } from "@/lib/types";
 
 import { AgentTokens } from "./AgentTokens";
 import { HumanAccess } from "./HumanAccess";
 import { ACCESS_CHOICES, MemberAccessPicker } from "./MemberAccessPicker";
 
-type Props = { members: Member[]; accounts: Account[]; tokens: AgentToken[]; status: AgentsStatus; runs: AgentRun[]; roles: AgentRole[] };
+type Props = { members: Member[]; accounts: Account[]; tokens: AgentToken[]; status: AgentsStatus; runs: AgentRun[]; roles: AgentRole[]; invitations: Invitation[] };
 
 /** Equipo del espacio: personas y agentes en listas; el detalle de cada uno se abre al costado. */
-export function TeamView({ members, accounts, tokens, status, runs, roles }: Props) {
+export function TeamView({ members, accounts, tokens, status, runs, roles, invitations }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const { me, canEdit } = useAccess();
@@ -76,7 +76,9 @@ export function TeamView({ members, accounts, tokens, status, runs, roles }: Pro
                           </Badge>
                         )}
                         {m.kind === "HUMAN" ? (
-                          <Badge tone={access ? "ok" : "neutral"}>{access ? "Con acceso" : "Sin acceso"}</Badge>
+                          <Badge tone={access ? "ok" : invitations.some((i) => i.memberId === m.id) ? "sol" : "neutral"}>
+                            {access ? "Con acceso" : invitations.some((i) => i.memberId === m.id) ? "Invitación enviada" : "Sin acceso"}
+                          </Badge>
                         ) : (
                           <Badge tone={active ? "ok" : "neutral"}>{active ? `${active} token${active > 1 ? "s" : ""}` : "Sin token"}</Badge>
                         )}
@@ -118,7 +120,12 @@ export function TeamView({ members, accounts, tokens, status, runs, roles }: Pro
                 </div>
                 <div className="flex flex-col gap-2">
                   <h3 className="text-xs font-medium text-fg-muted">Acceso al tablero</h3>
-                  <HumanAccess memberId={open.id} email={accounts.find((a) => a.memberId === open.id)?.email ?? null} />
+                  <HumanAccess
+                    key={open.id}
+                    memberId={open.id}
+                    email={accounts.find((a) => a.memberId === open.id)?.email ?? null}
+                    invitation={invitations.find((i) => i.memberId === open.id) ?? null}
+                  />
                 </div>
               </div>
             )}
@@ -167,6 +174,7 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
   const [access, setAccess] = useState<MemberAccess | null>(null);
   const effectiveAccess = access ?? defaultAccessFor(humanRole);
   const [description, setDescription] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -178,6 +186,15 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
       onSubmit={(e) => {
         e.preventDefault();
         startTransition(async () => {
+          // Con correo, la persona se crea invitada: le llega el enlace para elegir su contraseña.
+          if (kind === "HUMAN" && inviteEmail.trim()) {
+            const invited = await inviteAction({ name, role: humanRole.trim().toUpperCase(), access: effectiveAccess, email: inviteEmail.trim() });
+            if (invited.ok) {
+              notify.ok(`Invitamos a ${invited.data.memberName}`, `Le llegó un enlace a ${invited.data.email}.`);
+              onDone();
+            } else setError(invited.error);
+            return;
+          }
           const result = await createMemberAction({
             name,
             kind,
@@ -201,7 +218,7 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
         onChange={setKind}
         choices={[
           { value: "AGENT", label: "Agente", hint: "Con un rol del catálogo." },
-          { value: "HUMAN", label: "Persona", hint: "Después le das acceso con correo." },
+          { value: "HUMAN", label: "Persona", hint: "La invitas por correo o le das acceso después." },
         ]}
       />
       <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === "AGENT" ? "Agente Mobile · Flutter" : "Diana Pérez"} />}</Field>
@@ -214,6 +231,11 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
           {(id) => (
             <TextInput id={id} required pattern="[A-Za-z][A-Za-z0-9_]{1,39}" value={humanRole} onChange={(e) => setHumanRole(e.target.value.toUpperCase())} placeholder="CLIENTE" className="font-mono uppercase" />
           )}
+        </Field>
+      )}
+      {kind === "HUMAN" && (
+        <Field label="Correo para invitar" hint="Opcional. Le llega un enlace para elegir su contraseña; vence en 7 días.">
+          {(id) => <TextInput id={id} type="email" maxLength={254} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="persona@empresa.com" />}
         </Field>
       )}
       {kind === "HUMAN" && <ChoiceCards name="new-member-access" label="Nivel de acceso" columns={2} value={effectiveAccess} onChange={setAccess} choices={ACCESS_CHOICES} />}
@@ -241,7 +263,7 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
           Cancelar
         </Button>
         <Button tone="primary" type="submit" loading={pending}>
-          Agregar
+          {kind === "HUMAN" && inviteEmail.trim() ? "Invitar" : "Agregar"}
         </Button>
       </div>
     </form>

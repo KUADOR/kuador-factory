@@ -22,6 +22,9 @@ public interface MemberApi {
 
     MemberView createHuman(String name, String role, String description, String avatarColor);
 
+    /** Crea una persona con su nivel de acceso ({@code null} = el de su rol: los clientes solo miran). */
+    MemberView createHuman(String name, String role, String description, String avatarColor, MemberAccess access);
+
     /** Crea un agente; {@code roleKey} debe existir en el catálogo del espacio. */
     MemberView createAgent(String roleKey, String name, String description, String avatarColor);
 }

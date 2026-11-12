@@ -370,6 +370,23 @@ export interface WorkspaceLicense {
 
 export type PlanInput = Omit<Plan, "code">;
 
+/** Invitación por correo pendiente de aceptar. */
+export interface Invitation {
+  id: string;
+  memberId: string;
+  memberName: string;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+  expired: boolean;
+}
+
+export interface InvitationPreview {
+  workspaceName: string;
+  memberName: string;
+  email: string;
+}
+
 export interface Session {
   token: string;
   expiresAt: string;

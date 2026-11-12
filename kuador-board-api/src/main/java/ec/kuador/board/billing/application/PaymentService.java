@@ -50,10 +50,12 @@ public class PaymentService {
     private final String webUrl;
     private final String publicUrl;
     private final ObjectMapper json = new ObjectMapper();
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     PaymentService(PaymentStore store, List<PaymentGateway> gateways, BillingService billing, SecretBox secrets, PlatformTransactionManager txManager,
-            Clock clock, @Value("${board.web-url:http://localhost:3600}") String webUrl,
+            Clock clock, org.springframework.context.ApplicationEventPublisher events, @Value("${board.web-url:http://localhost:3600}") String webUrl,
             @Value("${board.public-url:http://localhost:8091}") String publicUrl) {
+        this.events = events;
         this.store = store;
         this.gateways = gateways.stream().collect(Collectors.toMap(PaymentGateway::type, Function.identity()));
         this.billing = billing;
@@ -115,7 +117,7 @@ public class PaymentService {
     public record CheckoutResult(UUID paymentId, String payUrl) {}
 
     /** Inicia el pago de {@code months} meses de {@code planCode} con {@code providerCode}; devuelve dónde pagar. */
-    public CheckoutResult checkout(String planCode, String providerCode, int months) {
+    public CheckoutResult checkout(String planCode, String providerCode, int months, UUID requestedBy) {
         UUID ws = TenantContext.require();
         if (!PERIODS.contains(months)) throw new DomainException("Se paga por 1 o 12 meses.");
         Plan plan = billing.plan(planCode == null ? "" : planCode.toUpperCase()).filter(Plan::active)
@@ -123,7 +125,7 @@ public class PaymentService {
         if (plan.free()) throw new DomainException("El plan " + plan.name() + " es gratis: no hay nada que pagar.");
         PaymentProvider provider = activeProvider(providerCode);
         Payment payment = new Payment(UUID.randomUUID(), ws, plan.code(), provider.code(), plan.priceMonthly().multiply(BigDecimal.valueOf(months)),
-                plan.currency(), months, Payment.Status.CREATED, null, clock.instant(), null);
+                plan.currency(), months, Payment.Status.CREATED, null, clock.instant(), null, requestedBy);
         tx.executeWithoutResult(s -> store.save(payment));
         String description = "Kuador Go · Plan " + plan.name() + " · " + months + (months == 1 ? " mes" : " meses");
         PaymentGateway.Checkout checkout;
@@ -175,11 +177,17 @@ public class PaymentService {
 
     // ---- Apoyo ----
 
-    /** Marca pagado (una sola vez) y extiende la licencia. */
+    /** Marca pagado (una sola vez), extiende la licencia y publica el recibo. */
     private void settle(Payment payment) {
-        tx.executeWithoutResult(s -> {
-            if (store.markPaid(payment.id(), clock.instant())) billing.extendPaid(payment.workspaceId(), payment.planCode(), payment.months());
-        });
+        Instant now = clock.instant();
+        ec.kuador.board.billing.domain.Subscription extended = tx.execute(s -> store.markPaid(payment.id(), now)
+                ? billing.extendPaid(payment.workspaceId(), payment.planCode(), payment.months())
+                : null);
+        if (extended == null) return;
+        String planName = billing.plan(payment.planCode()).map(Plan::name).orElse(payment.planCode());
+        String providerName = store.provider(payment.providerCode()).map(PaymentStore.StoredProvider::name).orElse(payment.providerCode());
+        events.publishEvent(new ec.kuador.board.billing.PaymentReceived(payment.workspaceId(), payment.id(), payment.requestedBy(), planName,
+                payment.months(), payment.amount(), payment.currency(), now, extended.paidUntil(), providerName, payment.externalId()));
     }
 
     private PaymentProvider activeProvider(String code) {

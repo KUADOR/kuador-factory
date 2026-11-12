@@ -326,6 +326,10 @@ export async function signupCompleteAction(input: {
   redirect(next === "/workspace/plan?bienvenida=1" ? next : "/");
 }
 
+export async function saveBillingSettingsAction(reminderDays: number[]): Promise<ActionResult<{ reminderDays: number[] }>> {
+  return run(() => boardApi.saveBillingSettings(reminderDays), "/plataforma");
+}
+
 export async function savePaymentProviderAction(
   code: string,
   input: { type: string; name: string; mode: PaymentMode; credentials: Record<string, string>; active: boolean; sortOrder: number },

@@ -35,6 +35,7 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
         "board.sync.allowed-roots=", "board.platform.admins=ada@pagos.test", "board.web-url=https://tablero.test",
+        "board.notifications.dispatch-every=200", "board.billing.reminders-delay=3600000",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class PaymentIT {
 
@@ -44,6 +45,7 @@ class PaymentIT {
 
     static final Map<String, String> INBOX = new ConcurrentHashMap<>();
     static final List<String> ORDERS = new CopyOnWriteArrayList<>();
+    static final List<org.springframework.mail.SimpleMailMessage> MAILS = new CopyOnWriteArrayList<>();
     static com.sun.net.httpserver.HttpServer paypal;
 
     static {
@@ -93,10 +95,23 @@ class PaymentIT {
         VerificationMailer inbox() {
             return INBOX::put;
         }
+
+        /** Correos de los avisos (recibos, vencimientos). */
+        @Bean
+        @Primary
+        org.springframework.mail.javamail.JavaMailSender smtp() {
+            return new org.springframework.mail.javamail.JavaMailSenderImpl() {
+                @Override
+                public void send(org.springframework.mail.SimpleMailMessage... messages) {
+                    MAILS.addAll(List.of(messages));
+                }
+            };
+        }
     }
 
     @Autowired SignupService signup;
     @Autowired AuthService auth;
+    @Autowired ec.kuador.board.billing.application.LicenseReminders reminders;
     @LocalServerPort int port;
 
     private final HttpClient http = HttpClient.newHttpClient();
@@ -118,6 +133,15 @@ class PaymentIT {
         return call(method, path, body, token, Map.of());
     }
 
+    /** Quien administra la plataforma (la crea la primera prueba que la necesite). */
+    private synchronized String admin() {
+        try {
+            return auth.login("ada@pagos.test", "clave-larga-de-prueba-1").token();
+        } catch (RuntimeException e) {
+            return account("ada@pagos.test", "Plataforma Pagos", null);
+        }
+    }
+
     private String account(String email, String company, String plan) {
         signup.requestCode(email);
         signup.complete(signup.verifyCode(email, INBOX.get(email)), new SignupService.Company(company, null, null, null, null, null),
@@ -127,7 +151,7 @@ class PaymentIT {
 
     @Test
     void aWorkspacePaysItsPlanWithTheConfiguredGatewayOnce() throws Exception {
-        String admin = account("ada@pagos.test", "Plataforma Pagos", null);
+        String admin = admin();
         String owner = account("leo@pagos.test", "Cliente Pagos", "TEAM");
 
         // La plataforma configura PayPal: el formulario sale de los campos del adaptador.
@@ -158,6 +182,9 @@ class PaymentIT {
 
         JsonNode paid = call("POST", "/api/workspace/plan/payments/" + checkout.get("paymentId").asString() + "/confirm", null, owner).body();
         assertThat(paid.get("status").asString()).isEqualTo("PAID");
+        eventually("llega el recibo", () -> MAILS.stream().anyMatch(m -> m.getTo()[0].equals("leo@pagos.test")
+                && m.getSubject().equals("Recibo de pago · Plan Equipo") && m.getText().contains("Periodo: 12 meses")
+                && m.getText().contains("$348,00 USD") && m.getText().contains("referencia ORDER-1")));
         JsonNode plan = call("GET", "/api/workspace/plan", null, owner).body();
         assertThat(plan.get("status").asString()).isEqualTo("ACTIVE");
         Instant until = Instant.parse(plan.get("paidUntil").asString());
@@ -180,5 +207,47 @@ class PaymentIT {
         assertThat(call("GET", "/api/workspace/plan/payments", null, owner).body().get(0).get("id").asString()).isEqualTo(second.get("paymentId").asString());
 
         assertThat(call("POST", "/api/workspace/plan/checkout", Map.of("plan", "FREE", "provider", "PAYPAL", "months", 1), owner).status()).isEqualTo(422);
+        eventually("el recibo del pago que llegó por aviso", () -> MAILS.stream().filter(m -> m.getSubject().startsWith("Recibo de pago")).count() == 2);
+        Thread.sleep(800);
+        assertThat(MAILS.stream().filter(m -> m.getSubject().startsWith("Recibo de pago")).count()).as("un recibo por pago, aunque llegue el aviso").isEqualTo(2);
+    }
+
+    @Test
+    void ownersAreWarnedBeforeAndWhenTheirPlanEnds() throws Exception {
+        String admin = admin();
+        String owner = account("vale@vence.test", "Vence Pronto", "TEAM");
+        assertThat(call("GET", "/api/workspace/plan", null, owner).body().get("warnDays").asInt()).isEqualTo(7);
+        String id = null;
+        for (JsonNode w : call("GET", "/api/platform/workspaces", null, admin).body()) {
+            if (w.get("slug").asString().equals("vence-pronto")) id = w.get("workspaceId").asString();
+        }
+
+        // La prueba termina en 2 días: toca el aviso de 3 días, una sola vez.
+        call("PUT", "/api/platform/workspaces/" + id + "/license",
+                Map.of("plan", "TEAM", "status", "TRIAL", "trialEndsAt", Instant.now().plus(2, ChronoUnit.DAYS).toString()), admin);
+        reminders.run();
+        reminders.run();
+        eventually("aviso de vencimiento", () -> MAILS.stream().anyMatch(m -> m.getTo()[0].equals("vale@vence.test")
+                && m.getSubject().equals("Tu prueba del plan Equipo vence en 2 días") && m.getText().contains("plan Inicio")));
+        Thread.sleep(800);
+        assertThat(MAILS.stream().filter(m -> m.getTo()[0].equals("vale@vence.test")).count()).as("sin repetir").isEqualTo(1);
+
+        // Venció un periodo pagado: un aviso de vencido.
+        call("PUT", "/api/platform/workspaces/" + id + "/license",
+                Map.of("plan", "TEAM", "status", "ACTIVE", "paidUntil", Instant.now().minus(1, ChronoUnit.HOURS).toString()), admin);
+        reminders.run();
+        eventually("aviso de vencido", () -> MAILS.stream().anyMatch(m -> m.getTo()[0].equals("vale@vence.test")
+                && m.getSubject().equals("Venció tu plan Equipo") && m.getText().contains("siguen ahí")));
+
+        // La plataforma configura los días.
+        assertThat(call("PUT", "/api/platform/billing-settings", Map.of("reminderDays", List.of(5, 10, 10)), admin).body().get("reminderDays").toString())
+                .isEqualTo("[10,5]");
+        assertThat(call("PUT", "/api/platform/billing-settings", Map.of("reminderDays", List.of(0)), admin).status()).isEqualTo(422);
+        call("PUT", "/api/platform/billing-settings", Map.of("reminderDays", List.of(7, 3, 1)), admin);
+    }
+
+    private static void eventually(String what, java.util.function.BooleanSupplier condition) throws InterruptedException {
+        for (int i = 0; i < 50 && !condition.getAsBoolean(); i++) Thread.sleep(200);
+        assertThat(condition.getAsBoolean()).as(what).isTrue();
     }
 }

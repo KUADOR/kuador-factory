@@ -5,20 +5,21 @@ import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import type { Me, Project, Workspace } from "@/lib/types";
+import type { Me, Project, Workspace, WorkspacePlan } from "@/lib/types";
 import type { ThemeMode } from "@/theme/theme";
 
 import { LogoMark } from "@/components/workspace/LogoMark";
 
 import { AccessProvider } from "./AccessContext";
+import { PlanBanner } from "./PlanBanner";
 import { SidebarNav } from "./SidebarNav";
 
 /**
  * Armazón de la app: barra lateral fija en escritorio; en pantallas angostas la misma navegación
  * se abre como panel desde la izquierda.
  */
-export function AppShell(props: { me: Me; workspace: Workspace | null; projects: Project[]; theme: ThemeMode; children: React.ReactNode }) {
-  const { children, ...nav } = props;
+export function AppShell(props: { me: Me; workspace: Workspace | null; projects: Project[]; plan: WorkspacePlan | null; theme: ThemeMode; children: React.ReactNode }) {
+  const { children, plan, ...nav } = props;
   // El panel recuerda en qué ruta se abrió: al navegar a otra, queda cerrado sin efectos extra.
   const path = usePathname();
   const [openAt, setOpenAt] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export function AppShell(props: { me: Me; workspace: Workspace | null; projects:
             </>
           )}
         </div>
+        {plan && <PlanBanner plan={plan} />}
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>

@@ -8,6 +8,8 @@ public enum NoticeKind {
     GATE,
     /** El reparto de tareas de una épica espera su aprobación. */
     PLAN,
+    /** Cobros: el plan vence pronto, venció o llegó un pago (recibo). Siempre se envía. */
+    BILLING,
     /** Prueba pedida por la propia persona. */
     TEST
 }

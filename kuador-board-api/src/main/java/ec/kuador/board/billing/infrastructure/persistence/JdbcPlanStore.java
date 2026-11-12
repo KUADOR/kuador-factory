@@ -84,6 +84,36 @@ class JdbcPlanStore implements PlanStore {
                 .list();
     }
 
+    @Override
+    public List<Integer> reminderDays() {
+        Integer[] days = jdbc.sql("select reminder_days from billing_settings where id").query((rs, n) -> (Integer[]) rs.getArray(1).getArray())
+                .optional().orElse(new Integer[] {7, 3, 1});
+        return Arrays.stream(days).sorted(java.util.Comparator.reverseOrder()).toList();
+    }
+
+    @Override
+    public void saveReminderDays(List<Integer> days, Instant now) {
+        String literal = "{" + days.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")) + "}";
+        jdbc.sql("insert into billing_settings (id, reminder_days, updated_at) values (true, ?::integer[], ?) "
+                + "on conflict (id) do update set reminder_days = excluded.reminder_days, updated_at = excluded.updated_at")
+                .params(literal, Timestamp.from(now)).update();
+    }
+
+    @Override
+    public List<Subscription> dueBetween(Instant from, Instant to) {
+        return jdbc.sql("""
+                select workspace_id, plan_code, status, trial_ends_at, paid_until, trial_used from workspace_subscription
+                where (status = 'TRIAL' and trial_ends_at between ? and ?) or (status = 'ACTIVE' and paid_until between ? and ?)""")
+                .params(Timestamp.from(from), Timestamp.from(to), Timestamp.from(from), Timestamp.from(to))
+                .query((rs, n) -> subscription(rs, 1)).list();
+    }
+
+    @Override
+    public boolean markNotice(UUID workspaceId, String kind, Instant dueAt, int daysBefore, Instant now) {
+        return jdbc.sql("insert into billing_notice (workspace_id, kind, due_at, days_before, sent_at) values (?, ?, ?, ?, ?) on conflict do nothing")
+                .params(workspaceId, kind, Timestamp.from(dueAt), daysBefore, Timestamp.from(now)).update() == 1;
+    }
+
     private static Plan plan(ResultSet rs) throws SQLException {
         Array features = rs.getArray("features");
         return new Plan(rs.getString("code"), rs.getString("name"), rs.getString("tagline"), rs.getBigDecimal("price_monthly"),

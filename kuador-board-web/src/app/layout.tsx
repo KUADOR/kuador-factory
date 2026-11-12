@@ -7,7 +7,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { Toaster } from "@/components/ui/Toaster";
 import { boardApi } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
-import type { Me, Project, Workspace } from "@/lib/types";
+import type { Me, Project, Workspace, WorkspacePlan } from "@/lib/types";
 import { PrimeProvider } from "@/theme/PrimeProvider";
 import { brandFrom, brandVars } from "@/theme/brand";
 import { THEME_COOKIE, parseTheme } from "@/theme/theme";
@@ -21,15 +21,17 @@ const martian = Martian_Mono({ subsets: ["latin"], variable: "--font-martian", d
 
 
 /** Datos del armazón (una sola vez por petición). Sin sesión o con la API caída no hay armazón: cada página decide. */
-const shellData = cache(async function shellData(): Promise<{ me: Me; workspace: Workspace | null; projects: Project[] } | null> {
+const shellData = cache(async function shellData(): Promise<{ me: Me; workspace: Workspace | null; projects: Project[]; plan: WorkspacePlan | null } | null> {
   if (!(await getSessionToken())) return null;
   try {
-    const [me, workspace, projects] = await Promise.all([
+    const [me, workspace, projects, plan] = await Promise.all([
       boardApi.me(),
       boardApi.workspace().catch(() => null),
       boardApi.projects().catch(() => [] as Project[]),
+      // Para la franja de vencimiento; sin planes (instalación propia) o sin permiso, no hay franja.
+      boardApi.workspacePlan().catch(() => undefined),
     ]);
-    return { me, workspace, projects };
+    return { me, workspace, projects, plan: plan ?? null };
   } catch {
     return null;
   }

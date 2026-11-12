@@ -66,8 +66,11 @@ class PaymentController {
     }
 
     @PostMapping("/api/workspace/plan/checkout")
-    PaymentService.CheckoutResult checkout(@Valid @RequestBody CheckoutRequest r) {
-        return payments.checkout(r.plan(), r.provider(), r.months());
+    PaymentService.CheckoutResult checkout(
+            // Solo el id (sin el tipo del módulo de autenticación, que depende de este): recibe el recibo.
+            @org.springframework.security.core.annotation.AuthenticationPrincipal(expression = "memberId()") UUID memberId,
+            @Valid @RequestBody CheckoutRequest r) {
+        return payments.checkout(r.plan(), r.provider(), r.months(), memberId);
     }
 
     @PostMapping("/api/workspace/plan/payments/{id}/confirm")

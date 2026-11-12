@@ -23,4 +23,17 @@ public interface PlanStore {
     List<WorkspaceLicense> licenses();
 
     record WorkspaceLicense(UUID workspaceId, String slug, String name, Instant createdAt, Optional<Subscription> subscription) {}
+
+    // ---- Avisos de vencimiento ----
+
+    /** Días antes del vencimiento en que se avisa (configuración de la plataforma), de mayor a menor. */
+    List<Integer> reminderDays();
+
+    void saveReminderDays(List<Integer> days, Instant now);
+
+    /** Suscripciones con vencimiento (prueba o periodo pagado) entre {@code from} y {@code to}. */
+    List<Subscription> dueBetween(Instant from, Instant to);
+
+    /** Registra el aviso si no se había enviado; {@code true} si este llamado lo registró. */
+    boolean markNotice(UUID workspaceId, String kind, Instant dueAt, int daysBefore, Instant now);
 }

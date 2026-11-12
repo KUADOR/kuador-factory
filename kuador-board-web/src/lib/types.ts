@@ -355,6 +355,8 @@ export interface WorkspacePlan {
   trialEndsAt: string | null;
   paidUntil: string | null;
   trialUsed: boolean;
+  /** Con cuántos días de anticipación se avisa el vencimiento. */
+  warnDays: number;
 }
 
 export interface WorkspaceLicense {

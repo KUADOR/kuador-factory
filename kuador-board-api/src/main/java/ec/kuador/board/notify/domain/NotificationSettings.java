@@ -18,7 +18,7 @@ public record NotificationSettings(
             case ASSIGNED -> onAssigned;
             case GATE -> onGates;
             case PLAN -> onPlans;
-            case TEST -> true;
+            case BILLING, TEST -> true;
         };
     }
 

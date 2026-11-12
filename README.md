@@ -69,6 +69,14 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
   pasarela, vuelve a `/workspace/plan/pago` y el cobro se confirma. Los avisos de la pasarela
   (`/api/payments/webhook/{código}`, verificados con la pasarela) activan el plan aunque la persona no
   vuelva; un mismo pago nunca extiende la licencia dos veces.
+- **Avisos de vencimiento y recibos**: cada hora (`board.billing.reminders-every`) se revisan las pruebas
+  y los periodos pagados que vencen. A los dueños del espacio (rol OWNER; si no hay, quienes editan)
+  les llega un aviso por correo y Telegram los días configurados en *Plataforma → Avisos de
+  vencimiento* (por defecto 7, 3 y 1) y otro el día que vence. Cada aviso sale una vez por
+  vencimiento (`billing_notice`); si se pasaron varios umbrales, solo el más cercano. Al confirmarse
+  un pago llega el **recibo** (plan, periodo, monto, fecha, pagado hasta, medio y referencia) a los
+  dueños y a quien pagó. En el tablero, quienes editan ven una franja desde el primer aviso o si el
+  plan venció; *Plan* muestra el historial de pagos. Estos avisos no se pueden apagar.
 - **Marca del espacio** (*Marca y empresa*): el color base pinta botones principales, selección y foco
   para todo el equipo; de ese color se derivan los tonos y el texto legible en ambos temas.
 - El catálogo de fábrica tiene **versión** (`catalog/defaults.yaml`, `version` y `releases`): al

@@ -25,9 +25,23 @@ import org.springframework.web.bind.annotation.RestController;
 class PlatformController {
 
     private final BillingService billing;
+    private final ec.kuador.board.billing.application.LicenseReminders reminders;
 
-    PlatformController(BillingService billing) {
+    PlatformController(BillingService billing, ec.kuador.board.billing.application.LicenseReminders reminders) {
         this.billing = billing;
+        this.reminders = reminders;
+    }
+
+    record BillingSettings(List<Integer> reminderDays) {}
+
+    @GetMapping("/billing-settings")
+    BillingSettings settings() {
+        return new BillingSettings(reminders.days());
+    }
+
+    @PutMapping("/billing-settings")
+    BillingSettings saveSettings(@RequestBody BillingSettings r) {
+        return new BillingSettings(reminders.saveDays(r.reminderDays()));
     }
 
     @GetMapping("/plans")

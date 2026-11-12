@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
 class JdbcPaymentStore implements PaymentStore {
 
     private static final String PROVIDER = "code, type, name, mode, credentials_enc, active, sort_order";
-    private static final String PAYMENT = "id, workspace_id, plan_code, provider_code, amount, currency, months, status, external_id, created_at, paid_at";
+    private static final String PAYMENT = "id, workspace_id, plan_code, provider_code, amount, currency, months, status, external_id, created_at, paid_at, requested_by";
 
     private final JdbcClient jdbc;
 
@@ -46,9 +46,9 @@ class JdbcPaymentStore implements PaymentStore {
 
     @Override
     public void save(Payment p) {
-        jdbc.sql("insert into payment (" + PAYMENT + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        jdbc.sql("insert into payment (" + PAYMENT + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
                 .params(p.id(), p.workspaceId(), p.planCode(), p.providerCode(), p.amount(), p.currency(), p.months(), p.status().name(), p.externalId(),
-                        Timestamp.from(p.createdAt()), p.paidAt() == null ? null : Timestamp.from(p.paidAt()))
+                        Timestamp.from(p.createdAt()), p.paidAt() == null ? null : Timestamp.from(p.paidAt()), p.requestedBy())
                 .update();
     }
 
@@ -93,6 +93,7 @@ class JdbcPaymentStore implements PaymentStore {
         Timestamp paid = rs.getTimestamp("paid_at");
         return new Payment(rs.getObject("id", UUID.class), rs.getObject("workspace_id", UUID.class), rs.getString("plan_code"), rs.getString("provider_code"),
                 rs.getBigDecimal("amount"), rs.getString("currency"), rs.getInt("months"), Payment.Status.valueOf(rs.getString("status")),
-                rs.getString("external_id"), rs.getTimestamp("created_at").toInstant(), paid == null ? null : paid.toInstant());
+                rs.getString("external_id"), rs.getTimestamp("created_at").toInstant(), paid == null ? null : paid.toInstant(),
+                rs.getObject("requested_by", UUID.class));
     }
 }

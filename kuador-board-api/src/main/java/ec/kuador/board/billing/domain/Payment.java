@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /** Un pago de un espacio por {@code months} meses de un plan, con una pasarela. */
 public record Payment(UUID id, UUID workspaceId, String planCode, String providerCode, BigDecimal amount, String currency, int months, Status status,
-        String externalId, Instant createdAt, Instant paidAt) {
+        String externalId, Instant createdAt, Instant paidAt, UUID requestedBy) {
 
     public enum Status {
         CREATED,

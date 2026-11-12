@@ -124,6 +124,8 @@ export const boardApi = {
   plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
   attachments: (key: string) => request<AttachmentListing>(`/api/issues/${encodeURIComponent(key)}/attachments`),
   deleteAttachment: (id: string) => request<void>(`/api/attachments/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  billingSettings: () => request<{ reminderDays: number[] }>("/api/platform/billing-settings"),
+  saveBillingSettings: (reminderDays: number[]) => request<{ reminderDays: number[] }>("/api/platform/billing-settings", json("PUT", { reminderDays })),
   paymentTypes: () => request<PaymentType[]>("/api/platform/payment-types"),
   paymentProviders: () => request<PaymentProviderView[]>("/api/platform/payment-providers"),
   savePaymentProvider: (

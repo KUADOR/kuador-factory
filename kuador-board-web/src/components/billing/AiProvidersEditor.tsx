@@ -23,7 +23,7 @@ export function AiProvidersEditor({ providers: initial }: { providers: AiProvide
   return (
     <Section
       title="Proveedores de IA"
-      description="Los que puede elegir cada empresa en Conexiones → IA. Un proveedor sin modelos o inactivo no se ofrece. Los modelos se copian de la documentación de cada proveedor; el primero es el recomendado."
+      description="Los que puede elegir cada empresa. Sin modelos o inactivo, no se ofrece."
     >
       <ul className="flex flex-col gap-3">
         {providers.map((p) => (

@@ -187,7 +187,7 @@ export function AgentSetup({
 
       <Section
         title="3 · Tus conexiones"
-        description="Cada inicio de sesión de un cliente queda aquí; desconéctalo cuando ya no uses ese equipo. Para clientes sin inicio de sesión, crea un token: solo abre el servidor MCP, no la web ni la API."
+        description="Los equipos donde iniciaste sesión con un cliente de IA. Desconecta los que ya no uses."
       >
         <TokenManager
           tokens={tokens}

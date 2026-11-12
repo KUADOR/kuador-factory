@@ -1,5 +1,6 @@
 package ec.kuador.board.workspace.infrastructure.web;
 
+import ec.kuador.board.shared.web.AuditHints;
 import ec.kuador.board.workspace.application.SignupService;
 import ec.kuador.board.workspace.domain.Workspace;
 import jakarta.validation.Valid;
@@ -51,11 +52,13 @@ class SignupController {
     @PostMapping("/code")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void code(@Valid @RequestBody CodeRequest r) {
+        AuditHints.subject(r.email());
         signup.requestCode(r.email());
     }
 
     @PostMapping("/verify")
     VerifyResponse verify(@Valid @RequestBody VerifyRequest r) {
+        AuditHints.subject(r.email());
         return new VerifyResponse(signup.verifyCode(r.email(), r.code()));
     }
 
@@ -64,6 +67,7 @@ class SignupController {
     CompleteResponse complete(@Valid @RequestBody CompleteRequest r) {
         Workspace w = signup.complete(r.signupToken(),
                 new SignupService.Company(r.companyName(), r.slug(), r.description(), r.brandColor(), r.brandOnColor(), r.logo()), r.ownerName(), r.password(), r.plan(), r.packageCode());
+        AuditHints.subject(w.name());
         return new CompleteResponse(w.slug(), w.name());
     }
 

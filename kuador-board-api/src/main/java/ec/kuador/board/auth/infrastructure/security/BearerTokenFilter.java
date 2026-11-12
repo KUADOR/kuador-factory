@@ -1,5 +1,6 @@
 package ec.kuador.board.auth.infrastructure.security;
 
+import ec.kuador.board.shared.web.AuditHints;
 import ec.kuador.board.auth.application.AuthService;
 import ec.kuador.board.auth.application.PlatformAdmins;
 import ec.kuador.board.shared.tenant.TenantContext;
@@ -53,6 +54,8 @@ class BearerTokenFilter extends OncePerRequestFilter {
                         .filter(who -> !who.runner() || runnerPath(request))
                         .ifPresent(who -> {
                     TenantContext.set(who.workspaceId());
+                    request.setAttribute(AuditHints.ACTOR, new AuditHints.Actor(who.workspaceId(),
+                            who.memberId(), who.name(), who.agent() ? AuditHints.Kind.AGENT : AuditHints.Kind.HUMAN));
                     var kind = new SimpleGrantedAuthority(who.runner() ? "ROLE_RUNNER" : who.agent() ? "ROLE_AGENT" : "ROLE_HUMAN");
                     // ROLE_EDITOR: puede escribir en el tablero. Quien solo mira (y la conexión de agentes locales) no lo recibe.
                     var authorities = new java.util.ArrayList<SimpleGrantedAuthority>(List.of(kind));

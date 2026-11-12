@@ -1,5 +1,6 @@
 package ec.kuador.board.auth.infrastructure.web;
 
+import ec.kuador.board.shared.web.AuditHints;
 import ec.kuador.board.auth.AuthenticatedMember;
 import ec.kuador.board.auth.application.AuthService;
 import ec.kuador.board.auth.domain.AccessToken;
@@ -42,7 +43,9 @@ class AuthController {
 
     @PostMapping("/api/auth/login")
     SessionResponse login(@Valid @RequestBody LoginRequest r) {
+        AuditHints.subject(r.email());
         AuthService.Session s = auth.login(r.email(), r.password());
+        AuditHints.actor(new AuditHints.Actor(s.member().workspaceId(), s.member().id(), s.member().name(), AuditHints.Kind.HUMAN));
         return new SessionResponse(s.token(), s.expiresAt(), MeResponse.from(s.member(), platform.isAdmin(s.member().id())));
     }
 

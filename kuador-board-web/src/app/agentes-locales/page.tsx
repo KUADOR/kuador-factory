@@ -27,7 +27,7 @@ export default async function LocalAgentsPage() {
       <PageHeader
         title="Agentes locales"
         width="narrow"
-        description="Los agentes del equipo trabajan en el cliente de IA de cada persona (Claude Code, Codex u otro con MCP), con su propia cuenta, y solo atienden los issues que esa persona supervisa."
+        description="Conecta el Claude Code o Codex de cada persona con el tablero."
       />
       <AgentSetup
         tokens={tokens}

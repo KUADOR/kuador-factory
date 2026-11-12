@@ -83,6 +83,8 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/projects/*/team", "/api/projects/*/team/agents").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.DELETE, "/api/projects/*/team/*").access(HUMAN_EDITOR)
                         .requestMatchers("/api/agents/*/profile", "/api/workspace/ai", "/api/workspace/ai/**").access(HUMAN_EDITOR)
+                        // La auditoría del espacio: solo personas que editan.
+                        .requestMatchers("/api/workspace/audit", "/api/workspace/audit/**").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.PUT, "/api/projects/*", "/api/projects/*/columns", "/api/projects/*/methodology",
                                 "/api/projects/*/transitions", "/api/projects/*/stages", "/api/workspace", "/api/workspace/languages", "/api/members/*/access").access(HUMAN_EDITOR)
                         // El catálogo lo lee cualquiera del espacio; solo personas que editan lo cambian.

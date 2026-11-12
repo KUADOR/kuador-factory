@@ -1,5 +1,6 @@
 package ec.kuador.board.auth.infrastructure.web;
 
+import ec.kuador.board.shared.web.AuditHints;
 import ec.kuador.board.auth.application.PasswordResetService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -29,12 +30,14 @@ class PasswordResetController {
     @PostMapping("/api/auth/password-reset")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void request(@Valid @RequestBody ResetRequest r) {
+        AuditHints.subject(r.email());
         resets.request(r.email());
     }
 
     @PostMapping("/api/auth/password-reset/confirm")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void confirm(@Valid @RequestBody ResetConfirm r) {
+        AuditHints.subject(r.email());
         resets.reset(r.token(), r.email(), r.code(), r.password());
     }
 }

@@ -27,7 +27,7 @@ export function LanguageSettings({ workspace }: { workspace: Workspace }) {
   return (
     <Section
       title="Idiomas"
-      description="Los agentes escriben cada cosa en su idioma. Si cambias el del código, los repos creados por el tablero muestran su kit de agentes desactualizado en Sincronizar, para proponerlo por PR."
+      description="En qué idioma escriben los agentes cada cosa."
     >
       <form
         className="flex flex-col gap-4"

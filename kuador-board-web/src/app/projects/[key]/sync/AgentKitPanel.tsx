@@ -40,7 +40,7 @@ export function AgentKitPanel({ projectKey, repos, error }: { projectKey: string
   return (
     <Section
       title="Kit de agentes"
-      description="Lo que cada persona necesita para trabajar con sus agentes en este repo: la conexión al tablero, el comando /pendientes, un subagente por rol y la configuración de Codex. Sin secretos."
+      description="Lo que cada persona necesita para trabajar con sus agentes en este repo."
       actions={
         outdated.length > 0 ? (
           <Button tone="primary" size="sm" loading={pending} onClick={propose}>

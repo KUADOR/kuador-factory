@@ -61,7 +61,7 @@ export function AiConnection({ status: initial, usage }: { status: WorkspaceAiSt
   return (
     <Section
       title="IA"
-      description="El proveedor de IA de tu empresa y su clave de API. Con ella trabajan los agentes «en el tablero» (por ejemplo, el Analista que arma informes). El consumo se cobra en tu cuenta con ese proveedor."
+      description="El proveedor de IA y la clave con la que trabajan tus agentes. El consumo se cobra en tu cuenta."
     >
       <div className="flex flex-col gap-4">
         {status.configured && !editing ? (

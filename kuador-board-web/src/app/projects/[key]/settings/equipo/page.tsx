@@ -21,7 +21,7 @@ export default async function TeamSettingsPage({ params }: PageProps<"/projects/
   return (
     <SettingsSection
       title="Equipo de agentes"
-      description="Los agentes de este tablero. Cada uno trabaja en el tablero con la clave de IA de la empresa (trabaja solo cuando le asignas una tarjeta) o en la PC de una persona, desde su Claude Code o Codex con /pendientes."
+      description="Quién trabaja en este tablero: en el tablero con la IA de la empresa, o en la PC de una persona."
     >
       <TeamEditor
         projectKey={key}

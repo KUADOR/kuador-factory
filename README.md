@@ -421,6 +421,12 @@ MCP · 5 desarrollo y QA · 6 release.
   `ask_human`. El tablero adjunta lo que generó, comenta el resumen y devuelve la tarjeta a quien se la
   asignó (le llega el aviso). Si falta la clave o algo falla, lo dice en la tarjeta. Los archivos
   subidos y generados se borran de Anthropic al terminar.
+- **Auditoría** (*Configuración → Auditoría*; toda la plataforma en *Plataforma → Auditoría*): cada
+  escritura, descarga de adjuntos y exportación queda registrada con quién, cuándo, la IP y el navegador
+  de la persona y el resultado, incluidos los logins fallidos y los accesos denegados. Vista «Seguridad»
+  (accesos, permisos, claves, conexiones, pagos) o «Todo»; filtros por periodo y texto; exportación CSV.
+  La tabla `audit_log` es solo de agregar: un disparador impide editar, borrar o vaciarla. Nunca guarda
+  contenidos, contraseñas ni claves. La web reenvía la IP de la persona (`X-Kuador-Client-IP`).
 - **Proveedores de IA** (*Plataforma → Proveedores de IA*): Claude (Anthropic), ChatGPT (OpenAI) y
   DeepSeek, editables (dirección de la API, modelos, activo). Cada empresa elige uno en *Conexiones → IA*
   con su clave de API (cambiar de proveedor pide su clave). Con Claude el agente ejecuta código en el

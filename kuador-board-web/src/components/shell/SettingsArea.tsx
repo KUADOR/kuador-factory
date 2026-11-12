@@ -25,6 +25,7 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
           title: "Integraciones",
           items: [{ href: "/conexiones", label: "Conexiones" }, ...(software ? [{ href: "/agentes-locales", label: "Agentes locales" }] : [])],
         },
+        { title: "Seguridad", items: [{ href: "/auditoria", label: "Auditoría" }] },
         { title: "Avanzado", items: [{ href: "/catalog", label: "Catálogo" }] },
       ]
     : [{ title: "Espacio", items: [{ href: "/team", label: "Equipo" }] }];

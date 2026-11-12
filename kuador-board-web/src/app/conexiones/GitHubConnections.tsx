@@ -61,7 +61,7 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
 
       <Section
         title="GitHub"
-        description="El tablero crea los repos con sus bases, protege las ramas y sincroniza los documentos con una app de GitHub instalada en tu organización. No guarda tokens personales: pide credenciales de una hora cada vez."
+        description="Crea repos, protege ramas y sincroniza documentos con una app de GitHub. Sin tokens personales."
       >
         {!overview.app ? (
           overview.canRegister ? (

@@ -65,6 +65,7 @@ import type {
   PlatformCatalogEntry,
   PlatformCatalogSummary,
   AiModelPrice,
+  AuditPage,
   AiProvider,
   AiUsageReport,
 } from "@/lib/types";
@@ -395,6 +396,15 @@ export async function saveAiPriceAction(model: string, inputPerMTok: number, out
 
 export async function deleteAiPriceAction(model: string): Promise<ActionResult<AiModelPrice[]>> {
   return run(() => boardApi.deleteAiPrice(model), "/plataforma");
+}
+
+/** Más líneas de auditoría (paginación hacia atrás). {@code scope}: el espacio o toda la plataforma. */
+export async function auditPageAction(scope: "workspace" | "platform", query: string): Promise<ActionResult<AuditPage>> {
+  try {
+    return { ok: true, data: scope === "platform" ? await boardApi.platformAudit(query) : await boardApi.workspaceAudit(query) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No se pudo cargar la auditoría." };
+  }
 }
 
 export async function saveAiProviderAction(code: string, input: Omit<AiProvider, "code">): Promise<ActionResult<AiProvider[]>> {

@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { clsx } from "clsx";
+import { SectionNav } from "@/components/shell/SectionNav";
 
 import type { ProjectKind } from "@/lib/types";
 
 /** Secciones de la configuración del proyecto. Metodología y repositorio solo en software. */
 export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: ProjectKind }) {
-  const path = usePathname();
   const base = `/projects/${projectKey}/settings`;
   const groups = [
     { title: "Proyecto", items: [{ slug: "general", label: "General" }] },
@@ -54,35 +52,17 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
       : []),
   ];
   return (
-    <nav aria-label="Configuración del proyecto" className="flex flex-col gap-4">
-      {groups.map((g) => (
-        <div key={g.title} className="flex flex-col gap-0.5">
-          <span className="px-2.5 pb-1 text-[11px] font-medium text-fg-faint">{g.title}</span>
-          {g.items.map((item) => {
-            const href = `${base}/${item.slug}`;
-            const active = path === href;
-            return (
-              <Link
-                key={item.slug}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={clsx(
-                  "rounded-md px-2.5 py-1.5 text-[13px]",
-                  active ? "bg-selected font-medium text-fg-strong shadow-[0_0_0_1px_var(--k-line)]" : "text-fg-muted hover:bg-hover hover:text-fg-strong",
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+    <div className="flex flex-col gap-4">
+      <SectionNav
+        label="Configuración del proyecto"
+        groups={groups.map((g) => ({ title: g.title, items: g.items.map((item) => ({ href: `${base}/${item.slug}`, label: item.label })) }))}
+      />
       <Link
         href={`/projects/${projectKey}/inicio`}
-        className="rounded-md border border-dashed border-line-strong px-2.5 py-1.5 text-[13px] text-fg-muted hover:bg-hover hover:text-fg-strong"
+        className="hidden rounded-md border border-dashed border-line-strong px-2.5 py-1.5 text-[13px] text-fg-muted hover:bg-hover hover:text-fg-strong md:block"
       >
         Asistente de inicio
       </Link>
-    </nav>
+    </div>
   );
 }

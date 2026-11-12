@@ -23,7 +23,7 @@ export function AiPricesEditor({ prices: initial, models }: { prices: AiModelPri
   return (
     <Section
       title="Precios de modelos de IA"
-      description="USD por millón de tokens, de la página de precios de cada proveedor. Con ellos cada espacio ve su costo estimado y su tope mensual funciona. Sin precio, se muestran solo los tokens."
+      description="USD por millón de tokens. Sin precio, solo se muestran los tokens."
     >
       <div className="flex flex-col gap-4">
         {prices.length > 0 && (

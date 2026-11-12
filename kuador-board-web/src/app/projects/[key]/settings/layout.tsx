@@ -15,7 +15,7 @@ export default async function ProjectSettingsLayout({ params, children }: Layout
     return failPage(e);
   }
   return (
-    <div className="grid gap-8 px-6 py-6 md:grid-cols-[13rem_minmax(0,1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 px-6 py-6 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-8">
       <aside className="md:sticky md:top-6 md:self-start">
         <SettingsNav projectKey={project.key} kind={project.kind} />
       </aside>

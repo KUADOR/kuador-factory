@@ -17,7 +17,7 @@ export function ReminderSettings({ days }: { days: number[] }) {
   return (
     <Section
       title="Avisos de vencimiento"
-      description="Se avisa por correo y Telegram a los dueños de cada espacio esos días antes de que venza su prueba o su periodo pagado, y el día que vence. La franja del tablero aparece desde el primer aviso."
+      description="Cuántos días antes del vencimiento se avisa a cada empresa, por correo y Telegram."
     >
       <form
         className="flex flex-wrap items-end gap-3"

@@ -22,7 +22,7 @@ export function PackagesEditor({ packages, templates }: { packages: CatalogPacka
   return (
     <Section
       title="Paquetes por industria"
-      description="Al registrarse, cada empresa elige el que más se parece a su negocio: arranca con su tablero inicial (y su equipo de agentes) y ve primero sus plantillas."
+      description="Con qué tablero arranca cada empresa según a qué se dedica."
       actions={!adding && <Button icon={Plus} onClick={() => setAdding(true)}>Nuevo paquete</Button>}
       flush
     >

@@ -36,7 +36,7 @@ export default async function RepositorySettingsPage({ params }: PageProps<"/pro
       {!link.linked ? (
         <SettingsSection
           title="Armar el proyecto en GitHub"
-          description="Elige las piezas (API, web, microservicios, microfrontends…) y cómo se organizan los repos. El tablero crea cada repo con sus bases: metodología, AGENTS.md, CI, develop como rama de trabajo y main protegida."
+          description="Las piezas del sistema (API, web, microfrontends…) y sus repositorios."
         >
           <div className="rounded-lg border border-line bg-surface p-5">
             <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} />

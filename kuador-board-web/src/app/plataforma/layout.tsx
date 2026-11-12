@@ -14,7 +14,13 @@ export default async function PlatformLayout({ children }: { children: React.Rea
         <SectionNav
           label="Secciones de la plataforma"
           groups={[
-            { title: "Clientes", items: [{ href: "/plataforma", label: "Espacios y licencias", exact: true }] },
+            {
+              title: "Clientes",
+              items: [
+                { href: "/plataforma", label: "Espacios y licencias", exact: true },
+                { href: "/plataforma/auditoria", label: "Auditoría" },
+              ],
+            },
             {
               title: "Venta",
               items: [

@@ -437,6 +437,30 @@ export interface AiModelPrice {
   outputPerMTok: number;
 }
 
+/** Una línea de la auditoría: quién, qué, sobre qué, cómo terminó y desde dónde. */
+export interface AuditItem {
+  id: string;
+  occurredAt: string;
+  workspaceId: string | null;
+  actorId: string | null;
+  actorName: string | null;
+  actorKind: "HUMAN" | "AGENT" | "SYSTEM" | "ANONYMOUS";
+  label: string;
+  action: string;
+  category: "SECURITY" | "WORK";
+  target: string | null;
+  status: number;
+  outcome: "OK" | "DENIED" | "FAILED";
+  ip: string | null;
+  userAgent: string | null;
+}
+
+export interface AuditPage {
+  items: AuditItem[];
+  /** Para seguir hacia atrás; nulo si no hay más. */
+  next: string | null;
+}
+
 /** Un proveedor de IA que la empresa puede elegir para sus agentes en el tablero. */
 export interface AiProviderOption {
   code: string;

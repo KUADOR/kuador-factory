@@ -1,5 +1,7 @@
 import "server-only";
 
+import { headers as incomingHeaders } from "next/headers";
+
 import { getSessionToken } from "./session";
 import type {
   Account,
@@ -72,6 +74,7 @@ import type {
   PlatformCatalogEntry,
   PlatformCatalogSummary,
   AiModelPrice,
+  AuditPage,
   AiProvider,
   AiUsageReport,
 } from "./types";
@@ -87,8 +90,24 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * La IP y el navegador de la persona, para la auditoría: el API ve llegar las peticiones desde este servidor. La IP es
+ * la última de X-Forwarded-For (la que agregó nuestro proxy), no lo que diga el navegador.
+ */
+async function clientHeaders(): Promise<Record<string, string>> {
+  try {
+    const h = await incomingHeaders();
+    const hops = (h.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    const ip = hops.at(-1) ?? h.get("x-real-ip") ?? "";
+    const agent = h.get("user-agent") ?? "";
+    return { ...(ip ? { "X-Kuador-Client-IP": ip } : {}), ...(agent ? { "X-Kuador-Client-Agent": agent.slice(0, 300) } : {}) };
+  } catch {
+    return {}; // fuera de una petición (p. ej. al compilar)
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit & { anonymous?: boolean }): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json" };
+  const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json", ...(await clientHeaders()) };
   if (!init?.anonymous) {
     const token = await getSessionToken();
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -118,6 +137,7 @@ export const kitQuery = (client: string, mcp: string[]) => new URLSearchParams([
 export async function fetchWithSession(path: string, signal?: AbortSignal, init?: RequestInit & { duplex?: "half" }): Promise<Response> {
   const token = await getSessionToken();
   const headers = new Headers(init?.headers);
+  for (const [k, v] of Object.entries(await clientHeaders())) headers.set(k, v);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   return fetch(`${BASE_URL}${path}`, { ...init, headers, cache: "no-store", signal });
 }
@@ -160,6 +180,8 @@ export const boardApi = {
   saveAiPrice: (model: string, inputPerMTok: number, outputPerMTok: number) =>
     request<AiModelPrice[]>(`/api/platform/ai-prices/${encodeURIComponent(model)}`, json("PUT", { inputPerMTok, outputPerMTok })),
   deleteAiPrice: (model: string) => request<AiModelPrice[]>(`/api/platform/ai-prices/${encodeURIComponent(model)}`, { method: "DELETE" }),
+  workspaceAudit: (query: string) => request<AuditPage>(`/api/workspace/audit?${query}`),
+  platformAudit: (query: string) => request<AuditPage>(`/api/platform/audit?${query}`),
   workspaceAi: () => request<WorkspaceAiStatus>("/api/workspace/ai"),
   aiProviders: () => request<AiProvider[]>("/api/platform/ai-providers"),
   saveAiProvider: (code: string, input: Omit<AiProvider, "code">) =>

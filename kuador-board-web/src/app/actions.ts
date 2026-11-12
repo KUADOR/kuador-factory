@@ -55,6 +55,8 @@ import type {
   Invitation,
   TelegramGroup,
   TelegramSetup,
+  PaymentMode,
+  PaymentProviderView,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
@@ -303,14 +305,28 @@ export async function signupCompleteAction(input: {
   ownerName: string;
   password: string;
   plan: string | null;
+  /** A dónde ir al terminar (p. ej. a pagar el plan elegido). */
+  next?: string;
 }): Promise<ActionResult<void>> {
-  const { email, ...body } = input;
+  const { email, next, ...body } = input;
   const created = await run(() => boardApi.signupComplete(body));
   if (!created.ok) return created;
   const session = await run(() => boardApi.login(email, input.password));
   if (!session.ok) return session;
   await setSessionToken(session.data.token, session.data.expiresAt);
-  redirect("/");
+  redirect(next === "/workspace/plan?bienvenida=1" ? next : "/");
+}
+
+export async function savePaymentProviderAction(
+  code: string,
+  input: { type: string; name: string; mode: PaymentMode; credentials: Record<string, string>; active: boolean; sortOrder: number },
+): Promise<ActionResult<PaymentProviderView>> {
+  return run(() => boardApi.savePaymentProvider(code, input), "/plataforma");
+}
+
+/** Inicia el pago; devuelve la URL de la pasarela, a donde el navegador va a pagar. */
+export async function checkoutAction(input: { plan: string; provider: string; months: number }): Promise<ActionResult<{ paymentId: string; payUrl: string }>> {
+  return run(() => boardApi.checkout(input));
 }
 
 export async function telegramSetupAction(): Promise<ActionResult<TelegramSetup>> {

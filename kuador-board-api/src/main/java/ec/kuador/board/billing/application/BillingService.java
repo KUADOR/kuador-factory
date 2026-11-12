@@ -125,6 +125,27 @@ public class BillingService implements BillingApi {
         return s;
     }
 
+    /**
+     * Un pago confirmado: el espacio queda en {@code planCode}, activo, y su vencimiento avanza {@code months}
+     * meses desde hoy o desde lo que ya tenía pagado de ese mismo plan.
+     */
+    @Transactional
+    public Subscription extendPaid(UUID workspaceId, String planCode, int months) {
+        Instant now = clock.instant();
+        Optional<Subscription> current = store.subscription(workspaceId);
+        Instant from = current.filter(s -> s.planCode().equals(planCode) && s.status() == Subscription.Status.ACTIVE && s.paidUntil() != null
+                && s.paidUntil().isAfter(now)).map(Subscription::paidUntil).orElse(now);
+        Instant until = from.atZone(java.time.ZoneOffset.UTC).plusMonths(months).toInstant();
+        Subscription next = new Subscription(workspaceId, planCode, Subscription.Status.ACTIVE, null, until,
+                current.map(Subscription::trialUsed).orElse(true));
+        store.saveSubscription(next, now);
+        return next;
+    }
+
+    public Optional<Plan> plan(String code) {
+        return store.plan(code);
+    }
+
     private Optional<Plan> effectivePlan(UUID workspaceId) {
         return store.subscription(workspaceId).map(s -> effective(s, store.plan(s.planCode()).orElseThrow()));
     }

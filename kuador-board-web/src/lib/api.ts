@@ -59,6 +59,11 @@ import type {
   InvitationPreview,
   TelegramGroup,
   TelegramSetup,
+  Payment,
+  PaymentMode,
+  PaymentOption,
+  PaymentProviderView,
+  PaymentType,
 } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
@@ -114,6 +119,17 @@ export const boardApi = {
   confirmPasswordReset: (input: { token: string | null; email: string | null; code: string | null; password: string }) =>
     request<void>("/api/auth/password-reset/confirm", { ...json("POST", input), anonymous: true }),
   plans: () => request<Plan[]>("/api/public/plans", { anonymous: true }),
+  paymentTypes: () => request<PaymentType[]>("/api/platform/payment-types"),
+  paymentProviders: () => request<PaymentProviderView[]>("/api/platform/payment-providers"),
+  savePaymentProvider: (
+    code: string,
+    input: { type: string; name: string; mode: PaymentMode; credentials: Record<string, string>; active: boolean; sortOrder: number },
+  ) => request<PaymentProviderView>(`/api/platform/payment-providers/${encodeURIComponent(code)}`, json("PUT", input)),
+  paymentOptions: () => request<PaymentOption[]>("/api/workspace/plan/payment-options"),
+  payments: () => request<Payment[]>("/api/workspace/plan/payments"),
+  checkout: (input: { plan: string; provider: string; months: number }) =>
+    request<{ paymentId: string; payUrl: string }>("/api/workspace/plan/checkout", json("POST", input)),
+  confirmPayment: (id: string) => request<Payment>(`/api/workspace/plan/payments/${encodeURIComponent(id)}/confirm`, { method: "POST" }),
   telegramSetup: () => request<TelegramSetup>("/api/workspace/telegram"),
   connectTelegramBot: (token: string) => request<TelegramSetup>("/api/workspace/telegram", json("PUT", { token })),
   disconnectTelegramBot: () => request<TelegramSetup>("/api/workspace/telegram", { method: "DELETE" }),

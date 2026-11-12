@@ -205,6 +205,8 @@ export function SignupFlow({ plans, initialPlan }: { plans: Plan[]; initialPlan:
                       ownerName: owner.name,
                       password: owner.password,
                       plan: planCode,
+                      // Con un plan de pago, al terminar se va a pagarlo (o a seguir con la prueba).
+                      next: plan && plan.priceMonthly > 0 ? "/workspace/plan?bienvenida=1" : undefined,
                     });
                     if (r && !r.ok) fail(r.error);
                   });

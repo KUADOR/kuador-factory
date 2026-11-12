@@ -58,9 +58,17 @@ solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/d
   lo cambia. Rige el plan contratado mientras está activo o en prueba vigente; si no, el gratuito.
   Bajar de plan no borra nada: solo impide crear personas o tableros por encima del límite y usar la
   fábrica (plantilla *Fábrica de software*, metodologías con agentes, piezas en GitHub y
-  `create_tasks`). El cobro en línea aún no está conectado: un pago se registra a mano en
-  *Plataforma* (estado activo y hasta cuándo). Los espacios sin fila (instalación propia o anteriores
-  a los planes) no tienen límites.
+  `create_tasks`). Los espacios sin fila (instalación propia o anteriores a los planes) no tienen
+  límites. Un pago también se puede registrar a mano en *Plataforma* (estado activo y hasta cuándo).
+- **Pagos con pasarelas configurables**: cada pasarela es una fila de `payment_provider` (código,
+  tipo, nombre, modo sandbox/real, credenciales cifradas como JSON, activa, orden) que se edita en
+  *Plataforma → Pasarelas de pago*. El tipo elige un adaptador (`PaymentGateway`; hoy `PAYPAL`, con la
+  API de órdenes v2) y el formulario muestra las credenciales que ese adaptador declara: sumar un
+  proveedor es escribir un adaptador, sin tocar el resto. Se paga 1 o 12 meses de un plan desde
+  *Espacio de trabajo → Plan* (y al terminar el alta con un plan de pago); la persona aprueba en la
+  pasarela, vuelve a `/workspace/plan/pago` y el cobro se confirma. Los avisos de la pasarela
+  (`/api/payments/webhook/{código}`, verificados con la pasarela) activan el plan aunque la persona no
+  vuelva; un mismo pago nunca extiende la licencia dos veces.
 - **Marca del espacio** (*Marca y empresa*): el color base pinta botones principales, selección y foco
   para todo el equipo; de ese color se derivan los tonos y el texto legible en ambos temas.
 - El catálogo de fábrica tiene **versión** (`catalog/defaults.yaml`, `version` y `releases`): al

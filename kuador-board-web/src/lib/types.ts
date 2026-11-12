@@ -370,6 +370,53 @@ export interface WorkspaceLicense {
 
 export type PlanInput = Omit<Plan, "code">;
 
+export interface PaymentField {
+  key: string;
+  label: string;
+  secret: boolean;
+  required: boolean;
+  hint: string | null;
+}
+
+/** Tipo de pasarela con adaptador en el servidor (PayPal, …) y las credenciales que pide. */
+export interface PaymentType {
+  type: string;
+  label: string;
+  fields: PaymentField[];
+}
+
+export type PaymentMode = "SANDBOX" | "LIVE";
+
+/** Pasarela configurada; los secretos nunca vuelven, solo se sabe si están puestos. */
+export interface PaymentProviderView {
+  code: string;
+  type: string;
+  name: string;
+  mode: PaymentMode;
+  active: boolean;
+  sortOrder: number;
+  values: Record<string, string>;
+  secretsSet: string[];
+  webhookUrl: string;
+}
+
+export interface PaymentOption {
+  code: string;
+  name: string;
+}
+
+export interface Payment {
+  id: string;
+  planCode: string;
+  providerCode: string;
+  amount: number;
+  currency: string;
+  months: number;
+  status: "CREATED" | "PAID" | "FAILED";
+  createdAt: string;
+  paidAt: string | null;
+}
+
 export interface TelegramGroup {
   id: string;
   chatId: number;

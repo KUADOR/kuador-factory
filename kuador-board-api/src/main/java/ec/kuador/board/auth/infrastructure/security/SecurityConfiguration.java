@@ -55,6 +55,8 @@ class SecurityConfiguration {
                         .requestMatchers("/api/invitations", "/api/invitations/**").access(HUMAN_EDITOR)
                         .requestMatchers("/api/platform/**").hasRole("PLATFORM")
                         .requestMatchers(HttpMethod.PUT, "/api/workspace/plan").access(HUMAN_EDITOR)
+                        .requestMatchers(HttpMethod.POST, "/api/payments/webhook/*").permitAll()
+                        .requestMatchers("/api/workspace/plan/**").access(HUMAN_EDITOR)
                         .requestMatchers("/actuator/health/**", "/actuator/health", "/v3/api-docs/**", "/swagger-ui/**",
                                 "/swagger-ui.html", "/error").permitAll()
                         // OAuth del servidor MCP: metadatos, registro de clientes y canje del código (ver OAuthController).

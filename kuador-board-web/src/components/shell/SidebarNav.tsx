@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookMarked, Building2, CreditCard, LogOut, Plug, Plus, ShieldCheck, SquareTerminal, Users } from "lucide-react";
+import { LogOut, Plus, Settings, ShieldCheck, Users } from "lucide-react";
 import { clsx } from "clsx";
 
 import { logoutAction } from "@/app/actions";
@@ -12,6 +12,7 @@ import { LogoMark } from "@/components/workspace/LogoMark";
 import type { Me, Project, Workspace } from "@/lib/types";
 import type { ThemeMode } from "@/theme/theme";
 
+import { SETTINGS_PATHS } from "./settings-paths";
 import { ThemeToggle } from "./ThemeToggle";
 
 function NavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
@@ -29,7 +30,7 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
   );
 }
 
-/** Navegación principal: espacio de trabajo, proyectos, equipo y catálogo; abajo, la persona y el tema. */
+/** Navegación principal: los proyectos arriba; abajo, configuración del espacio y plataforma; al pie, la persona y el tema. */
 export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspace: Workspace | null; projects: Project[]; theme: ThemeMode }) {
   const path = usePathname();
   const inProject = (key: string) => path === `/projects/${key}` || path.startsWith(`/projects/${key}/`);
@@ -71,33 +72,12 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
           {projects.length === 0 && <p className="px-2.5 py-1 text-xs text-fg-faint">Aún no hay proyectos.</p>}
         </div>
 
-        <div className="flex flex-col gap-0.5">
-          <span className="flex h-7 items-center pl-2.5 text-[11px] font-medium text-fg-faint">Espacio de trabajo</span>
-          <NavLink href="/team" active={path.startsWith("/team")}>
-            <Users className="size-4 shrink-0" aria-hidden /> Equipo
+        {/* Lo de todos los días son los proyectos; la configuración del espacio vive en un solo lugar, con su submenú. */}
+        <div className="mt-auto flex flex-col gap-0.5 border-t border-line pt-3">
+          <NavLink href={editor ? "/workspace" : "/team"} active={SETTINGS_PATHS.some((p) => path === p || path.startsWith(p + "/"))}>
+            {editor ? <Settings className="size-4 shrink-0" aria-hidden /> : <Users className="size-4 shrink-0" aria-hidden />}
+            {editor ? "Configuración" : "Equipo"}
           </NavLink>
-          {editor && (
-            <>
-              <NavLink href="/workspace" active={path === "/workspace"}>
-                <Building2 className="size-4 shrink-0" aria-hidden /> Empresa e idiomas
-              </NavLink>
-              <NavLink href="/workspace/plan" active={path.startsWith("/workspace/plan")}>
-                <CreditCard className="size-4 shrink-0" aria-hidden /> Plan
-              </NavLink>
-              <NavLink href="/catalog" active={path.startsWith("/catalog")}>
-                <BookMarked className="size-4 shrink-0" aria-hidden /> Catálogo
-              </NavLink>
-              <NavLink href="/conexiones" active={path.startsWith("/conexiones")}>
-                <Plug className="size-4 shrink-0" aria-hidden /> Conexiones
-              </NavLink>
-              {/* Conectar el Claude Code o Codex de cada persona solo tiene sentido con tableros de software. */}
-              {projects.some((p) => p.kind === "SOFTWARE") && (
-                <NavLink href="/agentes-locales" active={path.startsWith("/agentes-locales")}>
-                  <SquareTerminal className="size-4 shrink-0" aria-hidden /> Agentes locales
-                </NavLink>
-              )}
-            </>
-          )}
           {me.platformAdmin && (
             <NavLink href="/plataforma" active={path.startsWith("/plataforma")}>
               <ShieldCheck className="size-4 shrink-0" aria-hidden /> Plataforma

@@ -272,3 +272,9 @@ textarea {
     border-bottom: 0;
   }
 }
+
+/* Barra de carga entre páginas (RouteProgress). */
+@keyframes route-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}

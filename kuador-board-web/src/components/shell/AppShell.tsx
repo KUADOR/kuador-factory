@@ -3,7 +3,7 @@
 import { Drawer } from "@primereact/ui/drawer";
 import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import type { Me, Project, Workspace, WorkspacePlan } from "@/lib/types";
 import type { ThemeMode } from "@/theme/theme";
@@ -12,6 +12,7 @@ import { LogoMark } from "@/components/workspace/LogoMark";
 
 import { AccessProvider } from "./AccessContext";
 import { PlanBanner } from "./PlanBanner";
+import { RouteProgress } from "./RouteProgress";
 import { SidebarNav } from "./SidebarNav";
 
 /**
@@ -62,7 +63,12 @@ export function AppShell(props: { me: Me; workspace: Workspace | null; projects:
           )}
         </div>
         {plan && <PlanBanner plan={plan} />}
-        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <Suspense fallback={null}>
+            <RouteProgress />
+          </Suspense>
+          <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        </div>
       </div>
     </div>
     </AccessProvider>

@@ -4,6 +4,7 @@ import ec.kuador.board.auth.AuthApi;
 import ec.kuador.board.catalog.AgentRole;
 import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.member.MemberApi;
+import ec.kuador.board.member.MemberAccess;
 import ec.kuador.board.member.MemberView;
 import ec.kuador.board.shared.error.ConflictException;
 import ec.kuador.board.shared.error.NotFoundException;
@@ -126,7 +127,8 @@ public class WorkspaceService implements ec.kuador.board.workspace.WorkspaceApi 
         });
         TenantContext.run(workspace.id(), () -> tx.executeWithoutResult(s -> {
             var seeds = catalog.provisionDefaults();
-            MemberView person = members.createHuman(owner.name(), "OWNER", "Responsable humano: prioriza, aprueba y decide.", "#8fb4ff");
+            MemberView person = members.createHuman(owner.name(), "OWNER", "Responsable humano: prioriza, aprueba y decide.", "#8fb4ff",
+                    MemberAccess.OWNER);
             for (CatalogApi.AgentSeed seed : seeds) {
                 AgentRole role = catalog.role(seed.roleKey()).orElseThrow();
                 members.createAgent(role.key(), seed.memberName(), role.description(), seed.color());

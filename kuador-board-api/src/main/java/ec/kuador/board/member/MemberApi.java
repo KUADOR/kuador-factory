@@ -20,6 +20,12 @@ public interface MemberApi {
     /** Cambia el acceso de una persona (ver {@link MemberAccess}); {@code actorId} no puede ser ella misma. */
     MemberView setAccess(UUID memberId, MemberAccess access, UUID actorId);
 
+    /**
+     * Falla con 403 si {@code actorId} no puede gestionar a alguien de nivel {@code level}: hay que administrar el
+     * espacio, y solo un dueño gestiona administradores y dueños.
+     */
+    void requireCanManage(UUID actorId, MemberAccess level);
+
     MemberView createHuman(String name, String role, String description, String avatarColor);
 
     /** Crea una persona con su nivel de acceso ({@code null} = el de su rol: los clientes solo miran). */

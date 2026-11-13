@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/ui/Section";
 
 import { ApiError, boardApi } from "@/lib/api";
 import type { RepoKit } from "@/lib/types";
-import { requireEditor } from "@/lib/require-editor";
+import { requireAdmin } from "@/lib/require-editor";
 import { failPage } from "@/lib/page-errors";
 
 import { AgentKitPanel } from "./AgentKitPanel";
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SyncPage({ params }: Props) {
   const projectKey = (await params).key.toUpperCase();
-  await requireEditor(`/projects/${projectKey}`);
+  await requireAdmin(`/projects/${projectKey}`);
   let project, link;
   try {
     [project, link] = await Promise.all([boardApi.project(projectKey), boardApi.repository(projectKey)]);

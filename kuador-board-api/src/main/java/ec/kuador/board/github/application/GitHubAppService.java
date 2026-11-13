@@ -202,11 +202,11 @@ public class GitHubAppService implements GitHubApi {
 
     // ---- Apoyo ----
 
-    /** Opera la plataforma: persona que edita, con rol OWNER, en el espacio configurado como plataforma. */
+    /** Opera la plataforma: persona dueña del espacio configurado como plataforma. */
     private boolean operatesPlatform(UUID actorId) {
         if (!platformWorkspace.equals(workspace.identity().slug())) return false;
         Optional<MemberView> actor = members.find(actorId);
-        return actor.isPresent() && !actor.get().agent() && !actor.get().viewOnly() && "OWNER".equals(actor.get().role());
+        return actor.isPresent() && actor.get().owner();
     }
 
     private String newState(FlowState.Purpose purpose, UUID actorId) {

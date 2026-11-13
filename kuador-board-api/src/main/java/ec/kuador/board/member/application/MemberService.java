@@ -11,6 +11,7 @@ import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.member.MemberAccess;
 import ec.kuador.board.shared.error.NotFoundException;
 import ec.kuador.board.shared.error.ConflictException;
+import ec.kuador.board.shared.error.ForbiddenException;
 import java.time.Clock;
 import java.util.Comparator;
 import java.util.List;
@@ -51,9 +52,17 @@ public class MemberService implements MemberApi, CatalogUsage {
         return members.save(Member.create(name, kind, role, description, avatarColor, level, clock.instant()));
     }
 
+    /** Crea un miembro a pedido de {@code actorId}: solo un dueño crea administradores o dueños. */
+    @Transactional
+    public Member create(String name, MemberKind kind, String role, String description, String avatarColor, MemberAccess access, UUID actorId) {
+        if (kind == MemberKind.HUMAN && access != null) requireCanManage(actorId, access);
+        return create(name, kind, role, description, avatarColor, access);
+    }
+
     /**
-     * Cambia el acceso de una persona. Nadie cambia el suyo (lo hace otra persona) y siempre queda
-     * al menos una persona que edita, para que el espacio no quede sin quien lo administre.
+     * Cambia el acceso de una persona. Nadie cambia el suyo (lo hace otra persona); quien administra
+     * gestiona a quienes editan o miran, y solo un dueño nombra o quita administradores y dueños.
+     * Siempre queda al menos un dueño.
      */
     @Override
     @Transactional
@@ -61,12 +70,28 @@ public class MemberService implements MemberApi, CatalogUsage {
         Member m = members.findById(memberId).orElseThrow(() -> new NotFoundException("No existe el miembro " + memberId + "."));
         if (m.kind() == MemberKind.AGENT) throw new DomainException("Un agente siempre tiene acceso de edición.");
         if (m.id().equals(actorId)) throw new DomainException("No puedes cambiar tu propio acceso; pídeselo a otra persona del equipo.");
+        requireCanManage(actorId, m.access());
+        requireCanManage(actorId, access);
         if (m.access() == access) return view(m);
-        if (access == MemberAccess.VIEW) {
-            long editors = members.findAll().stream().filter(x -> x.kind() == MemberKind.HUMAN && x.access() == MemberAccess.EDIT).count();
-            if (editors <= 1) throw new ConflictException("Debe quedar al menos una persona con acceso de edición.");
+        if (m.access() == MemberAccess.OWNER) {
+            long owners = members.findAll().stream().filter(x -> x.kind() == MemberKind.HUMAN && x.access() == MemberAccess.OWNER).count();
+            if (owners <= 1) throw new ConflictException("Debe quedar al menos un dueño del espacio.");
         }
         return view(members.save(m.withAccess(access)));
+    }
+
+    /**
+     * {@code actorId} puede gestionar a alguien de nivel {@code level} (darlo, quitarlo, invitarlo o darle su
+     * cuenta): quien administra gestiona a quienes editan o miran; administradores y dueños, solo un dueño.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public void requireCanManage(UUID actorId, MemberAccess level) {
+        Member actor = actorId == null ? null : members.findById(actorId).filter(a -> a.kind() == MemberKind.HUMAN).orElse(null);
+        if (actor == null || !actor.access().administers()) throw new ForbiddenException("Solo quien administra el espacio gestiona el equipo.");
+        if (level != null && level.administers() && actor.access() != MemberAccess.OWNER) {
+            throw new ForbiddenException("Solo un dueño del espacio nombra o cambia administradores y dueños.");
+        }
     }
 
     @Override

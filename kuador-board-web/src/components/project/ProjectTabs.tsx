@@ -10,14 +10,14 @@ import type { ProjectKind } from "@/lib/types";
 /** Pestañas del proyecto (navegación entre páginas). Documentos y sincronización solo en software. */
 export function ProjectTabs({ projectKey, kind }: { projectKey: string; kind: ProjectKind }) {
   const path = usePathname();
-  const { canEdit } = useAccess();
+  const { canEdit, canAdminister } = useAccess();
   const base = `/projects/${projectKey}`;
   const tabs = [
     { href: base, label: "Tablero", exact: true },
     ...(kind === "SOFTWARE"
       ? [
           { href: `${base}/docs`, label: "Documentos" },
-          ...(canEdit ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
+          ...(canAdminister ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
         ]
       : []),
     { href: `${base}/activity`, label: "Actividad" },

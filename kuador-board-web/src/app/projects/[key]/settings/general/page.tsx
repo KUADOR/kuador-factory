@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { canAdminister } from "@/lib/access";
 import { boardApi } from "@/lib/api";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
@@ -18,11 +19,11 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
   const key = (await params).key.toUpperCase();
   let data;
   try {
-    data = await Promise.all([boardApi.project(key), boardApi.catalog("workflow-templates"), boardApi.issues(key)]);
+    data = await Promise.all([boardApi.project(key), boardApi.catalog("workflow-templates"), boardApi.issues(key), boardApi.me()]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, templates, issues] = data;
+  const [project, templates, issues, me] = data;
   const template = templates.find((t) => t.key === project.templateKey);
   const facts = [
     { label: "Clave", value: <span className="font-mono">{project.key}</span>, hint: `Prefijo de sus issues (${project.key}-1, ${project.key}-2…). No se cambia.` },
@@ -42,7 +43,8 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
           </div>
         ))}
       </dl>
-      <DeleteProject projectKey={project.key} projectName={project.name} issues={issues.length} software={project.kind === "SOFTWARE"} />
+      {/* Borrar un tablero es de quien administra el espacio. */}
+      {canAdminister(me) && <DeleteProject projectKey={project.key} projectName={project.name} issues={issues.length} software={project.kind === "SOFTWARE"} />}
     </SettingsSection>
   );
 }

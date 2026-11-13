@@ -130,4 +130,60 @@ class AccessIT {
     }
 
     record UUIDs(String owner, String client) {}
+
+    @Test
+    void onlyAdminsManageTheTeamAndOnlyOwnersTouchAdminsAndThePlan() throws Exception {
+        signup.requestCode("rosa@niveles.test");
+        Workspace w = signup.complete(signup.verifyCode("rosa@niveles.test", INBOX.get("rosa@niveles.test")),
+                new SignupService.Company("Niveles", null, null, null, null, null), "Rosa", "clave-de-rosa-123", "FACTORY");
+        String owner = auth.login("rosa@niveles.test", "clave-de-rosa-123").token();
+        assertThat(call("GET", "/api/auth/me", null, owner).body().get("access").asText()).as("quien crea el espacio es dueña").isEqualTo("OWNER");
+        String ownerId = call("GET", "/api/auth/me", null, owner).body().get("id").asText();
+
+        // La dueña suma una administradora y una persona que edita (el nivel por defecto: nadie nace administrador).
+        JsonNode ada = call("POST", "/api/members", Map.of("name", "Ada", "kind", "HUMAN", "role", "PM", "avatarColor", "#cccccc", "access", "ADMIN"), owner).body();
+        JsonNode edu = call("POST", "/api/members", Map.of("name", "Edu", "kind", "HUMAN", "role", "DEV", "avatarColor", "#cccccc"), owner).body();
+        assertThat(ada.get("access").asText()).isEqualTo("ADMIN");
+        assertThat(edu.get("access").asText()).isEqualTo("EDIT");
+        assertThat(call("PUT", "/api/members/" + ada.get("id").asText() + "/credentials", Map.of("email", "ada@niveles.test", "password", "clave-de-ada-123"), owner).status()).isEqualTo(200);
+        assertThat(call("PUT", "/api/members/" + edu.get("id").asText() + "/credentials", Map.of("email", "edu@niveles.test", "password", "clave-de-edu-123"), owner).status()).isEqualTo(200);
+        String admin = auth.login("ada@niveles.test", "clave-de-ada-123").token();
+        String editor = auth.login("edu@niveles.test", "clave-de-edu-123").token();
+
+        // Quien edita trabaja en los tableros, pero no administra el espacio.
+        assertThat(call("POST", "/api/projects", Map.of("key", "NIV", "name", "Niveles", "templateKey", "SOFTWARE_FACTORY"), editor).status()).isEqualTo(201);
+        assertThat(call("POST", "/api/projects/NIV/issues", Map.of("title", "Tarea", "type", "TASK"), editor).status()).isEqualTo(201);
+        Reply invite = call("GET", "/api/invitations", null, editor);
+        assertThat(invite.status()).isEqualTo(403);
+        assertThat(invite.body().get("detail").asText()).contains("administra");
+        assertThat(call("POST", "/api/members", Map.of("name", "Intrusa", "kind", "HUMAN", "role", "DEV", "avatarColor", "#cccccc"), editor).status()).isEqualTo(403);
+        assertThat(call("PUT", "/api/members/" + ownerId + "/access", Map.of("access", "VIEW"), editor).status()).as("no baja a la dueña").isEqualTo(403);
+        assertThat(call("GET", "/api/workspace/audit", null, editor).status()).isEqualTo(403);
+        assertThat(call("GET", "/api/workspace/plan", null, editor).status()).isEqualTo(403);
+        assertThat(call("PUT", "/api/workspace", Map.of("name", "Mío"), editor).status()).isEqualTo(403);
+        assertThat(call("DELETE", "/api/projects/NIV", null, editor).status()).as("borrar un tablero es de quien administra").isEqualTo(403);
+
+        // La administradora gestiona a quienes editan o miran, pero no a otros administradores, ni a la dueña, ni el plan.
+        assertThat(call("GET", "/api/workspace/audit", null, admin).status()).isEqualTo(200);
+        assertThat(call("GET", "/api/workspace/plan", null, admin).status()).as("ve los límites del plan").isEqualTo(200);
+        Reply plan = call("PUT", "/api/workspace/plan", Map.of("plan", "TEAM"), admin);
+        assertThat(plan.status()).as("cambiar el plan es de la dueña").isEqualTo(403);
+        assertThat(plan.body().get("detail").asText()).contains("dueño");
+        assertThat(call("PUT", "/api/members/" + edu.get("id").asText() + "/access", Map.of("access", "VIEW"), admin).body().get("access").asText()).isEqualTo("VIEW");
+        assertThat(call("PUT", "/api/members/" + edu.get("id").asText() + "/access", Map.of("access", "ADMIN"), admin).status()).as("no nombra administradores").isEqualTo(403);
+        assertThat(call("PUT", "/api/members/" + ownerId + "/access", Map.of("access", "VIEW"), admin).status()).as("no toca a la dueña").isEqualTo(403);
+        assertThat(call("POST", "/api/members", Map.of("name", "Otra", "kind", "HUMAN", "role", "PM", "avatarColor", "#cccccc", "access", "ADMIN"), admin).status()).isEqualTo(403);
+        JsonNode newAdmin = call("POST", "/api/members", Map.of("name", "Sin cuenta", "kind", "HUMAN", "role", "PM", "avatarColor", "#cccccc", "access", "ADMIN"), owner).body();
+        assertThat(call("PUT", "/api/members/" + newAdmin.get("id").asText() + "/credentials", Map.of("email", "toma@niveles.test", "password", "clave-de-toma-123"), admin).status())
+                .as("no se queda con la cuenta de un administrador").isEqualTo(403);
+        assertThat(call("DELETE", "/api/projects/NIV", null, admin).status()).isEqualTo(204);
+
+        // La dueña nombra otra dueña; nunca queda el espacio sin dueño y nadie cambia el suyo.
+        assertThat(call("PUT", "/api/members/" + ownerId + "/access", Map.of("access", "ADMIN"), owner).status()).isEqualTo(422);
+        assertThat(call("PUT", "/api/members/" + ada.get("id").asText() + "/access", Map.of("access", "OWNER"), owner).body().get("access").asText()).isEqualTo("OWNER");
+        assertThat(call("PUT", "/api/members/" + ownerId + "/access", Map.of("access", "ADMIN"), admin).body().get("access").asText()).isEqualTo("ADMIN");
+        assertThat(call("PUT", "/api/members/" + ada.get("id").asText() + "/access", Map.of("access", "EDIT"), owner).status())
+                .as("Rosa ya no es dueña: no toca a Ada").isEqualTo(403);
+        assertThat(w.id()).isNotNull();
+    }
 }

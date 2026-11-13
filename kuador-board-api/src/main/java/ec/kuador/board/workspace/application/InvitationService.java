@@ -76,8 +76,10 @@ public class InvitationService {
             person = members.find(memberId).orElseThrow(() -> new NotFoundException("No existe esa persona en el equipo."));
             if (person.agent()) throw new DomainException("A los agentes no se los invita: conéctalos con un token o desde Agentes locales.");
             if (auth.emailOf(memberId).isPresent()) throw new DomainException(person.name() + " ya tiene acceso al tablero.");
+            members.requireCanManage(inviterId, person.access());
         } else {
             if (name == null || name.isBlank()) throw new DomainException("Escribe el nombre de la persona.");
+            members.requireCanManage(inviterId, access);
             person = members.createHuman(name.strip(), role == null || role.isBlank() ? "EQUIPO" : role.strip(), null,
                     COLORS[random.nextInt(COLORS.length)], access);
         }
@@ -98,6 +100,7 @@ public class InvitationService {
                 .orElseThrow(() -> new NotFoundException("Esa invitación ya no está pendiente."));
         if (auth.emailInUse(i.email())) throw new ConflictException("Ese correo ya tiene una cuenta en Kuador Go.");
         MemberView person = members.find(i.memberId()).orElseThrow(() -> new NotFoundException("Esa persona ya no está en el equipo."));
+        members.requireCanManage(inviterId, person.access());
         return send(person, i.email(), inviterId);
     }
 

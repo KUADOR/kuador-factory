@@ -11,15 +11,15 @@ import type { WorkspacePlan } from "@/lib/types";
 import { useAccess } from "./AccessContext";
 
 /**
- * Franja para quienes editan cuando el plan vence en los días de aviso o ya venció. No aparece en la página del
+ * Franja para el dueño del espacio cuando el plan vence en los días de aviso o ya venció. No aparece en la página del
  * plan (ahí ya está todo) ni para planes gratuitos o sin vencimiento.
  */
 export function PlanBanner({ plan }: { plan: WorkspacePlan }) {
-  const { canEdit } = useAccess();
+  const { isOwner } = useAccess();
   const path = usePathname();
   // La hora se toma una vez al montar: la franja no necesita contar en vivo.
   const [now] = useState(() => Date.now());
-  if (!canEdit || path.startsWith("/workspace/plan")) return null;
+  if (!isOwner || path.startsWith("/workspace/plan")) return null;
 
   const trial = plan.status === "TRIAL";
   const due = trial ? plan.trialEndsAt : plan.status === "ACTIVE" ? plan.paidUntil : null;

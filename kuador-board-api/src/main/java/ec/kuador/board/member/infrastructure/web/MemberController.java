@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import ec.kuador.board.member.MemberAccess;
@@ -36,8 +37,8 @@ class MemberController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    MemberResponse create(@Valid @RequestBody CreateMemberRequest r) {
-        return MemberResponse.from(service.create(r.name(), r.kind(), r.role(), r.description(), r.avatarColor(), r.access()));
+    MemberResponse create(@AuthenticationPrincipal(expression = "memberId") UUID actorId, @Valid @RequestBody CreateMemberRequest r) {
+        return MemberResponse.from(service.create(r.name(), r.kind(), r.role(), r.description(), r.avatarColor(), r.access(), actorId));
     }
 
     record CreateMemberRequest(
@@ -46,7 +47,7 @@ class MemberController {
             @NotBlank String role,
             @Size(max = 4000) String description,
             @NotBlank String avatarColor,
-            /** Opcional: por defecto VIEW para clientes y EDIT para el resto. */
+            /** Opcional: por defecto VIEW para clientes y EDIT para el resto. ADMIN u OWNER, solo si lo pide un dueño. */
             MemberAccess access) {}
 
     record MemberResponse(

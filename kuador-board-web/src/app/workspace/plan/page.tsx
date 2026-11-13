@@ -6,13 +6,13 @@ import { PlanChooser } from "@/components/billing/PlanChooser";
 import { EmptyState } from "@/components/ui/Section";
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
-import { requireEditor } from "@/lib/require-editor";
+import { requireOwner } from "@/lib/require-editor";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Plan" };
 
 export default async function WorkspacePlanPage({ searchParams }: { searchParams: Promise<{ pago?: string; bienvenida?: string }> }) {
-  await requireEditor();
+  await requireOwner();
   const params = await searchParams;
   let data;
   try {

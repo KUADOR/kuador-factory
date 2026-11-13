@@ -60,6 +60,9 @@ class BearerTokenFilter extends OncePerRequestFilter {
                     // ROLE_EDITOR: puede escribir en el tablero. Quien solo mira (y la conexión de agentes locales) no lo recibe.
                     var authorities = new java.util.ArrayList<SimpleGrantedAuthority>(List.of(kind));
                     if (!who.viewOnly() && !who.runner()) authorities.add(new SimpleGrantedAuthority("ROLE_EDITOR"));
+                    // ROLE_ADMIN / ROLE_OWNER: administra el espacio / además el plan y los pagos (solo personas con su sesión).
+                    if (who.administers()) authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                    if (who.owner()) authorities.add(new SimpleGrantedAuthority("ROLE_OWNER"));
                     // ROLE_PLATFORM: administra planes y licencias; se consulta solo en esas rutas.
                     if (!who.agent() && !who.runner() && platformPath(request) && platform.isAdmin(who.memberId())) {
                         authorities.add(new SimpleGrantedAuthority("ROLE_PLATFORM"));

@@ -20,7 +20,7 @@ import type { Account, AgentRole, AgentRun, AgentToken, AgentsStatus, Invitation
 
 import { AgentTokens } from "./AgentTokens";
 import { HumanAccess } from "./HumanAccess";
-import { ACCESS_CHOICES, MemberAccessPicker } from "./MemberAccessPicker";
+import { MemberAccessPicker, accessChoices } from "./MemberAccessPicker";
 
 type Props = { members: Member[]; accounts: Account[]; tokens: AgentToken[]; status: AgentsStatus; runs: AgentRun[]; roles: AgentRole[]; invitations: Invitation[] };
 
@@ -28,7 +28,7 @@ type Props = { members: Member[]; accounts: Account[]; tokens: AgentToken[]; sta
 export function TeamView({ members, accounts, tokens, status, runs, roles, invitations }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const { me, canEdit } = useAccess();
+  const { me, canAdminister } = useAccess();
   const roleOf = (key: string) => roles.find((r) => r.key === key);
   const open = members.find((m) => m.id === openId);
 
@@ -42,7 +42,7 @@ export function TeamView({ members, accounts, tokens, status, runs, roles, invit
       <PageHeader
         title="Equipo"
         actions={
-          canEdit && (
+          canAdminister && (
             <Button tone="primary" size="sm" icon={Plus} onClick={() => setAdding(true)}>
               Agregar miembro
             </Button>
@@ -69,7 +69,7 @@ export function TeamView({ members, accounts, tokens, status, runs, roles, invit
                       <span className="truncate text-xs text-fg-muted">{m.description}</span>
                       <span className="flex items-center gap-2">
                         {running && <Badge tone="sol">Trabajando en {running.issueKey}</Badge>}
-                        {m.kind === "HUMAN" && m.access === "VIEW" && <Badge tone="neutral">{ACCESS_LABEL.VIEW}</Badge>}
+                        {m.kind === "HUMAN" && m.access !== "EDIT" && <Badge tone={m.access === "VIEW" ? "neutral" : "sol"}>{ACCESS_LABEL[m.access]}</Badge>}
                         {m.kind === "AGENT" && role && role.automation !== "NONE" && (
                           <Badge tone="sol">
                             <Sparkle className="size-3" aria-hidden /> Automatizado
@@ -104,7 +104,10 @@ export function TeamView({ members, accounts, tokens, status, runs, roles, invit
               </dd>
             </dl>
             {open.description && <p className="text-[13px] leading-relaxed text-fg">{open.description}</p>}
-            {!canEdit ? null : open.kind === "AGENT" ? (
+            {open.kind === "HUMAN" && !canAdminister && (
+              <p className="text-[13px] text-fg-muted">Nivel de acceso: {ACCESS_LABEL[open.access]}</p>
+            )}
+            {!canAdminister ? null : open.kind === "AGENT" ? (
               <>
                 <AgentAutomation role={roleOf(open.role)} status={status} runs={runs.filter((r) => r.agentId === open.id).slice(0, 5)} />
                 <div className="flex flex-col gap-2">
@@ -166,6 +169,7 @@ function AgentAutomation({ role, status, runs }: { role: AgentRole | undefined; 
 const COLORS = ["#8fb4ff", "#34d399", "#c4a7ff", "#ff8a4c", "#ff6b78", "#5eead4", "#f9a8d4"];
 
 function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }) {
+  const { me } = useAccess();
   const [kind, setKind] = useState<MemberKind>("AGENT");
   const [name, setName] = useState("");
   const [role, setRole] = useState<string | null>(roles[0]?.key ?? null);
@@ -238,7 +242,7 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
           {(id) => <TextInput id={id} type="email" maxLength={254} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="persona@empresa.com" />}
         </Field>
       )}
-      {kind === "HUMAN" && <ChoiceCards name="new-member-access" label="Nivel de acceso" columns={2} value={effectiveAccess} onChange={setAccess} choices={ACCESS_CHOICES} />}
+      {kind === "HUMAN" && <ChoiceCards name="new-member-access" label="Nivel de acceso" columns={2} value={effectiveAccess} onChange={setAccess} choices={accessChoices(me)} />}
       <Field label="Descripción" hint={kind === "AGENT" ? "Su especialidad: se suma a las instrucciones del rol. Vacía = la del rol." : undefined}>
         {(id) => <TextArea id={id} rows={4} maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>

@@ -5,13 +5,13 @@ import { auditQuery } from "@/lib/audit";
 import { PageBody, PageHeader } from "@/components/shell/PageHeader";
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
-import { requireEditor } from "@/lib/require-editor";
+import { requireAdmin } from "@/lib/require-editor";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Auditoría" };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ ver?: string; q?: string; desde?: string }> }) {
-  await requireEditor();
+  await requireAdmin();
   const params = await searchParams;
   let page;
   try {

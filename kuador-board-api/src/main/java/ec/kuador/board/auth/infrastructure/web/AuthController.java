@@ -77,7 +77,9 @@ class AuthController {
     }
 
     @PutMapping("/api/members/{memberId}/credentials")
-    AccountResponse grantAccess(@PathVariable UUID memberId, @Valid @RequestBody GrantAccessRequest r) {
+    AccountResponse grantAccess(@PathVariable UUID memberId, @Valid @RequestBody GrantAccessRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        // Dar la cuenta de un administrador o dueño es entregar ese nivel: solo un dueño puede hacerlo.
+        members.find(memberId).ifPresent(m -> members.requireCanManage(who.memberId(), m.access()));
         // Un correo de quien administra la plataforma solo entra con su propio registro (correo verificado), nunca asignado por otro.
         if (platform.isAdminEmail(r.email())) throw new ec.kuador.board.shared.error.ConflictException("Ese correo está reservado: esa persona debe registrarse ella misma.");
         auth.grantAccess(memberId, r.email(), r.password());
@@ -85,7 +87,7 @@ class AuthController {
                 .map(a -> new AccountResponse(a.memberId(), a.email())).orElseThrow();
     }
 
-    /** Editar o solo mirar. Solo personas que editan; nadie cambia el suyo propio. */
+    /** Nivel de acceso. Solo quien administra; solo un dueño toca administradores y dueños; nadie cambia el suyo. */
     @PutMapping("/api/members/{memberId}/access")
     MemberAccessResponse setAccess(@PathVariable UUID memberId, @Valid @RequestBody SetAccessRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
         MemberView m = members.setAccess(memberId, r.access(), who.memberId());

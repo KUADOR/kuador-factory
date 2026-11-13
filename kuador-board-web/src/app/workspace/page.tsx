@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { LanguageSettings } from "@/components/workspace/LanguageSettings";
 import { WorkspaceSettings } from "@/components/workspace/WorkspaceSettings";
 import { boardApi } from "@/lib/api";
-import { requireEditor } from "@/lib/require-editor";
+import { requireAdmin } from "@/lib/require-editor";
 import { failPage } from "@/lib/page-errors";
 import type { Workspace } from "@/lib/types";
 
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Espacio de trabajo" };
 
 export default async function WorkspacePage() {
-  await requireEditor();
+  await requireAdmin();
   let workspace: Workspace;
   try {
     workspace = await boardApi.workspace();

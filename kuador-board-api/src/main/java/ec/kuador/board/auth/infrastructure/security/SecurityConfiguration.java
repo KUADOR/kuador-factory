@@ -22,19 +22,28 @@ import org.springframework.security.web.access.intercept.RequestAuthorizationCon
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 
 /**
- * Reglas de acceso. Todo exige token salvo el login, health y la documentación. Gestionar el
- * equipo, los accesos y los tokens queda reservado a personas que editan: un agente no puede
- * crear agentes ni emitirse tokens. Quien tiene acceso de solo lectura (VIEW) solo lee, salvo
- * cerrar las puertas donde su rol aprueba.
+ * Reglas de acceso. Todo exige token salvo el login, health y la documentación. Niveles (ver MemberAccess):
+ * el plan y los pagos son del dueño (OWNER); el equipo, las invitaciones, los accesos, los tokens, el
+ * catálogo, la IA, GitHub, los repositorios y la auditoría, de quien administra (ADMIN u OWNER); trabajar en
+ * los tableros, de quien edita. Un agente nunca administra: no puede crear agentes ni emitirse tokens. Quien
+ * tiene acceso de solo lectura (VIEW) solo lee, salvo cerrar las puertas donde su rol aprueba.
  */
 @Configuration
 @OpenAPIDefinition(security = @SecurityRequirement(name = "bearer"))
 @SecurityScheme(name = "bearer", type = SecuritySchemeType.HTTP, scheme = "bearer")
 class SecurityConfiguration {
 
-    /** Persona con acceso de edición: administra el equipo, el catálogo, los proyectos y los repositorios. */
+    /** Persona con acceso de edición: crea tableros, los configura y conecta sus agentes locales. */
     private static final AuthorizationManager<RequestAuthorizationContext> HUMAN_EDITOR =
             AuthorizationManagers.allOf(AuthorityAuthorizationManager.hasRole("HUMAN"), AuthorityAuthorizationManager.hasRole("EDITOR"));
+
+    /** Persona que administra el espacio (ADMIN u OWNER). */
+    private static final AuthorizationManager<RequestAuthorizationContext> HUMAN_ADMIN =
+            AuthorizationManagers.allOf(AuthorityAuthorizationManager.hasRole("HUMAN"), AuthorityAuthorizationManager.hasRole("ADMIN"));
+
+    /** Persona dueña del espacio: el plan y los pagos. */
+    private static final AuthorizationManager<RequestAuthorizationContext> HUMAN_OWNER =
+            AuthorizationManagers.allOf(AuthorityAuthorizationManager.hasRole("HUMAN"), AuthorityAuthorizationManager.hasRole("OWNER"));
 
     @Bean
     SecurityFilterChain api(HttpSecurity http, AuthService auth, ec.kuador.board.auth.application.PlatformAdmins platform,
@@ -53,11 +62,12 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/auth/password-reset", "/api/auth/password-reset/confirm").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/public/plans", "/api/public/invitations", "/api/public/packages").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/public/invitations/accept").permitAll()
-                        .requestMatchers("/api/invitations", "/api/invitations/**").access(HUMAN_EDITOR)
+                        .requestMatchers("/api/invitations", "/api/invitations/**").access(HUMAN_ADMIN)
                         .requestMatchers("/api/platform/**").hasRole("PLATFORM")
-                        .requestMatchers(HttpMethod.PUT, "/api/workspace/plan").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.POST, "/api/payments/webhook/*").permitAll()
-                        .requestMatchers("/api/workspace/plan/**").access(HUMAN_EDITOR)
+                        // El plan: quien administra lo ve (límites del equipo); cambiarlo y pagar, solo el dueño.
+                        .requestMatchers(HttpMethod.GET, "/api/workspace/plan").access(HUMAN_ADMIN)
+                        .requestMatchers("/api/workspace/plan", "/api/workspace/plan/**").access(HUMAN_OWNER)
                         // Las métricas, solo por el puerto de administración (interno, sin dominio): ahí las lee Alloy.
                         .requestMatchers(req -> managementPort > 0 && req.getLocalPort() == managementPort).permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/health", "/livez", "/readyz", "/v3/api-docs/**", "/swagger-ui/**",
@@ -70,7 +80,7 @@ class SecurityConfiguration {
                         .requestMatchers("/api/oauth/**").hasRole("HUMAN")
                         // Avisos: cada persona sus preferencias (también quien solo mira). El webhook de Telegram valida su secreto.
                         .requestMatchers(HttpMethod.POST, "/api/telegram/webhook", "/api/telegram/webhook/*").permitAll()
-                        .requestMatchers("/api/workspace/telegram", "/api/workspace/telegram/**").access(HUMAN_EDITOR)
+                        .requestMatchers("/api/workspace/telegram", "/api/workspace/telegram/**").access(HUMAN_ADMIN)
                         .requestMatchers("/api/notifications", "/api/notifications/**").hasRole("HUMAN")
                         // Servidor MCP del tablero: solo con la conexión de agentes locales de una persona.
                         .requestMatchers("/mcp").hasRole("RUNNER")
@@ -79,26 +89,36 @@ class SecurityConfiguration {
                         // su rol aprueba (el servicio comprueba el rol aprobador).
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout", "/api/issues/*/review", "/api/issues/*/comments").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/projects", "/api/members", "/api/members/*/tokens").access(HUMAN_EDITOR)
-                        // Borrar un tablero: solo personas, nunca un agente.
-                        .requestMatchers(HttpMethod.DELETE, "/api/projects/*").access(HUMAN_EDITOR)
-                        // Equipo de agentes, dónde trabajan y la clave de IA: solo personas que editan.
-                        .requestMatchers(HttpMethod.POST, "/api/projects/*/team", "/api/projects/*/team/agents").access(HUMAN_EDITOR)
+                        // Crear un tablero: personas que editan. Sumar personas o agentes al equipo, emitir tokens de agentes,
+                        // borrar o restaurar un tablero: solo quien administra.
+                        .requestMatchers(HttpMethod.POST, "/api/projects").access(HUMAN_EDITOR)
+                        .requestMatchers(HttpMethod.POST, "/api/members", "/api/members/*/tokens", "/api/projects/*/restore").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.DELETE, "/api/projects/*").access(HUMAN_ADMIN)
+                        // Qué agentes trabajan en un tablero: personas que editan. Crear agentes, su perfil y la clave de IA: quien administra.
+                        .requestMatchers(HttpMethod.POST, "/api/projects/*/team/agents").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.POST, "/api/projects/*/team").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.DELETE, "/api/projects/*/team/*").access(HUMAN_EDITOR)
-                        .requestMatchers("/api/agents/*/profile", "/api/workspace/ai", "/api/workspace/ai/**").access(HUMAN_EDITOR)
-                        // La auditoría del espacio: solo personas que editan.
-                        .requestMatchers("/api/workspace/audit", "/api/workspace/audit/**").access(HUMAN_EDITOR)
+                        // El estado de la IA (sin la clave) lo ven quienes configuran tableros; cambiarla, solo quien administra.
+                        .requestMatchers(HttpMethod.GET, "/api/workspace/ai").access(HUMAN_EDITOR)
+                        .requestMatchers("/api/agents/*/profile", "/api/workspace/ai", "/api/workspace/ai/**").access(HUMAN_ADMIN)
+                        // La auditoría del espacio: solo quien administra.
+                        .requestMatchers("/api/workspace/audit", "/api/workspace/audit/**").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.PUT, "/api/workspace", "/api/workspace/languages", "/api/members/*/access").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/projects/*", "/api/projects/*/columns", "/api/projects/*/methodology",
-                                "/api/projects/*/transitions", "/api/projects/*/stages", "/api/workspace", "/api/workspace/languages", "/api/members/*/access").access(HUMAN_EDITOR)
-                        // El catálogo lo lee cualquiera del espacio; solo personas que editan lo cambian.
-                        .requestMatchers(HttpMethod.PUT, "/api/catalog/**").access(HUMAN_EDITOR)
-                        .requestMatchers(HttpMethod.POST, "/api/catalog/**").access(HUMAN_EDITOR)
-                        .requestMatchers(HttpMethod.DELETE, "/api/catalog/**").access(HUMAN_EDITOR)
-                        // Sincronizar lee y escribe en el disco del servidor: solo personas que editan.
+                                "/api/projects/*/transitions", "/api/projects/*/stages").access(HUMAN_EDITOR)
+                        // El catálogo lo lee cualquiera del espacio; solo quien administra lo cambia.
+                        .requestMatchers(HttpMethod.PUT, "/api/catalog/**").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.POST, "/api/catalog/**").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.DELETE, "/api/catalog/**").access(HUMAN_ADMIN)
+                        // Repositorios, sincronizar (tokens de GitHub, disco del servidor) y las conexiones de GitHub: las personas
+                        // que editan los ven; conectarlos, cambiarlos o sincronizar, solo quien administra.
+                        .requestMatchers(HttpMethod.GET, "/api/projects/*/repository", "/api/projects/*/repository/**", "/api/projects/*/components",
+                                "/api/projects/*/components/**", "/api/projects/*/sync", "/api/projects/*/sync/**", "/api/github", "/api/github/**").access(HUMAN_EDITOR)
                         .requestMatchers("/api/projects/*/repository", "/api/projects/*/repository/**", "/api/projects/*/components", "/api/projects/*/components/**",
-                                "/api/projects/*/sync", "/api/projects/*/sync/**").access(HUMAN_EDITOR)
-                        .requestMatchers("/api/members/*/credentials", "/api/auth/accounts", "/api/auth/tokens/**", "/api/auth/runner-tokens", "/api/auth/runner-tokens/**",
-                                "/api/github", "/api/github/**").access(HUMAN_EDITOR)
+                                "/api/projects/*/sync", "/api/projects/*/sync/**", "/api/github", "/api/github/**").access(HUMAN_ADMIN)
+                        .requestMatchers("/api/members/*/credentials", "/api/auth/accounts", "/api/auth/tokens/**").access(HUMAN_ADMIN)
+                        // La conexión de agentes locales es de cada persona que edita.
+                        .requestMatchers("/api/auth/runner-tokens", "/api/auth/runner-tokens/**").access(HUMAN_EDITOR)
                         // Cualquier otra escritura exige acceso de edición (personas o agentes).
                         .requestMatchers(HttpMethod.POST, "/api/**").hasRole("EDITOR")
                         .requestMatchers(HttpMethod.PUT, "/api/**").hasRole("EDITOR")
@@ -113,16 +133,18 @@ class SecurityConfiguration {
                             }
                             problem(res, 401, "No autenticado", "Falta un token válido en Authorization: Bearer.");
                         })
-                        .accessDeniedHandler((req, res, ex) -> problem(res, 403, "Sin permiso", viewOnly()
-                                ? "Tu acceso a este espacio es de solo lectura."
-                                : "Esta acción está reservada a personas del equipo.")))
+                        .accessDeniedHandler((req, res, ex) -> problem(res, 403, "Sin permiso", deniedReason())))
                 .addFilterBefore(new BearerTokenFilter(auth, platform), AnonymousAuthenticationFilter.class);
         return http.build();
     }
 
-    private static boolean viewOnly() {
+    private static String deniedReason() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null && auth.getPrincipal() instanceof AuthenticatedMember who && who.viewOnly();
+        if (auth == null || !(auth.getPrincipal() instanceof AuthenticatedMember who)) return "Esta acción está reservada a personas del equipo.";
+        if (who.viewOnly()) return "Tu acceso a este espacio es de solo lectura.";
+        if (who.agent() || who.runner()) return "Esta acción está reservada a personas del equipo.";
+        if (who.administers()) return "Esta acción está reservada al dueño del espacio.";
+        return "Esta acción está reservada a quien administra el espacio.";
     }
 
     private static void problem(HttpServletResponse res, int status, String title, String detail) throws IOException {

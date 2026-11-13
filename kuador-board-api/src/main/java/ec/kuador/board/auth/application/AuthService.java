@@ -134,7 +134,7 @@ public class AuthService implements AuthApi {
                 tokens.save(token.touch(now));
             }
             MemberView m = member.get();
-            return Optional.of(new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), token.id(), m.viewOnly(),
+            return Optional.of(new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), token.id(), m.access(),
                     token.kind() == TokenKind.RUNNER));
         }));
     }
@@ -275,7 +275,7 @@ public class AuthService implements AuthApi {
         return TenantContext.call(workspaceId, () -> tx.execute(s -> {
             MemberView m = members.find(memberId).filter(x -> x.workspaceId().equals(workspaceId))
                     .orElseThrow(() -> new ForbiddenException("La persona que aprobó ya no está en el espacio."));
-            AuthenticatedMember who = new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), null, m.viewOnly());
+            AuthenticatedMember who = new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), null, m.access(), false);
             return createRunnerToken(who, name.length() > 80 ? name.substring(0, 80) : name);
         }));
     }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { addToTeamAction, createTeamAgentAction, removeFromTeamAction, setAgentProfileAction } from "@/app/actions";
+import { useAccess } from "@/components/shell/AccessContext";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
@@ -27,6 +28,7 @@ type Role = { key: string; name: string; description: string };
 
 /** Equipo de agentes del tablero: dónde trabaja cada uno, sumar uno del espacio o crear uno nuevo. */
 export function TeamEditor({ projectKey, software, team: initial, roles, ai }: { projectKey: string; software: boolean; team: TeamAgent[]; roles: Role[]; ai: WorkspaceAiStatus }) {
+  const { canAdminister } = useAccess();
   const [team, setTeam] = useState(initial);
   const [creating, setCreating] = useState(false);
   const [pending, start] = useTransition();
@@ -65,6 +67,7 @@ export function TeamEditor({ projectKey, software, team: initial, roles, ai }: {
               models={ai.models}
               defaultModel={ai.defaultModel}
               disabled={pending}
+              canConfigure={canAdminister}
               onChange={(next) => setTeam((t) => t.map((x) => (x.id === next.id ? { ...next, inTeam: true } : x)))}
               onRemove={() => act(() => removeFromTeamAction(projectKey, a.id), `${a.name} salió del equipo`)}
             />
@@ -89,7 +92,7 @@ export function TeamEditor({ projectKey, software, team: initial, roles, ai }: {
             </Field>
           </div>
         )}
-        {!creating && (
+        {!creating && canAdminister && (
           <Button icon={Plus} onClick={() => setCreating(true)}>
             Crear agente
           </Button>
@@ -126,6 +129,7 @@ function AgentRow({
   models,
   defaultModel,
   disabled,
+  canConfigure,
   onChange,
   onRemove,
 }: {
@@ -133,6 +137,8 @@ function AgentRow({
   models: string[];
   defaultModel: string;
   disabled: boolean;
+  /** Dónde trabaja y con qué modelo vale para todo el espacio: solo quien administra lo cambia. */
+  canConfigure: boolean;
   onChange: (a: TeamAgent) => void;
   onRemove: () => void;
 }) {
@@ -158,7 +164,7 @@ function AgentRow({
           ariaLabel={`Dónde trabaja ${agent.name}`}
           size="sm"
           value={agent.mode}
-          disabled={disabled || saving}
+          disabled={disabled || saving || !canConfigure}
           onChange={(v) => v && save(v, agent.model)}
           options={MODE_CHOICES.map((c) => ({ value: c.value, label: c.label }))}
         />
@@ -169,7 +175,7 @@ function AgentRow({
             ariaLabel={`Modelo de ${agent.name}`}
             size="sm"
             value={agent.model ?? "DEFAULT"}
-            disabled={disabled || saving}
+            disabled={disabled || saving || !canConfigure}
             onChange={(v) => v && save(agent.mode, v === "DEFAULT" ? null : v)}
             options={[{ value: "DEFAULT", label: `El del espacio (${MODEL_LABEL[defaultModel]?.split(" (")[0] ?? defaultModel})` }, ...models.map((m) => ({ value: m, label: MODEL_LABEL[m] ?? m }))]}
           />

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
-import { requireEditor } from "@/lib/require-editor";
+import { requireAdmin } from "@/lib/require-editor";
 
 import { AiConnection } from "./AiConnection";
 import { GitHubConnections } from "./GitHubConnections";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Conexiones" };
 
 export default async function ConnectionsPage({ searchParams }: PageProps<"/conexiones">) {
-  await requireEditor();
+  await requireAdmin();
   const params = await searchParams;
   let data;
   try {

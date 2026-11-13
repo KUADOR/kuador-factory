@@ -256,8 +256,12 @@ export interface Project {
   createdAt: string;
 }
 
-/** EDIT trabaja en el tablero; VIEW solo mira (y cierra las puertas donde su rol aprueba). */
-export type MemberAccess = "EDIT" | "VIEW";
+/**
+ * Nivel en el espacio. OWNER: además el plan, los pagos y quién administra. ADMIN: el equipo, el catálogo, la IA,
+ * las conexiones y la auditoría. EDIT: trabaja en los tableros. VIEW: solo mira (y cierra las puertas donde su rol
+ * aprueba).
+ */
+export type MemberAccess = "OWNER" | "ADMIN" | "EDIT" | "VIEW";
 
 export interface Member {
   id: string;

@@ -3,7 +3,6 @@ package ec.kuador.board.notify.application;
 import ec.kuador.board.billing.LicenseExpired;
 import ec.kuador.board.billing.LicenseExpiring;
 import ec.kuador.board.billing.PaymentReceived;
-import ec.kuador.board.member.MemberAccess;
 import ec.kuador.board.member.MemberApi;
 import ec.kuador.board.member.MemberView;
 import ec.kuador.board.notify.domain.NoticeKind;
@@ -92,14 +91,14 @@ class BillingNoticeRouter {
                         + "Recibo: " + e.paymentId());
     }
 
-    /** A los dueños (o, si no hay, a quienes editan) más {@code extra}, en el espacio del aviso. */
+    /** A los dueños (o, si no hay, a quienes administran) más {@code extra}, en el espacio del aviso. */
     private void send(UUID workspaceId, Set<UUID> extra, String subject, String body) {
         try {
             TenantContext.run(workspaceId, () -> tx.executeWithoutResult(s -> {
                 List<MemberView> humans = members.humans();
                 Set<UUID> to = new LinkedHashSet<>();
-                humans.stream().filter(m -> "OWNER".equals(m.role())).map(MemberView::id).forEach(to::add);
-                if (to.isEmpty()) humans.stream().filter(m -> m.access() == MemberAccess.EDIT).map(MemberView::id).forEach(to::add);
+                humans.stream().filter(MemberView::owner).map(MemberView::id).forEach(to::add);
+                if (to.isEmpty()) humans.stream().filter(MemberView::administers).map(MemberView::id).forEach(to::add);
                 extra.stream().filter(id -> humans.stream().anyMatch(m -> m.id().equals(id))).forEach(to::add);
                 to.forEach(person -> notifications.enqueue(workspaceId, person, NoticeKind.BILLING, subject, body, planUrl));
             }));

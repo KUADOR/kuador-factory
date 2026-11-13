@@ -139,6 +139,12 @@ Decidido el 2026-11-10:
    `ROLE_EDITOR`: toda escritura la exige, salvo cerrar sesión, cambiar la propia clave y revisar una
    puerta, donde el servicio comprueba el rol aprobador). Un cliente (`CLIENTE`) nace en `VIEW`; los
    agentes siempre editan; nadie cambia su propio acceso.
+   Niveles (2026-11-13): `OWNER`, `ADMIN`, `EDIT`, `VIEW`. `ROLE_ADMIN` (dueños y administradores)
+   gestiona el equipo, invitaciones, accesos, tokens, catálogo, IA, GitHub, repositorios, auditoría y
+   borrar tableros; `ROLE_OWNER`, además el plan y los pagos. Quien administra gestiona a quienes
+   editan o miran; solo un dueño nombra o cambia administradores y dueños; siempre queda un dueño.
+   Se invita como `EDIT` por defecto. La migración V27 dejó al creador como `OWNER` y al resto de
+   quienes editaban como `ADMIN`.
 
 1. **Etapas con roles, traspasos y puertas:** modelo, reglas, configuración por proyecto y la nueva
    plantilla de Software.

@@ -52,6 +52,11 @@ public class InMemoryMembers implements MemberApi {
     }
 
     @Override
+    public void requireCanManage(UUID actorId, ec.kuador.board.member.MemberAccess level) {
+        // Las pruebas unitarias no modelan niveles: quien pide siempre puede.
+    }
+
+    @Override
     public MemberView createHuman(String name, String role, String description, String avatarColor) {
         return add(new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, name, false, role, avatarColor, description));
     }

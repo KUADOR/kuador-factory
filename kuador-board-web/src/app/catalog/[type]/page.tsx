@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { CatalogView } from "@/components/catalog/CatalogView";
 import { sectionBySlug } from "@/components/catalog/catalogTypes";
 import { boardApi } from "@/lib/api";
-import { requireEditor } from "@/lib/require-editor";
+import { requireAdmin } from "@/lib/require-editor";
 import { failPage } from "@/lib/page-errors";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: PageProps<"/catalog/[type]">)
 }
 
 export default async function CatalogSectionPage({ params }: PageProps<"/catalog/[type]">) {
-  await requireEditor();
+  await requireAdmin();
   const section = sectionBySlug((await params).type);
   if (!section) notFound();
   let data;

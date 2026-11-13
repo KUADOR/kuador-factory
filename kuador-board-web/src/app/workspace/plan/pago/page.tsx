@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/Button";
 import { Section } from "@/components/ui/Section";
 import { dateLabel, priceLabel } from "@/components/billing/format";
 import { boardApi } from "@/lib/api";
-import { requireEditor } from "@/lib/require-editor";
+import { requireOwner } from "@/lib/require-editor";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Pago" };
 
 /** Vuelta de la pasarela: se confirma el cobro (si ya se confirmó por aviso, no se cobra de nuevo) y se muestra el resultado. */
 export default async function PaymentReturnPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
-  await requireEditor();
+  await requireOwner();
   const { id } = await searchParams;
   let title = "No encontramos ese pago";
   let detail = "Vuelve a la página del plan para revisar su estado.";

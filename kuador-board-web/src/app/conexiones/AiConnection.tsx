@@ -8,15 +8,11 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Field, PasswordInput, SelectInput } from "@/components/ui/Field";
 import { Section } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
+import { MODEL_LABEL } from "@/lib/labels";
 import type { AiUsageReport, WorkspaceAiStatus } from "@/lib/types";
 
 import { AiUsageCard } from "./AiUsageCard";
 
-const MODEL_LABEL: Record<string, string> = {
-  "claude-opus-5-5": "Claude Opus 5.5 (el más capaz)",
-  "claude-sonnet-5-5": "Claude Sonnet 5.5 (equilibrado)",
-  "claude-haiku-5-5": "Claude Haiku 5.5 (rápido y económico)",
-};
 
 /**
  * La IA de la empresa: el proveedor que usa (Claude, ChatGPT, DeepSeek…) y su clave de API. Con ella trabajan los

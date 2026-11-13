@@ -133,4 +133,11 @@ public class WorkspaceAi implements AiKeyProvider {
         return store.aiKey(TenantContext.require())
                 .map(k -> new Key(providers.require(k.provider()), secrets.decrypt(k.encryptedKey()), k.defaultModel()));
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> modelForAgent(java.util.UUID agentId) {
+        String chosen = store.profile(agentId).map(AgentTeamStore.Profile::model).orElse(null);
+        return key().filter(k -> k.provider().protocol() == AiProvider.Protocol.ANTHROPIC).map(k -> k.modelFor(chosen));
+    }
 }

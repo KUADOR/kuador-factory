@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
+import { MODEL_LABEL } from "@/lib/labels";
 import type { AgentMode, TeamAgent, WorkspaceAiStatus } from "@/lib/types";
 
 const MODE_CHOICES: { value: AgentMode; label: string; hint: string }[] = [
@@ -18,11 +19,6 @@ const MODE_CHOICES: { value: AgentMode; label: string; hint: string }[] = [
   { value: "LOCAL", label: "En la PC de una persona", hint: "Lo trabaja el Claude Code o Codex de alguien del equipo con /pendientes." },
 ];
 
-const MODEL_LABEL: Record<string, string> = {
-  "claude-opus-5-5": "Claude Opus 5.5 (el más capaz)",
-  "claude-sonnet-5-5": "Claude Sonnet 5.5 (equilibrado)",
-  "claude-haiku-5-5": "Claude Haiku 5.5 (rápido y económico)",
-};
 
 type Role = { key: string; name: string; description: string };
 
@@ -169,7 +165,8 @@ function AgentRow({
           options={MODE_CHOICES.map((c) => ({ value: c.value, label: c.label }))}
         />
       </div>
-      {agent.mode === "SERVER" && (
+      {/* El modelo vale cuando trabaja con la IA de la empresa: en el tablero y en las automatizaciones (p. ej. el Agente PO). */}
+      {(agent.mode === "SERVER" || models.length > 0) && (
         <div className="w-60">
           <SelectInput
             ariaLabel={`Modelo de ${agent.name}`}

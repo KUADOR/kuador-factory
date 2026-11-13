@@ -123,7 +123,9 @@ public class ProductOwnerAgent {
                 return;
             }
             log.info("{} trabajando en {} (ejecución {})", agent.get().name(), event.issueKey(), run.id());
-            ProductOwnerModel.Result result = key.isPresent() ? model.propose(key.get(), context) : model.propose(context);
+            // Con la clave de la empresa, el modelo elegido para este agente (Configuración → Equipo de agentes).
+            String chosen = key.isPresent() ? tx.execute(s -> keys.modelForAgent(agent.get().id())).orElse(null) : null;
+            ProductOwnerModel.Result result = key.isPresent() ? model.propose(key.get(), chosen, context) : model.propose(context);
             PoProposal proposal = validate(result.proposal());
             String summary = tx.execute(s -> apply(agent.get(), requester.get(), context, proposal));
             finish(run.succeeded(result.model(), result.inputTokens(), result.outputTokens(), summary, now()));

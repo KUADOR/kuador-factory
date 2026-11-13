@@ -15,4 +15,9 @@ public interface ProductOwnerModel {
 
     /** Con la clave de IA de la empresa. */
     Result propose(String apiKey, PoContext context);
+
+    /** Con la clave de la empresa y el modelo elegido para el agente ({@code null} = el configurado). */
+    default Result propose(String apiKey, String model, PoContext context) {
+        return propose(apiKey, context);
+    }
 }

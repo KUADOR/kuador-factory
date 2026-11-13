@@ -5,11 +5,13 @@ import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.core.JsonValue;
 import com.anthropic.core.MultipartField;
 import com.anthropic.core.http.HttpResponse;
+import com.anthropic.core.http.StreamResponse;
 import com.anthropic.errors.AnthropicException;
 import com.anthropic.errors.AnthropicServiceException;
 import com.anthropic.errors.PermissionDeniedException;
 import com.anthropic.errors.RateLimitException;
 import com.anthropic.errors.UnauthorizedException;
+import com.anthropic.helpers.MessageAccumulator;
 import com.anthropic.models.files.FileMetadata;
 import com.anthropic.models.files.FileUploadParams;
 import com.anthropic.models.messages.CodeExecutionTool20260120;
@@ -17,6 +19,7 @@ import com.anthropic.models.messages.ContentBlock;
 import com.anthropic.models.messages.ContentBlockParam;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
+import com.anthropic.models.messages.RawMessageStreamEvent;
 import com.anthropic.models.messages.StopReason;
 import com.anthropic.models.messages.ThinkingConfigAdaptive;
 import com.anthropic.models.messages.Tool;
@@ -50,6 +53,12 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
     private static final Logger log = LoggerFactory.getLogger(ClaudeBoardAgentModel.class);
     /** Vueltas máximas (pausas largas del servidor y llamadas a herramientas) antes de rendirse. */
     private static final int MAX_TURNS = 12;
+
+    /**
+     * Tope por turno: el razonamiento (siempre activo) cuenta dentro, junto con el código que escribe y su entrega.
+     * Con un tope así la llamada va en streaming, que no corre el riesgo de que venza la conexión HTTP.
+     */
+    static final long MAX_TOKENS = 64_000L;
     private static final long MAX_OUTPUT_BYTES = 30L * 1024 * 1024;
 
     /** Cómo es su entorno: se suma a las reglas del tablero. */
@@ -114,7 +123,7 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
             }
             MessageCreateParams.Builder params = MessageCreateParams.builder()
                     .model(model)
-                    .maxTokens(32_000L)
+                    .maxTokens(MAX_TOKENS)
                     .system(task.system() + ENVIRONMENT)
                     .thinking(ThinkingConfigAdaptive.builder().build())
                     .addTool(CodeExecutionTool20260120.builder().build())
@@ -151,7 +160,9 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
                     params.addMessage(response);
                     continue;
                 }
-                if (StopReason.MAX_TOKENS.equals(stop)) throw new AgentModelException("La respuesta se cortó por longitud antes de terminar.");
+                if (StopReason.MAX_TOKENS.equals(stop)) {
+                    throw new AgentModelException("Una respuesta del agente pasó de " + MAX_TOKENS + " tokens y se cortó; divide el pedido o acótalo.");
+                }
                 // Terminó sin llamar a deliver: se toma su último texto como entrega.
                 String last = response.content().stream().flatMap(b -> b.text().stream()).map(t -> t.text()).reduce((a, b) -> b).orElse("").strip();
                 if (last.isEmpty()) throw new AgentModelException("El modelo terminó sin entregar nada.");
@@ -167,7 +178,11 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
 
     private static Message call(AnthropicClient client, MessageCreateParams params) {
         try {
-            return client.messages().create(params);
+            MessageAccumulator accumulator = MessageAccumulator.create();
+            try (StreamResponse<RawMessageStreamEvent> stream = client.messages().createStreaming(params)) {
+                stream.stream().forEach(accumulator::accumulate);
+            }
+            return accumulator.message();
         } catch (UnauthorizedException | PermissionDeniedException e) {
             throw new AgentModelException("Anthropic rechazó la clave de IA del espacio (Conexiones → IA).", e);
         } catch (RateLimitException e) {

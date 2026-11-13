@@ -79,11 +79,16 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
 
     @Override
     public Result propose(String apiKey, PoContext context) {
+        return propose(apiKey, null, context);
+    }
+
+    @Override
+    public Result propose(String apiKey, String chosenModel, PoContext context) {
         AnthropicOkHttpClient.Builder b = AnthropicOkHttpClient.builder().apiKey(apiKey.strip()).timeout(Duration.ofMinutes(10)).maxRetries(2);
         if (!baseUrl.isEmpty()) b.baseUrl(baseUrl);
         AnthropicClient own = b.build();
         try {
-            return propose(own, context);
+            return propose(own, chosenModel == null || chosenModel.isBlank() ? model : chosenModel, context);
         } finally {
             own.close();
         }
@@ -92,10 +97,10 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
     @Override
     public Result propose(PoContext context) {
         if (client == null) throw new AgentModelException(unavailableReason());
-        return propose(client, context);
+        return propose(client, model, context);
     }
 
-    private Result propose(AnthropicClient client, PoContext context) {
+    private Result propose(AnthropicClient client, String model, PoContext context) {
         StructuredMessageCreateParams.Builder<PoProposal> builder = MessageCreateParams.builder()
                 .model(model)
                 .maxTokens(MAX_TOKENS)

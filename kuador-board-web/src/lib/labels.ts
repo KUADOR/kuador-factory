@@ -67,3 +67,13 @@ export function stageRoleOptions(catalogRoles: { key: string; name: string }[], 
   const human = [...new Set(["OWNER", ...humanRoles])].filter((k) => !catalogRoles.some((r) => r.key === k));
   return [...catalogRoles.map((r) => ({ value: r.key, label: r.name })), ...human.map((k) => ({ value: k, label: roleLabel(k) }))];
 }
+
+/**
+ * Los modelos de Claude con una pista de para qué sirve cada uno: el más capaz para lógica y arquitectura, el
+ * equilibrado para análisis y redacción (PO, marketing), el económico para tareas simples y de mucho volumen.
+ */
+export const MODEL_LABEL: Record<string, string> = {
+  "claude-opus-5-5": "Claude Opus 5.5 (el más capaz: lógica, arquitectura)",
+  "claude-sonnet-5-5": "Claude Sonnet 5.5 (equilibrado: análisis, redacción)",
+  "claude-haiku-5-5": "Claude Haiku 5.5 (rápido y económico: tareas simples)",
+};

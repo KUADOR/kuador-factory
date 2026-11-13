@@ -99,7 +99,9 @@ class BoardAgentIT {
                     out = file("file_in_1", "ventas.csv", "text/csv", 40);
                 } else if (path.equals("/v1/messages")) {
                     MESSAGES.add(new String(body, StandardCharsets.UTF_8));
-                    out = message().getBytes(StandardCharsets.UTF_8);
+                    // El agente pide cada turno en streaming: la respuesta va como eventos SSE.
+                    out = ec.kuador.board.testing.AnthropicSse.of(message()).getBytes(StandardCharsets.UTF_8);
+                    type = "text/event-stream";
                 } else if (path.equals("/v1/files/file_out_1/content")) {
                     out = PDF;
                     type = "application/pdf";

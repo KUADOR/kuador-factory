@@ -164,4 +164,10 @@ public class AttachmentService implements AttachmentApi {
     private static AttachmentInfo info(Attachment a) {
         return new AttachmentInfo(a.id(), a.issueKey(), a.fileName(), a.contentType(), a.sizeBytes(), a.uploadedBy(), a.createdAt());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> issueOf(UUID attachmentId) {
+        return store.find(TenantContext.require(), attachmentId).map(ec.kuador.board.attachment.domain.Attachment::issueKey);
+    }
 }

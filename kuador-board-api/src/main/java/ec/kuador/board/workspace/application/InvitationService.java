@@ -4,6 +4,7 @@ import ec.kuador.board.auth.AuthApi;
 import ec.kuador.board.member.MemberAccess;
 import ec.kuador.board.member.MemberApi;
 import ec.kuador.board.member.MemberView;
+import ec.kuador.board.project.ProjectApi;
 import ec.kuador.board.shared.error.ConflictException;
 import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.shared.error.NotFoundException;
@@ -40,13 +41,15 @@ public class InvitationService {
     private final AuthApi auth;
     private final WorkspaceRepository workspaces;
     private final Mailer mailer;
+    private final ProjectApi projects;
     private final TransactionTemplate tx;
     private final Clock clock;
     private final String webUrl;
     private final SecureRandom random = new SecureRandom();
 
     InvitationService(InvitationStore invitations, MemberApi members, AuthApi auth, WorkspaceRepository workspaces, Mailer mailer,
-            PlatformTransactionManager txManager, Clock clock, @Value("${board.web-url:http://localhost:3600}") String webUrl) {
+            ProjectApi projects, PlatformTransactionManager txManager, Clock clock, @Value("${board.web-url:http://localhost:3600}") String webUrl) {
+        this.projects = projects;
         this.invitations = invitations;
         this.members = members;
         this.auth = auth;
@@ -63,12 +66,19 @@ public class InvitationService {
     /** Lo que ve quien abre el enlace. */
     public record Preview(String workspaceName, String memberName, String email) {}
 
-    /**
-     * Invita a {@code memberId} (una persona sin acceso) o, si es nulo, crea la persona con {@code name},
-     * {@code role} y {@code access} y la invita. Si el correo no sale, no queda nada creado.
-     */
+    /** Invitación sin elegir tableros (quien administra verá todos; el resto, ninguno hasta que lo sumen). */
     @Transactional
     public Pending invite(UUID memberId, String name, String role, MemberAccess access, String rawEmail, UUID inviterId) {
+        return invite(memberId, name, role, access, rawEmail, inviterId, List.of());
+    }
+
+    /**
+     * Invita a {@code memberId} (una persona sin acceso) o, si es nulo, crea la persona con {@code name},
+     * {@code role} y {@code access} y la invita. Queda en los tableros {@code boards} (quien edita o mira solo ve
+     * esos). Si el correo no sale, no queda nada creado.
+     */
+    @Transactional
+    public Pending invite(UUID memberId, String name, String role, MemberAccess access, String rawEmail, UUID inviterId, List<String> boards) {
         String email = SignupService.normalize(rawEmail);
         if (auth.emailInUse(email)) throw new ConflictException("Ese correo ya tiene una cuenta en Kuador Go.");
         MemberView person;
@@ -83,6 +93,7 @@ public class InvitationService {
             person = members.createHuman(name.strip(), role == null || role.isBlank() ? "EQUIPO" : role.strip(), null,
                     COLORS[random.nextInt(COLORS.length)], access);
         }
+        for (String board : boards == null ? List.<String>of() : boards) projects.addPerson(board.strip().toUpperCase(java.util.Locale.ROOT), person.id());
         return send(person, email, inviterId);
     }
 

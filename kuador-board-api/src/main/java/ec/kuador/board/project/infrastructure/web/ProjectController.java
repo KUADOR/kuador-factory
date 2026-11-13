@@ -50,8 +50,28 @@ class ProjectController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    ProjectResponse create(@Valid @RequestBody CreateProjectRequest r) {
-        return ProjectResponse.from(service.create(r.key(), r.name(), r.description(), r.templateKey()));
+    ProjectResponse create(@org.springframework.security.core.annotation.AuthenticationPrincipal(expression = "memberId()") UUID actorId,
+            @Valid @RequestBody CreateProjectRequest r) {
+        return ProjectResponse.from(service.create(r.key(), r.name(), r.description(), r.templateKey(), actorId));
+    }
+
+    /** Las personas del espacio y si están en el tablero (quien administra lo ve por su nivel). */
+    @GetMapping("/{key}/people")
+    List<ProjectService.BoardPerson> people(@PathVariable String key) {
+        return service.people(key.toUpperCase());
+    }
+
+    record AddPersonRequest(@jakarta.validation.constraints.NotNull UUID memberId) {}
+
+    /** Suma una persona al tablero (solo quien administra, lo fija la seguridad). */
+    @PostMapping("/{key}/people")
+    List<ProjectService.BoardPerson> addPerson(@PathVariable String key, @Valid @RequestBody AddPersonRequest r) {
+        return service.addToBoard(key.toUpperCase(), r.memberId());
+    }
+
+    @DeleteMapping("/{key}/people/{memberId}")
+    List<ProjectService.BoardPerson> removePerson(@PathVariable String key, @PathVariable UUID memberId) {
+        return service.removePerson(key.toUpperCase(), memberId);
     }
 
     /**

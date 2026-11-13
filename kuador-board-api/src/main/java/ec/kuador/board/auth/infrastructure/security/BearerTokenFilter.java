@@ -74,6 +74,7 @@ class BearerTokenFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
         } finally {
             TenantContext.clear();
+            ec.kuador.board.shared.tenant.BoardScope.clear();
         }
     }
 }

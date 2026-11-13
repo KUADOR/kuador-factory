@@ -37,6 +37,8 @@ class AgentController {
             @RequestParam(required = false) UUID agentId,
             @RequestParam(required = false) String issueKey,
             @RequestParam(defaultValue = "20") int limit) {
-        return runs.findRecent(agentId, issueKey, Math.clamp(limit, 1, 100));
+        // Solo los trabajos de los tableros que ve quien pide.
+        return runs.findRecent(agentId, issueKey, Math.clamp(limit, 1, 100)).stream()
+                .filter(r -> ec.kuador.board.shared.tenant.BoardScope.allowsIssue(r.issueKey())).toList();
     }
 }

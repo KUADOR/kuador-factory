@@ -60,7 +60,7 @@ class NoticeRouter {
         safely(e.workspaceId(), () -> {
             MemberView to = members.find(e.toAssigneeId()).filter(m -> !m.agent()).orElse(null);
             IssueContext issue = issues.context(e.issueKey()).orElse(null);
-            if (to == null || issue == null) return;
+            if (to == null || issue == null || !projects.canAccess(to.id(), e.projectKey())) return;
             Optional<MemberView> actor = Optional.ofNullable(e.actorId()).flatMap(members::find);
             String subject;
             String body;
@@ -104,7 +104,7 @@ class NoticeRouter {
                 StringBuilder list = new StringBuilder();
                 waiting.forEach(t -> list.append("\n• ").append(t.key()).append(" ").append(t.title()).append(" (").append(t.workRole()).append(")"));
                 String body = "«" + issue.title() + "» llegó a «" + column + "». Revisa el reparto y apruébalo o pide cambios:" + list;
-                for (UUID person : supervisorOrOwners(e.issueKey(), e.actorId())) {
+                for (UUID person : supervisorOrOwners(e.projectKey(), e.issueKey(), e.actorId())) {
                     notifications.enqueue(e.workspaceId(), person, NoticeKind.PLAN, e.issueKey() + " · el reparto de " + waiting.size() + " tareas espera tu aprobación",
                             body, link(e.projectKey(), e.issueKey()));
                 }
@@ -114,19 +114,24 @@ class NoticeRouter {
         });
     }
 
-    /** Quienes pueden cerrar la puerta. Si la puerta no pide un rol, quien supervisa el issue (o los dueños del espacio). */
+    /**
+     * Quienes pueden cerrar la puerta. Si la puerta no pide un rol, quien supervisa el issue (o los dueños del espacio).
+     * Solo personas que ven el tablero.
+     */
     private Set<UUID> approvers(ProjectView project, StageDef gate, String issueKey, UUID actorId) {
-        if (gate.approvers().isEmpty()) return supervisorOrOwners(issueKey, actorId);
+        if (gate.approvers().isEmpty()) return supervisorOrOwners(project.key(), issueKey, actorId);
         Set<UUID> people = new LinkedHashSet<>();
-        members.humans().stream().filter(m -> gate.approvers().contains(m.role())).map(MemberView::id).forEach(people::add);
+        members.humans().stream().filter(m -> gate.approvers().contains(m.role())).map(MemberView::id)
+                .filter(id -> projects.canAccess(id, project.key())).forEach(people::add);
         people.remove(actorId);
         return people;
     }
 
-    private Set<UUID> supervisorOrOwners(String issueKey, UUID actorId) {
+    private Set<UUID> supervisorOrOwners(String projectKey, String issueKey, UUID actorId) {
         Set<UUID> people = new LinkedHashSet<>();
         issues.supervisorOf(issueKey).ifPresentOrElse(people::add,
                 () -> members.humans().stream().filter(m -> "OWNER".equals(m.role())).map(MemberView::id).forEach(people::add));
+        people.removeIf(id -> !projects.canAccess(id, projectKey));
         people.remove(actorId);
         return people;
     }

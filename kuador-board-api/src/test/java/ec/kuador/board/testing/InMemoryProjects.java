@@ -60,4 +60,19 @@ public class InMemoryProjects implements ProjectApi {
     public void createBoard(String key, String name, String templateKey) {
         throw new UnsupportedOperationException();
     }
+
+    // Las pruebas unitarias no modelan personas por tablero: todos ven todo.
+    @Override
+    public boolean canAccess(java.util.UUID memberId, String projectKey) {
+        return true;
+    }
+
+    @Override
+    public java.util.Set<String> boardsOf(java.util.UUID memberId) {
+        return all.keySet();
+    }
+
+    @Override
+    public void addPerson(String projectKey, java.util.UUID memberId) {
+    }
 }

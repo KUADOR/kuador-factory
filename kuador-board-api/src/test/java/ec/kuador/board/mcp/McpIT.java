@@ -136,6 +136,7 @@ class McpIT {
 
         // Pía crea un issue en Refinamiento (lo cubre el agente PO): pasa a su cola.
         call("POST", "/api/projects", Map.of("key", "PI", "name", "Pi", "templateKey", "SOFTWARE_FACTORY"), owner);
+        call("POST", "/api/projects/PI/people", Map.of("memberId", call("GET", "/api/auth/me", null, other).body().get("id").asString()), owner);
         String key = call("POST", "/api/projects/PI/issues", Map.of("title", "Agenda de citas", "type", "STORY", "status", "REFINEMENT"), owner)
                 .body().get("key").asString();
         JsonNode queue = tool(runner, "pending_work", Map.of(), false);

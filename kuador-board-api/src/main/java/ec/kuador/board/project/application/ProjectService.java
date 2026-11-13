@@ -11,6 +11,11 @@ import ec.kuador.board.project.ProjectApi;
 import ec.kuador.board.project.ProjectView;
 import ec.kuador.board.project.Transitions;
 import ec.kuador.board.project.domain.Project;
+import ec.kuador.board.member.MemberAccess;
+import ec.kuador.board.member.MemberApi;
+import ec.kuador.board.member.MemberView;
+import ec.kuador.board.project.domain.BoardPeople;
+import ec.kuador.board.shared.tenant.BoardScope;
 import ec.kuador.board.project.domain.ProjectRepository;
 import ec.kuador.board.project.domain.Workflow;
 import ec.kuador.board.shared.error.ConflictException;
@@ -34,10 +39,14 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     private final Clock clock;
     private final BillingApi billing;
     private final org.springframework.context.ApplicationEventPublisher events;
+    private final BoardPeople people;
+    private final MemberApi members;
 
     ProjectService(ProjectRepository projects, ColumnUsage usage, CatalogApi catalog, Clock clock, BillingApi billing,
-            org.springframework.context.ApplicationEventPublisher events) {
+            org.springframework.context.ApplicationEventPublisher events, BoardPeople people, MemberApi members) {
         this.events = events;
+        this.people = people;
+        this.members = members;
         this.projects = projects;
         this.usage = usage;
         this.catalog = catalog;
@@ -51,9 +60,11 @@ public class ProjectService implements ProjectApi, CatalogUsage {
 
     public record ProjectWithColumns(Project project, List<ColumnDef> columns) {}
 
+    /** Los tableros que puede ver quien pide (ver {@link BoardScope}). */
     @Transactional(readOnly = true)
     public List<ProjectWithColumns> list() {
-        return projects.findAll().stream().map(p -> new ProjectWithColumns(p, projects.findColumns(p.key()))).toList();
+        return projects.findAll().stream().filter(p -> BoardScope.allows(p.key()))
+                .map(p -> new ProjectWithColumns(p, projects.findColumns(p.key()))).toList();
     }
 
     @Transactional(readOnly = true)
@@ -65,6 +76,14 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Transactional
     public void createBoard(String key, String name, String templateKey) {
         create(key, name, null, templateKey);
+    }
+
+    /** Crea el tablero a pedido de una persona, que queda en él (si no administra, es la única forma de verlo). */
+    @Transactional
+    public ProjectWithColumns create(String key, String name, String description, String templateKey, UUID creatorId) {
+        ProjectWithColumns created = create(key, name, description, templateKey);
+        if (creatorId != null && members.find(creatorId).filter(m -> !m.agent()).isPresent()) people.add(created.project().key(), creatorId);
+        return created;
     }
 
     /** Crea el proyecto copiando la plantilla de flujo del catálogo del espacio. */
@@ -173,6 +192,58 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Transactional(readOnly = true)
     public String name(String projectKey) {
         return projects.findByKey(projectKey).map(Project::name).orElse(projectKey);
+    }
+
+    // ---- Personas del tablero ----
+
+    /** Una persona del espacio y si está en el tablero; {@code implicit}: lo ve por su nivel (dueña o administradora). */
+    public record BoardPerson(UUID id, String name, String role, String avatarColor, MemberAccess access, boolean inBoard, boolean implicit) {}
+
+    @Transactional(readOnly = true)
+    public List<BoardPerson> people(String key) {
+        String k = load(key).key();
+        java.util.Set<UUID> in = new java.util.HashSet<>(people.of(k));
+        return members.humans().stream().map(m -> new BoardPerson(m.id(), m.name(), m.role(), m.avatarColor(), m.access(),
+                m.administers() || in.contains(m.id()), m.administers())).toList();
+    }
+
+    @Transactional
+    public List<BoardPerson> addToBoard(String key, UUID memberId) {
+        addPerson(key, memberId);
+        return people(key);
+    }
+
+    @Override
+    @Transactional
+    public void addPerson(String key, UUID memberId) {
+        String k = load(key).key();
+        MemberView m = members.find(memberId).filter(x -> !x.agent())
+                .orElseThrow(() -> new NotFoundException("No existe esa persona en el equipo."));
+        people.add(k, m.id());
+    }
+
+    @Transactional
+    public List<BoardPerson> removePerson(String key, UUID memberId) {
+        String k = load(key).key();
+        MemberView m = members.find(memberId).filter(x -> !x.agent())
+                .orElseThrow(() -> new NotFoundException("No existe esa persona en el equipo."));
+        if (m.administers()) throw new DomainException(m.name() + " administra el espacio: ve todos los tableros por su nivel.");
+        people.remove(k, m.id());
+        return people(k);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canAccess(UUID memberId, String projectKey) {
+        if (memberId == null || projectKey == null) return false;
+        return members.find(memberId).map(m -> m.agent() || m.administers() || people.contains(projectKey.toUpperCase(java.util.Locale.ROOT), m.id()))
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Set<String> boardsOf(UUID memberId) {
+        return java.util.Set.copyOf(people.boardsOf(memberId));
     }
 
     @Override

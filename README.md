@@ -101,7 +101,7 @@ Monitoreo con Grafana, Prometheus, Loki y Alloy (tablero y alertas por correo): 
 ## Eliminar un tablero
 
 *Configuración → General → Eliminar tablero*, escribiendo la clave para confirmar (`DELETE
-/api/projects/{clave}?confirm={clave}`; solo personas que editan, nunca un agente). La base borra en
+/api/projects/{clave}?confirm={clave}`; solo quien administra el espacio, nunca un agente). La base borra en
 cascada columnas, tarjetas, comentarios, documentos con sus versiones, sincronización, enlace al repo
 y piezas; con el evento `ProjectDeleted` cada módulo borra lo suyo que no cuelga del tablero:
 actividad, corridas de agentes y adjuntos (con sus archivos en Garage). Los repositorios en GitHub
@@ -348,7 +348,8 @@ estado de cada documento. El tablero **escribe archivos pero no hace commits**: 
 | PUT | `/api/projects/{key}` · `/api/projects/{key}/transitions` | Nombre y descripción / reglas `{restricted, allowed: [{from, to}]}` (solo personas) |
 | GET · PUT · DELETE | `/api/catalog/{workflow-templates\|methodologies\|roles\|mcp-servers}[/{key}]` | Catálogo del espacio; `PUT` crea o actualiza con `version` (solo personas) |
 | POST | `/api/catalog/{tipo}/{key}/restore` | Volver a los valores de fábrica |
-| GET/POST | `/api/projects` | Listar / crear proyectos `{key, name, description?, templateKey}` |
+| GET/POST | `/api/projects` | Listar (solo los tableros que ve quien pide) / crear proyectos `{key, name, description?, templateKey}`; quien lo crea queda en él |
+| GET · POST · DELETE | `/api/projects/{key}/people` · `/api/projects/{key}/people/{memberId}` | Personas del tablero · sumar `{memberId}` · quitar (sumar y quitar, solo quien administra). Quien edita o solo mira ve únicamente los tableros donde está; dueños y administradores, todos |
 | GET | `/api/projects/{key}` | Detalle: `kind`, `templateKey`, `methodology`, `columns`, `issueTypes` |
 | PUT | `/api/projects/{key}/columns` | Reemplaza el flujo (`[{key\|null, name, category}]`, en orden) |
 | GET/POST | `/api/projects/{key}/issues?q=&assigneeId=&type=` | Tablero / crear issue |

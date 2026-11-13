@@ -30,8 +30,9 @@ class InvitationController {
     }
 
     /** {@code memberId}: invitar a alguien que ya está en el equipo; si no, se crea con nombre, rol y acceso. */
+    /** {@code projects}: los tableros donde queda (quien edita o solo mira ve únicamente esos). */
     record InviteRequest(UUID memberId, @Size(max = 120) String name, @Size(max = 60) String role, MemberAccess access,
-            @NotBlank @Size(max = 254) String email) {}
+            @NotBlank @Size(max = 254) String email, @Size(max = 100) List<@Size(max = 10) String> projects) {}
 
     record AcceptRequest(@NotBlank @Size(max = 100) String token, @NotBlank @Size(max = 128) String password) {}
 
@@ -45,7 +46,7 @@ class InvitationController {
     @PostMapping("/api/invitations")
     @ResponseStatus(HttpStatus.CREATED)
     InvitationService.Pending invite(@AuthenticationPrincipal AuthenticatedMember who, @Valid @RequestBody InviteRequest r) {
-        return invitations.invite(r.memberId(), r.name(), r.role(), r.access(), r.email(), who.memberId());
+        return invitations.invite(r.memberId(), r.name(), r.role(), r.access(), r.email(), who.memberId(), r.projects());
     }
 
     @PostMapping("/api/invitations/{id}/resend")

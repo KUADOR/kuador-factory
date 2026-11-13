@@ -15,4 +15,9 @@ public abstract class DocsApiStub implements DocsApi {
     @Override public Optional<MethodologyRules> methodologyRules(String projectKey) { return Optional.empty(); }
     @Override public List<DocContent> ensureProjectDocuments(String projectKey, UUID actorId) { return ofProject(projectKey).stream().filter(d -> d.issueKey() == null).toList(); }
     @Override public DocContent write(String projectKey, String issueKey, String kind, String content, String note, UUID actorId) { throw new UnsupportedOperationException(); }
+
+    @Override
+    public java.util.Optional<String> projectOf(java.util.UUID documentId) {
+        return java.util.Optional.empty();
+    }
 }

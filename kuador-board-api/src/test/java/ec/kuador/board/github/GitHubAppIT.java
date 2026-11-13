@@ -188,6 +188,7 @@ class GitHubAppIT {
 
         // Monorepo privado: API con su plantilla y web Angular (sin código base todavía), cada una en su carpeta.
         call("POST", "/api/projects", Map.of("key", "PI", "name", "Portal Pi", "templateKey", "SOFTWARE_FACTORY"), owner);
+        call("POST", "/api/projects/PI/people", Map.of("memberId", dev.id().toString()), owner);
         call("PUT", "/api/projects/PI/methodology", Map.of("methodology", "SDD"), owner);
         Reply mono = call("POST", "/api/projects/PI/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "pi",
                 "description", "Portal de pacientes", "pieces", List.of(

@@ -31,15 +31,19 @@ export default async function BoardPage({ params, searchParams }: Props) {
       boardApi.me(),
       boardApi.catalog("roles"),
       boardApi.boardTeam(projectKey).catch(() => null),
+      boardApi.boardPeople(projectKey).catch(() => null),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, issues, everyone, runs, me, roles, team] = data;
-  // En este tablero se asignan las personas y su equipo de agentes; se conservan los agentes que ya tienen tarjetas aquí.
+  const [project, issues, everyone, runs, me, roles, team, people] = data;
+  // En este tablero se asignan sus personas y su equipo de agentes; se conservan quienes ya tienen tarjetas aquí.
   const teamIds = new Set((team ?? []).filter((a) => a.inTeam).map((a) => a.id));
+  const peopleIds = people == null ? null : new Set(people.filter((p) => p.inBoard).map((p) => p.id));
   const assigned = new Set(issues.map((i) => i.assigneeId).filter(Boolean));
-  const members = team == null ? everyone : everyone.filter((m) => m.kind === "HUMAN" || teamIds.has(m.id) || assigned.has(m.id));
+  const members = everyone.filter((m) =>
+    m.kind === "HUMAN" ? peopleIds == null || peopleIds.has(m.id) || assigned.has(m.id) : team == null || teamIds.has(m.id) || assigned.has(m.id),
+  );
   const pending = canEdit(me) ? await pendingSetup(project, issues.length) : 0;
   return (
     <>

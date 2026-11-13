@@ -127,7 +127,7 @@ public class IssueService implements IssueApi {
     @Transactional
     public Issue create(String projectKey, IssueDetails details, UUID actorId, String status) {
         ProjectView project = project(projectKey);
-        validateReferences(project, details, null);
+        validateReferences(project, details, null, null);
         if (actorId != null) {
             requireMember(actorId);
         }
@@ -149,7 +149,7 @@ public class IssueService implements IssueApi {
     @Transactional
     public Issue edit(String key, IssueDetails details, UUID actorId) {
         Issue issue = load(key);
-        validateReferences(project(issue.projectKey()), details, issue.key());
+        validateReferences(project(issue.projectKey()), details, issue.key(), issue.assigneeId());
         UUID previousAssignee = issue.assigneeId();
         Instant now = now();
         List<FieldChange> changes = issue.edit(details, now);
@@ -167,7 +167,7 @@ public class IssueService implements IssueApi {
     public Issue assign(String key, UUID memberId, UUID actorId) {
         Issue issue = load(key);
         if (memberId != null) {
-            requireMember(memberId);
+            requireOnBoard(memberId, issue.projectKey());
         }
         UUID previousAssignee = issue.assigneeId();
         Instant now = now();
@@ -743,14 +743,15 @@ public class IssueService implements IssueApi {
                 "La columna " + columnKey + " no existe en el flujo de " + project.key() + "."));
     }
 
-    private void validateReferences(ProjectView project, IssueDetails d, String selfKey) {
+    /** {@code currentAssignee}: quien ya lo tenía (puede seguir aunque haya salido del tablero). */
+    private void validateReferences(ProjectView project, IssueDetails d, String selfKey, UUID currentAssignee) {
         String projectKey = project.key();
         if (d.type() != null && !project.allows(d.type())) {
             throw new DomainException("Este proyecto no usa el tipo " + d.type() + "; usa "
                     + project.issueTypes().stream().map(t -> t.label() + " (" + t.type() + ")").toList() + ".");
         }
-        if (d.assigneeId() != null) {
-            requireMember(d.assigneeId());
+        if (d.assigneeId() != null && !d.assigneeId().equals(currentAssignee)) {
+            requireOnBoard(d.assigneeId(), projectKey);
         }
         if (d.parentKey() != null) {
             Issue parent = issues.findByKey(d.parentKey())
@@ -765,6 +766,13 @@ public class IssueService implements IssueApi {
                 throw new DomainException("Un issue no puede ser su propio padre.");
             }
         }
+    }
+
+    /** El miembro existe y ve el tablero: no se le pasa trabajo a quien no está en él. */
+    private MemberView requireOnBoard(UUID memberId, String projectKey) {
+        MemberView m = requireMember(memberId);
+        if (!projects.canAccess(m.id(), projectKey)) throw new DomainException(m.name() + " no está en el tablero " + projectKey + ".");
+        return m;
     }
 
     private MemberView requireMember(UUID memberId) {

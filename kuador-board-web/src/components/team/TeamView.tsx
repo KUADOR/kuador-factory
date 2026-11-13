@@ -10,22 +10,32 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
+import { ChipPicker } from "@/components/ui/ChipPicker";
 import { Badge, Section } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
 import { useAccess } from "@/components/shell/AccessContext";
 import { ACCESS_LABEL, defaultAccessFor } from "@/lib/access";
 import { roleLabel } from "@/lib/labels";
-import type { Account, AgentRole, AgentRun, AgentToken, AgentsStatus, Invitation, Member, MemberAccess, MemberKind } from "@/lib/types";
+import type { Account, AgentRole, AgentRun, AgentToken, AgentsStatus, Invitation, Member, MemberAccess, MemberKind, Project } from "@/lib/types";
 
 import { AgentTokens } from "./AgentTokens";
 import { HumanAccess } from "./HumanAccess";
 import { MemberAccessPicker, accessChoices } from "./MemberAccessPicker";
 
-type Props = { members: Member[]; accounts: Account[]; tokens: AgentToken[]; status: AgentsStatus; runs: AgentRun[]; roles: AgentRole[]; invitations: Invitation[] };
+type Props = {
+  members: Member[];
+  accounts: Account[];
+  tokens: AgentToken[];
+  status: AgentsStatus;
+  runs: AgentRun[];
+  roles: AgentRole[];
+  invitations: Invitation[];
+  projects: Project[];
+};
 
 /** Equipo del espacio: personas y agentes en listas; el detalle de cada uno se abre al costado. */
-export function TeamView({ members, accounts, tokens, status, runs, roles, invitations }: Props) {
+export function TeamView({ members, accounts, tokens, status, runs, roles, invitations, projects }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const { me, canAdminister } = useAccess();
@@ -137,7 +147,7 @@ export function TeamView({ members, accounts, tokens, status, runs, roles, invit
       </SidePanel>
 
       <SidePanel open={adding} onClose={() => setAdding(false)} width="narrow" title="Agregar miembro">
-        {adding && <AddMember roles={roles} onDone={() => setAdding(false)} />}
+        {adding && <AddMember roles={roles} projects={projects} onDone={() => setAdding(false)} />}
       </SidePanel>
     </>
   );
@@ -168,8 +178,10 @@ function AgentAutomation({ role, status, runs }: { role: AgentRole | undefined; 
 
 const COLORS = ["#8fb4ff", "#34d399", "#c4a7ff", "#ff8a4c", "#ff6b78", "#5eead4", "#f9a8d4"];
 
-function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }) {
+function AddMember({ roles, projects, onDone }: { roles: AgentRole[]; projects: Project[]; onDone: () => void }) {
   const { me } = useAccess();
+  // Tableros donde queda quien edita o solo mira (quien administra los ve todos).
+  const [boards, setBoards] = useState<string[]>([]);
   const [kind, setKind] = useState<MemberKind>("AGENT");
   const [name, setName] = useState("");
   const [role, setRole] = useState<string | null>(roles[0]?.key ?? null);
@@ -177,6 +189,7 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
   // null = el que corresponde al rol (los clientes solo miran) hasta que se elija otro.
   const [access, setAccess] = useState<MemberAccess | null>(null);
   const effectiveAccess = access ?? defaultAccessFor(humanRole);
+  const scoped = effectiveAccess === "EDIT" || effectiveAccess === "VIEW";
   const [description, setDescription] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [color, setColor] = useState(COLORS[0]);
@@ -192,7 +205,13 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
         startTransition(async () => {
           // Con correo, la persona se crea invitada: le llega el enlace para elegir su contraseña.
           if (kind === "HUMAN" && inviteEmail.trim()) {
-            const invited = await inviteAction({ name, role: humanRole.trim().toUpperCase(), access: effectiveAccess, email: inviteEmail.trim() });
+            const invited = await inviteAction({
+              name,
+              role: humanRole.trim().toUpperCase(),
+              access: effectiveAccess,
+              email: inviteEmail.trim(),
+              projects: scoped ? boards : [],
+            });
             if (invited.ok) {
               notify.ok(`Invitamos a ${invited.data.memberName}`, `Le llegó un enlace a ${invited.data.email}.`);
               onDone();
@@ -243,6 +262,19 @@ function AddMember({ roles, onDone }: { roles: AgentRole[]; onDone: () => void }
         </Field>
       )}
       {kind === "HUMAN" && <ChoiceCards name="new-member-access" label="Nivel de acceso" columns={2} value={effectiveAccess} onChange={setAccess} choices={accessChoices(me)} />}
+      {kind === "HUMAN" && scoped && inviteEmail.trim() && projects.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-fg-muted">Tableros que verá</span>
+          <ChipPicker
+            ariaLabel="Tableros que verá"
+            placeholder="Sumar tablero…"
+            empty="Ninguno: lo sumas después desde cada tablero."
+            value={boards}
+            onChange={setBoards}
+            options={projects.map((p) => ({ value: p.key, label: `${p.key} · ${p.name}` }))}
+          />
+        </div>
+      )}
       <Field label="Descripción" hint={kind === "AGENT" ? "Su especialidad: se suma a las instrucciones del rol. Vacía = la del rol." : undefined}>
         {(id) => <TextArea id={id} rows={4} maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>

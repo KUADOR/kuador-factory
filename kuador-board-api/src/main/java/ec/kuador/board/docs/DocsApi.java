@@ -9,6 +9,9 @@ public interface DocsApi {
     /** Documento con el contenido de su versión actual. {@code issueKey} nulo = del proyecto. */
     record DocContent(UUID id, String projectKey, String issueKey, String kind, String title, String path, int version, String content) {}
 
+    /** El tablero de un documento (vacío si no existe). */
+    java.util.Optional<String> projectOf(UUID documentId);
+
     /** Documentos del proyecto y de sus issues. */
     List<DocContent> ofProject(String projectKey);
 

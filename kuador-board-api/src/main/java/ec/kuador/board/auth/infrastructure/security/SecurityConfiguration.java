@@ -92,8 +92,11 @@ class SecurityConfiguration {
                         // Crear un tablero: personas que editan. Sumar personas o agentes al equipo, emitir tokens de agentes,
                         // borrar o restaurar un tablero: solo quien administra.
                         .requestMatchers(HttpMethod.POST, "/api/projects").access(HUMAN_EDITOR)
-                        .requestMatchers(HttpMethod.POST, "/api/members", "/api/members/*/tokens", "/api/projects/*/restore").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.POST, "/api/members", "/api/members/*/tokens").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.DELETE, "/api/projects/*").access(HUMAN_ADMIN)
+                        // Quién está en cada tablero: lo ve quien está en él; sumar o quitar personas, solo quien administra.
+                        .requestMatchers(HttpMethod.POST, "/api/projects/*/people").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.DELETE, "/api/projects/*/people/*").access(HUMAN_ADMIN)
                         // Qué agentes trabajan en un tablero: personas que editan. Crear agentes, su perfil y la clave de IA: quien administra.
                         .requestMatchers(HttpMethod.POST, "/api/projects/*/team/agents").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.POST, "/api/projects/*/team").access(HUMAN_EDITOR)

@@ -19,10 +19,13 @@ export default async function TeamPage() {
       boardApi.agentRuns({ limit: 100 }),
       boardApi.catalog("roles"),
       boardApi.invitations().catch(() => []),
+      boardApi.projects().catch(() => []),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [members, accounts, tokens, status, runs, roles, invitations] = data;
-  return <TeamView members={members} accounts={accounts} tokens={tokens} status={status} runs={runs} roles={roles} invitations={invitations} />;
+  const [members, accounts, tokens, status, runs, roles, invitations, projects] = data;
+  return (
+    <TeamView members={members} accounts={accounts} tokens={tokens} status={status} runs={runs} roles={roles} invitations={invitations} projects={projects} />
+  );
 }

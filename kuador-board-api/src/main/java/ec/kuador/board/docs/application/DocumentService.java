@@ -282,4 +282,10 @@ public class DocumentService implements DocsApi {
         String n = note.strip();
         return n.length() > 200 ? n.substring(0, 200) : n;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<String> projectOf(UUID documentId) {
+        return documents.findById(documentId).map(ec.kuador.board.docs.domain.Document::projectKey);
+    }
 }

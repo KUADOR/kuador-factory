@@ -12,6 +12,9 @@ public interface AttachmentApi {
 
     List<AttachmentInfo> list(String issueKey);
 
+    /** El issue de un adjunto (vacío si no existe). */
+    Optional<String> issueOf(UUID attachmentId);
+
     /** Contenido de un adjunto de texto (hasta {@code maxBytes}); vacío si no es texto o es más grande. */
     Optional<String> readText(String issueKey, UUID attachmentId, int maxBytes);
 

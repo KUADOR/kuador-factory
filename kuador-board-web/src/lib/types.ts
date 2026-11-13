@@ -410,6 +410,17 @@ export interface CatalogPackage {
 /** Dónde trabaja un agente: en la PC de una persona (MCP) o en el tablero con la clave de IA de la empresa. */
 export type AgentMode = "LOCAL" | "SERVER";
 
+/** Una persona del espacio frente a un tablero. {@code implicit}: lo ve por su nivel (dueño o administra). */
+export interface BoardPerson {
+  id: string;
+  name: string;
+  role: string;
+  avatarColor: string;
+  access: MemberAccess;
+  inBoard: boolean;
+  implicit: boolean;
+}
+
 export interface TeamAgent {
   id: string;
   name: string;

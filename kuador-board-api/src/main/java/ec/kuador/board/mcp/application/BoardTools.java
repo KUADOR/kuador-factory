@@ -1,5 +1,6 @@
 package ec.kuador.board.mcp.application;
 
+import ec.kuador.board.shared.tenant.BoardScope;
 import ec.kuador.board.attachment.AttachmentApi;
 import ec.kuador.board.billing.BillingApi;
 import ec.kuador.board.agents.AgentWorkApi;
@@ -160,6 +161,8 @@ public class BoardTools {
         List<Map<String, Object>> items = issues.agentQueue(person).stream()
                 .filter(i -> role == null || i.agentRoles().contains(role))
                 .filter(i -> project == null || i.projectKey().equals(project))
+                // La persona pudo salir de un tablero con issues que aún supervisa: esos ya no son suyos.
+                .filter(i -> BoardScope.allows(i.projectKey()))
                 .map(this::queueItem).toList();
         return Map.of("items", items, "total", items.size());
     }
@@ -288,6 +291,7 @@ public class BoardTools {
         String key = upper(a.get("key"));
         String projectKey = key != null ? context(a).projectKey() : upper(a.get("project"));
         if (projectKey == null) throw new ToolException("Indica «key» (documento del issue) o «project» (documento del proyecto).");
+        project(projectKey); // existe y quien llama puede verlo
         DocContent d = docs.ofProject(projectKey).stream()
                 .filter(x -> x.kind().equals(kind) && java.util.Objects.equals(x.issueKey(), key))
                 .findFirst()
@@ -428,7 +432,8 @@ public class BoardTools {
 
     private IssueContext context(Map<String, String> a) {
         String key = required(a, "key").toUpperCase(Locale.ROOT);
-        return issues.context(key).orElseThrow(() -> new ToolException("No existe el issue " + key + "."));
+        return issues.context(key).filter(c -> BoardScope.allows(c.projectKey()))
+                .orElseThrow(() -> new ToolException("No existe el issue " + key + "."));
     }
 
     /** El issue debe estar en la cola de quien llama: sus agentes no trabajan lo que supervisa otra persona. */
@@ -455,7 +460,8 @@ public class BoardTools {
     }
 
     private ProjectView project(String key) {
-        return projects.find(key).orElseThrow(() -> new ToolException("No existe el proyecto " + key + "."));
+        return projects.find(key).filter(p -> BoardScope.allows(p.key()))
+                .orElseThrow(() -> new ToolException("No existe el proyecto " + key + "."));
     }
 
     private Optional<Methodology> methodology(ProjectView project) {

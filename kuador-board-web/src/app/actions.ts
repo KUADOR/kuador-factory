@@ -59,6 +59,7 @@ import type {
   PaymentProviderView,
   AttachmentListing,
   AgentMode,
+  BoardPerson,
   TeamAgent,
   WorkspaceAiStatus,
   CatalogPackage,
@@ -367,6 +368,14 @@ export async function savePlatformPackageAction(p: CatalogPackage): Promise<Acti
   return run(() => boardApi.savePlatformPackage(p), "/plataforma");
 }
 
+export async function addBoardPersonAction(key: string, memberId: string): Promise<ActionResult<BoardPerson[]>> {
+  return run(() => boardApi.addBoardPerson(key, memberId), `/projects/${key}`);
+}
+
+export async function removeBoardPersonAction(key: string, memberId: string): Promise<ActionResult<BoardPerson[]>> {
+  return run(() => boardApi.removeBoardPerson(key, memberId), `/projects/${key}`);
+}
+
 export async function addToTeamAction(key: string, memberId: string): Promise<ActionResult<TeamAgent[]>> {
   return run(() => boardApi.addToTeam(key, memberId), `/projects/${key}`);
 }
@@ -459,7 +468,15 @@ export async function removeTelegramGroupAction(id: string): Promise<ActionResul
   return run(() => boardApi.removeTelegramGroup(id), "/conexiones");
 }
 
-export async function inviteAction(input: { memberId?: string; name?: string; role?: string; access?: MemberAccess; email: string }): Promise<ActionResult<Invitation>> {
+export async function inviteAction(input: {
+  memberId?: string;
+  name?: string;
+  role?: string;
+  access?: MemberAccess;
+  email: string;
+  /** Tableros donde queda (quien edita o solo mira ve únicamente esos). */
+  projects?: string[];
+}): Promise<ActionResult<Invitation>> {
   return run(() => boardApi.invite(input), "/team");
 }
 

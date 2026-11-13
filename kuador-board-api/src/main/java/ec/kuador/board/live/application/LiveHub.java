@@ -2,6 +2,7 @@ package ec.kuador.board.live.application;
 
 import java.io.IOException;
 import java.time.Duration;
+import ec.kuador.board.shared.tenant.BoardScope;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -26,14 +27,20 @@ public class LiveHub {
     /** Qué cambió. {@code issueKey} nulo = algo del proyecto (p. ej. un documento del proyecto). */
     public record Change(String projectKey, String issueKey, String type, UUID actorId) {}
 
-    private record Subscriber(SseEmitter emitter, String projectKey) {}
+    /** {@code visible}: los tableros que puede ver (nulo = todos), tomados al conectarse. */
+    private record Subscriber(SseEmitter emitter, String projectKey, Set<String> visible) {
+
+        boolean wants(String changed) {
+            return (projectKey == null || projectKey.equals(changed)) && (visible == null || visible.contains(changed));
+        }
+    }
 
     private final Map<UUID, Set<Subscriber>> byWorkspace = new ConcurrentHashMap<>();
 
-    /** {@code projectKey} nulo = todos los proyectos del espacio. */
+    /** {@code projectKey} nulo = todos los proyectos que puede ver quien pide (ver {@link BoardScope}). */
     public SseEmitter subscribe(UUID workspaceId, String projectKey) {
         SseEmitter emitter = new SseEmitter(TIMEOUT.toMillis());
-        Subscriber s = new Subscriber(emitter, projectKey);
+        Subscriber s = new Subscriber(emitter, projectKey, BoardScope.current().orElse(null));
         Set<Subscriber> subscribers = byWorkspace.computeIfAbsent(workspaceId, k -> ConcurrentHashMap.newKeySet());
         subscribers.add(s);
         Runnable remove = () -> subscribers.remove(s);
@@ -52,7 +59,7 @@ public class LiveHub {
                 change.issueKey() == null ? "null" : "\"" + change.issueKey() + "\"", change.type(),
                 change.actorId() == null ? "null" : "\"" + change.actorId() + "\"");
         for (Subscriber s : subscribers) {
-            if (s.projectKey() == null || s.projectKey().equals(change.projectKey())) {
+            if (s.wants(change.projectKey())) {
                 send(s, SseEmitter.event().name("cambio").data(data), subscribers);
             }
         }

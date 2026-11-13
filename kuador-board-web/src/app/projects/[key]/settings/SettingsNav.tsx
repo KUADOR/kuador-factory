@@ -9,7 +9,13 @@ import type { ProjectKind } from "@/lib/types";
 export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: ProjectKind }) {
   const base = `/projects/${projectKey}/settings`;
   const groups = [
-    { title: "Proyecto", items: [{ slug: "general", label: "General" }] },
+    {
+      title: "Proyecto",
+      items: [
+        { slug: "general", label: "General" },
+        { slug: "personas", label: "Personas" },
+      ],
+    },
     ...(kind === "SOFTWARE"
       ? [
           {

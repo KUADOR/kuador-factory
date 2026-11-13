@@ -145,6 +145,13 @@ Decidido el 2026-11-10:
    editan o miran; solo un dueño nombra o cambia administradores y dueños; siempre queda un dueño.
    Se invita como `EDIT` por defecto. La migración V27 dejó al creador como `OWNER` y al resto de
    quienes editaban como `ADMIN`.
+   Personas por tablero (`project_member`, V28): quien edita o solo mira ve únicamente los tableros
+   donde está; dueños, administradores y agentes ven todos. Lo aplica el módulo `boardaccess`: fija
+   `BoardScope` por petición y responde 404 en `/api/projects/{clave}`, `/api/issues/{CLAVE-n}`,
+   `/api/docs/{id}` y `/api/attachments/{id}` ajenos; los listados, el tiempo real, el MCP y los avisos
+   filtran con el mismo alcance. No se asigna trabajo a quien no está en el tablero. Quien crea un
+   tablero queda en él; al invitar se eligen tableros. V28 dejó a cada persona en los tableros que
+   ya existían.
 
 1. **Etapas con roles, traspasos y puertas:** modelo, reglas, configuración por proyecto y la nueva
    plantilla de Software.

@@ -89,6 +89,7 @@ class AccessIT {
         String viewer = auth.login("cliente@omega.test", "clave-del-cliente-1").token();
 
         assertThat(call("POST", "/api/projects", Map.of("key", "OME", "name", "Omega", "templateKey", "SOFTWARE_FACTORY"), owner).status()).isEqualTo(201);
+        assertThat(call("POST", "/api/projects/OME/people", Map.of("memberId", client.id().toString()), owner).status()).isEqualTo(200);
         var stages = call("GET", "/api/projects/OME", null, owner).body().get("stages");
         var withClient = json.createArrayNode();
         stages.forEach(s -> {
@@ -185,5 +186,57 @@ class AccessIT {
         assertThat(call("PUT", "/api/members/" + ada.get("id").asText() + "/access", Map.of("access", "EDIT"), owner).status())
                 .as("Rosa ya no es dueña: no toca a Ada").isEqualTo(403);
         assertThat(w.id()).isNotNull();
+    }
+
+    @Test
+    void peopleWhoEditOrWatchOnlySeeTheBoardsTheyAreIn() throws Exception {
+        signup.requestCode("tere@tableros.test");
+        signup.complete(signup.verifyCode("tere@tableros.test", INBOX.get("tere@tableros.test")),
+                new SignupService.Company("Tableros", null, null, null, null, null), "Tere", "clave-de-tere-123", "FACTORY");
+        String owner = auth.login("tere@tableros.test", "clave-de-tere-123").token();
+        for (String key : new String[] {"ALFA", "BETA"}) {
+            assertThat(call("POST", "/api/projects", Map.of("key", key, "name", key, "templateKey", "SOFTWARE_FACTORY"), owner).status()).isEqualTo(201);
+        }
+        String alfaIssue = call("POST", "/api/projects/ALFA/issues", Map.of("title", "De Alfa", "type", "TASK"), owner).body().get("key").asText();
+        String betaIssue = call("POST", "/api/projects/BETA/issues", Map.of("title", "De Beta", "type", "TASK"), owner).body().get("key").asText();
+
+        JsonNode edu = call("POST", "/api/members", Map.of("name", "Edu", "kind", "HUMAN", "role", "DEV", "avatarColor", "#cccccc"), owner).body();
+        String eduId = edu.get("id").asText();
+        call("PUT", "/api/members/" + eduId + "/credentials", Map.of("email", "edu@tableros.test", "password", "clave-de-edu-123"), owner);
+        String editor = auth.login("edu@tableros.test", "clave-de-edu-123").token();
+
+        // Recién llegado: no ve ningún tablero, ni por su clave, ni sus issues.
+        assertThat(call("GET", "/api/projects", null, editor).body().size()).isZero();
+        assertThat(call("GET", "/api/projects/ALFA", null, editor).status()).isEqualTo(404);
+        assertThat(call("GET", "/api/projects/ALFA/issues", null, editor).status()).isEqualTo(404);
+        assertThat(call("GET", "/api/issues/" + alfaIssue, null, editor).status()).isEqualTo(404);
+        assertThat(call("POST", "/api/issues/" + alfaIssue + "/comments", Map.of("body", "hola"), editor).status()).isEqualTo(404);
+        assertThat(call("POST", "/api/projects/ALFA/people", Map.of("memberId", eduId), editor).status()).as("no se suma solo").isEqualTo(403);
+
+        // Quien administra lo suma a Alfa: ve Alfa y nada de Beta.
+        JsonNode people = call("POST", "/api/projects/ALFA/people", Map.of("memberId", eduId), owner).body();
+        assertThat(people.findValues("name").stream().map(JsonNode::asText)).contains("Edu");
+        assertThat(call("GET", "/api/projects", null, editor).body().findValues("key").stream().map(JsonNode::asText)).containsExactly("ALFA");
+        assertThat(call("GET", "/api/issues/" + alfaIssue, null, editor).status()).isEqualTo(200);
+        assertThat(call("GET", "/api/projects/ALFA/people", null, editor).status()).isEqualTo(200);
+        assertThat(call("GET", "/api/issues/" + betaIssue, null, editor).status()).isEqualTo(404);
+        assertThat(call("GET", "/api/projects/BETA/docs", null, editor).status()).isEqualTo(404);
+
+        // No se le pasa trabajo de un tablero donde no está.
+        Reply assign = call("PUT", "/api/issues/" + betaIssue + "/assignee", Map.of("assigneeId", eduId), owner);
+        assertThat(assign.status()).isEqualTo(422);
+        assertThat(assign.body().get("detail").asText()).contains("no está en el tablero");
+        assertThat(call("PUT", "/api/issues/" + alfaIssue + "/assignee", Map.of("assigneeId", eduId), owner).status()).isEqualTo(200);
+
+        // Quien crea un tablero queda en él.
+        assertThat(call("POST", "/api/projects", Map.of("key", "GAMA", "name", "Gama", "templateKey", "SOFTWARE_FACTORY"), editor).status()).isEqualTo(201);
+        assertThat(call("GET", "/api/projects", null, editor).body().findValues("key").stream().map(JsonNode::asText)).containsExactlyInAnyOrder("ALFA", "GAMA");
+
+        // Sale de Alfa y deja de verlo; a quien administra no se lo quita: ve todos por su nivel.
+        call("DELETE", "/api/projects/ALFA/people/" + eduId, null, owner);
+        assertThat(call("GET", "/api/issues/" + alfaIssue, null, editor).status()).isEqualTo(404);
+        String ownerId = call("GET", "/api/auth/me", null, owner).body().get("id").asText();
+        assertThat(call("DELETE", "/api/projects/BETA/people/" + ownerId, null, owner).status()).isEqualTo(422);
+        assertThat(call("GET", "/api/projects", null, owner).body().size()).isEqualTo(3);
     }
 }

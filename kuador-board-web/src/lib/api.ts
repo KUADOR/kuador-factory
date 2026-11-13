@@ -68,6 +68,7 @@ import type {
   PaymentType,
   AttachmentListing,
   AgentMode,
+  BoardPerson,
   TeamAgent,
   WorkspaceAiStatus,
   CatalogPackage,
@@ -174,6 +175,11 @@ export const boardApi = {
   packages: () => request<CatalogPackage[]>("/api/public/packages", { anonymous: true }),
   workspacePackage: () => request<CatalogPackage | undefined>("/api/workspace/package"),
   boardTeam: (key: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`),
+  boardPeople: (key: string) => request<BoardPerson[]>(`/api/projects/${encodeURIComponent(key)}/people`),
+  addBoardPerson: (key: string, memberId: string) =>
+    request<BoardPerson[]>(`/api/projects/${encodeURIComponent(key)}/people`, json("POST", { memberId })),
+  removeBoardPerson: (key: string, memberId: string) =>
+    request<BoardPerson[]>(`/api/projects/${encodeURIComponent(key)}/people/${encodeURIComponent(memberId)}`, { method: "DELETE" }),
   addToTeam: (key: string, memberId: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`, json("POST", { memberId })),
   createTeamAgent: (key: string, input: { name: string; role: string; description: string | null; mode: AgentMode; model: string | null }) =>
     request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team/agents`, json("POST", input)),
@@ -216,7 +222,7 @@ export const boardApi = {
     request<TelegramGroup>(`/api/workspace/telegram/groups/${encodeURIComponent(id)}`, json("PUT", input)),
   removeTelegramGroup: (id: string) => request<void>(`/api/workspace/telegram/groups/${encodeURIComponent(id)}`, { method: "DELETE" }),
   invitations: () => request<Invitation[]>("/api/invitations"),
-  invite: (input: { memberId?: string; name?: string; role?: string; access?: MemberAccess; email: string }) =>
+  invite: (input: { memberId?: string; name?: string; role?: string; access?: MemberAccess; email: string; projects?: string[] }) =>
     request<Invitation>("/api/invitations", json("POST", input)),
   resendInvitation: (id: string) => request<Invitation>(`/api/invitations/${encodeURIComponent(id)}/resend`, { method: "POST" }),
   cancelInvitation: (id: string) => request<void>(`/api/invitations/${encodeURIComponent(id)}`, { method: "DELETE" }),

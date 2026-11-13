@@ -231,7 +231,7 @@ groups:
         expression: A
         conditions:
         - evaluator:
-            type: ge
+            type: gte
             params:
             - 3
   - uid: base-saturada

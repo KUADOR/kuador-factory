@@ -42,6 +42,7 @@ class ProductOwnerAgentTest {
     private final Map<String, IssueApi.IssueContext> issueStore = new HashMap<>();
     private final List<String> comments = new ArrayList<>();
     private final List<String> writes = new ArrayList<>();
+    private final List<IssueApi.PlannedTask> planned = new ArrayList<>();
     private final List<PoContext> seen = new ArrayList<>();
     private final List<String> keysUsed = new ArrayList<>();
     private String workspaceKey;
@@ -80,6 +81,12 @@ class ProductOwnerAgentTest {
             public IssueRef createForImport(String p, String t, UUID a) { throw new UnsupportedOperationException(); }
             public Optional<IssueContext> context(String k) { return Optional.ofNullable(issueStore.get(k)); }
             public void addComment(String k, UUID author, String body) { comments.add(author + "|" + body); }
+            public List<IssueRef> createEpicTasks(String epic, List<PlannedTask> tasks, UUID actor) {
+                planned.addAll(tasks);
+                List<IssueRef> refs = new ArrayList<>();
+                for (int i = 0; i < tasks.size(); i++) refs.add(new IssueRef("KUA-" + (20 + i), "KUA", 20 + i, tasks.get(i).title()));
+                return refs;
+            }
             public void reassign(String k, UUID m, UUID actor) { issueStore.computeIfPresent(k, (key, i) -> withAssignee(i, m)); }
             public boolean setStoryPointsIfEmpty(String k, int points, UUID actor) {
                 IssueContext i = issueStore.get(k);
@@ -159,6 +166,52 @@ class ProductOwnerAgentTest {
         assertThat(run.status()).isEqualTo(AgentRun.Status.SUCCEEDED);
         assertThat(run.inputTokens()).isEqualTo(1200);
         assertThat(run.summary()).contains("comentó").contains("spec v1").contains("5 pts").contains("devuelto a Diana");
+    }
+
+    @Test
+    void theArchitectPlanOfAnEpicAlsoCreatesItsTasks() {
+        projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
+        // Una épica en Diseño: después viene Desarrollo (trabajo), así que el plan se reparte en tareas.
+        issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "CRUD de pacientes", "Registro y búsqueda", "EPIC", "DESIGN", "HIGH", 8,
+                List.of(), null, PO, PERSON, List.of()));
+        modelBehaviour = c -> new ProductOwnerModel.Result(new PoProposal("Plan del CRUD.", "Como personal quiero registrar pacientes",
+                List.of("Dado…, cuando…, entonces…"), List.of(), List.of(), 8, PoProposal.Complexity.SUBSTANTIAL, "# Plan",
+                List.of(new PoProposal.PlannedTask("API de pacientes", "BACKEND", "Endpoints y reglas", List.of()),
+                        new PoProposal.PlannedTask("Pantallas de pacientes", "FRONTEND", "Listado y ficha", List.of(1)))), "m", 1, 1);
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(seen.getFirst().splitsIntoTasks()).isTrue();
+        assertThat(seen.getFirst().taskRoles()).anyMatch(r -> r.startsWith("BACKEND"));
+        assertThat(planned).extracting(IssueApi.PlannedTask::role).containsExactly("BACKEND", "FRONTEND");
+        assertThat(planned.get(1).dependsOn()).containsExactly(1);
+        assertThat(comments.getLast()).contains("Repartí la épica en 2 tarea(s)").contains("KUA-20 API de pacientes (BACKEND)");
+        assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);
+    }
+
+    @Test
+    void anEpicPlanWithoutTasksFailsSoItCanBeRetried() {
+        projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
+        issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "CRUD de pacientes", null, "EPIC", "DESIGN", "HIGH", 8,
+                List.of(), null, PO, PERSON, List.of()));
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.FAILED);
+        assertThat(onlyRun().error()).contains("sin tareas");
+        assertThat(planned).isEmpty();
+    }
+
+    @Test
+    void aStoryOrAnEpicInRefinementIsNotSplit() {
+        projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
+        issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "CRUD de pacientes", null, "EPIC", "REFINEMENT", "HIGH", null,
+                List.of(), null, PO, PERSON, List.of()));
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(seen.getFirst().splitsIntoTasks()).as("de Refinamiento sigue Aprobación, no trabajo").isFalse();
+        assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);
     }
 
     @Test

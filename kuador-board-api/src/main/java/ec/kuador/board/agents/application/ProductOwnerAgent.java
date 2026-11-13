@@ -127,6 +127,9 @@ public class ProductOwnerAgent {
             String chosen = key.isPresent() ? tx.execute(s -> keys.modelForAgent(agent.get().id())).orElse(null) : null;
             ProductOwnerModel.Result result = key.isPresent() ? model.propose(key.get(), chosen, context) : model.propose(context);
             PoProposal proposal = validate(result.proposal());
+            if (context.splitsIntoTasks() && proposal.tasks().isEmpty()) {
+                throw new AgentModelException("El plan de la épica llegó sin tareas; reintenta para que reparta el trabajo.");
+            }
             String summary = tx.execute(s -> apply(agent.get(), requester.get(), context, proposal));
             finish(run.succeeded(result.model(), result.inputTokens(), result.outputTokens(), summary, now()));
         } catch (AgentModelException e) {
@@ -166,7 +169,13 @@ public class ProductOwnerAgent {
                 issue.priority(), issue.storyPoints(), issue.labels());
         return new PoContext(agent.name(), agent.description(), role.instructions(), project.key(), project.name(), project.kind().name(),
                 methodology.map(Methodology::name).orElse(null), methodology.map(Methodology::summary).orElse(null),
-                methodology.map(Methodology::agentRules).orElse(List.of()), projectDocs, current, epic, comments, task, existing);
+                methodology.map(Methodology::agentRules).orElse(List.of()), projectDocs, current, epic, comments, task, existing, taskRoles(issue, project));
+    }
+
+    /** En una épica que después de esta etapa se trabaja, los roles con que se reparte; si no, ninguno. */
+    private List<String> taskRoles(IssueApi.IssueContext issue, ProjectView project) {
+        if (!"EPIC".equals(issue.type()) || !project.epicSplitsInto(issue.status())) return List.of();
+        return catalog.roles().stream().map(r -> r.key() + ": " + r.name()).toList();
     }
 
     /** Acciones deterministas a partir de la propuesta. Devuelve el resumen para el registro. */
@@ -181,6 +190,22 @@ public class ProductOwnerAgent {
                     "Propuesta de " + agent.name(), agent.id());
             docNote = "📄 Escribí «" + task.label() + "» (v" + doc.version() + "): `" + doc.path() + "`.";
             done.add(task.label().toLowerCase() + " v" + doc.version());
+        }
+        if (context.splitsIntoTasks()) {
+            List<IssueApi.PlannedTask> planned = p.tasks().stream()
+                    .map(t -> new IssueApi.PlannedTask(t.title(), t.description(), t.role(), t.dependsOn() == null ? List.of() : t.dependsOn())).toList();
+            List<IssueApi.IssueRef> created;
+            try {
+                created = issues.createEpicTasks(key, planned, agent.id());
+            } catch (ec.kuador.board.shared.error.DomainException e) {
+                throw new AgentModelException("No pude crear las tareas del plan: " + e.getMessage(), e);
+            }
+            StringBuilder note = new StringBuilder("🧩 Repartí la épica en ").append(created.size()).append(" tarea(s); esperan en la primera columna hasta que apruebes el reparto:");
+            for (int i = 0; i < created.size(); i++) {
+                note.append("\n- ").append(created.get(i).key()).append(" ").append(created.get(i).title()).append(" (").append(p.tasks().get(i).role()).append(")");
+            }
+            docNote = docNote == null ? note.toString() : docNote + "\n\n" + note;
+            done.add(created.size() + " tarea(s)");
         }
         boolean pointsApplied = issues.setStoryPointsIfEmpty(key, p.storyPoints(), agent.id());
         if (pointsApplied) done.add(p.storyPoints() + " pts");
@@ -209,7 +234,8 @@ public class ProductOwnerAgent {
             }
         }
         return new PoProposal(nz(p.understanding()), p.userStory(), p.acceptanceCriteria(), orEmpty(p.openQuestions()), orEmpty(p.outOfScope()),
-                points, p.complexity() == null ? PoProposal.Complexity.SUBSTANTIAL : p.complexity(), nz(p.document()));
+                points, p.complexity() == null ? PoProposal.Complexity.SUBSTANTIAL : p.complexity(), nz(p.document()),
+                p.tasks() == null ? List.of() : p.tasks());
     }
 
     private void finish(AgentRun run) {

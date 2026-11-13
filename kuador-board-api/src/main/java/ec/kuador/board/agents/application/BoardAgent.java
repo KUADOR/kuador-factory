@@ -251,20 +251,14 @@ public class BoardAgent {
                 });
     }
 
-    /** Una épica sin tareas no se entrega si después viene una etapa de trabajo (las tareas son lo que se trabaja). */
+    /** Una épica sin tareas no se entrega si la etapa siguiente es de trabajo (las tareas son lo que se trabaja). */
     private String epicNeedsTasks(String epicKey) {
         return tx.execute(s -> {
             if (!issues.epicTasks(epicKey).isEmpty()) return null;
             IssueApi.IssueContext c = issues.context(epicKey).orElse(null);
             if (c == null) return null;
-            ProjectView project = projects.find(c.projectKey()).orElse(null);
-            if (project == null) return null;
-            boolean toWork = project.nextAfter(c.status()).flatMap(n -> project.stage(n.key())).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
-            // Tras una puerta de aprobación también llega a trabajo: se mira la etapa siguiente a la puerta.
-            boolean afterGate = project.nextAfter(c.status()).flatMap(n -> project.stage(n.key())).map(st -> st.gate()).orElse(false)
-                    && project.nextAfter(c.status()).flatMap(n -> project.nextAfter(n.key())).flatMap(n -> project.stage(n.key()))
-                            .map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
-            return toWork || afterGate
+            boolean splits = projects.find(c.projectKey()).map(p -> p.epicSplitsInto(c.status())).orElse(false);
+            return splits
                     ? epicKey + " es una épica sin tareas: antes de entregarla, crea una tarjeta por cada tarea del plan con create_tasks."
                     : null;
         });

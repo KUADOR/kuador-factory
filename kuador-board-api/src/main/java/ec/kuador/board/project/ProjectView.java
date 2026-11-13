@@ -27,6 +27,14 @@ public record ProjectView(
         return columns.stream().skip(from == Integer.MAX_VALUE ? 0 : from + 1L).filter(c -> canMove(columnKey, c.key())).findFirst();
     }
 
+    /**
+     * Si una épica en {@code columnKey} se reparte en tareas al entregarla: es un tablero de software y la etapa
+     * siguiente es de trabajo (con roles y sin puerta), p. ej. de Diseño a Desarrollo. De Refinamiento a Aprobación no.
+     */
+    public boolean epicSplitsInto(String columnKey) {
+        return software() && nextAfter(columnKey).flatMap(n -> stage(n.key())).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
+    }
+
     public boolean software() {
         return kind == ProjectKind.SOFTWARE;
     }

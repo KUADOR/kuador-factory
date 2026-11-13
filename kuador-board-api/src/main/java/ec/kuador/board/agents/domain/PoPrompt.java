@@ -55,6 +55,7 @@ public final class PoPrompt {
             u.append("</comentarios>\n\n");
         }
         u.append(documentInstruction(c));
+        u.append(taskInstruction(c));
         return u.toString();
     }
 
@@ -74,6 +75,15 @@ public final class PoPrompt {
         if (doc.instructions() != null && !doc.instructions().isBlank()) {
             out.append(doc.instructions().strip()).append('\n');
         }
+        return out.toString();
+    }
+
+    private static String taskInstruction(PoContext c) {
+        if (!c.splitsIntoTasks()) return "No repartas el issue en tareas: deja `tasks` como lista vacía.\n";
+        StringBuilder out = new StringBuilder("\nEs una épica y después de esta etapa se trabaja: reparte el plan en `tasks`, una por cada tarea del plan, ")
+                .append("en orden. Cada tarea la trabaja un solo rol en su propia rama y PR; que sea chica y verificable. En `dependsOn` van los números ")
+                .append("(desde 1) de las tareas que deben terminar antes. Una persona revisa el reparto y, al aprobarlo, arrancan. Roles posibles:\n");
+        c.taskRoles().forEach(r -> out.append("- ").append(r).append('\n'));
         return out.toString();
     }
 

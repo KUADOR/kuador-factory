@@ -35,6 +35,7 @@ Pruebas de la API: `./mvnw test` (dominio, casos de uso y límites entre módulo
 
 Imágenes Docker de la API y la web, CI que las publica en GHCR y guía de Dokploy (web y API con dominio propio; por el de la API
 solo entran `/mcp`, el kit de agentes, el webhook de GitHub y la salud): [docs/despliegue.md](docs/despliegue.md).
+Monitoreo con Grafana, Prometheus, Loki y Alloy (tablero y alertas por correo): [docs/monitoreo.md](docs/monitoreo.md).
 
 ## Espacios de trabajo y catálogo
 

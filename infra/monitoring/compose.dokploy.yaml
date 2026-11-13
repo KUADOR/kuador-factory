@@ -1,0 +1,92 @@
+# Monitoreo en Dokploy (servicio de tipo Compose apuntando a este archivo): Grafana + Prometheus + Loki + Alloy.
+# Alloy recoge las métricas de la API (puerto interno 9464), los logs de todos los contenedores y las del servidor,
+# y comprueba desde aquí que la web y la API respondan. Solo Grafana tiene dominio (se configura en Dokploy).
+# Variables del servicio: ver docs/monitoreo.md. Consumo aproximado: entre 0,8 y 1,5 GB de RAM en total.
+services:
+  grafana:
+    image: grafana/grafana:13.2.6
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?falta; genera una con openssl rand -base64 24}"
+      GF_SERVER_ROOT_URL: "${GRAFANA_URL:?falta, p. ej. https://monitoreo.kuador.com}"
+      GF_SECURITY_COOKIE_SECURE: "${GRAFANA_COOKIE_SECURE:-true}"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_DATE_FORMATS_DEFAULT_TIMEZONE: "America/Guayaquil"
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: "${SMTP_HOST:?falta, p. ej. smtp.hostinger.com:465}"
+      GF_SMTP_USER: "${SMTP_USER:?falta}"
+      GF_SMTP_PASSWORD: "${SMTP_PASSWORD:?falta}"
+      GF_SMTP_FROM_ADDRESS: "${SMTP_FROM:-${SMTP_USER}}"
+      GF_SMTP_FROM_NAME: "Monitoreo Kuador Go"
+      ALERT_EMAILS: "${ALERT_EMAILS:?falta; correos separados por punto y coma}"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus, loki]
+    networks: [dokploy-network, monitoreo]
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    restart: unless-stopped
+    mem_limit: 768m
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${METRICS_RETENTION:-30d}
+      - --storage.tsdb.retention.size=3GB
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [monitoreo]
+
+  loki:
+    image: grafana/loki:3.7.10
+    restart: unless-stopped
+    mem_limit: 768m
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    networks: [monitoreo]
+
+  alloy:
+    image: grafana/alloy:v1.21.3
+    restart: unless-stopped
+    mem_limit: 384m
+    command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    environment:
+      API_METRICS: "${API_METRICS:?falta: <nombre-del-servicio-de-la-api>:9464}"
+      WEB_URL: "${WEB_URL:-https://go.kuador.com}"
+      API_URL: "${API_URL:-https://go-api.kuador.com}"
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+      # Los logs y los nombres de los contenedores. Ojo: el socket de Docker da control total del servidor.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Uso de CPU, memoria y disco del servidor (solo lectura).
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    depends_on: [prometheus, loki]
+    networks: [dokploy-network, monitoreo]
+
+networks:
+  dokploy-network:
+    external: true
+  # Prometheus y Loki solo se ven entre ellos, Grafana y Alloy: ningún otro servicio del servidor los alcanza.
+  monitoreo:
+
+volumes:
+  grafana-data:
+  prometheus-data:
+  loki-data:
+  alloy-data:

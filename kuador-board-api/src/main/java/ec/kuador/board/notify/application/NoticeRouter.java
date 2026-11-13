@@ -145,7 +145,7 @@ class NoticeRouter {
         try {
             TenantContext.run(workspaceId, () -> tx.executeWithoutResult(s -> work.run()));
         } catch (RuntimeException ex) {
-            log.warn("No se pudo preparar un aviso: {}", ex.getMessage(), ex);
+            log.error("No se pudo preparar un aviso: {}", ex.getMessage(), ex);
         }
     }
 }

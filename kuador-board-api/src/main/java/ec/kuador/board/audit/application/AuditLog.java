@@ -45,7 +45,7 @@ public class AuditLog {
                     r.target(), r.status(), r.ip(), r.userAgent(), clock.instant());
             tx.executeWithoutResult(s -> store.append(entry));
         } catch (RuntimeException e) {
-            log.warn("No se pudo registrar en la auditoría {} {}: {}", r.action(), r.target(), e.getMessage());
+            log.error("No se pudo registrar en la auditoría {} {}: {}", r.action(), r.target(), e.getMessage());
         }
     }
 

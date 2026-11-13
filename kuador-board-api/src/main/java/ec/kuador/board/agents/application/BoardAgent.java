@@ -58,9 +58,11 @@ public class BoardAgent {
     private final WorkspaceApi workspace;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final io.micrometer.core.instrument.MeterRegistry metrics;
 
     BoardAgent(AgentRunRepository runs, AiProviders providers, BoardTeam team, WorkspaceAi ai, IssueApi issues, ProjectApi projects, MemberApi members,
-            CatalogApi catalog, AttachmentApi attachments, WorkspaceApi workspace, PlatformTransactionManager txManager, Clock clock) {
+            CatalogApi catalog, AttachmentApi attachments, WorkspaceApi workspace, PlatformTransactionManager txManager, Clock clock,
+            io.micrometer.core.instrument.MeterRegistry metrics) {
         this.runs = runs;
         this.providers = providers;
         this.team = team;
@@ -73,6 +75,7 @@ public class BoardAgent {
         this.workspace = workspace;
         this.tx = new TransactionTemplate(txManager);
         this.clock = clock;
+        this.metrics = metrics;
     }
 
     /** Punto de entrada: una tarjeta se asignó a alguien. Trabaja dentro del espacio del evento. */
@@ -239,5 +242,18 @@ public class BoardAgent {
 
     private void finish(AgentRun run) {
         tx.executeWithoutResult(s -> runs.save(run));
+        record(run);
+    }
+
+    /** Para el monitoreo (Grafana): cuántos trabajos terminan y cómo, cuánto tardan y cuántos tokens usan. Sin datos del espacio. */
+    private void record(AgentRun run) {
+        String outcome = run.status().name();
+        metrics.counter("kuador.agent.runs", "outcome", outcome).increment();
+        if (run.status() == AgentRun.Status.SKIPPED || run.finishedAt() == null) return;
+        metrics.timer("kuador.agent.duration", "outcome", outcome).record(java.time.Duration.between(run.createdAt(), run.finishedAt()));
+        if (run.model() != null && run.inputTokens() != null) {
+            metrics.counter("kuador.agent.tokens", "model", run.model(), "direction", "input").increment(run.inputTokens());
+            metrics.counter("kuador.agent.tokens", "model", run.model(), "direction", "output").increment(run.outputTokens() == null ? 0 : run.outputTokens());
+        }
     }
 }

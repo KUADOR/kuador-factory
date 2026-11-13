@@ -242,7 +242,7 @@ public class NotificationService {
                     int attempts = n.attempts() + 1;
                     if (attempts >= MAX_ATTEMPTS) {
                         store.markFailed(n.id(), attempts, e.getMessage());
-                        log.warn("Aviso {} por {} descartado tras {} intentos: {}", n.id(), n.channel(), attempts, e.getMessage());
+                        log.error("Aviso {} por {} descartado tras {} intentos: {}", n.id(), n.channel(), attempts, e.getMessage());
                     } else {
                         store.markRetry(n.id(), attempts, now.plus(Duration.ofSeconds(30L << Math.min(attempts, 7))), e.getMessage());
                     }

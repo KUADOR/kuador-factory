@@ -1,0 +1,3 @@
+# Prometheus solo guarda: Alloy le envía las métricas (remote write). No consulta nada por su cuenta.
+global:
+  evaluation_interval: 1m

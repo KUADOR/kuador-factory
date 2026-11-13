@@ -58,7 +58,7 @@ public class LicenseReminders {
             int sent = run();
             if (sent > 0) log.info("{} aviso(s) de vencimiento", sent);
         } catch (RuntimeException e) {
-            log.warn("Falló la revisión de vencimientos: {}", e.getMessage());
+            log.error("Falló la revisión de vencimientos: {}", e.getMessage());
         }
     }
 

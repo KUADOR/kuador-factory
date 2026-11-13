@@ -30,6 +30,10 @@ spring:
   mail:
     # Solo aplica si hay SPRING_MAIL_HOST (puerto 587 con STARTTLS).
     properties:
+      # Que un SMTP lento no deje colgada una petición.
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
       mail.smtp.starttls.enable: true
       mail.smtp.starttls.required: true
   servlet:
@@ -42,10 +46,26 @@ spring:
       enabled: true
 
 management:
+  # En producción, MANAGEMENT_SERVER_PORT=9464: las métricas quedan en un puerto que Traefik no publica (solo la red
+  # interna, donde las lee Alloy). La salud pública sigue en el puerto de la API como /livez y /readyz.
+  server:
+    address: ${MANAGEMENT_SERVER_ADDRESS:${SERVER_ADDRESS:127.0.0.1}}
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+        add-additional-paths: true
+  metrics:
+    tags:
+      application: kuador-board-api
+    distribution:
+      # Para calcular percentiles (p95) de los tiempos de respuesta en Grafana.
+      percentiles-histogram:
+        http.server.requests: true
 
 springdoc:
   swagger-ui:

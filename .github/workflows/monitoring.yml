@@ -1,0 +1,51 @@
+name: Monitoreo
+
+# Levanta el stack de infra/monitoring tal como corre en Dokploy y comprueba que Grafana carga el tablero, las
+# alertas y las fuentes de datos, y que Alloy entrega métricas y logs.
+on:
+  pull_request:
+    paths: ['infra/monitoring/**', '.github/workflows/monitoring.yml']
+  push:
+    branches: [main]
+    paths: ['infra/monitoring/**', '.github/workflows/monitoring.yml']
+  workflow_dispatch:
+
+jobs:
+  stack:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/monitoring
+    env:
+      GRAFANA_ADMIN_PASSWORD: prueba-ci-123
+      GRAFANA_URL: http://localhost:3000
+      GRAFANA_COOKIE_SECURE: 'false'
+      SMTP_HOST: 127.0.0.1:2525
+      SMTP_USER: alertas@kuador.test
+      SMTP_PASSWORD: x
+      ALERT_EMAILS: alertas@kuador.test
+      # Sin API en CI: apunta a Prometheus para probar el raspado (responde 404 en esa ruta, up=0).
+      API_METRICS: prometheus:9090
+    steps:
+      - uses: actions/checkout@v7
+      - name: Levantar el stack
+        run: |
+          docker network create dokploy-network
+          docker compose -p mon -f compose.dokploy.yaml up -d --wait --wait-timeout 180 || (docker compose -p mon -f compose.dokploy.yaml logs; exit 1)
+      - name: Comprobar Grafana, Prometheus, Loki y Alloy
+        run: |
+          q() { docker run --rm --network mon_monitoreo curlimages/curl:8.17.0 -fsS -u "admin:$GRAFANA_ADMIN_PASSWORD" "$@"; }
+          for i in $(seq 1 30); do q http://grafana:3000/api/health >/dev/null 2>&1 && break; sleep 3; done
+          echo "Tablero:";  q "http://grafana:3000/api/dashboards/uid/kuador-go" | jq -e '.dashboard.title == "Kuador Go"'
+          echo "Alertas:";  q "http://grafana:3000/api/v1/provisioning/alert-rules" | jq -e 'length == 11'
+          echo "Contacto:"; q "http://grafana:3000/api/v1/provisioning/contact-points" | jq -e '.[] | select(.name == "Correo") | .settings.addresses == "alertas@kuador.test"'
+          for ds in prometheus loki; do echo "Fuente $ds:"; q "http://grafana:3000/api/datasources/uid/$ds/health" | jq -e '.status == "OK"'; done
+          # Alloy necesita un par de ciclos para enviar.
+          sleep 75
+          echo "Métricas del servidor:"; q "http://prometheus:9090/api/v1/query?query=up%7Bjob%3D%22servidor%22%7D" | jq -e '.data.result[0].value[1] == "1"'
+          echo "Sondas:"; q "http://prometheus:9090/api/v1/query?query=probe_success" | jq -e '[.data.result[].metric.probe] | sort == ["api", "web"]'
+          echo "Raspado de la API:"; q "http://prometheus:9090/api/v1/query?query=up%7Bjob%3D%22kuador-api%22%7D" | jq -e '.data.result | length == 1'
+          echo "Logs:"; q "http://loki:3100/loki/api/v1/label/service/values" | jq -e '.data | length > 0'
+      - name: Logs si falla
+        if: failure()
+        run: docker compose -p mon -f compose.dokploy.yaml logs --tail 80

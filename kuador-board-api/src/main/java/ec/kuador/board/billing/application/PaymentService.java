@@ -134,7 +134,7 @@ public class PaymentService {
                     webUrl + "/workspace/plan?pago=cancelado");
         } catch (RuntimeException e) {
             tx.executeWithoutResult(s -> store.markFailed(payment.id()));
-            log.warn("No se pudo iniciar el pago con {}: {}", provider.code(), e.getMessage());
+            log.error("No se pudo iniciar el pago con {}: {}", provider.code(), e.getMessage());
             throw new DomainException("No pudimos iniciar el pago con " + provider.name() + ". Intenta de nuevo en unos minutos.");
         }
         tx.executeWithoutResult(s -> store.setExternalId(payment.id(), checkout.externalId()));
@@ -151,7 +151,7 @@ public class PaymentService {
         try {
             paid = gateway(provider.type()).capture(provider, payment.externalId());
         } catch (RuntimeException e) {
-            log.warn("No se pudo confirmar el pago {}: {}", paymentId, e.getMessage());
+            log.error("No se pudo confirmar el pago {}: {}", paymentId, e.getMessage());
             throw new DomainException("No pudimos confirmar el pago con " + provider.name() + ". Si ya pagaste, se activará en unos minutos.");
         }
         if (paid) settle(payment);

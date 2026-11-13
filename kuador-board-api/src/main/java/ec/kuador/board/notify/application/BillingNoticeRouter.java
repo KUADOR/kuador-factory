@@ -104,7 +104,7 @@ class BillingNoticeRouter {
                 to.forEach(person -> notifications.enqueue(workspaceId, person, NoticeKind.BILLING, subject, body, planUrl));
             }));
         } catch (RuntimeException ex) {
-            log.warn("No se pudo preparar un aviso de cobro: {}", ex.getMessage(), ex);
+            log.error("No se pudo preparar un aviso de cobro: {}", ex.getMessage(), ex);
         }
     }
 

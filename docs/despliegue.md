@@ -22,7 +22,7 @@ Internet ──HTTPS──▶ Traefik (Dokploy)
   el kit de agentes (`/api/agent-kit`, `/api/agent-kit.zip`), los webhooks de los bots de Telegram
   (`/api/telegram/webhook[/{clave}]`, con su secreto), los avisos de las pasarelas de pago
   (`/api/payments/webhook/{código}`, verificados con la pasarela), el webhook de GitHub
-  (`/api/github/webhook`) y `/actuator/health`. Lo hace la propia API (`BOARD_PUBLIC_HOST_GATE=true`):
+  (`/api/github/webhook`) y la salud (`/readyz`, `/livez`, `/actuator/health`). Lo hace la propia API (`BOARD_PUBLIC_HOST_GATE=true`):
   cualquier otra ruta pedida con el host de `BOARD_PUBLIC_URL` responde 404. El resto de la API lo
   llama el servidor de Next por la red interna, con el host interno; el navegador nunca habla con la API.
 - **Las imágenes** las construye GitHub Actions (`.github/workflows/ci.yml`) y las publica en GHCR:
@@ -94,6 +94,10 @@ BOARD_SYNC_ALLOWED_ROOTS=
 # Documentación de la API apagada en producción.
 SPRINGDOC_API_DOCS_ENABLED=false
 SPRINGDOC_SWAGGER_UI_ENABLED=false
+
+# Monitoreo (docs/monitoreo.md): métricas en un puerto que Traefik no publica y logs en JSON para Loki.
+MANAGEMENT_SERVER_PORT=9464
+LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs
 ```
 
 Sin `ANTHROPIC_API_KEY`: los agentes corren en el Claude Code (o Codex, u otro cliente) de cada
@@ -132,6 +136,10 @@ Con el tablero ya en su dominio, entra como dueña del espacio que opera la plat
 **Conexiones → Registrar la app en GitHub**. El manifiesto lleva las URLs públicas, así que GitHub
 vuelve al tablero desplegado. Una app registrada desde `localhost` queda con URLs locales: no se
 reutiliza en producción.
+
+## 5b. Monitoreo
+
+Grafana, Prometheus, Loki y Alloy en un servicio Compose aparte: ver [monitoreo.md](monitoreo.md).
 
 ## 6. Despliegues
 

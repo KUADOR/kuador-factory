@@ -38,7 +38,8 @@ class SecurityConfiguration {
 
     @Bean
     SecurityFilterChain api(HttpSecurity http, AuthService auth, ec.kuador.board.auth.application.PlatformAdmins platform,
-            @org.springframework.beans.factory.annotation.Value("${board.public-url:http://localhost:8091}") String configuredPublicUrl) throws Exception {
+            @org.springframework.beans.factory.annotation.Value("${board.public-url:http://localhost:8091}") String configuredPublicUrl,
+            @org.springframework.beans.factory.annotation.Value("${management.server.port:-1}") int managementPort) throws Exception {
         String publicUrl = configuredPublicUrl.replaceAll("/+$", "");
         http.csrf(c -> c.disable()) // API sin cookies: el token va en un header que el navegador no envía solo.
                 .httpBasic(b -> b.disable())
@@ -57,7 +58,9 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.PUT, "/api/workspace/plan").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.POST, "/api/payments/webhook/*").permitAll()
                         .requestMatchers("/api/workspace/plan/**").access(HUMAN_EDITOR)
-                        .requestMatchers("/actuator/health/**", "/actuator/health", "/v3/api-docs/**", "/swagger-ui/**",
+                        // Las métricas, solo por el puerto de administración (interno, sin dominio): ahí las lee Alloy.
+                        .requestMatchers(req -> managementPort > 0 && req.getLocalPort() == managementPort).permitAll()
+                        .requestMatchers("/actuator/health/**", "/actuator/health", "/livez", "/readyz", "/v3/api-docs/**", "/swagger-ui/**",
                                 "/swagger-ui.html", "/error").permitAll()
                         // OAuth del servidor MCP: metadatos, registro de clientes y canje del código (ver OAuthController).
                         .requestMatchers("/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp",

@@ -56,7 +56,7 @@ class NoticeDispatcher implements ec.kuador.board.notify.infrastructure.web.Tele
             int sent = notifications.dispatch(20);
             if (sent > 0) log.debug("{} aviso(s) enviados", sent);
         } catch (RuntimeException e) {
-            log.warn("Falló el despacho de avisos: {}", e.getMessage());
+            log.error("Falló el despacho de avisos: {}", e.getMessage());
         }
     }
 

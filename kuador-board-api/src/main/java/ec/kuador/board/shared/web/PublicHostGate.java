@@ -12,7 +12,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Cuando la API tiene dominio propio en Internet, por ese dominio solo entran los clientes de IA (MCP, su
- * kit y su inicio de sesión OAuth), GitHub (webhook) y el chequeo de salud. El resto de la API lo usa solo la web por la red interna,
+ * kit y su inicio de sesión OAuth), GitHub (webhook) y el chequeo de salud (/livez, /readyz). El resto de la API lo usa solo la web por la red interna,
  * que llega con otro host; desde fuera responde 404, como si no existiera.
  */
 public final class PublicHostGate extends OncePerRequestFilter {
@@ -20,7 +20,7 @@ public final class PublicHostGate extends OncePerRequestFilter {
     static final List<String> OPEN_PATHS = List.of("/mcp", "/api/agent-kit", "/api/agent-kit.zip", "/api/github/webhook",
             "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-authorization-server",
             "/oauth/register", "/oauth/token", "/api/telegram/webhook",
-            "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness");
+            "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness", "/livez", "/readyz");
 
     private final String publicHost;
     private final WebSecret web;

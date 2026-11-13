@@ -1,0 +1,126 @@
+// Alloy: recoge todo y lo envía a Prometheus (métricas) y Loki (logs).
+
+// ---- Métricas de la API (puerto de administración, solo red interna) ----
+prometheus.scrape "api" {
+  job_name        = "kuador-api"
+  targets         = [{"__address__" = sys.env("API_METRICS")}]
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+// ---- ¿Responden la web y la API desde Internet? (y cuándo vence su certificado) ----
+prometheus.exporter.blackbox "publico" {
+  config = "{ modules: { http_2xx: { prober: http, timeout: 10s, http: { preferred_ip_protocol: ip4, follow_redirects: true } } } }"
+  targets = [
+    {"name" = "web", "address" = sys.env("WEB_URL"), "module" = "http_2xx"},
+    {"name" = "api", "address" = sys.env("API_URL") + "/readyz", "module" = "http_2xx"},
+  ]
+}
+
+discovery.relabel "publico" {
+  targets = prometheus.exporter.blackbox.publico.targets
+  rule {
+    source_labels = ["job"]
+    regex         = ".*/(.*)"
+    target_label  = "probe"
+  }
+  rule {
+    replacement  = "probes"
+    target_label = "job"
+  }
+}
+
+prometheus.scrape "publico" {
+  targets         = discovery.relabel.publico.output
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+// ---- El servidor: CPU, memoria, disco ----
+prometheus.exporter.unix "servidor" {
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+  rootfs_path = "/rootfs"
+  set_collectors = ["cpu", "meminfo", "filesystem", "loadavg", "netdev", "diskstats", "uname", "time"]
+  filesystem {
+    mount_points_exclude = "^/(dev|proc|run|sys|var/lib/docker/.+|etc/.+)($|/)"
+  }
+}
+
+discovery.relabel "servidor" {
+  targets = prometheus.exporter.unix.servidor.targets
+  rule {
+    replacement  = "servidor"
+    target_label = "job"
+  }
+}
+
+prometheus.scrape "servidor" {
+  targets         = discovery.relabel.servidor.output
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+prometheus.remote_write "local" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+// ---- Logs de todos los contenedores, con el nombre del servicio y el nivel ----
+discovery.docker "contenedores" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "logs" {
+  targets = discovery.docker.contenedores.targets
+  // Servicio de Dokploy (swarm) o de un compose; si no, el nombre del contenedor.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/?(.*)"
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "(.+)"
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
+    regex         = "(.+)"
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "contenedores" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.logs.output
+  relabel_rules = discovery.relabel.logs.rules
+  forward_to    = [loki.process.nivel.receiver]
+}
+
+loki.process "nivel" {
+  // Logs en JSON (la API con LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs): el nivel viene en log.level.
+  stage.json {
+    expressions = {level = "\"log.level\""}
+  }
+  // Logs de texto de Spring: «2026-11-13T10:00:00.000-05:00 ERROR 1 --- ...».
+  stage.regex {
+    expression = "^\\S+\\s+(?P<level_text>TRACE|DEBUG|INFO|WARN|ERROR)\\s"
+  }
+  stage.template {
+    source   = "level"
+    template = "{{ if .level }}{{ .level }}{{ else }}{{ .level_text }}{{ end }}"
+  }
+  stage.labels {
+    values = {level = ""}
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

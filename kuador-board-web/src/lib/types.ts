@@ -306,6 +306,8 @@ export interface Comment {
   authorId: string;
   body: string;
   createdAt: string;
+  /** Cuándo lo corrigió su autor (null si nunca). */
+  editedAt: string | null;
 }
 
 /** Campos editables de un issue (PUT /api/issues/{key}). */

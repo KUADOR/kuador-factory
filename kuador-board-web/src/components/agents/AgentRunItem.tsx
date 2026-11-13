@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/Section";
 
 import type { AgentRun, AgentRunStatus } from "@/lib/types";
 
+import { RetryRunButton } from "./RetryRunButton";
+
 const STATUS: Record<AgentRunStatus, { label: string; tone: "sol" | "ok" | "danger" | "neutral" }> = {
   RUNNING: { label: "Trabajando…", tone: "sol" },
   SUCCEEDED: { label: "Listo", tone: "ok" },
@@ -34,6 +36,9 @@ export function AgentRunItem({ run, agentName, showIssue = false }: { run: Agent
       </div>
       {run.summary && <p className="text-fg">{run.summary}</p>}
       {run.error && <p className="text-danger">{run.error}</p>}
+      <div className="flex justify-end empty:hidden">
+        <RetryRunButton run={run} />
+      </div>
       {run.model?.startsWith("local:") || run.model === "claude-code" ? (
         <p className="font-mono text-[11px] text-fg-faint">Trabajado en {clientName(run.model)}, en el equipo de quien lo supervisa</p>
       ) : run.inputTokens != null && (

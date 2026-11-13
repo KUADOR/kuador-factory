@@ -1,5 +1,6 @@
 package ec.kuador.board.issue.application;
 
+import ec.kuador.board.shared.error.ForbiddenException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -64,6 +65,21 @@ class IssueServiceTest {
 
     private List<String> column(String status) {
         return issues.findColumn("KUA", status).stream().map(Issue::title).toList();
+    }
+
+    @Test
+    void onlyTheAuthorEditsACommentAndTheAgentReadsTheNewText() {
+        Issue issue = create("a", "TODO");
+        var mine = service.comment(issue.key(), ACTOR, "Un texto muy largo con detalles que el agente no necesita");
+        var agents = service.comment(issue.key(), AGENT, "Pregunta del agente");
+
+        var edited = service.editComment(issue.key(), mine.id(), ACTOR, "Texto corto");
+
+        assertThat(edited.editedAt()).isNotNull();
+        assertThat(service.context(issue.key()).orElseThrow().comments()).extracting(c -> c.body()).containsExactly("Texto corto", "Pregunta del agente");
+        assertThatThrownBy(() -> service.editComment(issue.key(), agents.id(), ACTOR, "x")).isInstanceOf(ForbiddenException.class);
+        service.deleteComment(issue.key(), mine.id(), ACTOR);
+        assertThat(service.comments(issue.key())).hasSize(1);
     }
 
     @Test
@@ -249,6 +265,18 @@ class IssueServiceTest {
             return store.values().stream().filter(i -> supervisorId.equals(i.supervisorId())).sorted(java.util.Comparator.comparing(Issue::key)).toList();
         }
         public List<Comment> findComments(Issue issue) { return comments.stream().filter(c -> c.issueId().equals(issue.id())).toList(); }
-        public Comment saveComment(Comment comment) { comments.add(comment); return comment; }
+        public Comment saveComment(Comment comment) {
+            // Como la base: una corrección queda en su lugar (se ordenan por fecha de creación).
+            for (int i = 0; i < comments.size(); i++) {
+                if (comments.get(i).id().equals(comment.id())) {
+                    comments.set(i, comment);
+                    return comment;
+                }
+            }
+            comments.add(comment);
+            return comment;
+        }
+        public java.util.Optional<Comment> findComment(UUID id) { return comments.stream().filter(c -> c.id().equals(id)).findFirst(); }
+        public void deleteComment(UUID id) { comments.removeIf(c -> c.id().equals(id)); }
     }
 }

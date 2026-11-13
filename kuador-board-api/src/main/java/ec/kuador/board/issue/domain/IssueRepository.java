@@ -36,4 +36,8 @@ public interface IssueRepository {
     List<Comment> findComments(Issue issue);
 
     Comment saveComment(Comment comment);
+
+    java.util.Optional<Comment> findComment(java.util.UUID commentId);
+
+    void deleteComment(java.util.UUID commentId);
 }

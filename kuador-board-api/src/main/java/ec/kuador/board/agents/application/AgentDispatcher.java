@@ -53,6 +53,12 @@ class AgentDispatcher implements ApplicationRunner {
         else boardAgent.onAssigned(event);
     }
 
+    /** Reintento pedido por una persona: el mismo camino que una asignación, en otro hilo. */
+    @Async
+    public void retry(IssueAssigned event) {
+        on(event);
+    }
+
     private boolean refines(IssueAssigned event) {
         return Boolean.TRUE.equals(TenantContext.call(event.workspaceId(), () -> tx.execute(s -> members.find(event.toAssigneeId())
                 .filter(ec.kuador.board.member.MemberView::agent)

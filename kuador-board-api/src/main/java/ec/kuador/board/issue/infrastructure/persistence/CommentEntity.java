@@ -31,6 +31,9 @@ class CommentEntity {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(name = "edited_at")
+    private Instant editedAt;
+
     protected CommentEntity() {}
 
     static CommentEntity from(Comment c) {
@@ -40,10 +43,11 @@ class CommentEntity {
         e.authorId = c.authorId();
         e.body = c.body();
         e.createdAt = c.createdAt();
+        e.editedAt = c.editedAt();
         return e;
     }
 
     Comment toDomain() {
-        return new Comment(id, issueId, authorId, body, createdAt);
+        return new Comment(id, issueId, authorId, body, createdAt, editedAt);
     }
 }

@@ -412,4 +412,9 @@ export const boardApi = {
   comments: (key: string) => request<Comment[]>(`/api/issues/${encodeURIComponent(key)}/comments`),
   addComment: (key: string, body: string) =>
     request<Comment>(`/api/issues/${encodeURIComponent(key)}/comments`, json("POST", { body })),
+  editComment: (key: string, id: string, body: string) =>
+    request<Comment>(`/api/issues/${encodeURIComponent(key)}/comments/${encodeURIComponent(id)}`, json("PUT", { body })),
+  deleteComment: (key: string, id: string) =>
+    request<void>(`/api/issues/${encodeURIComponent(key)}/comments/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  retryAgentRun: (id: string) => request<void>(`/api/agents/runs/${encodeURIComponent(id)}/retry`, { method: "POST" }),
 };

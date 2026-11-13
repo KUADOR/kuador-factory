@@ -8,6 +8,8 @@ public interface AgentRunRepository {
 
     boolean existsByTriggerEventId(UUID eventId);
 
+    java.util.Optional<AgentRun> findById(UUID id);
+
     void save(AgentRun run);
 
     /** Borra las corridas de un tablero borrado. */

@@ -142,4 +142,14 @@ class JpaIssueRepository implements IssueRepository {
     public Comment saveComment(Comment comment) {
         return comments.save(CommentEntity.from(comment)).toDomain();
     }
+
+    @Override
+    public java.util.Optional<Comment> findComment(UUID commentId) {
+        return comments.findById(commentId).map(CommentEntity::toDomain);
+    }
+
+    @Override
+    public void deleteComment(UUID commentId) {
+        comments.deleteById(commentId);
+    }
 }

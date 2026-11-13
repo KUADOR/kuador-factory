@@ -217,6 +217,19 @@ export async function addCommentAction(key: string, body: string): Promise<Actio
   return run(() => boardApi.addComment(key, body));
 }
 
+export async function editCommentAction(key: string, id: string, body: string): Promise<ActionResult<Comment>> {
+  return run(() => boardApi.editComment(key, id, body));
+}
+
+export async function deleteCommentAction(key: string, id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteComment(key, id));
+}
+
+/** Vuelve a lanzar un trabajo de agente que falló o se saltó. */
+export async function retryAgentRunAction(id: string, projectKey: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.retryAgentRun(id), `/projects/${projectKey}`);
+}
+
 export async function createProjectAction(input: {
   key: string;
   name: string;

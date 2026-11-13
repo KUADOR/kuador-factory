@@ -43,6 +43,11 @@ class JpaAgentRunRepository implements AgentRunRepository {
     }
 
     @Override
+    public java.util.Optional<AgentRun> findById(UUID id) {
+        return jpa.findById(id).map(AgentRunEntity::toDomain);
+    }
+
+    @Override
     public boolean existsByTriggerEventId(UUID eventId) {
         return jpa.existsByTriggerEventId(eventId);
     }

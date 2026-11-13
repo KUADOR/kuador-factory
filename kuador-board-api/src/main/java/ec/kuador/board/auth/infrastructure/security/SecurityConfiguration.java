@@ -89,6 +89,11 @@ class SecurityConfiguration {
                         // su rol aprueba (el servicio comprueba el rol aprobador).
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout", "/api/issues/*/review", "/api/issues/*/comments").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
+                        // Corregir o borrar un comentario propio (también quien solo mira): el servicio comprueba el autor.
+                        .requestMatchers(HttpMethod.PUT, "/api/issues/*/comments/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/issues/*/comments/*").authenticated()
+                        // Reintentar un trabajo de agente: personas que editan.
+                        .requestMatchers(HttpMethod.POST, "/api/agents/runs/*/retry").access(HUMAN_EDITOR)
                         // Crear un tablero: personas que editan. Sumar personas o agentes al equipo, emitir tokens de agentes,
                         // borrar o restaurar un tablero: solo quien administra.
                         .requestMatchers(HttpMethod.POST, "/api/projects").access(HUMAN_EDITOR)

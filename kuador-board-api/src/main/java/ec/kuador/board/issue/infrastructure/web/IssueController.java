@@ -138,6 +138,18 @@ class IssueController {
         return CommentResponse.from(service.comment(key, who.memberId(), r.body()));
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/api/issues/{key}/comments/{id}")
+    CommentResponse editComment(@PathVariable String key, @PathVariable UUID id, @Valid @RequestBody CommentRequest r,
+            @AuthenticationPrincipal AuthenticatedMember who) {
+        return CommentResponse.from(service.editComment(key, id, who.memberId(), r.body()));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/api/issues/{key}/comments/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteComment(@PathVariable String key, @PathVariable UUID id, @AuthenticationPrincipal AuthenticatedMember who) {
+        service.deleteComment(key, id, who.memberId());
+    }
+
     record IssueDetailsRequest(
             @NotBlank @Size(max = 255) String title,
             @Size(max = 50_000) String description,
@@ -190,10 +202,10 @@ class IssueController {
         }
     }
 
-    record CommentResponse(UUID id, UUID authorId, String body, Instant createdAt) {
+    record CommentResponse(UUID id, UUID authorId, String body, Instant createdAt, Instant editedAt) {
 
         static CommentResponse from(Comment c) {
-            return new CommentResponse(c.id(), c.authorId(), c.body(), c.createdAt());
+            return new CommentResponse(c.id(), c.authorId(), c.body(), c.createdAt(), c.editedAt());
         }
     }
 }

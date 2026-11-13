@@ -727,6 +727,30 @@ public class IssueService implements IssueApi {
         return saveComment(issue, authorId, body == null ? "" : body, now());
     }
 
+    /** Su autor corrige el comentario (p. ej. lo acorta para que un agente lea menos). */
+    @Transactional
+    public Comment editComment(String key, UUID commentId, UUID actorId, String body) {
+        Comment c = ownComment(key, commentId);
+        if (!c.authorId().equals(actorId)) throw new ForbiddenException("Solo quien escribió el comentario puede editarlo.");
+        return issues.saveComment(c.edited(body, now()));
+    }
+
+    /** Lo borra su autor o quien administra el espacio. */
+    @Transactional
+    public void deleteComment(String key, UUID commentId, UUID actorId) {
+        Comment c = ownComment(key, commentId);
+        boolean admin = members.find(actorId).map(MemberView::administers).orElse(false);
+        if (!c.authorId().equals(actorId) && !admin) throw new ForbiddenException("Solo quien escribió el comentario (o quien administra) puede borrarlo.");
+        issues.deleteComment(c.id());
+    }
+
+    /** El comentario, si es de ese issue. */
+    private Comment ownComment(String key, UUID commentId) {
+        Issue issue = load(key);
+        return issues.findComment(commentId).filter(c -> c.issueId().equals(issue.id()))
+                .orElseThrow(() -> new NotFoundException("No existe ese comentario en " + issue.key() + "."));
+    }
+
     private void publishAssignmentIfChanged(Issue issue, UUID previous, UUID actorId, Instant now) {
         if (!Objects.equals(previous, issue.assigneeId())) {
             events.publishEvent(new IssueAssigned(UUID.randomUUID(), TenantContext.require(), issue.key(), issue.projectKey(), actorId, now,

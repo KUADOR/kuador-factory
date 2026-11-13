@@ -6,6 +6,8 @@ import { useEffect, useState, useTransition } from "react";
 
 import {
   addCommentAction,
+  deleteCommentAction,
+  editCommentAction,
   deleteIssueAction,
   listActivityAction,
   listAgentRunsAction,
@@ -354,18 +356,14 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
       {comments?.length === 0 && <p className="text-xs text-fg-faint">Aún no hay comentarios.</p>}
       <ol className="flex flex-col gap-3">
         {comments?.map((c) => (
-          <li key={c.id} className="flex gap-2.5">
-            <Avatar member={byId.get(c.authorId)} size="md" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px]">
-                <span className="font-medium text-fg-strong">{byId.get(c.authorId)?.name ?? "Miembro eliminado"}</span>{" "}
-                <span className="text-xs text-fg-faint">{dateFormat.format(new Date(c.createdAt))}</span>
-              </p>
-              <div className="mt-0.5">
-                <Markdown content={c.body} compact />
-              </div>
-            </div>
-          </li>
+          <CommentItem
+            key={c.id}
+            issueKey={issueKey}
+            comment={c}
+            author={byId.get(c.authorId)}
+            onChange={(next) => setComments((prev) => (prev ?? []).map((x) => (x.id === next.id ? next : x)))}
+            onDelete={() => setComments((prev) => (prev ?? []).filter((x) => x.id !== c.id))}
+          />
         ))}
       </ol>
       <div className="flex flex-col gap-2">
@@ -390,5 +388,101 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Un comentario. Quien lo escribió puede corregirlo (p. ej. acortarlo para que un agente lea menos) o borrarlo; quien
+ * administra también puede borrarlo. La API comprueba lo mismo.
+ */
+function CommentItem({
+  issueKey,
+  comment: c,
+  author,
+  onChange,
+  onDelete,
+}: {
+  issueKey: string;
+  comment: Comment;
+  author: Member | undefined;
+  onChange: (c: Comment) => void;
+  onDelete: () => void;
+}) {
+  const { me, canAdminister } = useAccess();
+  const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [draft, setDraft] = useState(c.body);
+  const [pending, start] = useTransition();
+  const mine = me?.id === c.authorId;
+
+  const save = () =>
+    start(async () => {
+      const r = await editCommentAction(issueKey, c.id, draft);
+      if (r.ok) {
+        onChange(r.data);
+        setEditing(false);
+      } else notify.error("No se pudo guardar el comentario", r.error);
+    });
+  const remove = () =>
+    start(async () => {
+      const r = await deleteCommentAction(issueKey, c.id);
+      if (r.ok) onDelete();
+      else notify.error("No se pudo borrar el comentario", r.error);
+    });
+
+  return (
+    <li className="group flex gap-2.5">
+      <Avatar member={author} size="md" />
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+          <span className="font-medium text-fg-strong">{author?.name ?? "Miembro eliminado"}</span>
+          <span className="text-xs text-fg-faint">
+            {dateFormat.format(new Date(c.createdAt))}
+            {c.editedAt && " · editado"}
+          </span>
+          {!editing && (mine || canAdminister) && (
+            <span className="ml-auto flex gap-1 text-xs opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+              {mine && (
+                <button type="button" className="k-link" onClick={() => (setDraft(c.body), setEditing(true))}>
+                  Editar
+                </button>
+              )}
+              {confirming ? (
+                <>
+                  <span className="text-fg-faint">¿Borrar?</span>
+                  <button type="button" className="text-danger underline" disabled={pending} onClick={remove}>
+                    Sí
+                  </button>
+                  <button type="button" className="k-link" onClick={() => setConfirming(false)}>
+                    No
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="k-link" onClick={() => setConfirming(true)}>
+                  Borrar
+                </button>
+              )}
+            </span>
+          )}
+        </p>
+        {editing ? (
+          <div className="mt-1 flex flex-col gap-2">
+            <TextArea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Editar comentario" />
+            <div className="flex justify-end gap-2">
+              <Button size="sm" tone="ghost" onClick={() => setEditing(false)}>
+                Cancelar
+              </Button>
+              <Button size="sm" tone="primary" onClick={save} loading={pending} disabled={!draft.trim() || draft.trim() === c.body}>
+                Guardar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-0.5">
+            <Markdown content={c.body} compact />
+          </div>
+        )}
+      </div>
+    </li>
   );
 }

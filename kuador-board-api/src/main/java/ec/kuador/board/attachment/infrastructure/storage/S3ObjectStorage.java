@@ -79,7 +79,12 @@ class S3ObjectStorage implements ObjectStorage {
 
     @Override
     public InputStream get(String key) {
-        return s3.getObject(b -> b.bucket(bucket).key(key));
+        try {
+            return s3.getObject(b -> b.bucket(bucket).key(key));
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            // Ya no está (p. ej. se borró el tablero y su registro aún no se limpia): para quien pide, no existe.
+            throw new ec.kuador.board.shared.error.NotFoundException("Ese archivo ya no existe.");
+        }
     }
 
     @Override

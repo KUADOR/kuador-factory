@@ -107,6 +107,8 @@ public class AttachmentService implements AttachmentApi {
         Attachment a = found.get();
         try (InputStream in = storage.get(a.storageKey())) {
             return Optional.of(new FileContent(a.fileName(), a.contentType(), in.readAllBytes()));
+        } catch (NotFoundException e) {
+            return Optional.empty(); // el archivo ya no está en el almacenamiento
         } catch (IOException e) {
             throw new DomainException("No se pudo leer el adjunto " + a.fileName() + ": " + e.getMessage());
         }

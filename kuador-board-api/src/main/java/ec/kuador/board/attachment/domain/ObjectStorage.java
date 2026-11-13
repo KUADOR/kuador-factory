@@ -10,7 +10,7 @@ public interface ObjectStorage {
 
     void put(String key, String contentType, InputStream content, long size);
 
-    /** Abre el archivo para leerlo; quien llama lo cierra. */
+    /** Abre el archivo para leerlo; quien llama lo cierra. Si ya no existe, lanza {@code NotFoundException}. */
     InputStream get(String key);
 
     void delete(String key);

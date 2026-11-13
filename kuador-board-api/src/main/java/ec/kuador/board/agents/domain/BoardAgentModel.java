@@ -1,6 +1,9 @@
 package ec.kuador.board.agents.domain;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Puerto: el modelo con el que trabaja un agente en el tablero, de un proveedor de IA. Recibe el pedido y los archivos
@@ -13,8 +16,33 @@ public interface BoardAgentModel {
 
     record OutputFile(String name, String contentType, byte[] content) {}
 
-    /** {@code system}: quién es el agente y las reglas del tablero; cada proveedor suma cómo es su entorno. */
-    record Task(String system, String user, List<InputFile> files) {}
+    /**
+     * Una herramienta del tablero que el agente puede llamar a mitad del trabajo (p. ej. crear las tareas de una épica).
+     * {@code parameters}: JSON Schema de sus argumentos. {@code run} devuelve el texto para el modelo; si lanza una
+     * excepción, su mensaje vuelve al modelo como error para que corrija.
+     */
+    record BoardTool(String name, String description, Map<String, Object> parameters, Function<Map<String, Object>, String> run) {}
+
+    /**
+     * {@code system}: quién es el agente y las reglas del tablero; cada proveedor suma cómo es su entorno.
+     * {@code tools}: herramientas del tablero además de las de cada proveedor. {@code deliverCheck}: antes de aceptar
+     * la entrega; devuelve el motivo para no aceptarla (vuelve al modelo como error) o {@code null} si puede entregar.
+     */
+    record Task(String system, String user, List<InputFile> files, List<BoardTool> tools, Supplier<String> deliverCheck) {
+
+        public Task(String system, String user, List<InputFile> files) {
+            this(system, user, files, List.of(), () -> null);
+        }
+
+        /** El motivo para no aceptar la entrega, o {@code null}. */
+        public String blocksDelivery() {
+            return deliverCheck == null ? null : deliverCheck.get();
+        }
+
+        public java.util.Optional<BoardTool> tool(String name) {
+            return tools.stream().filter(t -> t.name().equals(name)).findFirst();
+        }
+    }
 
     /** A dónde y con qué clave se habla. */
     record Endpoint(String baseUrl, String apiKey) {}

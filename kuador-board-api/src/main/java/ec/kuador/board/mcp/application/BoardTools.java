@@ -324,7 +324,11 @@ public class BoardTools {
         if ("EPIC".equals(c.type()) && issues.epicTasks(c.key()).isEmpty()) {
             ProjectView project = project(c.projectKey());
             boolean toWork = project.nextAfter(c.status()).flatMap(n -> project.stage(n.key())).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
-            if (toWork && project.software()) {
+            // Tras una puerta de aprobación también llega a trabajo: se mira la etapa siguiente a la puerta.
+            boolean afterGate = project.nextAfter(c.status()).flatMap(n -> project.stage(n.key())).map(st -> st.gate()).orElse(false)
+                    && project.nextAfter(c.status()).flatMap(n -> project.nextAfter(n.key())).flatMap(n -> project.stage(n.key()))
+                            .map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
+            if ((toWork || afterGate) && project.software()) {
                 throw new ToolException(c.key() + " es una épica sin tareas: antes de entregarla, crea una tarjeta por cada tarea del plan con create_tasks.");
             }
         }

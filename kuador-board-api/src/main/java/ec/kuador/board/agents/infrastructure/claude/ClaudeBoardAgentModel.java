@@ -23,10 +23,12 @@ import com.anthropic.models.messages.RawMessageStreamEvent;
 import com.anthropic.models.messages.StopReason;
 import com.anthropic.models.messages.ThinkingConfigAdaptive;
 import com.anthropic.models.messages.Tool;
+import com.anthropic.models.messages.ToolResultBlockParam;
 import com.anthropic.models.messages.ToolUseBlock;
 import ec.kuador.board.agents.domain.AgentModelException;
 import ec.kuador.board.agents.domain.AiProvider;
 import ec.kuador.board.agents.domain.BoardAgentModel;
+import ec.kuador.board.agents.domain.BoardAgentModel.BoardTool;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -132,6 +134,7 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
                     .addTool(tool("ask_human", "Pregunta a una persona algo que falta y sin lo cual no puedes hacer bien el trabajo. Detiene el trabajo hasta que responda.",
                             Map.of("question", "La pregunta, concreta y con las opciones si las hay."), "question"))
                     .addUserMessageOfContentBlockParams(first);
+            for (BoardTool t : task.tools()) params.addTool(tool(t));
             String usedModel = model;
             long input = 0;
             long output = 0;
@@ -144,16 +147,31 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
                 response.container().ifPresent(c -> params.container(c.id()));
                 StopReason stop = response.stopReason().orElse(null);
                 if (StopReason.REFUSAL.equals(stop)) throw new AgentModelException("El modelo declinó el pedido.");
-                for (ContentBlock block : response.content()) {
-                    if (block.toolUse().isEmpty()) continue;
-                    ToolUseBlock use = block.toolUse().get();
-                    Map<String, Object> args = use._input().convert(new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
-                    if (use.name().equals("deliver")) {
-                        return new Result(Outcome.DELIVERED, text(args.get("summary")), download(client, produced), usedModel, input, output);
-                    }
+                // Primero las herramientas del tablero (p. ej. crear las tareas) y al final la entrega, aunque vengan en otro orden.
+                List<ToolUseBlock> uses = response.content().stream().flatMap(b -> b.toolUse().stream()).toList();
+                List<ContentBlockParam> results = new ArrayList<>();
+                for (ToolUseBlock use : uses) {
+                    if (use.name().equals("deliver") || use.name().equals("ask_human")) continue;
+                    results.add(runTool(task, use));
+                }
+                for (ToolUseBlock use : uses) {
+                    Map<String, Object> args = arguments(use);
                     if (use.name().equals("ask_human")) {
                         return new Result(Outcome.QUESTION, text(args.get("question")), download(client, produced), usedModel, input, output);
                     }
+                    if (use.name().equals("deliver")) {
+                        String blocked = task.blocksDelivery();
+                        if (blocked == null) {
+                            return new Result(Outcome.DELIVERED, text(args.get("summary")), download(client, produced), usedModel, input, output);
+                        }
+                        results.add(toolResult(use.id(), blocked, true));
+                    }
+                }
+                if (!results.isEmpty()) {
+                    // Se le devuelve lo que pasó con cada herramienta y sigue trabajando.
+                    params.addMessage(response);
+                    params.addUserMessageOfContentBlockParams(results);
+                    continue;
                 }
                 if (StopReason.PAUSE_TURN.equals(stop)) {
                     // El servidor pausó un turno largo (ejecución de código): se le devuelve tal cual para que siga.
@@ -230,6 +248,38 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
         } catch (RuntimeException e) {
             log.debug("No se pudo borrar el archivo {} de Anthropic: {}", id, e.getMessage());
         }
+    }
+
+    private static Map<String, Object> arguments(ToolUseBlock use) {
+        return use._input().convert(new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    }
+
+    /** Corre una herramienta del tablero; un error vuelve al modelo para que corrija. */
+    private static ContentBlockParam runTool(Task task, ToolUseBlock use) {
+        BoardTool tool = task.tool(use.name()).orElse(null);
+        if (tool == null) return toolResult(use.id(), "No existe la herramienta " + use.name() + ".", true);
+        try {
+            return toolResult(use.id(), tool.run().apply(arguments(use)), false);
+        } catch (RuntimeException e) {
+            return toolResult(use.id(), e.getMessage() == null ? "No se pudo: " + e.getClass().getSimpleName() : e.getMessage(), true);
+        }
+    }
+
+    private static ContentBlockParam toolResult(String id, String content, boolean error) {
+        return ContentBlockParam.ofToolResult(ToolResultBlockParam.builder().toolUseId(id).content(content).isError(error).build());
+    }
+
+    /** Una herramienta del tablero con su JSON Schema tal cual. */
+    private static Tool tool(BoardTool t) {
+        Tool.InputSchema.Builder schema = Tool.InputSchema.builder();
+        Object props = t.parameters().get("properties");
+        if (props instanceof Map<?, ?> map) {
+            Tool.InputSchema.Properties.Builder p = Tool.InputSchema.Properties.builder();
+            map.forEach((k, v) -> p.putAdditionalProperty(String.valueOf(k), JsonValue.from(v)));
+            schema.properties(p.build());
+        }
+        if (t.parameters().get("required") instanceof List<?> req) req.forEach(r -> schema.addRequired(String.valueOf(r)));
+        return Tool.builder().name(t.name()).description(t.description()).inputSchema(schema.build()).build();
     }
 
     private static Tool tool(String name, String description, Map<String, String> fields, String required) {

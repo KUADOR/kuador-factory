@@ -25,6 +25,7 @@ class ClaudeBoardAgentModelTest {
 
     private HttpServer server;
     private final AtomicReference<JsonNode> lastBody = new AtomicReference<>();
+    private final java.util.Deque<String> replies = new java.util.concurrent.ConcurrentLinkedDeque<>();
     private volatile String reply;
 
     @BeforeEach
@@ -32,7 +33,8 @@ class ClaudeBoardAgentModelTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/messages", ex -> {
             lastBody.set(JSON.readTree(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
-            byte[] out = AnthropicSse.of(reply).getBytes(StandardCharsets.UTF_8);
+            String next = replies.isEmpty() ? reply : replies.poll();
+            byte[] out = AnthropicSse.of(next).getBytes(StandardCharsets.UTF_8);
             ex.getResponseHeaders().set("Content-Type", "text/event-stream");
             ex.sendResponseHeaders(200, out.length);
             ex.getResponseBody().write(out);
@@ -47,8 +49,42 @@ class ClaudeBoardAgentModelTest {
     }
 
     private BoardAgentModel.Result work() {
+        return work(new BoardAgentModel.Task("Reglas", "Haz el informe", List.of()));
+    }
+
+    private BoardAgentModel.Result work(BoardAgentModel.Task task) {
         return new ClaudeBoardAgentModel("http://127.0.0.1:" + server.getAddress().getPort())
-                .work(new BoardAgentModel.Endpoint(null, "sk-ant-prueba"), "claude-opus-5-5", new BoardAgentModel.Task("Reglas", "Haz el informe", List.of()));
+                .work(new BoardAgentModel.Endpoint(null, "sk-ant-prueba"), "claude-opus-5-5", task);
+    }
+
+    @Test
+    void anEpicCannotBeDeliveredUntilTheBoardToolCreatesItsTasks() {
+        List<Object> created = new java.util.ArrayList<>();
+        var createTasks = new BoardAgentModel.BoardTool("create_tasks", "Crea las tareas",
+                java.util.Map.of("type", "object", "required", List.of("tasks"), "properties", java.util.Map.of("tasks", java.util.Map.of("type", "array"))),
+                args -> {
+                    created.addAll((List<?>) args.get("tasks"));
+                    return "Creé 2 tarea(s).";
+                });
+        var task = new BoardAgentModel.Task("Reglas", "Planifica la épica", List.of(), List.of(createTasks),
+                () -> created.isEmpty() ? "Es una épica sin tareas: crea las tareas con create_tasks." : null);
+        // 1) Entrega sin tareas: se le rechaza. 2) Crea las tareas. 3) Entrega.
+        replies.add(message("tool_use", """
+                {"type":"tool_use","id":"toolu_1","name":"deliver","input":{"summary":"Plan listo"}}"""));
+        replies.add(message("tool_use", """
+                {"type":"tool_use","id":"toolu_2","name":"create_tasks","input":{"tasks":[{"title":"API","role":"BACKEND"},{"title":"Web","role":"FRONTEND","dependsOn":[1]}]}}"""));
+        replies.add(message("tool_use", """
+                {"type":"tool_use","id":"toolu_3","name":"deliver","input":{"summary":"Plan listo con 2 tareas"}}"""));
+
+        BoardAgentModel.Result r = work(task);
+
+        assertThat(r.outcome()).isEqualTo(BoardAgentModel.Outcome.DELIVERED);
+        assertThat(r.text()).isEqualTo("Plan listo con 2 tareas");
+        assertThat(created).hasSize(2);
+        JsonNode last = lastBody.get();
+        assertThat(last.path("tools").findValues("name").stream().map(JsonNode::asString)).contains("create_tasks");
+        String sent = last.path("messages").toString();
+        assertThat(sent).contains("crea las tareas con create_tasks").contains("Creé 2 tarea(s).");
     }
 
     private static String message(String stopReason, String content) {

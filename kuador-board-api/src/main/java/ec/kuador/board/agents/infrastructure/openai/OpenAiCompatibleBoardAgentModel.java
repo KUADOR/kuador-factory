@@ -91,6 +91,7 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
         try (WorkRoom room = new WorkRoom(task.files())) {
             ArrayNode tools = json.createArrayNode();
             for (WorkRoom.ToolSpec t : room.tools()) tools.add(tool(t.name(), t.description(), t.parameters()));
+            for (BoardAgentModel.BoardTool t : task.tools()) tools.add(tool(t.name(), t.description(), t.parameters()));
             tools.add(tool("deliver", "Entrega el trabajo terminado: los archivos que creaste se adjuntan a la tarjeta.",
                     object("summary", "Resumen para la persona: qué hiciste, lo más importante y qué archivos adjuntaste.")));
             tools.add(tool("ask_human", "Pregunta a una persona algo que falta y sin lo cual no puedes hacer bien el trabajo. Detiene el trabajo hasta que responda.",
@@ -136,17 +137,29 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
                 for (JsonNode c : calls) {
                     String name = c.path("function").path("name").asString("");
                     JsonNode args = arguments(c.path("function").path("arguments").asString("{}"));
-                    if (name.equals("deliver") || name.equals("ask_human")) {
-                        JsonNode a = args == null ? json.createObjectNode() : args;
-                        if (end == null) end = name.equals("deliver")
-                                ? new Result(Outcome.DELIVERED, a.path("summary").asString("").strip(), List.of(), usedModel, input, output)
-                                : new Result(Outcome.QUESTION, a.path("question").asString("").strip(), List.of(), usedModel, input, output);
-                        messages.addObject().put("role", "tool").put("tool_call_id", c.path("id").asString("")).put("content", "Recibido.");
-                        continue;
-                    }
-                    String result = args == null ? "Error: los argumentos no son JSON válido." : room.call(name, args);
+                    if (name.equals("deliver") || name.equals("ask_human")) continue; // después de las demás
+                    String result;
+                    var boardTool = task.tool(name);
+                    if (args == null) result = "Error: los argumentos no son JSON válido.";
+                    else if (boardTool.isPresent()) result = runBoardTool(boardTool.get(), args);
+                    else result = room.call(name, args);
                     if (result.length() > MAX_TOOL_RESULT) result = result.substring(0, MAX_TOOL_RESULT) + "\n(Recortado: pide menos datos.)";
                     messages.addObject().put("role", "tool").put("tool_call_id", c.path("id").asString("")).put("content", result);
+                }
+                for (JsonNode c : calls) {
+                    String name = c.path("function").path("name").asString("");
+                    if (!name.equals("deliver") && !name.equals("ask_human")) continue;
+                    JsonNode a = arguments(c.path("function").path("arguments").asString("{}"));
+                    if (a == null) a = json.createObjectNode();
+                    String reply = "Recibido.";
+                    if (end == null && name.equals("ask_human")) {
+                        end = new Result(Outcome.QUESTION, a.path("question").asString("").strip(), List.of(), usedModel, input, output);
+                    } else if (end == null) {
+                        String blocked = task.blocksDelivery();
+                        if (blocked == null) end = new Result(Outcome.DELIVERED, a.path("summary").asString("").strip(), List.of(), usedModel, input, output);
+                        else reply = "Error: " + blocked;
+                    }
+                    messages.addObject().put("role", "tool").put("tool_call_id", c.path("id").asString("")).put("content", reply);
                 }
                 if (end != null) {
                     String text = end.text().isEmpty() ? "Terminé el trabajo." : end.text();
@@ -210,6 +223,16 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
         String base = endpoint.baseUrl().strip();
         while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
         return URI.create(base + path);
+    }
+
+    /** Corre una herramienta del tablero; un error vuelve al modelo para que corrija. */
+    private String runBoardTool(BoardAgentModel.BoardTool tool, JsonNode args) {
+        try {
+            Map<String, Object> map = json.convertValue(args, new tools.jackson.core.type.TypeReference<Map<String, Object>>() {});
+            return tool.run().apply(map);
+        } catch (RuntimeException e) {
+            return "Error: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+        }
     }
 
     private ObjectNode tool(String name, String description, Map<String, Object> parameters) {

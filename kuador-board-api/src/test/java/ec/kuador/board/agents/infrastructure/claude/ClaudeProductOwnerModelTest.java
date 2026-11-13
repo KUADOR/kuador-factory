@@ -44,7 +44,8 @@ class ClaudeProductOwnerModelTest {
             String auth = ex.getRequestHeaders().getFirst("Authorization");
             lastKey.set(auth != null ? auth : ex.getRequestHeaders().getFirst("x-api-key"));
             byte[] out = reply.getBytes(StandardCharsets.UTF_8);
-            ex.getResponseHeaders().set("Content-Type", "application/json");
+            // La propuesta va en streaming: los errores HTTP llegan como JSON, la respuesta como eventos SSE.
+            ex.getResponseHeaders().set("Content-Type", status == 200 ? "text/event-stream" : "application/json");
             ex.sendResponseHeaders(status, out.length);
             ex.getResponseBody().write(out);
             ex.close();
@@ -61,11 +62,28 @@ class ClaudeProductOwnerModelTest {
         return new ClaudeProductOwnerModel(key, "claude-opus-5-5", "medium", true, "http://127.0.0.1:" + server.getAddress().getPort());
     }
 
+    /** La respuesta como la manda la API en streaming; {@code extra} va en el delta final (p. ej. stop_details). */
     private static String message(String stopReason, String text, String extra) {
         return """
-                {"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-5-5",
-                 "content":[{"type":"text","text":%s}],"stop_reason":"%s","stop_sequence":null%s,
-                 "usage":{"input_tokens":1500,"output_tokens":700}}""".formatted(JSON.writeValueAsString(text), stopReason, extra);
+                event: message_start
+                data: {"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-5-5","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":1500,"output_tokens":1}}}
+
+                event: content_block_start
+                data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+                event: content_block_delta
+                data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":%s}}
+
+                event: content_block_stop
+                data: {"type":"content_block_stop","index":0}
+
+                event: message_delta
+                data: {"type":"message_delta","delta":{"stop_reason":"%s","stop_sequence":null%s},"usage":{"output_tokens":700}}
+
+                event: message_stop
+                data: {"type":"message_stop"}
+
+                """.formatted(JSON.writeValueAsString(text), stopReason, extra);
     }
 
     private static PoContext context() {
@@ -86,7 +104,8 @@ class ClaudeProductOwnerModelTest {
         assertThat(r.inputTokens()).isEqualTo(1500);
         JsonNode body = lastBody.get();
         assertThat(body.path("model").asString()).isEqualTo("claude-opus-5-5");
-        assertThat(body.path("max_tokens").asInt()).isEqualTo(16000);
+        assertThat(body.path("max_tokens").asInt()).as("razonamiento + documento completo").isEqualTo(64000);
+        assertThat(body.path("stream").asBoolean()).as("en streaming: una respuesta larga no vence la conexión").isTrue();
         assertThat(body.path("system").asString()).contains("Product Owner");
         assertThat(body.path("messages").get(0).path("content").toString()).contains("Recordatorio por WhatsApp");
         assertThat(body.path("output_config").path("effort").asString()).isEqualTo("medium");
@@ -105,7 +124,7 @@ class ClaudeProductOwnerModelTest {
                 .hasMessageContaining("cyber");
 
         reply = message("max_tokens", "{\"understanding\":", "");
-        assertThatThrownBy(() -> model("k").propose(context())).hasMessageContaining("se cortó por longitud");
+        assertThatThrownBy(() -> model("k").propose(context())).hasMessageContaining("se cortó").hasMessageContaining("64000");
     }
 
     @Test

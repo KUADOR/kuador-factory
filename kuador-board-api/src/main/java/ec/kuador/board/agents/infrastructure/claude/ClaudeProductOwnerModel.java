@@ -4,12 +4,15 @@ import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.core.JsonSchemaLocalValidation;
 import com.anthropic.core.JsonValue;
+import com.anthropic.core.http.StreamResponse;
 import com.anthropic.errors.AnthropicException;
 import com.anthropic.errors.AnthropicServiceException;
 import com.anthropic.errors.RateLimitException;
 import com.anthropic.errors.UnauthorizedException;
+import com.anthropic.helpers.MessageAccumulator;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.OutputConfig;
+import com.anthropic.models.messages.RawMessageStreamEvent;
 import com.anthropic.models.messages.StopReason;
 import com.anthropic.models.messages.StructuredMessage;
 import com.anthropic.models.messages.StructuredMessageCreateParams;
@@ -28,6 +31,10 @@ import org.springframework.stereotype.Component;
  * como JSON validado contra {@link PoProposal}). Sin ANTHROPIC_API_KEY los agentes quedan
  * desactivados. Con {@code refusal-fallback}, si el modelo declina por sus clasificadores de
  * seguridad, el servidor reintenta con un modelo alternativo (beta server-side-fallback).
+ * <p>
+ * El modelo siempre piensa y ese razonamiento cuenta dentro de {@code max_tokens}, junto con el documento
+ * completo (spec o seguimiento) que va en la propuesta: por eso el tope es alto y la llamada va en streaming,
+ * que no corre el riesgo de que la conexión HTTP venza en una respuesta larga.
  */
 @Component
 class ClaudeProductOwnerModel implements ProductOwnerModel {
@@ -37,6 +44,9 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
     private final String model;
     private final OutputConfig.Effort effort;
     private final boolean refusalFallback;
+
+    /** Razonamiento + propuesta + documento Markdown completo. */
+    static final long MAX_TOKENS = 64_000L;
 
     ClaudeProductOwnerModel(
             @Value("${board.agents.anthropic-api-key:}") String apiKey,
@@ -88,7 +98,7 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
     private Result propose(AnthropicClient client, PoContext context) {
         StructuredMessageCreateParams.Builder<PoProposal> builder = MessageCreateParams.builder()
                 .model(model)
-                .maxTokens(16_000L)
+                .maxTokens(MAX_TOKENS)
                 .system(PoPrompt.system(context))
                 .addUserMessage(PoPrompt.user(context))
                 .outputConfig(StructuredOutputConfig.<PoProposal>builder()
@@ -100,8 +110,10 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
                     .putAdditionalBodyProperty("fallbacks", JsonValue.from("default"));
         }
         StructuredMessage<PoProposal> response;
-        try {
-            response = client.messages().create(builder.build());
+        MessageAccumulator accumulator = MessageAccumulator.create();
+        try (StreamResponse<RawMessageStreamEvent> stream = client.messages().createStreaming(builder.build())) {
+            stream.stream().forEach(accumulator::accumulate);
+            response = accumulator.message(PoProposal.class);
         } catch (UnauthorizedException e) {
             throw new AgentModelException("Anthropic rechazó la clave (ANTHROPIC_API_KEY inválida o revocada).", e);
         } catch (RateLimitException e) {
@@ -118,7 +130,8 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
             throw new AgentModelException("El modelo declinó la solicitud (categoría: " + category + ").");
         }
         if (StopReason.MAX_TOKENS.equals(stop)) {
-            throw new AgentModelException("La respuesta del modelo se cortó por longitud; el issue o sus documentos son demasiado extensos.");
+            throw new AgentModelException("La propuesta del modelo pasó de " + MAX_TOKENS + " tokens (razonamiento y documento) y se cortó; "
+                    + "divide el issue en partes más chicas o acota lo que pide.");
         }
         PoProposal proposal = response.content().stream()
                 .flatMap(block -> block.text().stream())

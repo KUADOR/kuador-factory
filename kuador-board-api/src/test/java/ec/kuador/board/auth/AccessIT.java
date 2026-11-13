@@ -162,7 +162,7 @@ class AccessIT {
         assertThat(call("GET", "/api/workspace/audit", null, editor).status()).isEqualTo(403);
         assertThat(call("GET", "/api/workspace/plan", null, editor).status()).isEqualTo(403);
         assertThat(call("PUT", "/api/workspace", Map.of("name", "Mío"), editor).status()).isEqualTo(403);
-        assertThat(call("DELETE", "/api/projects/NIV", null, editor).status()).as("borrar un tablero es de quien administra").isEqualTo(403);
+        assertThat(call("DELETE", "/api/projects/NIV?confirm=NIV", null, editor).status()).as("borrar un tablero es de quien administra").isEqualTo(403);
 
         // La administradora gestiona a quienes editan o miran, pero no a otros administradores, ni a la dueña, ni el plan.
         assertThat(call("GET", "/api/workspace/audit", null, admin).status()).isEqualTo(200);
@@ -177,7 +177,7 @@ class AccessIT {
         JsonNode newAdmin = call("POST", "/api/members", Map.of("name", "Sin cuenta", "kind", "HUMAN", "role", "PM", "avatarColor", "#cccccc", "access", "ADMIN"), owner).body();
         assertThat(call("PUT", "/api/members/" + newAdmin.get("id").asText() + "/credentials", Map.of("email", "toma@niveles.test", "password", "clave-de-toma-123"), admin).status())
                 .as("no se queda con la cuenta de un administrador").isEqualTo(403);
-        assertThat(call("DELETE", "/api/projects/NIV", null, admin).status()).isEqualTo(204);
+        assertThat(call("DELETE", "/api/projects/NIV?confirm=NIV", null, admin).status()).isEqualTo(204);
 
         // La dueña nombra otra dueña; nunca queda el espacio sin dueño y nadie cambia el suyo.
         assertThat(call("PUT", "/api/members/" + ownerId + "/access", Map.of("access", "ADMIN"), owner).status()).isEqualTo(422);
@@ -216,7 +216,7 @@ class AccessIT {
         // Quien administra lo suma a Alfa: ve Alfa y nada de Beta.
         JsonNode people = call("POST", "/api/projects/ALFA/people", Map.of("memberId", eduId), owner).body();
         assertThat(people.findValues("name").stream().map(JsonNode::asText)).contains("Edu");
-        assertThat(call("GET", "/api/projects", null, editor).body().findValues("key").stream().map(JsonNode::asText)).containsExactly("ALFA");
+        assertThat(keys(call("GET", "/api/projects", null, editor).body())).containsExactly("ALFA");
         assertThat(call("GET", "/api/issues/" + alfaIssue, null, editor).status()).isEqualTo(200);
         assertThat(call("GET", "/api/projects/ALFA/people", null, editor).status()).isEqualTo(200);
         assertThat(call("GET", "/api/issues/" + betaIssue, null, editor).status()).isEqualTo(404);
@@ -230,7 +230,7 @@ class AccessIT {
 
         // Quien crea un tablero queda en él.
         assertThat(call("POST", "/api/projects", Map.of("key", "GAMA", "name", "Gama", "templateKey", "SOFTWARE_FACTORY"), editor).status()).isEqualTo(201);
-        assertThat(call("GET", "/api/projects", null, editor).body().findValues("key").stream().map(JsonNode::asText)).containsExactlyInAnyOrder("ALFA", "GAMA");
+        assertThat(keys(call("GET", "/api/projects", null, editor).body())).containsExactlyInAnyOrder("ALFA", "GAMA");
 
         // Sale de Alfa y deja de verlo; a quien administra no se lo quita: ve todos por su nivel.
         call("DELETE", "/api/projects/ALFA/people/" + eduId, null, owner);
@@ -238,5 +238,12 @@ class AccessIT {
         String ownerId = call("GET", "/api/auth/me", null, owner).body().get("id").asText();
         assertThat(call("DELETE", "/api/projects/BETA/people/" + ownerId, null, owner).status()).isEqualTo(422);
         assertThat(call("GET", "/api/projects", null, owner).body().size()).isEqualTo(3);
+    }
+
+    /** Las claves de los tableros de una lista (sin las de sus columnas). */
+    private static java.util.List<String> keys(JsonNode projects) {
+        var out = new java.util.ArrayList<String>();
+        projects.forEach(p -> out.add(p.get("key").asText()));
+        return out;
     }
 }

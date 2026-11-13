@@ -36,6 +36,15 @@ Internet ◀──┤ Alloy ── sondas cada 30 s ──▶ go.kuador.com, go-
   Las alertas, el tablero y las fuentes de datos se cargan desde el repositorio: se cambian aquí y se
   redespliega, no en la interfaz.
 
+  **Ojo**: Grafana lee estos archivos solo al arrancar, y el redeploy no recrea su contenedor si el compose no
+  cambió. Después de cambiar algo en `grafana/`, reinicia el servicio `grafana` en Dokploy o recarga sin
+  reiniciar:
+
+  ```bash
+  curl -X POST -u admin:'<contraseña>' https://monitoreo.kuador.com/api/admin/provisioning/alerting/reload
+  curl -X POST -u admin:'<contraseña>' https://monitoreo.kuador.com/api/admin/provisioning/dashboards/reload
+  ```
+
 **Límite**: como todo vive en el mismo servidor, si el servidor entero se apaga no llega ningún aviso. Cuando
 haga falta, se suma un chequeo externo gratuito (UptimeRobot, Better Stack…) contra `https://go-api.kuador.com/readyz`.
 

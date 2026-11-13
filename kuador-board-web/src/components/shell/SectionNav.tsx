@@ -10,17 +10,18 @@ export interface SectionNavGroup {
 }
 
 /**
- * Submenú de una zona (Configuración, Plataforma): grupos a la izquierda en pantallas anchas y una fila desplazable
- * en el teléfono.
+ * Secciones de una zona (Configuración, configuración del tablero, Plataforma) como una fila de pestañas sobre el
+ * contenido: un solo sidebar en toda la app. Los grupos quedan separados por una línea fina; en el teléfono la fila
+ * se desplaza.
  */
 export function SectionNav({ label, groups }: { label: string; groups: SectionNavGroup[] }) {
   const path = usePathname();
   const active = (href: string, exact?: boolean) => path === href || (!exact && path.startsWith(href + "/"));
   return (
-    <nav aria-label={label} className="flex gap-1 overflow-x-auto md:flex-col md:gap-4 md:overflow-visible">
+    <nav aria-label={label} className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5">
       {groups.map((g, i) => (
-        <div key={g.title ?? i} className="flex shrink-0 gap-1 md:flex-col md:gap-0.5">
-          {g.title && <span className="hidden px-2.5 pb-1 text-[11px] font-medium text-fg-faint md:block">{g.title}</span>}
+        <div key={g.title ?? i} role="group" aria-label={g.title} className="flex shrink-0 items-center gap-1">
+          {i > 0 && <span aria-hidden className="mx-1.5 h-4 w-px shrink-0 bg-line-strong" />}
           {g.items.map((item) => (
             <Link
               key={item.href}
@@ -28,7 +29,7 @@ export function SectionNav({ label, groups }: { label: string; groups: SectionNa
               aria-current={active(item.href, item.exact) ? "page" : undefined}
               className={clsx(
                 "rounded-md px-2.5 py-1.5 text-[13px] whitespace-nowrap",
-                active(item.href, item.exact) ? "bg-selected font-medium text-fg-strong" : "text-fg-muted hover:bg-hover hover:text-fg-strong",
+                active(item.href, item.exact) ? "bg-selected font-medium text-fg-strong shadow-[0_0_0_1px_var(--k-line)]" : "text-fg-muted hover:bg-hover hover:text-fg-strong",
               )}
             >
               {item.label}
@@ -40,15 +41,15 @@ export function SectionNav({ label, groups }: { label: string; groups: SectionNa
   );
 }
 
-/** Zona con submenú: el submenú a la izquierda y la página (con su propia cabecera) a la derecha. */
+/** Zona con secciones: el título y las pestañas arriba, la página (con su propia cabecera) debajo. */
 export function SectionLayout({ title, nav, children }: { title: string; nav: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="grid min-h-full grid-cols-[minmax(0,1fr)] md:grid-cols-[13.5rem_minmax(0,1fr)]">
-      <aside className="border-b border-line bg-page px-3 py-3 md:border-r md:border-b-0 md:py-5">
-        <p className="hidden px-2.5 pb-3 text-[13px] font-semibold text-fg-strong md:block">{title}</p>
-        <div className="md:sticky md:top-5">{nav}</div>
-      </aside>
-      <div className="min-w-0">{children}</div>
+    <div className="flex min-h-full flex-col">
+      <div className="border-b border-line bg-page px-4 pt-4 pb-2.5 sm:px-6">
+        <p className="pb-2 text-[13px] font-semibold text-fg-strong">{title}</p>
+        {nav}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }

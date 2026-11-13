@@ -58,14 +58,16 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
       : []),
   ];
   return (
-    <div className="flex flex-col gap-4">
-      <SectionNav
-        label="Configuración del proyecto"
-        groups={groups.map((g) => ({ title: g.title, items: g.items.map((item) => ({ href: `${base}/${item.slug}`, label: item.label })) }))}
-      />
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <SectionNav
+          label="Configuración del proyecto"
+          groups={groups.map((g) => ({ title: g.title, items: g.items.map((item) => ({ href: `${base}/${item.slug}`, label: item.label })) }))}
+        />
+      </div>
       <Link
         href={`/projects/${projectKey}/inicio`}
-        className="hidden rounded-md border border-dashed border-line-strong px-2.5 py-1.5 text-[13px] text-fg-muted hover:bg-hover hover:text-fg-strong md:block"
+        className="hidden shrink-0 rounded-md border border-dashed border-line-strong px-2.5 py-1.5 text-[13px] whitespace-nowrap text-fg-muted hover:bg-hover hover:text-fg-strong md:block"
       >
         Asistente de inicio
       </Link>

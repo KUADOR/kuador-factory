@@ -48,8 +48,6 @@ spring:
 management:
   # En producción, MANAGEMENT_SERVER_PORT=9464: las métricas quedan en un puerto que Traefik no publica (solo la red
   # interna, donde las lee Alloy). La salud pública sigue en el puerto de la API como /livez y /readyz.
-  server:
-    address: ${MANAGEMENT_SERVER_ADDRESS:${SERVER_ADDRESS:127.0.0.1}}
   endpoints:
     web:
       exposure:

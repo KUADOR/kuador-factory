@@ -8,7 +8,7 @@ import java.util.List;
  * estructurada). Qué hacer con la propuesta lo decide el código, no el modelo.
  */
 public record PoProposal(
-        @JsonPropertyDescription("Qué entendiste del pedido, en 1 a 3 frases, sin repetir el título.")
+        @JsonPropertyDescription("Resumen para la persona, en 2 a 3 frases: qué entendiste y qué propones, sin repetir el título. Va en el comentario; el detalle va en el documento.")
         String understanding,
         @JsonPropertyDescription("Historia de usuario: «Como <rol> quiero <capacidad> para <beneficio>».")
         String userStory,

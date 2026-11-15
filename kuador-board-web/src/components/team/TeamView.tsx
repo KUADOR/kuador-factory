@@ -162,7 +162,7 @@ function AgentAutomation({ role, status, runs }: { role: AgentRole | undefined; 
         {!automated
           ? "Su rol no tiene automatización: se le pueden asignar issues, pero no trabaja solo."
           : status.enabled
-            ? `Trabaja cuando una persona le asigna un issue (modelo ${status.model}).`
+            ? `Trabaja cuando le asignan un issue o llega a su etapa (modelo ${status.model}).`
             : `Desactivada: ${status.reason}`}
       </p>
       {runs.length > 0 && (

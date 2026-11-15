@@ -68,6 +68,9 @@ public interface IssueApi {
     /** Issues que supervisa {@code supervisorId} y esperan a un agente (asignados a uno o por tomar). */
     List<QueueItem> agentQueue(UUID supervisorId);
 
+    /** Issues del tablero sin asignar que esperan a un agente (no incluye puertas): los que puede tomar el siguiente de la cadena. */
+    List<QueueItem> openForAgents(String projectKey);
+
     /** Persona que supervisa el trabajo de los agentes en el issue, si hay una. */
     Optional<UUID> supervisorOf(String issueKey);
 

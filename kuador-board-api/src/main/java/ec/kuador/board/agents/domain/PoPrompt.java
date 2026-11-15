@@ -72,6 +72,8 @@ public final class PoPrompt {
         out.append(doc.substantialOnly()
                 ? "Si el issue es SUBSTANTIAL, escribe en `document` «" + doc.label() + "» en Markdown. Si es SIMPLE, deja `document` como cadena vacía: esta metodología no pide documentos para tareas simples.\n"
                 : "Escribe en `document` «" + doc.label() + "» completo en Markdown.\n");
+        out.append("El documento lleva el detalle completo (historia, criterios de aceptación, fuera de alcance y lo que pida la plantilla): ")
+                .append("el comentario solo resume y enlaza al documento.\n");
         if (doc.instructions() != null && !doc.instructions().isBlank()) {
             out.append(doc.instructions().strip()).append('\n');
         }
@@ -97,20 +99,32 @@ public final class PoPrompt {
         return s == null ? "" : s;
     }
 
-    /** Comentario que deja el agente en el issue, armado por código a partir de la propuesta. */
-    public static String comment(String agentName, PoProposal p, String docNote, String requesterName, boolean pointsApplied) {
-        StringBuilder c = new StringBuilder("**Propuesta de ").append(agentName).append("**\n\n> ").append(p.understanding().strip()).append("\n\n");
-        c.append("**Historia:** ").append(p.userStory().strip()).append("\n\n");
-        list(c, "Criterios de aceptación", p.acceptanceCriteria(), true);
-        list(c, "Preguntas para decidir", p.openQuestions(), false);
-        list(c, "Fuera de alcance", p.outOfScope(), false);
+    /** El documento que escribió el agente, para enlazarlo desde el comentario. */
+    public record DocLink(String label, int version, String projectKey, java.util.UUID id, String path) {}
+
+    /**
+     * Comentario que deja el agente en el issue, armado por código a partir de la propuesta. Es corto: qué
+     * entendió, lo que necesita de la persona y dónde leer el detalle. Si escribió un documento, la historia y
+     * los criterios quedan solo ahí (no se repiten); si no, van aquí porque no hay otro lugar.
+     */
+    public static String comment(String agentName, PoProposal p, DocLink doc, String tasksNote, boolean pointsApplied, String closing) {
+        StringBuilder c = new StringBuilder("**").append(agentName).append(":** ").append(p.understanding().strip()).append("\n\n");
+        list(c, "Necesito que respondas", p.openQuestions(), true);
+        if (doc != null) {
+            c.append("📄 **Lee el documento completo:** [«").append(doc.label()).append("» v").append(doc.version()).append("](/projects/")
+                    .append(doc.projectKey()).append("/docs/").append(doc.id()).append(") (`").append(doc.path()).append("`). ")
+                    .append("Ahí están la historia, los criterios de aceptación (").append(p.acceptanceCriteria().size()).append(")")
+                    .append(p.outOfScope().isEmpty() ? "" : " y lo que queda fuera").append(".\n\n");
+        } else {
+            c.append("**Historia:** ").append(p.userStory().strip()).append("\n\n");
+            list(c, "Criterios de aceptación", p.acceptanceCriteria(), true);
+            list(c, "Fuera de alcance", p.outOfScope(), false);
+        }
+        if (tasksNote != null) c.append(tasksNote).append("\n\n");
         c.append("**Estimación:** ").append(p.storyPoints()).append(" pts")
-                .append(pointsApplied ? " (la puse en el issue)" : " (el issue ya tenía estimación; no la cambié)")
-                .append(" · **Complejidad:** ").append(p.complexity() == PoProposal.Complexity.SIMPLE ? "simple" : "sustancial").append("\n\n");
-        if (docNote != null) c.append(docNote).append("\n\n");
-        c.append(p.openQuestions().isEmpty()
-                ? "Te lo devuelvo" + (requesterName == null ? "" : ", " + requesterName) + ", para que lo revises y, si estás de acuerdo, lo muevas a la siguiente columna."
-                : "Te lo devuelvo" + (requesterName == null ? "" : ", " + requesterName) + ": necesito que respondas las preguntas antes de seguir.");
+                .append(pointsApplied ? "" : " (el issue ya tenía estimación; no la cambié)")
+                .append(" · ").append(p.complexity() == PoProposal.Complexity.SIMPLE ? "simple" : "sustancial").append("\n\n");
+        c.append(closing);
         return c.toString();
     }
 

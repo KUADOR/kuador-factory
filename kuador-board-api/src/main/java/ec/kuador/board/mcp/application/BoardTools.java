@@ -87,12 +87,12 @@ public class BoardTools {
                 "Toma un issue sin asignar de su etapa como el agente indicado. Solo si tu rol cubre esa etapa.",
                 Map.of("key", KEY, "agent", AGENT), List.of("key", "agent"), this::take);
         register("add_comment", "Comentar", false,
-                "Deja un comentario en el issue (Markdown), firmado por el agente.",
+                "Deja un comentario breve en el issue (Markdown), firmado por el agente. Es un resumen: el detalle va en un documento (write_document), que enlazas.",
                 Map.of("key", KEY, "agent", AGENT, "text", "El comentario en Markdown."), List.of("key", "agent", "text"), this::comment);
         register("deliver", "Entregar", false,
                 "Terminaste tu etapa: el issue pasa a la siguiente que permite el flujo y queda sin asignar para quien la cubre. "
                         + "Incluye un comentario con qué hiciste y cómo se verifica.",
-                Map.of("key", KEY, "agent", AGENT, "comment", "Resumen de lo hecho y cómo se verifica."), List.of("key", "agent"), this::deliver);
+                Map.of("key", KEY, "agent", AGENT, "comment", "Resumen breve (máximo 5 líneas): qué hiciste, qué documento leer y cómo se verifica. No pegues el documento."), List.of("key", "agent"), this::deliver);
         register("send_back", "Devolver", false,
                 "Devuelve el issue a una etapa anterior porque falta algo de ella (p. ej. QA encontró fallas). Explica qué hay que corregir.",
                 Map.of("key", KEY, "agent", AGENT, "column", "Clave de la columna a la que vuelve (p. ej. DEVELOPMENT).",

@@ -598,31 +598,47 @@ public class IssueService implements IssueApi {
         List<QueueItem> queue = new ArrayList<>();
         for (Issue i : issues.findBySupervisor(supervisorId)) {
             ProjectView project = byKey.computeIfAbsent(i.projectKey(), projects::find).orElse(null);
-            if (project == null) continue;
-            Optional<ColumnDef> column = project.column(i.status());
-            if (column.isEmpty() || column.get().category() == ec.kuador.board.catalog.ColumnCategory.DONE) continue;
-            Optional<StageDef> stage = project.stage(i.status());
-            Optional<MemberView> assignee = Optional.ofNullable(i.assigneeId()).flatMap(members::find);
-            if (handledByTasks(i)) continue; // la trabajan sus tareas, o espera la aprobación del reparto
-            if (!pendingDependencies(i, project).isEmpty()) continue; // espera a otras tareas
-            List<String> roles;
-            if (assignee.isPresent()) {
-                if (!assignee.get().agent()) continue;
-                roles = List.of(assignee.get().role());
-            } else if (inWorkColumn(i)) {
-                if (members.agents().stream().noneMatch(a -> a.role().equals(i.workRole()))) continue; // la hace una persona
-                roles = List.of(i.workRole());
-            } else {
-                // Una tarea del plan que aún no arranca (sigue en la primera columna) no es de nadie todavía.
-                if (i.workRole() != null && i.status().equals(project.columns().getFirst().key())) continue;
-                roles = agentRolesOf(stage);
-                if (roles.isEmpty()) continue;
-            }
-            queue.add(new QueueItem(i.key(), i.projectKey(), i.title(), i.type().name(), i.priority().name(), i.status(), column.get().name(),
-                    stage.map(StageDef::gate).orElse(false), roles, assignee.map(MemberView::id).orElse(null),
-                    assignee.map(MemberView::name).orElse(null), i.reworkCount()));
+            if (project != null) queueItem(i, project).ifPresent(queue::add);
         }
         return queue;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<QueueItem> openForAgents(String projectKey) {
+        ProjectView project = projects.find(projectKey).orElse(null);
+        if (project == null) return List.of();
+        return issues.findByProject(projectKey, IssueFilter.none()).stream()
+                .filter(i -> i.assigneeId() == null)
+                .flatMap(i -> queueItem(i, project).stream())
+                .filter(q -> !q.gate())
+                .toList();
+    }
+
+    /** El issue espera a un agente (asignado a uno o por tomar en una etapa que cubren agentes); si no, vacío. */
+    private Optional<QueueItem> queueItem(Issue i, ProjectView project) {
+        Optional<ColumnDef> column = project.column(i.status());
+        if (column.isEmpty() || column.get().category() == ec.kuador.board.catalog.ColumnCategory.DONE) return Optional.empty();
+        Optional<StageDef> stage = project.stage(i.status());
+        Optional<MemberView> assignee = Optional.ofNullable(i.assigneeId()).flatMap(members::find);
+        if (handledByTasks(i)) return Optional.empty(); // la trabajan sus tareas, o espera la aprobación del reparto
+        if (!pendingDependencies(i, project).isEmpty()) return Optional.empty(); // espera a otras tareas
+        List<String> roles;
+        if (assignee.isPresent()) {
+            if (!assignee.get().agent()) return Optional.empty();
+            roles = List.of(assignee.get().role());
+        } else if (inWorkColumn(i)) {
+            if (members.agents().stream().noneMatch(a -> a.role().equals(i.workRole()))) return Optional.empty(); // la hace una persona
+            roles = List.of(i.workRole());
+        } else {
+            // Una tarea del plan que aún no arranca (sigue en la primera columna) no es de nadie todavía.
+            if (i.workRole() != null && i.status().equals(project.columns().getFirst().key())) return Optional.empty();
+            roles = agentRolesOf(stage);
+            if (roles.isEmpty()) return Optional.empty();
+        }
+        return Optional.of(new QueueItem(i.key(), i.projectKey(), i.title(), i.type().name(), i.priority().name(), i.status(), column.get().name(),
+                stage.map(StageDef::gate).orElse(false), roles, assignee.map(MemberView::id).orElse(null),
+                assignee.map(MemberView::name).orElse(null), i.reworkCount()));
     }
 
     @Override

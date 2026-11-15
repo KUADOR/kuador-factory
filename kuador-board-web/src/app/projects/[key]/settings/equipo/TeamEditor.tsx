@@ -15,7 +15,7 @@ import { MODEL_LABEL } from "@/lib/labels";
 import type { AgentMode, TeamAgent, WorkspaceAiStatus } from "@/lib/types";
 
 const MODE_CHOICES: { value: AgentMode; label: string; hint: string }[] = [
-  { value: "SERVER", label: "En el tablero", hint: "Trabaja solo cuando le asignas una tarjeta, con la clave de IA de la empresa." },
+  { value: "SERVER", label: "En el tablero", hint: "Trabaja con la clave de IA de la empresa cuando le asignas una tarjeta o cuando llega a su etapa; al terminar la pasa a la siguiente." },
   { value: "LOCAL", label: "En la PC de una persona", hint: "Lo trabaja el Claude Code o Codex de alguien del equipo con /pendientes." },
 ];
 

@@ -15,6 +15,7 @@ public abstract class IssueApiStub implements IssueApi {
     @Override public void reassign(String issueKey, UUID memberId, UUID actorId) { throw new UnsupportedOperationException(); }
     @Override public boolean setStoryPointsIfEmpty(String issueKey, int points, UUID actorId) { throw new UnsupportedOperationException(); }
     @Override public List<QueueItem> agentQueue(UUID supervisorId) { return List.of(); }
+    @Override public List<QueueItem> openForAgents(String projectKey) { return List.of(); }
     @Override public Optional<UUID> supervisorOf(String issueKey) { return Optional.empty(); }
     @Override public Progress takeAs(String issueKey, UUID agentId) { throw new UnsupportedOperationException(); }
     @Override public Progress deliverAs(String issueKey, String comment, UUID agentId) { throw new UnsupportedOperationException(); }

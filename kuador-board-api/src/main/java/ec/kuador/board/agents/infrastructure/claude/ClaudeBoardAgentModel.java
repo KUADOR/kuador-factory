@@ -130,7 +130,7 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
                     .thinking(ThinkingConfigAdaptive.builder().build())
                     .addTool(CodeExecutionTool20260120.builder().build())
                     .addTool(tool("deliver", "Entrega el trabajo terminado. Los archivos para la persona deben estar ya copiados en $OUTPUT_DIR.",
-                            Map.of("summary", "Resumen para la persona: qué hiciste, los números más importantes y qué archivos adjuntaste."), "summary"))
+                            Map.of("summary", "Resumen breve para la persona (máximo 5 líneas): qué hiciste, lo más importante y qué archivos adjuntaste. No pegues el documento ni el trabajo completo: van en los archivos."), "summary"))
                     .addTool(tool("ask_human", "Pregunta a una persona algo que falta y sin lo cual no puedes hacer bien el trabajo. Detiene el trabajo hasta que responda.",
                             Map.of("question", "La pregunta, concreta y con las opciones si las hay."), "question"))
                     .addUserMessageOfContentBlockParams(first);

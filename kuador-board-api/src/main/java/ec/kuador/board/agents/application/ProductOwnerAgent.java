@@ -58,10 +58,12 @@ public class ProductOwnerAgent {
     private final TransactionTemplate tx;
     private final Clock clock;
     private final AiKeyProvider keys;
+    private final StageHandoff handoff;
 
     ProductOwnerAgent(AgentRunRepository runs, ProductOwnerModel model, IssueApi issues, DocsApi docs, ProjectApi projects,
             MemberApi members, CatalogApi catalog, PlatformTransactionManager txManager, Clock clock, AiKeyProvider keys) {
         this.keys = keys;
+        this.handoff = new StageHandoff(issues, projects);
         this.runs = runs;
         this.model = model;
         this.issues = issues;
@@ -93,9 +95,10 @@ public class ProductOwnerAgent {
         });
         if (run == null) return;
 
-        Optional<MemberView> requester = event.actorId() == null ? Optional.empty() : tx.execute(s -> members.find(event.actorId()));
-        if (requester.isEmpty() || requester.get().agent()) {
-            finish(run.skipped("Lo asignó un agente; para evitar bucles entre agentes, solo actúo cuando me asigna una persona.", now()));
+        // Lo pidió una persona, o lo encadenó otro agente: entonces responde a la persona que supervisa el issue.
+        Optional<MemberView> requester = tx.execute(s -> requesterOf(event));
+        if (requester.isEmpty()) {
+            finish(run.skipped("Nadie supervisa este issue: asígnamelo tú para que trabaje y sepa a quién responder.", now()));
             return;
         }
         Optional<AgentRole> found = tx.execute(s -> catalog.role(agent.get().role()));
@@ -182,13 +185,14 @@ public class ProductOwnerAgent {
     String apply(MemberView agent, MemberView requester, PoContext context, PoProposal p) {
         String key = context.issue().key();
         List<String> done = new ArrayList<>();
-        String docNote = null;
+        PoPrompt.DocLink docLink = null;
+        String tasksNote = null;
         PoContext.DocTask task = context.docTask();
         boolean wantsDoc = task != null && !(task.substantialOnly() && p.complexity() == PoProposal.Complexity.SIMPLE);
         if (wantsDoc && p.document() != null && !p.document().isBlank()) {
             DocsApi.DocContent doc = docs.write(context.projectKey(), key, task.kind(), p.document().strip() + "\n",
                     "Propuesta de " + agent.name(), agent.id());
-            docNote = "📄 Escribí «" + task.label() + "» (v" + doc.version() + "): `" + doc.path() + "`.";
+            docLink = new PoPrompt.DocLink(task.label(), doc.version(), context.projectKey(), doc.id(), doc.path());
             done.add(task.label().toLowerCase() + " v" + doc.version());
         }
         if (context.splitsIntoTasks()) {
@@ -200,16 +204,29 @@ public class ProductOwnerAgent {
             } catch (ec.kuador.board.shared.error.DomainException e) {
                 throw new AgentModelException("No pude crear las tareas del plan: " + e.getMessage(), e);
             }
-            StringBuilder note = new StringBuilder("🧩 Repartí la épica en ").append(created.size()).append(" tarea(s); esperan en la primera columna hasta que apruebes el reparto:");
+            StringBuilder note = new StringBuilder("🧩 Repartí la épica en ").append(created.size()).append(" tarea(s); arrancan cuando apruebes el reparto:");
             for (int i = 0; i < created.size(); i++) {
                 note.append("\n- ").append(created.get(i).key()).append(" ").append(created.get(i).title()).append(" (").append(p.tasks().get(i).role()).append(")");
             }
-            docNote = docNote == null ? note.toString() : docNote + "\n\n" + note;
+            tasksNote = note.toString();
             done.add(created.size() + " tarea(s)");
         }
         boolean pointsApplied = issues.setStoryPointsIfEmpty(key, p.storyPoints(), agent.id());
         if (pointsApplied) done.add(p.storyPoints() + " pts");
-        issues.addComment(key, agent.id(), PoPrompt.comment(agent.name(), p, docNote, requester.name(), pointsApplied));
+        // Sin preguntas y en su etapa: el issue pasa solo a la siguiente. Con preguntas, vuelve a la persona.
+        java.util.Optional<StageHandoff.Next> next = p.openQuestions().isEmpty() ? handoff.next(agent, key) : java.util.Optional.empty();
+        if (next.isPresent()) {
+            String comment = PoPrompt.comment(agent.name(), p, docLink, tasksNote, pointsApplied, StageHandoff.closing(next.get(), requester.name()));
+            handoff.deliver(agent, requester, key, next.get(), comment);
+            done.add(0, "comentó");
+            done.add("pasó a " + next.get().columnName());
+            return String.join(" · ", done);
+        }
+        String who = requester.name() == null ? "" : ", " + requester.name();
+        String closing = p.openQuestions().isEmpty()
+                ? "Te lo devuelvo" + who + ": revísalo y, si estás de acuerdo, muévelo a la siguiente columna."
+                : "Te lo devuelvo" + who + ": responde las preguntas en un comentario y vuelve a asignármelo.";
+        issues.addComment(key, agent.id(), PoPrompt.comment(agent.name(), p, docLink, tasksNote, pointsApplied, closing));
         done.add(0, "comentó");
         // Solo lo devuelve si sigue asignado a este agente (alguien pudo reasignarlo mientras trabajaba).
         boolean stillMine = issues.context(key).map(i -> agent.id().equals(i.assigneeId())).orElse(false);
@@ -236,6 +253,13 @@ public class ProductOwnerAgent {
         return new PoProposal(nz(p.understanding()), p.userStory(), p.acceptanceCriteria(), orEmpty(p.openQuestions()), orEmpty(p.outOfScope()),
                 points, p.complexity() == null ? PoProposal.Complexity.SUBSTANTIAL : p.complexity(), nz(p.document()),
                 p.tasks() == null ? List.of() : p.tasks());
+    }
+
+    /** Quien pidió el trabajo: la persona que asignó, o si lo asignó la cadena (otro agente), la que supervisa el issue. */
+    private Optional<MemberView> requesterOf(IssueAssigned event) {
+        Optional<MemberView> actor = event.actorId() == null ? Optional.empty() : members.find(event.actorId());
+        if (actor.isPresent() && !actor.get().agent()) return actor;
+        return issues.supervisorOf(event.issueKey()).flatMap(members::find).filter(m -> !m.agent());
     }
 
     private void finish(AgentRun run) {

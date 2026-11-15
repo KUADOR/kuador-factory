@@ -88,6 +88,14 @@ class ProductOwnerAgentTest {
                 return refs;
             }
             public void reassign(String k, UUID m, UUID actor) { issueStore.computeIfPresent(k, (key, i) -> withAssignee(i, m)); }
+            public Progress deliverAs(String k, String comment, UUID agentId) {
+                comments.add(agentId + "|" + comment);
+                IssueContext i = issueStore.get(k);
+                String next = projects.find(i.projectKey()).flatMap(p -> p.nextAfter(i.status())).orElseThrow().key();
+                issueStore.put(k, new IssueContext(i.key(), i.projectKey(), i.title(), i.description(), i.type(), next, i.priority(),
+                        i.storyPoints(), i.labels(), i.parentKey(), null, i.reporterId(), i.comments()));
+                return new Progress(k, next, next, null);
+            }
             public boolean setStoryPointsIfEmpty(String k, int points, UUID actor) {
                 IssueContext i = issueStore.get(k);
                 if (i.storyPoints() != null) return false;
@@ -158,8 +166,9 @@ class ProductOwnerAgentTest {
         assertThat(writes).containsExactly("SPEC|KUA-8|" + PO + "|Propuesta de Agente PO");
         assertThat(issueStore.get("KUA-8").storyPoints()).as("4 se redondea a 5 (Fibonacci)").isEqualTo(5);
         assertThat(comments).singleElement().satisfies(c -> {
-            assertThat(c).startsWith(PO + "|**Propuesta de Agente PO**");
-            assertThat(c).contains("1. Dado una cita mañana").contains("Escribí «Spec» (v1)").contains("lo muevas a la siguiente columna");
+            assertThat(c).startsWith(PO + "|**Agente PO:** ");
+            assertThat(c).as("enlaza al documento en vez de copiarlo").contains("Lee el documento completo:** [«Spec» v1](/projects/KUA/docs/")
+                    .doesNotContain("Dado una cita mañana").contains("muévelo a la siguiente columna");
         });
         assertThat(issueStore.get("KUA-8").assigneeId()).as("devuelto a quien lo asignó").isEqualTo(PERSON);
         AgentRun run = onlyRun();
@@ -212,6 +221,11 @@ class ProductOwnerAgentTest {
 
         assertThat(seen.getFirst().splitsIntoTasks()).as("de Refinamiento sigue Aprobación, no trabajo").isFalse();
         assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);
+        // Sin preguntas y en su etapa: pasa sola a la siguiente (una puerta) y queda con la persona para aprobar.
+        assertThat(issueStore.get("KUA-8").status()).isNotEqualTo("REFINEMENT");
+        assertThat(issueStore.get("KUA-8").assigneeId()).isEqualTo(PERSON);
+        assertThat(comments.getLast()).contains("➡️ Lo pasé a «").contains("espera tu aprobación");
+        assertThat(onlyRun().summary()).contains("pasó a");
     }
 
     @Test
@@ -242,15 +256,15 @@ class ProductOwnerAgentTest {
 
         agent.onAssigned(assignedBy(PERSON, PO));
 
-        assertThat(comments.getFirst()).contains("**Preguntas para decidir**").contains("- ¿Aplica fines de semana?")
-                .contains("necesito que respondas las preguntas");
+        assertThat(comments.getFirst()).contains("**Necesito que respondas**").contains("1. ¿Aplica fines de semana?")
+                .contains("responde las preguntas");
     }
 
     @Test
     void skipsWhenAssignedByAnotherAgentOrForARoleWithoutAutomationOrWithoutKey() {
         agent.onAssigned(assignedBy(QA, PO));
         assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SKIPPED);
-        assertThat(onlyRun().summary()).contains("bucles");
+        assertThat(onlyRun().summary()).as("lo encadenó otro agente y nadie supervisa el issue").contains("Nadie supervisa");
         runs.clear();
 
         agent.onAssigned(assignedBy(PERSON, QA));

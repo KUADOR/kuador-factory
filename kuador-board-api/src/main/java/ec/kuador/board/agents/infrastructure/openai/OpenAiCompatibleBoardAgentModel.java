@@ -93,7 +93,7 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
             for (WorkRoom.ToolSpec t : room.tools()) tools.add(tool(t.name(), t.description(), t.parameters()));
             for (BoardAgentModel.BoardTool t : task.tools()) tools.add(tool(t.name(), t.description(), t.parameters()));
             tools.add(tool("deliver", "Entrega el trabajo terminado: los archivos que creaste se adjuntan a la tarjeta.",
-                    object("summary", "Resumen para la persona: qué hiciste, lo más importante y qué archivos adjuntaste.")));
+                    object("summary", "Resumen breve para la persona (máximo 5 líneas): qué hiciste, lo más importante y qué archivos adjuntaste. No pegues el documento ni el trabajo completo: van en los archivos.")));
             tools.add(tool("ask_human", "Pregunta a una persona algo que falta y sin lo cual no puedes hacer bien el trabajo. Detiene el trabajo hasta que responda.",
                     object("question", "La pregunta, concreta y con las opciones si las hay.")));
 

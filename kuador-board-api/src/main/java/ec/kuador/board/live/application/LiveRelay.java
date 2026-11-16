@@ -32,6 +32,12 @@ class LiveRelay {
         hub.publish(event.workspaceId(), new LiveHub.Change(event.projectKey(), event.issueKey(), "DOCUMENTO", event.actorId()));
     }
 
+    @Async
+    @TransactionalEventListener(fallbackExecution = true)
+    void on(ec.kuador.board.agents.AgentRunChanged event) {
+        hub.publish(event.workspaceId(), new LiveHub.Change(event.projectKey(), event.issueKey(), "AGENTE_" + event.status(), event.agentId()));
+    }
+
     private static String type(IssueEvent event) {
         return switch (event) {
             case ec.kuador.board.issue.IssueCreated e -> "CREADO";

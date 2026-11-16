@@ -32,9 +32,11 @@ interface SpringDataAgentRuns extends JpaRepository<AgentRunEntity, UUID> {
 class JpaAgentRunRepository implements AgentRunRepository {
 
     private final SpringDataAgentRuns jpa;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
-    JpaAgentRunRepository(SpringDataAgentRuns jpa) {
+    JpaAgentRunRepository(SpringDataAgentRuns jpa, org.springframework.context.ApplicationEventPublisher events) {
         this.jpa = jpa;
+        this.events = events;
     }
 
     @Override
@@ -54,7 +56,16 @@ class JpaAgentRunRepository implements AgentRunRepository {
 
     @Override
     public void save(AgentRun run) {
-        jpa.save(AgentRunEntity.from(run));
+        AgentRunEntity saved = jpa.save(AgentRunEntity.from(run));
+        // Para la vista en vivo: quién empezó o terminó de trabajar. El espacio sale del contexto (el @TenantId de la
+        // entidad recién se llena al escribir en la base).
+        java.util.UUID workspace = ec.kuador.board.shared.tenant.TenantContext.current();
+        if (workspace.equals(ec.kuador.board.shared.tenant.TenantContext.NONE) || workspace.equals(ec.kuador.board.shared.tenant.TenantContext.ROOT)) {
+            workspace = saved.workspaceId;
+        }
+        if (workspace != null) {
+            events.publishEvent(new ec.kuador.board.agents.AgentRunChanged(workspace, run.projectKey(), run.issueKey(), run.agentId(), run.status().name()));
+        }
     }
 
     @Override

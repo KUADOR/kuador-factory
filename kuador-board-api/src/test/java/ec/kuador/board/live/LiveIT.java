@@ -132,12 +132,19 @@ class LiveIT {
         assertThat(call("POST", "/api/issues/" + key + "/move", Map.of("status", "REFINEMENT", "index", 0), ana)).isEqualTo(200);
         assertThat(call("POST", "/api/issues/" + key + "/comments", Map.of("body", "Listo para refinar"), ana)).isEqualTo(201);
         create("OTR", "De otro proyecto", ana);
+        // Asignárselo al Agente PO: la oficina se entera de que el agente empezó y terminó (aquí, sin clave de IA, lo omite).
+        var members = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/members")).header("Authorization", "Bearer " + ana).GET().build(),
+                HttpResponse.BodyHandlers.ofString()).body();
+        String po = json.readTree(members).valueStream().filter(m -> "PRODUCT_OWNER".equals(m.path("role").asText())).findFirst().orElseThrow().get("id").asText();
+        assertThat(call("PUT", "/api/issues/" + key + "/assignee", Map.of("assigneeId", po), ana)).isEqualTo(200);
 
         List<String> heard = drain(board, Duration.ofSeconds(5));
         assertThat(heard).allMatch(e -> e.startsWith("cambio ") && e.contains("\"proyecto\":\"LIV\"") && e.contains("\"issue\":\"" + key + "\""));
         assertThat(heard).anyMatch(e -> e.contains("\"tipo\":\"CREADO\""))
                 .anyMatch(e -> e.contains("\"tipo\":\"MOVIDO\""))
-                .anyMatch(e -> e.contains("\"tipo\":\"COMENTADO\""));
+                .anyMatch(e -> e.contains("\"tipo\":\"COMENTADO\""))
+                .anyMatch(e -> e.contains("\"tipo\":\"AGENTE_RUNNING\""))
+                .anyMatch(e -> e.contains("\"tipo\":\"AGENTE_SKIPPED\""));
         assertThat(drain(otherWorkspace, Duration.ofSeconds(1))).as("otro espacio no se entera").isEmpty();
         assertThat(call("GET", "/api/live", null, "token-falso")).isEqualTo(401);
     }

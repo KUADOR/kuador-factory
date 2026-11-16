@@ -96,6 +96,10 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
                     object("summary", "Resumen breve para la persona (máximo 5 líneas): qué hiciste, lo más importante y qué archivos adjuntaste. No pegues el documento ni el trabajo completo: van en los archivos.")));
             tools.add(tool("ask_human", "Pregunta a una persona algo que falta y sin lo cual no puedes hacer bien el trabajo. Detiene el trabajo hasta que responda.",
                     object("question", "La pregunta, concreta y con las opciones si las hay.")));
+            if (task.sendBackTo() != null) {
+                tools.add(tool("send_back", task.sendBackDescription(),
+                        object("reason", "Qué hay que corregir, con evidencia: criterio o check que falla, archivo y línea, resultado esperado y obtenido.")));
+            }
 
             ArrayNode messages = json.createArrayNode();
             messages.addObject().put("role", "system").put("content", task.system() + ENVIRONMENT);
@@ -137,7 +141,7 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
                 for (JsonNode c : calls) {
                     String name = c.path("function").path("name").asString("");
                     JsonNode args = arguments(c.path("function").path("arguments").asString("{}"));
-                    if (name.equals("deliver") || name.equals("ask_human")) continue; // después de las demás
+                    if (terminal(name)) continue; // después de las demás
                     String result;
                     var boardTool = task.tool(name);
                     if (args == null) result = "Error: los argumentos no son JSON válido.";
@@ -148,12 +152,15 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
                 }
                 for (JsonNode c : calls) {
                     String name = c.path("function").path("name").asString("");
-                    if (!name.equals("deliver") && !name.equals("ask_human")) continue;
+                    if (!terminal(name)) continue;
                     JsonNode a = arguments(c.path("function").path("arguments").asString("{}"));
                     if (a == null) a = json.createObjectNode();
                     String reply = "Recibido.";
                     if (end == null && name.equals("ask_human")) {
                         end = new Result(Outcome.QUESTION, a.path("question").asString("").strip(), List.of(), usedModel, input, output);
+                    } else if (end == null && name.equals("send_back")) {
+                        if (task.sendBackTo() == null) reply = "Error: en esta etapa no puedes devolver el trabajo.";
+                        else end = new Result(Outcome.SENT_BACK, a.path("reason").asString("").strip(), List.of(), usedModel, input, output);
                     } else if (end == null) {
                         String blocked = task.blocksDelivery();
                         if (blocked == null) end = new Result(Outcome.DELIVERED, a.path("summary").asString("").strip(), List.of(), usedModel, input, output);
@@ -168,6 +175,10 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
             }
             throw new AgentModelException("El agente no terminó en " + MAX_TURNS + " vueltas; divide el pedido o acláralo.");
         }
+    }
+
+    private static boolean terminal(String tool) {
+        return tool.equals("deliver") || tool.equals("ask_human") || tool.equals("send_back");
     }
 
     private JsonNode call(Endpoint endpoint, ObjectNode body) {

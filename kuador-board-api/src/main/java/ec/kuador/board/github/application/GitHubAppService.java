@@ -121,6 +121,8 @@ public class GitHubAppService implements GitHubApi {
                 "contents", "write",
                 "pull_requests", "write",
                 "workflows", "write", // el CI mínimo vive en .github/workflows
+                "checks", "read", // el agente QA del tablero lee el resultado del CI de un PR
+                "statuses", "read",
                 "metadata", "read"));
         manifest.put("default_events", List.of());
         String path = org == null ? "/settings/apps/new" : "/organizations/" + org + "/settings/apps/new";

@@ -17,8 +17,13 @@ class StageHandoffTest {
 
     static final MemberView ANALYST = new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, "Analista", true, "ANALYST", "#fff", null);
     static final MemberView MARKETING = new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, "Marketing", true, "MARKETING", "#fff", null);
+    static final MemberView QA = new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, "QA", true, "QA", "#fff", null);
 
     private Optional<StageHandoff.Next> next(String template, String column, MemberView agent) {
+        return handoff(template, column, agent).next(agent, "B-1");
+    }
+
+    private StageHandoff handoff(String template, String column, MemberView agent) {
         InMemoryProjects projects = new InMemoryProjects();
         projects.add("B", template, null);
         IssueApi issues = new IssueApiStub() {
@@ -26,7 +31,7 @@ class StageHandoffTest {
                 return Optional.of(new IssueContext(k, "B", "t", null, "TASK", column, "HIGH", null, List.of(), null, agent.id(), null, List.of()));
             }
         };
-        return new StageHandoff(issues, projects).next(agent, "B-1");
+        return new StageHandoff(issues, projects);
     }
 
     @Test
@@ -52,5 +57,14 @@ class StageHandoffTest {
         });
         assertThat(next("SALES", "PROSPECT", ANALYST)).as("lo que sigue es trabajo de una etapa, no una revisión: vuelve a la persona").isEmpty();
         assertThat(next("SALES", "PROPOSAL_DRAFT", ANALYST)).as("no es la etapa de su rol").isEmpty();
+    }
+
+    @Test
+    void qaSendsBackToTheDevelopmentStage() {
+        assertThat(handoff("SOFTWARE_FACTORY", "QA", QA).back(QA, "B-1")).as("de QA vuelve a desarrollo")
+                .map(StageHandoff.Back::column).hasValue("DEVELOPMENT");
+        assertThat(handoff("SOFTWARE_FACTORY", "DEVELOPMENT", QA).back(QA, "B-1")).as("no es la etapa de su rol").isEmpty();
+        assertThat(handoff("SALES", "RESEARCH", ANALYST).back(ANALYST, "B-1")).as("la primera etapa de trabajo: no hay a dónde devolver").isEmpty();
+        assertThat(handoff("SALES", "PROPOSAL_DRAFT", MARKETING).back(MARKETING, "B-1")).map(StageHandoff.Back::columnName).hasValue("Investigación");
     }
 }

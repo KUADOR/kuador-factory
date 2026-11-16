@@ -20,7 +20,7 @@ const MODE_CHOICES: { value: AgentMode; label: string; hint: string }[] = [
 ];
 
 
-const CODE_ONLY_LOCAL = "Trabaja sobre el código del repo: lo trabaja el Claude Code o Codex de alguien del equipo con /pendientes, donde está el repo.";
+const CODE_ONLY_LOCAL = "Escribe el código del repo: lo trabaja el Claude Code o Codex de alguien del equipo con /pendientes, donde está el repo.";
 
 type Role = { key: string; name: string; description: string; worksOnCode: boolean };
 

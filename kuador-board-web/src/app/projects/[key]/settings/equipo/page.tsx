@@ -8,8 +8,8 @@ import { TeamEditor } from "./TeamEditor";
 
 export const dynamic = "force-dynamic";
 
-/** Herramientas que cambian o ejecutan el código del repo: el rol que las usa solo trabaja en la PC de una persona (como en el API). */
-const CODE_TOOLS = ["Bash", "Edit", "Write"];
+/** Herramientas que cambian el código del repo: el rol que las usa solo trabaja en la PC de una persona (como en el API). */
+const CODE_TOOLS = ["Edit", "Write"];
 export const metadata: Metadata = { title: "Equipo de agentes" };
 
 export default async function TeamSettingsPage({ params }: PageProps<"/projects/[key]/settings/equipo">) {

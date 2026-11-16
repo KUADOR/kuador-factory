@@ -158,7 +158,8 @@ export function IssueForm({
         <p className="-mt-1 flex gap-1.5 rounded-md bg-sol/10 px-2.5 py-2 text-[11px] leading-relaxed text-fg">
           <Sparkle className="mt-0.5 size-3 shrink-0 fill-sol text-sol" aria-hidden />
           <span>
-            Al guardar, {newAgent.name} recibe el issue. Si su rol tiene automatización, comentará una propuesta y te lo devolverá para que lo apruebes.
+            Al guardar, {newAgent.name} recibe el issue. Si trabaja en el tablero, empieza solo: si le falta algo te pregunta en un comentario y, al
+            terminar, lo pasa a la siguiente etapa. Si trabaja en la PC de una persona, lo toma desde /pendientes.
           </span>
         </p>
       )}

@@ -7,6 +7,7 @@ import ec.kuador.board.issue.IssueApi;
 import ec.kuador.board.member.MemberView;
 import ec.kuador.board.project.ProjectApi;
 import ec.kuador.board.project.ProjectView;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -63,6 +64,30 @@ class StageHandoff {
                 .findFirst()
                 .filter(c -> project.stage(c.key()).map(StageDef::gate).orElse(false) && project.canMove(status, c.key()))
                 .map(c -> new Next(c.key(), c.name(), true, false));
+    }
+
+    /** A dónde puede devolver el trabajo el agente de esta etapa: la etapa de trabajo anterior (p. ej. de QA a desarrollo). */
+    record Back(String column, String columnName) {}
+
+    /**
+     * La etapa de trabajo más cercana antes de la actual (con roles y sin puerta), si el agente está en una etapa de su
+     * rol. Vacío en las demás: no hay a dónde devolver.
+     */
+    Optional<Back> back(MemberView agent, String issueKey) {
+        Optional<IssueApi.IssueContext> found = issues.context(issueKey);
+        if (found.isEmpty()) return Optional.empty();
+        IssueApi.IssueContext issue = found.get();
+        ProjectView project = projects.find(issue.projectKey()).orElse(null);
+        if (project == null) return Optional.empty();
+        Optional<StageDef> stage = project.stage(issue.status());
+        if (stage.isEmpty() || stage.get().gate() || !stage.get().roles().contains(agent.role())) return Optional.empty();
+        List<ColumnDef> before = project.columns().subList(0, Math.max(0, project.indexOf(issue.status())));
+        for (int i = before.size() - 1; i >= 0; i--) {
+            ColumnDef c = before.get(i);
+            boolean work = project.stage(c.key()).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
+            if (work) return Optional.of(new Back(c.key(), c.name()));
+        }
+        return Optional.empty();
     }
 
     /** Comenta y pasa el issue a la siguiente etapa. En una puerta o una columna sin etapa queda con la persona. */

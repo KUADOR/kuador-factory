@@ -27,11 +27,24 @@ public interface BoardAgentModel {
      * {@code system}: quién es el agente y las reglas del tablero; cada proveedor suma cómo es su entorno.
      * {@code tools}: herramientas del tablero además de las de cada proveedor. {@code deliverCheck}: antes de aceptar
      * la entrega; devuelve el motivo para no aceptarla (vuelve al modelo como error) o {@code null} si puede entregar.
+     * {@code webSearch}: puede buscar y leer páginas en Internet (si su proveedor lo ofrece). {@code sendBackTo}: el nombre
+     * de la columna a la que puede devolver el trabajo con {@code send_back} (p. ej. QA a «En desarrollo»), o {@code null}.
      */
-    record Task(String system, String user, List<InputFile> files, List<BoardTool> tools, Supplier<String> deliverCheck) {
+    record Task(String system, String user, List<InputFile> files, List<BoardTool> tools, Supplier<String> deliverCheck, boolean webSearch,
+            String sendBackTo) {
 
         public Task(String system, String user, List<InputFile> files) {
-            this(system, user, files, List.of(), () -> null);
+            this(system, user, files, List.of(), () -> null, false, null);
+        }
+
+        public Task(String system, String user, List<InputFile> files, List<BoardTool> tools, Supplier<String> deliverCheck) {
+            this(system, user, files, tools, deliverCheck, false, null);
+        }
+
+        /** La descripción de send_back para el modelo. */
+        public String sendBackDescription() {
+            return "Devuelve el trabajo a «" + sendBackTo + "» porque no cumple: criterios de aceptación que fallan, CI en rojo o "
+                    + "errores. Termina tu trabajo; quien lo hizo lo corrige y vuelve a pasar por tu etapa.";
         }
 
         /** El motivo para no aceptar la entrega, o {@code null}. */
@@ -49,10 +62,12 @@ public interface BoardAgentModel {
 
     enum Outcome {
         DELIVERED,
-        QUESTION
+        QUESTION,
+        /** Devolvió el trabajo a la etapa anterior ({@link Task#sendBackTo()}). */
+        SENT_BACK
     }
 
-    /** {@code text}: el resumen de la entrega o la pregunta para la persona. */
+    /** {@code text}: el resumen de la entrega, la pregunta para la persona o qué hay que corregir. */
     record Result(Outcome outcome, String text, List<OutputFile> files, String model, long inputTokens, long outputTokens) {}
 
     /** El protocolo que habla este adaptador. */

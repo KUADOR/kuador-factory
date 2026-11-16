@@ -17,6 +17,7 @@ import ec.kuador.board.member.MemberView;
 import ec.kuador.board.project.ProjectApi;
 import ec.kuador.board.project.ProjectView;
 import ec.kuador.board.shared.tenant.TenantContext;
+import ec.kuador.board.sync.CodeReviewApi;
 import ec.kuador.board.workspace.WorkspaceApi;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -61,10 +62,12 @@ public class BoardAgent {
     private final Clock clock;
     private final io.micrometer.core.instrument.MeterRegistry metrics;
     private final StageHandoff handoff;
+    private final CodeReviewApi code;
 
     BoardAgent(AgentRunRepository runs, AiProviders providers, BoardTeam team, WorkspaceAi ai, IssueApi issues, ProjectApi projects, MemberApi members,
             CatalogApi catalog, AttachmentApi attachments, WorkspaceApi workspace, PlatformTransactionManager txManager, Clock clock,
-            io.micrometer.core.instrument.MeterRegistry metrics) {
+            io.micrometer.core.instrument.MeterRegistry metrics, CodeReviewApi code) {
+        this.code = code;
         this.runs = runs;
         this.providers = providers;
         this.team = team;
@@ -221,9 +224,101 @@ public class BoardAgent {
             user.append(String.join(", ", files.stream().map(BoardAgentModel.InputFile::name).toList())).append("\n");
         }
         if (!skipped.isEmpty()) user.append("No te pasé por tamaño o cantidad: ").append(String.join(", ", skipped)).append("\n");
-        if (!epic) return new BoardAgentModel.Task(system.toString(), user.toString(), files);
-        return new BoardAgentModel.Task(system.toString(), user.toString(), files, List.of(createTasks(agent, card.key())),
-                () -> epicNeedsTasks(card.key()));
+
+        List<BoardAgentModel.BoardTool> tools = new ArrayList<>();
+        if (epic) tools.add(createTasks(agent, card.key()));
+        // En software, el código se revisa en GitHub: los PRs, sus cambios, el CI y los archivos del repo (solo lectura).
+        List<String> repos = board.software() ? repositories(card.projectKey()) : List.of();
+        if (!repos.isEmpty()) {
+            tools.addAll(codeTools(card.projectKey()));
+            system.append("""
+                    - No tienes el repo clonado ni puedes ejecutar sus pruebas: revisas el código en GitHub con list_pull_requests, \
+                    read_pull_request (cambios y resultado del CI) y read_repo_file. Repositorios del proyecto: %s. Busca primero los PRs \
+                    de esta tarjeta por su clave (%s).
+                    """.formatted(String.join(", ", repos), card.key()));
+        }
+        Optional<StageHandoff.Back> back = handoff.back(agent, issueKey);
+        if (back.isPresent()) {
+            system.append("""
+                    - Si lo que recibiste no cumple (un criterio de aceptación falla, el CI está en rojo o hay errores), no lo entregues: \
+                    llama a send_back con lo que hay que corregir y la evidencia (criterio, check o archivo y línea; esperado y obtenido). \
+                    Vuelve a «%s». Si todo cumple, entrega con deliver diciendo qué verificaste.
+                    """.formatted(back.get().columnName()));
+        }
+        boolean web = role.map(r -> r.tools() != null && r.tools().contains("WebSearch")).orElse(false);
+        return new BoardAgentModel.Task(system.toString(), user.toString(), files, tools, epic ? () -> epicNeedsTasks(card.key()) : () -> null, web,
+                back.map(StageHandoff.Back::columnName).orElse(null));
+    }
+
+    private List<String> repositories(String projectKey) {
+        try {
+            return code.repositories(projectKey);
+        } catch (RuntimeException e) {
+            log.warn("No se pudieron leer los repos de {}: {}", projectKey, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** Leer el código del proyecto en GitHub, como lo haría QA en su PC pero sin clonar. */
+    private List<BoardAgentModel.BoardTool> codeTools(String projectKey) {
+        Map<String, Object> listParams = Map.of("type", "object", "properties", Map.of(
+                "search", Map.of("type", "string", "description", "Texto a buscar en título, rama o descripción (p. ej. la clave de la tarjeta). Vacío = los últimos.")));
+        Map<String, Object> pullParams = Map.of("type", "object", "required", List.of("number"), "properties", Map.of(
+                "repository", Map.of("type", "string", "description", "owner/repo (opcional si el proyecto tiene uno solo)."),
+                "number", Map.of("type", "integer", "description", "Número del PR.")));
+        Map<String, Object> fileParams = Map.of("type", "object", "required", List.of("path"), "properties", Map.of(
+                "repository", Map.of("type", "string", "description", "owner/repo (opcional si el proyecto tiene uno solo)."),
+                "path", Map.of("type", "string", "description", "Ruta del archivo en el repo."),
+                "ref", Map.of("type", "string", "description", "Rama o commit (p. ej. la rama del PR). Vacío = la rama principal.")));
+        return List.of(
+                new BoardAgentModel.BoardTool("list_pull_requests", "Lista los Pull Requests de los repos del proyecto, los más recientes primero.", listParams,
+                        args -> pullsText(code.pullRequests(projectKey, str(args.get("search"))), str(args.get("search")))),
+                new BoardAgentModel.BoardTool("read_pull_request", "Lee un Pull Request: descripción, archivos cambiados con su diff y el resultado del CI del último commit.",
+                        pullParams, args -> pullText(code.pullRequest(projectKey, str(args.get("repository")), number(args.get("number"))))),
+                new BoardAgentModel.BoardTool("read_repo_file", "Lee un archivo de texto del repo, en una rama o commit.", fileParams,
+                        args -> code.file(projectKey, str(args.get("repository")), str(args.get("ref")), str(args.get("path")))));
+    }
+
+    static String pullsText(List<CodeReviewApi.PullSummary> pulls, String search) {
+        if (pulls.isEmpty()) return "No hay Pull Requests" + (search.isEmpty() ? "." : " que mencionen «" + search + "».");
+        StringBuilder sb = new StringBuilder();
+        for (CodeReviewApi.PullSummary p : pulls) {
+            sb.append("- ").append(p.repository()).append(" #").append(p.number()).append(" «").append(p.title()).append("» ")
+                    .append(p.merged() ? "fusionado" : p.state()).append(" · ").append(p.branch()).append(" → ").append(p.baseBranch())
+                    .append(" · ").append(p.author()).append(" · ").append(p.url()).append("\n");
+        }
+        return sb.toString();
+    }
+
+    static String pullText(CodeReviewApi.PullDetail d) {
+        CodeReviewApi.PullSummary p = d.pull();
+        StringBuilder sb = new StringBuilder();
+        sb.append(p.repository()).append(" #").append(p.number()).append(" «").append(p.title()).append("» · ").append(p.merged() ? "fusionado" : p.state())
+                .append(" · rama ").append(p.branch()).append(" → ").append(p.baseBranch()).append(" · commit ").append(d.headSha()).append("\n");
+        if (p.body() != null && !p.body().isBlank()) sb.append("\nDescripción:\n").append(p.body().strip()).append("\n");
+        sb.append("\nCI del último commit:\n");
+        if (d.checksNote() != null) sb.append(d.checksNote()).append("\n");
+        else if (d.checks().isEmpty()) sb.append("Sin checks ni estados (el repo no tiene CI o todavía no corrió).\n");
+        for (CodeReviewApi.Check c : d.checks()) {
+            sb.append("- ").append(c.name()).append(": ").append(c.conclusion() == null ? c.status() : c.conclusion());
+            if (c.summary() != null && !c.summary().isBlank()) sb.append(" — ").append(c.summary());
+            sb.append("\n");
+        }
+        sb.append("\nArchivos cambiados (").append(d.files().size()).append(d.filesTruncated() ? ", algunos diffs recortados" : "").append("):\n");
+        for (CodeReviewApi.ChangedFile f : d.files()) {
+            sb.append("\n### ").append(f.path()).append(" (").append(f.status()).append(", +").append(f.additions()).append(" −").append(f.deletions()).append(")\n");
+            sb.append(f.patch() == null ? "(sin diff: binario o muy grande; léelo con read_repo_file)\n" : "```diff\n" + f.patch() + "\n```\n");
+        }
+        return sb.toString();
+    }
+
+    private static int number(Object o) {
+        if (o instanceof Number n) return n.intValue();
+        try {
+            return Integer.parseInt(str(o).replace("#", ""));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("«number» es el número del PR, p. ej. 6.");
+        }
     }
 
     /** Crea las tareas de la épica, hijas suyas, como lo hace create_tasks del servidor MCP. */
@@ -285,6 +380,15 @@ public class BoardAgent {
             } catch (RuntimeException e) {
                 log.warn("No se pudo adjuntar {} en {}: {}", f.name(), issueKey, e.getMessage());
                 notAttached.add(f.name());
+            }
+        }
+        if (result.outcome() == BoardAgentModel.Outcome.SENT_BACK) {
+            Optional<StageHandoff.Back> back = handoff.back(agent, issueKey);
+            if (back.isPresent()) {
+                String reason = result.text().isBlank() ? "No cumple; revisa los comentarios." : result.text();
+                if (!attached.isEmpty()) reason += "\n\n📎 Adjunté: " + String.join(", ", attached) + ".";
+                issues.sendBack(issueKey, back.get().column(), reason, agent.id());
+                return "devolvió a " + back.get().columnName();
             }
         }
         boolean question = result.outcome() == BoardAgentModel.Outcome.QUESTION;

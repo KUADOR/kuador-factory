@@ -112,7 +112,7 @@ public class BoardTeam extends TenantAwareListener {
         return code && p.mode() == AgentMode.SERVER ? new AgentTeamStore.Profile(memberId, AgentMode.LOCAL, p.model()) : p;
     }
 
-    /** El rol trabaja sobre el código del repo: no puede trabajar en el tablero. */
+    /** El rol escribe el código del repo: no puede trabajar en el tablero. */
     public boolean worksOnCode(String roleKey) {
         return catalog.role(roleKey).map(AgentRole::worksOnCode).orElse(false);
     }
@@ -120,8 +120,8 @@ public class BoardTeam extends TenantAwareListener {
     private static AgentMode allowedMode(AgentRole role, AgentMode mode) {
         if (mode != AgentMode.SERVER) return AgentMode.LOCAL;
         if (role != null && role.worksOnCode()) {
-            throw new DomainException("«" + role.name() + "» trabaja sobre el código del repo (lo edita o corre sus pruebas): en el tablero no tiene el repo "
-                    + "ni con qué ejecutarlo. Déjalo «En la PC de una persona» y lo trabaja su Claude Code o Codex con /pendientes.");
+            throw new DomainException("«" + role.name() + "» escribe el código del repo: en el tablero no tiene el repo ni con qué ejecutarlo. "
+                    + "Déjalo «En la PC de una persona» y lo trabaja su Claude Code o Codex con /pendientes.");
         }
         return mode;
     }

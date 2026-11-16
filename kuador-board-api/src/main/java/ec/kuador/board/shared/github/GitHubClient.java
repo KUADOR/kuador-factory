@@ -43,6 +43,11 @@ public final class GitHubClient {
         return send("POST", path, body).orElseThrow(() -> new DomainException("GitHub no encontró " + path + "."));
     }
 
+    /** POST que devuelve vacío si GitHub responde 404 (para decidir qué decir según el caso). */
+    public Optional<JsonNode> tryPost(String path, Object body) {
+        return send("POST", path, body);
+    }
+
     public JsonNode patch(String path, Object body) {
         return send("PATCH", path, body).orElseThrow(() -> new DomainException("GitHub no encontró " + path + "."));
     }

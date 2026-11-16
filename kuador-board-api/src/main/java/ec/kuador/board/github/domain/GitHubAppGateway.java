@@ -17,6 +17,13 @@ public interface GitHubAppGateway {
     /** Credenciales de la app para firmar (JWT) y para el intercambio OAuth. */
     record AppKeys(long appId, String clientId, String clientSecret, String privateKeyPem) {}
 
+    /** GitHub no conoce la instalación: la app se desinstaló de esa cuenta o la app se volvió a crear. */
+    final class InstallationGone extends ec.kuador.board.shared.error.DomainException {
+        public InstallationGone(long installationId) {
+            super("GitHub ya no tiene la instalación " + installationId + ".");
+        }
+    }
+
     ConvertedApp convertManifest(String code);
 
     /** Cuenta donde está instalada la app (con el JWT de la app). */

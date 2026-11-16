@@ -193,11 +193,17 @@ public class GitHubAppService implements GitHubApi {
     @Override
     @Transactional(readOnly = true)
     public String installationToken(long installationId) {
-        connection(installationId); // solo instalaciones del espacio actual
+        Connection connection = connection(installationId); // solo instalaciones del espacio actual
         Instant now = clock.instant();
         Token cached = tokens.get(installationId);
         if (cached != null && cached.expiresAt().isAfter(now.plus(TOKEN_MARGIN))) return cached.value();
-        Token fresh = github.installationToken(keys(requireApp()), installationId);
+        Token fresh;
+        try {
+            fresh = github.installationToken(keys(requireApp()), installationId);
+        } catch (GitHubAppGateway.InstallationGone e) {
+            throw new DomainException("La GitHub App ya no está instalada en «" + connection.account() + "» (se desinstaló o la app se volvió a crear). "
+                    + "En Conexiones → GitHub, quita esa conexión y vuelve a conectar la organización; después reintenta.");
+        }
         tokens.put(installationId, fresh);
         return fresh.value();
     }

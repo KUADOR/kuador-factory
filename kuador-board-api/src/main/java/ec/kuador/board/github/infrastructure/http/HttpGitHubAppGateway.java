@@ -53,7 +53,8 @@ class HttpGitHubAppGateway implements GitHubAppGateway {
 
     @Override
     public Token installationToken(AppKeys app, long installationId) {
-        JsonNode t = asApp(app).post("/app/installations/" + installationId + "/access_tokens", GitHubClient.JSON.createObjectNode());
+        JsonNode t = asApp(app).tryPost("/app/installations/" + installationId + "/access_tokens", GitHubClient.JSON.createObjectNode())
+                .orElseThrow(() -> new InstallationGone(installationId));
         return new Token(t.path("token").asString(), Instant.parse(t.path("expires_at").asString()));
     }
 

@@ -19,6 +19,7 @@ public abstract class IssueApiStub implements IssueApi {
     @Override public Optional<UUID> supervisorOf(String issueKey) { return Optional.empty(); }
     @Override public Progress takeAs(String issueKey, UUID agentId) { throw new UnsupportedOperationException(); }
     @Override public Progress deliverAs(String issueKey, String comment, UUID agentId) { throw new UnsupportedOperationException(); }
+    @Override public Progress deliverTo(String issueKey, String column, String comment, UUID agentId) { throw new UnsupportedOperationException(); }
     @Override public Progress sendBack(String issueKey, String column, String reason, UUID actorId) { throw new UnsupportedOperationException(); }
 
     @Override

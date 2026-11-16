@@ -26,7 +26,8 @@ class WorkflowTest {
             assertThat(t.columns().getLast().category()).as(t.key()).isEqualTo(DONE);
         }
         assertThat(InMemoryCatalog.factoryTemplate("SALES").columns()).extracting(ColumnDef::name)
-                .containsExactly("Prospecto", "Contactado", "Propuesta enviada", "Negociación", "Ganado", "Perdido");
+                .containsExactly("Prospecto", "Investigación", "Contactado", "Preparar propuesta", "Revisión de propuesta", "Propuesta enviada",
+                        "Negociación", "Ganado", "Perdido");
     }
 
     @Test

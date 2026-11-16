@@ -498,6 +498,11 @@ public class IssueService implements IssueApi {
     /** Entrega el trabajo de la etapa: el issue pasa a la siguiente que permita el flujo y queda abierto allí. */
     @Transactional
     public Issue deliver(String key, String comment, UUID actorId) {
+        return deliver(key, null, comment, actorId);
+    }
+
+    /** Entrega a {@code column} (o, si es nula, a la siguiente etapa permitida); debe estar más adelante en el flujo. */
+    private Issue deliver(String key, String column, String comment, UUID actorId) {
         Issue issue = load(key);
         ProjectView project = project(issue.projectKey());
         MemberView actor = requireMember(actorId);
@@ -508,8 +513,11 @@ public class IssueService implements IssueApi {
         if (actor.agent() && !actorId.equals(issue.assigneeId())) {
             throw new ForbiddenException("Un agente solo entrega los issues que tomó.");
         }
-        ColumnDef next = project.nextAfter(issue.status())
+        ColumnDef next = column != null ? requireColumn(project, column) : project.nextAfter(issue.status())
                 .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay una etapa siguiente permitida."));
+        if (column != null && project.indexOf(next.key()) <= project.indexOf(issue.status())) {
+            throw new DomainException("«" + next.name() + "» no está después de «" + columnName(project, issue.status()) + "».");
+        }
         if (comment != null && !comment.isBlank()) saveComment(issue, actorId, comment.strip(), now());
         Issue moved = move(key, next.key(), Integer.MAX_VALUE, actorId);
         if (actor.agent() && actorId.equals(moved.assigneeId())) {
@@ -651,6 +659,12 @@ public class IssueService implements IssueApi {
     @Transactional
     public Progress deliverAs(String issueKey, String comment, UUID agentId) {
         return progress(deliver(issueKey, comment, agentId));
+    }
+
+    @Override
+    @Transactional
+    public Progress deliverTo(String issueKey, String column, String comment, UUID agentId) {
+        return progress(deliver(issueKey, column, comment, agentId));
     }
 
     /** Devuelve el issue a una etapa anterior con el motivo (p. ej. QA encontró fallas): suma una vuelta atrás. */

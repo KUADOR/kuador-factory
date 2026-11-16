@@ -187,6 +187,9 @@ public class BoardAgent {
         StringBuilder user = new StringBuilder();
         String column = board.column(card.status()).map(c -> c.name()).orElse(card.status());
         user.append("Tarjeta ").append(card.key()).append(" · columna «").append(column).append("»\n");
+        user.append(handoff.next(agent, issueKey)
+                .map(n -> "Al entregar, la tarjeta pasa a «" + n.columnName() + "»" + (n.gate() ? ", donde una persona la revisa y aprueba" : "") + ".\n")
+                .orElse("Al entregar, la tarjeta vuelve a la persona que te la pidió.\n"));
         user.append("Título: ").append(card.title()).append("\n");
         if (card.description() != null && !card.description().isBlank()) user.append("\nPedido:\n").append(card.description().strip()).append("\n");
         List<IssueApi.CommentView> all = card.comments();

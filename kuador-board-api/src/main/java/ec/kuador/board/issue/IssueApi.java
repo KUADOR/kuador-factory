@@ -80,6 +80,9 @@ public interface IssueApi {
     /** Entrega el issue a la siguiente etapa como {@code agentId}. */
     Progress deliverAs(String issueKey, String comment, UUID agentId);
 
+    /** Entrega el issue a una columna más adelante (p. ej. la revisión de un tablero sin etapas de trabajo). */
+    Progress deliverTo(String issueKey, String column, String comment, UUID agentId);
+
     /** Devuelve el issue a una columna anterior con el motivo. */
     Progress sendBack(String issueKey, String column, String reason, UUID actorId);
 }

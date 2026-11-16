@@ -22,6 +22,9 @@ public interface FactoryCatalog {
 
     List<ComponentTemplate> componentTemplates();
 
+    /** Reglas de agentes de fábrica (una sola entrada). */
+    List<ec.kuador.board.catalog.AgentPolicy> agentPolicies();
+
     List<CatalogApi.AgentSeed> agentSeeds();
 
     /** Versión del catálogo de fábrica (crece cuando se agregan entradas). */
@@ -41,6 +44,7 @@ public interface FactoryCatalog {
             case AGENT_ROLE -> roles();
             case MCP_SERVER -> mcpServers();
             case COMPONENT_TEMPLATE -> componentTemplates();
+            case AGENT_POLICY -> agentPolicies();
         };
     }
 

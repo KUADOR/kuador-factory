@@ -66,6 +66,9 @@ export function blankEntry(type: CatalogType): CatalogEntries[CatalogType] {
         suggestedRoles: [],
         mcpServers: [],
       } satisfies ComponentTemplate;
+    case "agent-policies":
+      // Una sola entrada por espacio (DEFAULT): no se crea desde «Nuevo…».
+      throw new Error("Las reglas de agentes no se crean: se editan.");
   }
 }
 
@@ -95,7 +98,7 @@ function Identity<T extends { key: string; name: string }>({ value, onChange, is
 }
 
 /** Lista de textos editada como una línea por elemento. */
-function LinesField({ label, hint, value, onChange, rows = 4, mono }: { label: string; hint?: string; value: string[]; onChange: (v: string[]) => void; rows?: number; mono?: boolean }) {
+export function LinesField({ label, hint, value, onChange, rows = 4, mono }: { label: string; hint?: string; value: string[]; onChange: (v: string[]) => void; rows?: number; mono?: boolean }) {
   const [text, setText] = useState(value.join("\n"));
   return (
     <Field label={label} hint={hint ?? "Uno por línea."}>
@@ -115,7 +118,7 @@ function LinesField({ label, hint, value, onChange, rows = 4, mono }: { label: s
   );
 }
 
-function Group({ title, description, children, actions }: { title: string; description?: string; children: React.ReactNode; actions?: React.ReactNode }) {
+export function Group({ title, description, children, actions }: { title: string; description?: string; children: React.ReactNode; actions?: React.ReactNode }) {
   return (
     <fieldset className="flex flex-col gap-3 border-t border-line pt-5">
       <div className="flex items-start justify-between gap-3">

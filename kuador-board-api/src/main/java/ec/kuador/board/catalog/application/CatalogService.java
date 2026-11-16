@@ -1,5 +1,6 @@
 package ec.kuador.board.catalog.application;
 
+import ec.kuador.board.catalog.AgentPolicy;
 import ec.kuador.board.catalog.AgentRole;
 import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.catalog.CatalogUsage;
@@ -97,6 +98,14 @@ public class CatalogService implements CatalogApi {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public AgentPolicy agentPolicy() {
+        AgentPolicy factoryPolicy = factory.agentPolicies().stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("El catálogo de fábrica no tiene reglas de agentes."));
+        return entries.find(CatalogType.AGENT_POLICY, AgentPolicy.KEY, AgentPolicy.class).map(p -> p.orElse(factoryPolicy)).orElse(factoryPolicy);
+    }
+
+    @Override
     @Transactional
     public List<AgentSeed> provisionDefaults() {
         for (CatalogType type : CatalogType.values()) {
@@ -182,11 +191,15 @@ public class CatalogService implements CatalogApi {
 
     @Transactional(readOnly = true)
     public List<?> list(CatalogType type) {
-        return entries.list(type, type.recordType());
+        List<?> own = entries.list(type, type.recordType());
+        // Un espacio que todavía no recibió las reglas de agentes ve (y edita) las de fábrica.
+        if (type == CatalogType.AGENT_POLICY && own.isEmpty()) return List.of(agentPolicy());
+        return own;
     }
 
     @Transactional(readOnly = true)
     public Object get(CatalogType type, String key) {
+        if (type == CatalogType.AGENT_POLICY && AgentPolicy.KEY.equals(key)) return agentPolicy();
         return entries.find(type, key, type.recordType())
                 .orElseThrow(() -> new NotFoundException("No existe " + key + " en el catálogo."));
     }
@@ -205,7 +218,8 @@ public class CatalogService implements CatalogApi {
         Optional<?> existing = entries.find(type, key, type.recordType());
         Class recordType = type.recordType();
         if (existing.isEmpty()) {
-            return entries.save(type, key, entry, false, null, recordType);
+            // Las reglas de agentes vienen de fábrica aunque el espacio las guarde por primera vez.
+            return entries.save(type, key, entry, type == CatalogType.AGENT_POLICY, null, recordType);
         }
         return entries.save(type, key, entry, builtIn(existing.get()), versionOf(entry), recordType);
     }
@@ -213,6 +227,9 @@ public class CatalogService implements CatalogApi {
     @Transactional
     public void delete(CatalogType type, String key) {
         get(type, key);
+        if (type == CatalogType.AGENT_POLICY) {
+            throw new ConflictException("Las reglas de agentes no se borran: edítalas o restáuralas a los valores de fábrica.");
+        }
         long inUse = switch (type) {
             case METHODOLOGY -> sum(u -> u.projectsUsingMethodology(key));
             case AGENT_ROLE -> sum(u -> u.membersWithRole(key));
@@ -251,6 +268,7 @@ public class CatalogService implements CatalogApi {
             case AGENT_ROLE -> factory.roles();
             case MCP_SERVER -> factory.mcpServers();
             case COMPONENT_TEMPLATE -> factory.componentTemplates();
+            case AGENT_POLICY -> factory.agentPolicies();
         };
     }
 
@@ -265,6 +283,7 @@ public class CatalogService implements CatalogApi {
             case AgentRole r -> r.builtIn();
             case McpServer s -> s.builtIn();
             case ComponentTemplate c -> c.builtIn();
+            case AgentPolicy p -> p.builtIn();
             default -> false;
         };
     }
@@ -276,6 +295,7 @@ public class CatalogService implements CatalogApi {
             case AgentRole r -> r.version();
             case McpServer s -> s.version();
             case ComponentTemplate c -> c.version();
+            case AgentPolicy p -> p.version();
             default -> 0;
         };
     }

@@ -146,6 +146,23 @@ public class DbFactoryCatalog implements FactoryCatalog {
     }
 
     @Override
+    public List<ec.kuador.board.catalog.AgentPolicy> agentPolicies() {
+        List<ec.kuador.board.catalog.AgentPolicy> published = list(CatalogType.AGENT_POLICY);
+        // Una plataforma que todavía no publicó las reglas de agentes usa las de la semilla.
+        return published.isEmpty() ? SEED_POLICIES.get() : published;
+    }
+
+    private static final java.util.function.Supplier<List<ec.kuador.board.catalog.AgentPolicy>> SEED_POLICIES =
+            new java.util.function.Supplier<>() {
+                private volatile List<ec.kuador.board.catalog.AgentPolicy> cached;
+
+                public List<ec.kuador.board.catalog.AgentPolicy> get() {
+                    if (cached == null) cached = new YamlFactoryCatalog().agentPolicies();
+                    return cached;
+                }
+            };
+
+    @Override
     public List<CatalogApi.AgentSeed> agentSeeds() {
         return snapshot().seeds();
     }

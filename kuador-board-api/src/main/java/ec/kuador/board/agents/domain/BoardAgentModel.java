@@ -31,14 +31,18 @@ public interface BoardAgentModel {
      * de la columna a la que puede devolver el trabajo con {@code send_back} (p. ej. QA a «En desarrollo»), o {@code null}.
      */
     record Task(String system, String user, List<InputFile> files, List<BoardTool> tools, Supplier<String> deliverCheck, boolean webSearch,
-            String sendBackTo) {
+            String sendBackTo, Limits limits) {
+
+        public Task {
+            limits = limits == null ? Limits.DEFAULT : limits;
+        }
 
         public Task(String system, String user, List<InputFile> files) {
-            this(system, user, files, List.of(), () -> null, false, null);
+            this(system, user, files, List.of(), () -> null, false, null, Limits.DEFAULT);
         }
 
         public Task(String system, String user, List<InputFile> files, List<BoardTool> tools, Supplier<String> deliverCheck) {
-            this(system, user, files, tools, deliverCheck, false, null);
+            this(system, user, files, tools, deliverCheck, false, null, Limits.DEFAULT);
         }
 
         /** La descripción de send_back para el modelo. */
@@ -55,6 +59,11 @@ public interface BoardAgentModel {
         public java.util.Optional<BoardTool> tool(String name) {
             return tools.stream().filter(t -> t.name().equals(name)).findFirst();
         }
+    }
+
+    /** Perillas del espacio (Catálogo → Reglas de agentes): vueltas máximas según el proveedor y búsquedas web. */
+    record Limits(int turnsClaude, int turnsOther, int webSearches) {
+        public static final Limits DEFAULT = new Limits(12, 30, 8);
     }
 
     /** A dónde y con qué clave se habla. */

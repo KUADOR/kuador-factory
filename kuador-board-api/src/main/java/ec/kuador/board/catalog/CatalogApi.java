@@ -25,6 +25,12 @@ public interface CatalogApi {
 
     Optional<ComponentTemplate> componentTemplate(String key);
 
+    /**
+     * Las reglas de agentes vigentes del espacio: la entrada del espacio con lo vacío tomado de fábrica (o la de fábrica
+     * si el espacio todavía no la tiene). Siempre devuelve una.
+     */
+    AgentPolicy agentPolicy();
+
     /** Datos de fábrica para sembrar un espacio nuevo, incluidos los agentes que nacen con él. */
     record AgentSeed(String roleKey, String memberName, String color) {}
 

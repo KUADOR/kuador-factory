@@ -25,9 +25,11 @@ class BoardTeamController {
     private final WorkspaceAi ai;
     private final ec.kuador.board.agents.application.AiUsage usage;
     private final ec.kuador.board.agents.application.AiProviders providers;
+    private final ec.kuador.board.agents.application.AgentPromptPreview preview;
 
     BoardTeamController(BoardTeam team, WorkspaceAi ai, ec.kuador.board.agents.application.AiUsage usage,
-            ec.kuador.board.agents.application.AiProviders providers) {
+            ec.kuador.board.agents.application.AiProviders providers, ec.kuador.board.agents.application.AgentPromptPreview preview) {
+        this.preview = preview;
         this.providers = providers;
         this.team = team;
         this.ai = ai;
@@ -109,6 +111,13 @@ class BoardTeamController {
     @PutMapping("/api/agents/{memberId}/profile")
     BoardTeam.TeamAgent profile(@PathVariable UUID memberId, @Valid @RequestBody ProfileRequest r) {
         return team.setProfile(memberId, r.mode(), r.model());
+    }
+
+    /** Lo que recibiría el agente para esa tarjeta, sin llamar al modelo. */
+    @GetMapping("/api/agents/{memberId}/prompt-preview")
+    ec.kuador.board.agents.application.AgentPromptPreview.Preview promptPreview(@PathVariable UUID memberId,
+            @org.springframework.web.bind.annotation.RequestParam @NotBlank @Size(max = 30) String issue) {
+        return preview.preview(memberId, issue);
     }
 
     @GetMapping("/api/workspace/ai")

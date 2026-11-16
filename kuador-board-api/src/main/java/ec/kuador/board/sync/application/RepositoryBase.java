@@ -4,6 +4,9 @@ import ec.kuador.board.docs.DocsApi.DocContent;
 import ec.kuador.board.sync.domain.RepositoryCreator.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import ec.kuador.board.catalog.AgentRules;
+import ec.kuador.board.catalog.AgentPolicy.RepoTemplates;
 import java.util.stream.Collectors;
 
 /**
@@ -26,38 +29,44 @@ final class RepositoryBase {
     /** Cómo aparece una pieza en el README del repo del proyecto. */
     record PieceLine(String name, String stack, String location, String build, String test, String run) {}
 
-    static List<File> files(String projectName, String projectKey, String description, String agentsMd, List<DocContent> documents) {
-        return files(projectName, projectKey, description, agentsMd, documents, List.of());
+    static List<File> files(RepoTemplates t, String projectName, String projectKey, String description, String agentsMd, List<DocContent> documents) {
+        return files(t, projectName, projectKey, description, agentsMd, documents, List.of());
     }
 
-    static List<File> files(String projectName, String projectKey, String description, String agentsMd, List<DocContent> documents, List<PieceLine> pieces) {
+    static List<File> files(RepoTemplates t, String projectName, String projectKey, String description, String agentsMd, List<DocContent> documents,
+            List<PieceLine> pieces) {
         List<File> files = new ArrayList<>();
-        files.add(new File("README.md", readme(projectName, projectKey, description, documents, pieces)));
+        files.add(new File("README.md", readme(t, projectName, projectKey, description, documents, pieces)));
         // Si la metodología tiene su propio AGENTS.md, el flujo del tablero ya va dentro de ese documento.
         if (documents.stream().noneMatch(d -> d.path().equals(AGENTS_MD))) files.add(new File(AGENTS_MD, agentsMd));
-        files.add(new File(".gitignore", GITIGNORE));
-        files.add(new File(".github/workflows/ci.yml", ci(documents)));
+        files.add(new File(".gitignore", t.gitignore()));
+        files.add(new File(".github/workflows/ci.yml", ci(t, documents)));
         documents.forEach(d -> files.add(new File(d.path(), d.content())));
         return files;
     }
 
     /** Bases de un repo que solo tiene una pieza (un repo por pieza): los documentos viven en el repo del proyecto. */
-    static List<File> pieceRepoFiles(String projectName, String projectKey, String agentsMd, String projectRepo, PieceLine piece) {
+    static List<File> pieceRepoFiles(RepoTemplates t, String projectName, String projectKey, String agentsMd, String projectRepo, PieceLine piece) {
         List<File> files = new ArrayList<>();
-        files.add(new File("README.md", pieceReadme(projectName, projectKey, projectRepo, piece)));
+        files.add(new File("README.md", pieceReadme(t, projectName, projectKey, projectRepo, piece)));
         files.add(new File(AGENTS_MD, agentsMd));
-        files.add(new File(".gitignore", GITIGNORE));
-        files.add(new File(".github/workflows/ci.yml", ci(List.of())));
+        files.add(new File(".gitignore", t.gitignore()));
+        files.add(new File(".github/workflows/ci.yml", ci(t, List.of())));
         return files;
     }
 
     /** README de una pieza (si su plantilla no trae uno): stack, comandos y dónde están los documentos. */
-    static String pieceReadme(String projectName, String projectKey, String projectRepo, PieceLine piece) {
-        StringBuilder r = new StringBuilder("# ").append(projectName).append(" · ").append(piece.name()).append("\n\n")
-                .append("Pieza **").append(piece.name()).append("** del proyecto ").append(projectKey).append(". Stack: ").append(piece.stack()).append(".\n\n");
-        commands(r, piece);
-        if (projectRepo != null) r.append("\nLos documentos del proyecto (constitución, specs, planes) viven en `").append(projectRepo).append("`.\n");
-        return r.toString();
+    static String pieceReadme(RepoTemplates t, String projectName, String projectKey, String projectRepo, PieceLine piece) {
+        StringBuilder commands = new StringBuilder();
+        commands(commands, piece);
+        String docs = projectRepo == null ? "" : "\nLos documentos del proyecto (constitución, specs, planes) viven en `" + projectRepo + "`.\n";
+        return tidy(AgentRules.fill(t.pieceReadme(), Map.of("proyecto", projectName, "pieza", piece.name(), "clave", projectKey,
+                "stack", piece.stack() == null ? "" : piece.stack(), "comandos", commands.toString(), "repo_documentos", docs)));
+    }
+
+    /** Sin líneas en blanco de más donde una variable quedó vacía. */
+    private static String tidy(String text) {
+        return text.replaceAll("\n{3,}", "\n\n").stripTrailing() + "\n";
     }
 
     private static void commands(StringBuilder r, PieceLine p) {
@@ -74,79 +83,26 @@ final class RepositoryBase {
         return blank(s) ? "—" : "`" + s + "`";
     }
 
-    private static String readme(String name, String key, String description, List<DocContent> documents, List<PieceLine> pieces) {
-        StringBuilder r = new StringBuilder("# ").append(name).append("\n\n");
-        if (description != null && !description.isBlank()) r.append(description.strip()).append("\n\n");
-        r.append("""
-                Proyecto **%s** del tablero. Los issues, las etapas y las aprobaciones viven en el tablero; este repo guarda el código y los documentos.
-
-                ## Ramas
-
-                - `develop`: rama de trabajo. Cada issue va en su rama (`feature/%s-<número>-<nombre>`) y entra por Pull Request con el CI en verde.
-                - `main`: lo publicado. Solo entra desde `develop` por Pull Request aprobado por una persona.
-
-                ## Agentes
-
-                Los agentes trabajan desde el cliente de IA de cada persona conectado al tablero. Ver `AGENTS.md`.
-                """.formatted(key, key));
+    private static String readme(RepoTemplates t, String name, String key, String description, List<DocContent> documents, List<PieceLine> pieces) {
+        StringBuilder piecesText = new StringBuilder();
         if (!pieces.isEmpty()) {
-            r.append("\n## Piezas\n\n| Pieza | Stack | Dónde | Compilar | Probar | Levantar |\n|---|---|---|---|---|---|\n");
+            piecesText.append("\n## Piezas\n\n| Pieza | Stack | Dónde | Compilar | Probar | Levantar |\n|---|---|---|---|---|---|\n");
             for (PieceLine p : pieces) {
-                r.append("| ").append(p.name()).append(" | ").append(p.stack()).append(" | `").append(p.location()).append("` | ")
+                piecesText.append("| ").append(p.name()).append(" | ").append(p.stack()).append(" | `").append(p.location()).append("` | ")
                         .append(code(p.build())).append(" | ").append(code(p.test())).append(" | ").append(code(p.run())).append(" |\n");
             }
         }
+        StringBuilder docsText = new StringBuilder();
         if (!documents.isEmpty()) {
-            r.append("\n## Documentos\n\n");
-            documents.forEach(d -> r.append("- [").append(d.title()).append("](").append(d.path()).append(")\n"));
+            docsText.append("\n## Documentos\n\n");
+            documents.forEach(d -> docsText.append("- [").append(d.title()).append("](").append(d.path()).append(")\n"));
         }
-        return r.toString();
+        return tidy(AgentRules.fill(t.readme(), Map.of("proyecto", name, "clave", key, "descripcion", description == null ? "" : description.strip(),
+                "piezas", piecesText.toString(), "documentos", docsText.toString())));
     }
 
-    private static String ci(List<DocContent> documents) {
+    private static String ci(RepoTemplates t, List<DocContent> documents) {
         String required = documents.stream().map(d -> "\"" + d.path() + "\"").collect(Collectors.joining(" "));
-        return """
-                # CI mínimo del tablero. Las ramas protegidas exigen el job «ci»: agrega aquí los pasos del stack
-                # (compilar, lint, pruebas) cuando el proyecto tenga código.
-                name: ci
-                on:
-                  pull_request:
-                    branches: [main, develop]
-                  push:
-                    branches: [main, develop]
-                permissions:
-                  contents: read
-                jobs:
-                  ci:
-                    name: ci
-                    runs-on: ubuntu-latest
-                    steps:
-                      - uses: actions/checkout@v7
-                      - name: Documentos de la metodología
-                        run: |
-                          for f in %s; do
-                            test -f "$f" || { echo "Falta $f"; exit 1; }
-                          done
-                """.formatted(required.isEmpty() ? "README.md" : required);
+        return AgentRules.fill(t.ci(), Map.of("archivos", required.isEmpty() ? "README.md" : required));
     }
-
-    private static final String GITIGNORE = """
-            # Secretos y configuración local
-            .env
-            .env.*
-            !.env.example
-
-            # Sistema y editores
-            .DS_Store
-            .idea/
-            .vscode/
-            *.iml
-
-            # Dependencias y compilados
-            node_modules/
-            target/
-            build/
-            dist/
-            .next/
-            """;
 }

@@ -20,10 +20,14 @@ export default async function CatalogSectionPage({ params }: PageProps<"/catalog
   let data;
   try {
     // Los editores de metodologías necesitan los roles (quién escribe cada documento).
-    data = await Promise.all([boardApi.catalog(section.type), boardApi.catalog("roles")]);
+    data = await Promise.all([
+      boardApi.catalog(section.type),
+      boardApi.catalog("roles"),
+      section.type === "agent-policies" ? boardApi.agentRulesCore() : Promise.resolve([] as string[]),
+    ]);
   } catch (e) {
     return failPage(e);
   }
-  const [entries, roles] = data;
-  return <CatalogView slug={section.slug} entries={entries} roles={roles} />;
+  const [entries, roles, core] = data;
+  return <CatalogView slug={section.slug} entries={entries} roles={roles} core={core} />;
 }

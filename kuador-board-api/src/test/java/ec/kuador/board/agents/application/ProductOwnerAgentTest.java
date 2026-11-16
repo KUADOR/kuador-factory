@@ -28,6 +28,7 @@ import ec.kuador.board.testing.InMemoryCatalog;
 import ec.kuador.board.testing.InMemoryMembers;
 import ec.kuador.board.testing.InMemoryProjects;
 import ec.kuador.board.agents.domain.PoPrompt;
+import ec.kuador.board.catalog.AgentPolicy;
 import ec.kuador.board.testing.NoTx;
 import ec.kuador.board.testing.TestTenant;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ class ProductOwnerAgentTest {
     private boolean available = true;
     private Function<PoContext, ProductOwnerModel.Result> modelBehaviour;
     private ProductOwnerAgent agent;
+    private InMemoryCatalog catalog;
 
     @BeforeEach
     void setUp() {
@@ -121,8 +123,9 @@ class ProductOwnerAgentTest {
         };
         projects = new InMemoryProjects();
         projects.add("KUA", "SOFTWARE", "SDD");
-        agent = new ProductOwnerAgent(runRepo, model, issues, docs, projects, memberApi, new InMemoryCatalog(), new NoTx(), Clock.fixed(NOW, ZoneOffset.UTC),
-                () -> Optional.ofNullable(workspaceKey));
+        catalog = new InMemoryCatalog();
+        agent = new ProductOwnerAgent(runRepo, model, issues, docs, projects, memberApi, catalog, new NoTx(), Clock.fixed(NOW, ZoneOffset.UTC),
+                () -> Optional.ofNullable(workspaceKey), () -> new ec.kuador.board.workspace.WorkspaceApi.Identity("kuador", "Kuador", "es", "en"));
     }
 
     private static IssueApi.IssueContext issue(String key, String title, String type, Integer points, String parent, UUID assignee,
@@ -256,6 +259,8 @@ class ProductOwnerAgentTest {
         projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
         List<IssueApi.CommentView> thread = new ArrayList<>();
         for (int i = 0; i < rounds; i++) {
+            AgentRun asked = AgentRun.start(PO, "KUA-8", "KUA", UUID.randomUUID(), PERSON, NOW).succeeded("m", 1, 1, "comentó · 1 pregunta(s) abiertas", NOW);
+            runs.put(asked.id(), asked);
             thread.add(new IssueApi.CommentView(PO, "**Agente PO:** Resumen\n\n**Necesito que respondas**\n1. ¿Se aprueba la excepción P-1?", NOW));
             thread.add(new IssueApi.CommentView(PERSON, "Sí; queda pendiente la aprobación formal del responsable técnico.", NOW));
         }
@@ -271,11 +276,25 @@ class ProductOwnerAgentTest {
 
         agent.onAssigned(assignedBy(PERSON, PO));
 
-        assertThat(PoPrompt.user(seen.getFirst())).as("se le dice que lo respondido está decidido").contains("no vuelvas a preguntar");
+        assertThat(PoPrompt.user(seen.getFirst())).as("se le dice que lo respondido está decidido").contains("no lo vuelvas a preguntar")
+                .as("y recibe el núcleo fijo y el idioma").contains("Las puertas de aprobación las cierra una persona").contains("Idioma:");
         assertThat(comments.getLast()).doesNotContain("**Necesito que respondas**").contains("Pendientes (no frenan el avance; ya pregunté 2 veces)")
                 .contains("¿Se aprueba formalmente la excepción P-1?");
         assertThat(issueStore.get("KUA-8").status()).as("pasó a la siguiente etapa").isEqualTo("APPROVAL");
-        assertThat(onlyRun().summary()).contains("avanzó con 1 pendiente(s)");
+        assertThat(runs.values()).anyMatch(r -> r.summary() != null && r.summary().contains("avanzó con 1 pendiente(s)"));
+    }
+
+    @Test
+    void theTextsComeFromTheSpaceRules() {
+        AgentPolicy f = catalog.policy;
+        catalog.policy = new AgentPolicy(f.id(), f.key(), f.name(), f.description(), f.rules(), f.limits(),
+                new AgentPolicy.Messages("Listo para revisión, {persona}.", f.messages().returnWithQuestions(), f.messages().toGate(), f.messages().toAgent(),
+                        f.messages().toPerson(), "Dudas", f.messages().pendingTitle(), f.messages().readDocument(), f.messages().askFooter(),
+                        f.messages().failedStart(), f.messages().failedFinish()), f.repo(), true, 1);
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(comments.getLast()).contains("Listo para revisión, Diana.").doesNotContain("muévelo a la siguiente columna");
     }
 
     @Test

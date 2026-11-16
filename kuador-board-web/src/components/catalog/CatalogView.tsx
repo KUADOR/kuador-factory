@@ -19,10 +19,11 @@ import { Badge } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
-import type { AgentRole, CatalogEntries, CatalogType, ComponentTemplate, McpServer, Methodology, PlatformEntryStatus, WorkflowTemplate } from "@/lib/types";
+import type { AgentPolicy, AgentRole, CatalogEntries, CatalogType, ComponentTemplate, McpServer, Methodology, PlatformEntryStatus, WorkflowTemplate } from "@/lib/types";
 
 import { CATALOG_SECTIONS, type CatalogSection } from "./catalogTypes";
 import { McpEditor, MethodologyEditor, RoleEditor, TemplateEditor, blankEntry, ComponentEditor, COMPONENT_KIND_LABEL } from "./editors";
+import { PolicyEditor } from "./PolicyEditor";
 
 type AnyEntry = CatalogEntries[CatalogType];
 
@@ -39,7 +40,20 @@ const STATUS_BADGE: Record<PlatformEntryStatus, { label: string; tone: "neutral"
  * Una sección del catálogo: tabla de entradas y editor al costado. En un espacio se crea, edita, restaura y borra;
  * en la plataforma ({@code platform}) se edita en borrador, se descartan cambios o se quita la entrada.
  */
-export function CatalogView({ slug, entries, roles, platform }: { slug: CatalogSection["slug"]; entries: AnyEntry[]; roles: AgentRole[]; platform?: PlatformInfo }) {
+export function CatalogView({
+  slug,
+  entries,
+  roles,
+  platform,
+  core = [],
+}: {
+  slug: CatalogSection["slug"];
+  entries: AnyEntry[];
+  roles: AgentRole[];
+  platform?: PlatformInfo;
+  /** Reglas de agentes: el núcleo de seguridad que no se edita. */
+  core?: string[];
+}) {
   const section = CATALOG_SECTIONS.find((s) => s.slug === slug)!;
   const router = useRouter();
   const [extra, setExtra] = useState<{ memberName: string; color: string }>({ memberName: "", color: "" });
@@ -77,9 +91,11 @@ export function CatalogView({ slug, entries, roles, platform }: { slug: CatalogS
     <div className="flex flex-col gap-4 px-6 py-6">
       <div className="flex flex-wrap items-center gap-3">
         <p className="min-w-0 flex-1 text-[13px] text-fg-muted">{section.description}</p>
-        <Button tone="primary" size="sm" icon={Plus} onClick={() => open(null)}>
-          {section.newLabel}
-        </Button>
+        {section.newLabel && (
+          <Button tone="primary" size="sm" icon={Plus} onClick={() => open(null)}>
+            {section.newLabel}
+          </Button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-line bg-surface">
@@ -178,6 +194,7 @@ export function CatalogView({ slug, entries, roles, platform }: { slug: CatalogS
             )}
             {section.type === "mcp-servers" && <McpEditor value={draft as McpServer} onChange={setDraft} isNew={isNew} />}
             {section.type === "component-templates" && <ComponentEditor value={draft as ComponentTemplate} onChange={setDraft} isNew={isNew} />}
+            {section.type === "agent-policies" && <PolicyEditor value={draft as AgentPolicy} onChange={setDraft} core={core} />}
           </div>
         )}
       </SidePanel>
@@ -265,6 +282,10 @@ function detail(type: CatalogType, e: AnyEntry): React.ReactNode {
           {c.templateRepo ? <code className="font-mono">{`${c.templateRepo}@${c.templateRef}`}</code> : <span className="text-fg-faint">sin código base</span>}
         </span>
       );
+    }
+    case "agent-policies": {
+      const p = e as AgentPolicy;
+      return `${p.rules.common.length + p.rules.questions.length + p.rules.board.length} reglas · ${p.limits.questionRounds} vueltas de preguntas · ${p.limits.turnsClaude} vueltas del modelo`;
     }
     case "mcp-servers": {
       const s = e as McpServer;

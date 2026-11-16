@@ -36,7 +36,8 @@ public class YamlFactoryCatalog implements FactoryCatalog {
     record Addition(CatalogType type, String key) {}
 
     record DefaultsFile(int version, List<Release> releases, List<WorkflowTemplate> workflowTemplates, List<Methodology> methodologies,
-            List<RoleSeed> roles, List<McpServer> mcpServers, List<ComponentTemplate> componentTemplates) {}
+            List<RoleSeed> roles, List<McpServer> mcpServers, List<ComponentTemplate> componentTemplates,
+            List<ec.kuador.board.catalog.AgentPolicy> agentPolicies) {}
 
     private final DefaultsFile file;
 
@@ -56,6 +57,7 @@ public class YamlFactoryCatalog implements FactoryCatalog {
         roles().forEach(e -> CatalogRules.validate(CatalogType.AGENT_ROLE, CatalogKeys.of(e), e));
         mcpServers().forEach(e -> CatalogRules.validate(CatalogType.MCP_SERVER, CatalogKeys.of(e), e));
         componentTemplates().forEach(e -> CatalogRules.validate(CatalogType.COMPONENT_TEMPLATE, CatalogKeys.of(e), e));
+        agentPolicies().forEach(e -> CatalogRules.validate(CatalogType.AGENT_POLICY, CatalogKeys.of(e), e));
         // Cada entrada anunciada en una versión tiene que existir en el catálogo.
         for (Release r : releases()) {
             if (r.version() > version()) throw new IllegalStateException("La versión " + r.version() + " es mayor que la del catálogo (" + version() + ").");
@@ -114,6 +116,11 @@ public class YamlFactoryCatalog implements FactoryCatalog {
     @Override
     public List<ComponentTemplate> componentTemplates() {
         return file.componentTemplates() == null ? List.of() : file.componentTemplates();
+    }
+
+    @Override
+    public List<ec.kuador.board.catalog.AgentPolicy> agentPolicies() {
+        return file.agentPolicies() == null ? List.of() : file.agentPolicies();
     }
 
     @Override

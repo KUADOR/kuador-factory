@@ -136,7 +136,7 @@ public class ComponentService implements RepositoriesApi {
         inFolder.forEach(p -> lines.add(p.line(p.spec().name() + "/")));
         ownRepo.forEach(p -> lines.add(p.line("repo " + p.spec().repoName().strip())));
 
-        List<File> projectFiles = new ArrayList<>(RepositoryBase.files(project.name(), projectKey, s.description(), agentsMd, documents, lines));
+        List<File> projectFiles = new ArrayList<>(RepositoryBase.files(catalog.agentPolicy().repo(), project.name(), projectKey, s.description(), agentsMd, documents, lines));
         List<Prepared> all = new ArrayList<>(inFolder);
         all.addAll(ownRepo);
         projectFiles.addAll(kit(all));
@@ -219,7 +219,7 @@ public class ComponentService implements RepositoriesApi {
         Prepared draft = new Prepared(spec, template, kind, stack, folder, List.of());
         // El README de la pieza: el de la plantilla si trae uno; si no, uno con su stack y comandos.
         if (code.stream().noneMatch(f -> f.path().equals(readme)) && !folder.isEmpty()) {
-            files.add(new File(readme, RepositoryBase.pieceReadme(project.name(), project.key(), null, draft.line(folder + "/"))));
+            files.add(new File(readme, RepositoryBase.pieceReadme(catalog.agentPolicy().repo(), project.name(), project.key(), null, draft.line(folder + "/"))));
         }
         files.addAll(code);
         return new Prepared(spec, template, kind, stack, folder, files);
@@ -227,7 +227,7 @@ public class ComponentService implements RepositoriesApi {
 
     /** Repo propio de una pieza: bases de pieza y, encima, el código de su plantilla (gana la plantilla). */
     private RepositoryCreator.Created createPieceRepo(ProjectView project, Prepared p, long installationId, boolean privateRepo, String projectRepo, String agentsMd) {
-        List<File> files = new ArrayList<>(RepositoryBase.pieceRepoFiles(project.name(), project.key(), agentsMd, projectRepo, p.line(".")));
+        List<File> files = new ArrayList<>(RepositoryBase.pieceRepoFiles(catalog.agentPolicy().repo(), project.name(), project.key(), agentsMd, projectRepo, p.line(".")));
         files.addAll(kit(List.of(p)));
         files.addAll(p.files());
         return creator.create(new RepositoryCreator.NewRepository(installationId, p.spec().repoName().strip(), project.name() + " · " + p.spec().name(),

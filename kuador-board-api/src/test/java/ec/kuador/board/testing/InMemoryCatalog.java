@@ -88,6 +88,14 @@ public class InMemoryCatalog implements CatalogApi {
         return components.stream().filter(c -> c.key().equals(key)).findFirst();
     }
 
+    /** Las reglas de agentes de fábrica; una prueba puede cambiarlas. */
+    public ec.kuador.board.catalog.AgentPolicy policy = FACTORY.agentPolicies().getFirst();
+
+    @Override
+    public ec.kuador.board.catalog.AgentPolicy agentPolicy() {
+        return policy;
+    }
+
     @Override
     public int applyFactoryUpdates(List<ec.kuador.board.catalog.FactoryCatalogPublished.Update> updates) {
         return 0;

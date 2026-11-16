@@ -1,10 +1,10 @@
 "use client";
 
-import { Plus, UserMinus } from "lucide-react";
+import { Eye, Plus, UserMinus } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-import { addToTeamAction, createTeamAgentAction, removeFromTeamAction, setAgentProfileAction } from "@/app/actions";
+import { addToTeamAction, agentPromptPreviewAction, createTeamAgentAction, removeFromTeamAction, setAgentProfileAction } from "@/app/actions";
 import { useAccess } from "@/components/shell/AccessContext";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -12,7 +12,8 @@ import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
 import { MODEL_LABEL } from "@/lib/labels";
-import type { AgentMode, TeamAgent, WorkspaceAiStatus } from "@/lib/types";
+import { SidePanel } from "@/components/ui/SidePanel";
+import type { AgentMode, AgentPromptPreview, TeamAgent, WorkspaceAiStatus } from "@/lib/types";
 
 const MODE_CHOICES: { value: AgentMode; label: string; hint: string }[] = [
   { value: "SERVER", label: "En el tablero", hint: "Trabaja con la clave de IA de la empresa cuando le asignas una tarjeta o cuando llega a su etapa; al terminar la pasa a la siguiente." },
@@ -68,6 +69,7 @@ export function TeamEditor({ projectKey, software, team: initial, roles, ai }: {
               canConfigure={canAdminister}
               onChange={(next) => setTeam((t) => t.map((x) => (x.id === next.id ? { ...next, inTeam: true } : x)))}
               onRemove={() => act(() => removeFromTeamAction(projectKey, a.id), `${a.name} salió del equipo`)}
+              projectKey={projectKey}
             />
           ))}
         </ul>
@@ -130,7 +132,9 @@ function AgentRow({
   canConfigure,
   onChange,
   onRemove,
+  projectKey,
 }: {
+  projectKey: string;
   agent: TeamAgent;
   models: string[];
   defaultModel: string;
@@ -181,6 +185,7 @@ function AgentRow({
           />
         </div>
       )}
+      {canConfigure && <PromptPreview agent={agent} projectKey={projectKey} />}
       <Button size="sm" tone="ghost" icon={UserMinus} iconOnly label={`Quitar a ${agent.name} del equipo`} disabled={disabled} onClick={onRemove} />
     </li>
   );
@@ -250,5 +255,80 @@ function CreateAgent({
         <Button type="submit" tone="primary" loading={pending} disabled={!role}>Crear agente</Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * «Ver qué recibe»: el pedido que recibiría el agente para una tarjeta, con las Reglas de agentes del espacio ya
+ * aplicadas, sin llamar al modelo. Para revisar las reglas y entender por qué un agente hizo lo que hizo.
+ */
+function PromptPreview({ agent, projectKey }: { agent: TeamAgent; projectKey: string }) {
+  const [open, setOpen] = useState(false);
+  const [issue, setIssue] = useState(`${projectKey}-`);
+  const [preview, setPreview] = useState<AgentPromptPreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, start] = useTransition();
+  const load = () =>
+    start(async () => {
+      const r = await agentPromptPreviewAction(agent.id, issue.trim());
+      if (r.ok) {
+        setPreview(r.data);
+        setError(null);
+      } else {
+        setPreview(null);
+        setError(r.error);
+      }
+    });
+  return (
+    <>
+      <Button size="sm" tone="ghost" icon={Eye} iconOnly label={`Ver qué recibe ${agent.name}`} onClick={() => setOpen(true)} />
+      <SidePanel open={open} onClose={() => setOpen(false)} title={`Qué recibe ${agent.name}`}>
+        <div className="flex flex-col gap-4 px-5 py-5">
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              load();
+            }}
+          >
+            <Field label="Tarjeta" hint="Arma el pedido para esa tarjeta sin llamar al modelo (no gasta IA).">
+              {(id) => <TextInput id={id} value={issue} onChange={(e) => setIssue(e.target.value.toUpperCase())} className="w-40 font-mono" />}
+            </Field>
+            <Button type="submit" tone="primary" size="sm" loading={loading} disabled={!/^[A-Z][A-Z0-9]*-\d+$/.test(issue.trim())}>
+              Ver
+            </Button>
+          </form>
+          {error && (
+            <p role="alert" className="text-[13px] text-danger">
+              {error}
+            </p>
+          )}
+          {preview && (
+            <div className="flex flex-col gap-4">
+              <p className="text-xs text-fg-muted">
+                {preview.kind === "REFINE" ? "Refina el issue (PO/Arquitecto)." : "Trabaja la tarjeta en el tablero."} Herramientas: {preview.tools.join(", ")}.{" "}
+                {preview.note}
+              </p>
+              <PromptBlock title="Sistema (quién es y sus reglas)" text={preview.system} />
+              <PromptBlock title="Mensaje (la tarjeta)" text={preview.user} />
+              <p className="text-xs text-fg-faint">
+                Las reglas se editan en <Link href="/catalog/reglas" className="k-link">Catálogo → Reglas de agentes</Link>; el manual de cada rol, en Catálogo → Roles.
+              </p>
+            </div>
+          )}
+        </div>
+      </SidePanel>
+    </>
+  );
+}
+
+function PromptBlock({ title, text }: { title: string; text: string }) {
+  return (
+    <section className="flex flex-col gap-1.5">
+      <h3 className="text-xs font-medium text-fg-muted">{title}</h3>
+      <pre className="max-h-[28rem] overflow-auto rounded-md border border-line bg-sunken px-3 py-2.5 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-fg">
+        {text}
+      </pre>
+    </section>
   );
 }

@@ -4,6 +4,7 @@ import { headers as incomingHeaders } from "next/headers";
 
 import { getSessionToken } from "./session";
 import type {
+  AgentPromptPreview,
   Account,
   Activity,
   AgentRun,
@@ -311,6 +312,9 @@ export const boardApi = {
     request<Project>(`/api/projects/${encodeURIComponent(key)}/transitions`, json("PUT", transitions)),
 
   catalog: <T extends CatalogType>(type: T) => request<CatalogEntries[T][]>(`/api/catalog/${type}`),
+  agentRulesCore: () => request<string[]>("/api/agent-rules/core"),
+  agentPromptPreview: (memberId: string, issue: string) =>
+    request<AgentPromptPreview>(`/api/agents/${encodeURIComponent(memberId)}/prompt-preview?issue=${encodeURIComponent(issue)}`),
   catalogEntry: <T extends CatalogType>(type: T, key: string) =>
     request<CatalogEntries[T]>(`/api/catalog/${type}/${encodeURIComponent(key)}`),
   /** Crea (version 0, clave nueva) o actualiza con la versión que se editó. */

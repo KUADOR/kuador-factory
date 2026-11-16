@@ -28,12 +28,6 @@ public class McpProtocol {
     static final List<String> VERSIONS = List.of("2025-11-25", "2025-06-18", "2025-03-26");
 
     private static final Logger log = LoggerFactory.getLogger(McpProtocol.class);
-    private static final String INSTRUCTIONS = """
-            Tablero de %s. Trabajas como los agentes del equipo sobre los issues que supervisa la persona \
-            conectada. Empieza por «pending_work»; para cada issue, «get_issue» y «role_manual» del agente que lo cubre; \
-            luego «take_issue», trabaja y termina con «deliver», «send_back» o «ask_human». Las puertas de aprobación las \
-            cierra siempre una persona. El prompt «pendientes» trae estos pasos.""";
-
     /** Prompt del servidor: en Claude Code aparece como el comando /mcp__<servidor>__pendientes. */
     static final String WORK_PROMPT = "pendientes";
 
@@ -75,7 +69,7 @@ public class McpProtocol {
                 "protocolVersion", VERSIONS.contains(asked) ? asked : VERSIONS.getFirst(),
                 "capabilities", Map.of("tools", Map.of("listChanged", false), "prompts", Map.of("listChanged", false)),
                 "serverInfo", Map.of("name", ws.slug(), "title", "Tablero de " + ws.name(), "version", "1.0.0"),
-                "instructions", INSTRUCTIONS.formatted(ws.name()));
+                "instructions", kit.mcpInstructions());
     }
 
     private Map<String, Object> workPrompt() {

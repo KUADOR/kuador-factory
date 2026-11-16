@@ -18,13 +18,17 @@ export default async function PlatformCatalogSectionPage({ params }: PageProps<"
   if (!section) notFound();
   let data;
   try {
-    data = await Promise.all([boardApi.platformCatalog(section.type), boardApi.platformCatalog("roles")]);
+    data = await Promise.all([
+      boardApi.platformCatalog(section.type),
+      boardApi.platformCatalog("roles"),
+      section.type === "agent-policies" ? boardApi.agentRulesCore() : Promise.resolve([] as string[]),
+    ]);
   } catch (e) {
     return failPage(e);
   }
-  const [rows, roleRows] = data;
+  const [rows, roleRows, core] = data;
   const info: PlatformInfo = Object.fromEntries(rows.map((r) => [r.key, { status: r.status, memberName: r.memberName, color: r.color }]));
   const entries = rows.map((r) => r.entry) as CatalogEntries[CatalogType][];
   const roles = roleRows.map((r) => r.entry) as AgentRole[];
-  return <CatalogView slug={section.slug} entries={entries} roles={roles} platform={info} />;
+  return <CatalogView slug={section.slug} entries={entries} roles={roles} platform={info} core={core} />;
 }

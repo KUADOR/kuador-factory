@@ -8,6 +8,9 @@ import ec.kuador.board.agents.domain.PoPrompt;
 import ec.kuador.board.agents.domain.PoProposal;
 import ec.kuador.board.agents.domain.ProductOwnerModel;
 import ec.kuador.board.catalog.AgentRole;
+import java.util.Map;
+import ec.kuador.board.catalog.AgentRules;
+import ec.kuador.board.catalog.AgentPolicy;
 import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.catalog.DocumentDef;
 import ec.kuador.board.catalog.Methodology;
@@ -19,6 +22,7 @@ import ec.kuador.board.member.MemberView;
 import ec.kuador.board.project.ProjectApi;
 import ec.kuador.board.project.ProjectView;
 import ec.kuador.board.shared.tenant.TenantContext;
+import ec.kuador.board.workspace.WorkspaceApi;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,12 +50,8 @@ public class ProductOwnerAgent {
     private static final Logger log = LoggerFactory.getLogger(ProductOwnerAgent.class);
     private static final Set<String> CONTEXT_DOC_KINDS = Set.of("CONSTITUTION", "PRODUCT", "ARCHITECTURE", "GLOSSARY", "AGENT_RULES");
     private static final int[] FIBONACCI = {1, 2, 3, 5, 8, 13};
-    private static final int MAX_COMMENTS = 20;
-    /**
-     * Vueltas de preguntas del agente en el mismo issue antes de avanzar igual: si después de responderle sigue
-     * preguntando, las preguntas quedan como pendientes en el comentario y el issue pasa a la siguiente etapa.
-     */
-    static final int MAX_QUESTION_ROUNDS = 2;
+    /** Lo que deja una ejecución que terminó con preguntas: así se cuentan las vueltas sin depender de los textos editables. */
+    static final String ASKED = "pregunta(s) abiertas";
 
     private final AgentRunRepository runs;
     private final ProductOwnerModel model;
@@ -64,9 +64,11 @@ public class ProductOwnerAgent {
     private final Clock clock;
     private final AiKeyProvider keys;
     private final StageHandoff handoff;
+    private final WorkspaceApi workspace;
 
     ProductOwnerAgent(AgentRunRepository runs, ProductOwnerModel model, IssueApi issues, DocsApi docs, ProjectApi projects,
-            MemberApi members, CatalogApi catalog, PlatformTransactionManager txManager, Clock clock, AiKeyProvider keys) {
+            MemberApi members, CatalogApi catalog, PlatformTransactionManager txManager, Clock clock, AiKeyProvider keys, WorkspaceApi workspace) {
+        this.workspace = workspace;
         this.keys = keys;
         this.handoff = new StageHandoff(issues, projects);
         this.runs = runs;
@@ -167,8 +169,11 @@ public class ProductOwnerAgent {
         String existing = task == null ? null : allDocs.stream()
                 .filter(d -> issueKey.equals(d.issueKey()) && task.kind().equals(d.kind())).map(DocsApi.DocContent::content).findFirst().orElse(null);
         PoContext.Issue epic = issue.parentKey() == null ? null : issues.context(issue.parentKey()).map(ProductOwnerAgent::view).orElse(null);
+        AgentPolicy policy = catalog.agentPolicy();
+        WorkspaceApi.Identity company = workspace.identity();
+        int read = policy.limits().commentsRead();
         List<IssueApi.CommentView> all = issue.comments();
-        List<PoContext.Comment> comments = all.subList(Math.max(0, all.size() - MAX_COMMENTS), all.size()).stream().map(c -> {
+        List<PoContext.Comment> comments = all.subList(Math.max(0, all.size() - read), all.size()).stream().map(c -> {
             Optional<MemberView> author = members.find(c.authorId());
             return new PoContext.Comment(author.map(MemberView::name).orElse("Miembro eliminado"), author.map(MemberView::agent).orElse(false), c.body());
         }).toList();
@@ -177,7 +182,9 @@ public class ProductOwnerAgent {
                 issue.priority(), issue.storyPoints(), issue.labels());
         return new PoContext(agent.name(), agent.description(), role.instructions(), project.key(), project.name(), project.kind().name(),
                 methodology.map(Methodology::name).orElse(null), methodology.map(Methodology::summary).orElse(null),
-                methodology.map(Methodology::agentRules).orElse(List.of()), projectDocs, current, epic, comments, task, existing, taskRoles(issue, project));
+                methodology.map(Methodology::agentRules).orElse(List.of()), projectDocs, current, epic, comments, task, existing, taskRoles(issue, project),
+                new PoContext.Guide(AgentRules.common(policy, company.teamLanguage(), company.codeLanguage()), policy.rules().proposalFields(),
+                        policy.rules().document(), policy.rules().taskSplit()));
     }
 
     /** En una épica que después de esta etapa se trabaja, los roles con que se reparte; si no, ninguno. */
@@ -216,11 +223,12 @@ public class ProductOwnerAgent {
             tasksNote = note.toString();
             done.add(created.size() + " tarea(s)");
         }
+        AgentPolicy policy = catalog.agentPolicy();
+        AgentPolicy.Messages messages = policy.messages();
         // Freno: ya preguntó varias veces y le respondieron; lo que siga abierto no detiene el trabajo.
-        long rounds = context.comments().stream()
-                .filter(c -> c.byAgent() && c.author().equals(agent.name()) && c.body().contains("**" + PoPrompt.QUESTIONS + "**")).count();
-        if (!p.openQuestions().isEmpty() && rounds >= MAX_QUESTION_ROUNDS && handoff.next(agent, key).isPresent()) {
-            StringBuilder pending = new StringBuilder("**Pendientes (no frenan el avance; ya pregunté ").append(rounds).append(" veces):**\n");
+        long rounds = runs.findRecent(agent.id(), key, 50).stream().filter(r -> r.summary() != null && r.summary().contains(ASKED)).count();
+        if (!p.openQuestions().isEmpty() && rounds >= policy.limits().questionRounds() && handoff.next(agent, key).isPresent()) {
+            StringBuilder pending = new StringBuilder("**").append(AgentRules.fill(messages.pendingTitle(), Map.of("vueltas", rounds))).append(":**\n");
             for (String q : p.openQuestions()) pending.append("- ").append(q.strip()).append('\n');
             tasksNote = tasksNote == null ? pending.toString().strip() : tasksNote + "\n\n" + pending.toString().strip();
             done.add("avanzó con " + p.openQuestions().size() + " pendiente(s)");
@@ -232,17 +240,16 @@ public class ProductOwnerAgent {
         // Sin preguntas y en su etapa: el issue pasa solo a la siguiente. Con preguntas, vuelve a la persona.
         java.util.Optional<StageHandoff.Next> next = p.openQuestions().isEmpty() ? handoff.next(agent, key) : java.util.Optional.empty();
         if (next.isPresent()) {
-            String comment = PoPrompt.comment(agent.name(), p, docLink, tasksNote, pointsApplied, StageHandoff.closing(next.get(), requester.name()));
+            String comment = PoPrompt.comment(agent.name(), p, docLink, tasksNote, pointsApplied, StageHandoff.closing(next.get(), requester.name(), messages),
+                    messages);
             handoff.deliver(agent, requester, key, next.get(), comment);
             done.add(0, "comentó");
             done.add("pasó a " + next.get().columnName());
             return String.join(" · ", done);
         }
-        String who = requester.name() == null ? "" : ", " + requester.name();
-        String closing = p.openQuestions().isEmpty()
-                ? "Te lo devuelvo" + who + ": revísalo y, si estás de acuerdo, muévelo a la siguiente columna."
-                : "Te lo devuelvo" + who + ": responde las preguntas en un comentario y vuelve a asignármelo.";
-        issues.addComment(key, agent.id(), PoPrompt.comment(agent.name(), p, docLink, tasksNote, pointsApplied, closing));
+        String closing = AgentRules.fill(p.openQuestions().isEmpty() ? messages.returnForReview() : messages.returnWithQuestions(),
+                Map.of("persona", requester.name() == null ? "" : requester.name()));
+        issues.addComment(key, agent.id(), PoPrompt.comment(agent.name(), p, docLink, tasksNote, pointsApplied, closing, messages));
         done.add(0, "comentó");
         // Solo lo devuelve si sigue asignado a este agente (alguien pudo reasignarlo mientras trabajaba).
         boolean stillMine = issues.context(key).map(i -> agent.id().equals(i.assigneeId())).orElse(false);
@@ -250,7 +257,7 @@ public class ProductOwnerAgent {
             issues.reassign(key, requester.id(), agent.id());
             done.add("devuelto a " + requester.name());
         }
-        if (!p.openQuestions().isEmpty()) done.add(p.openQuestions().size() + " pregunta(s) abiertas");
+        if (!p.openQuestions().isEmpty()) done.add(p.openQuestions().size() + " " + ASKED);
         return String.join(" · ", done);
     }
 

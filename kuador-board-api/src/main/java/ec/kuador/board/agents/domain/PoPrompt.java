@@ -11,18 +11,6 @@ public final class PoPrompt {
 
     static final int MAX_DOC_CHARS = 30_000;
 
-    /** Título de las preguntas en el comentario; también sirve para contar cuántas veces preguntó. */
-    public static final String QUESTIONS = "Necesito que respondas";
-
-    /** Para no volver a preguntar lo que ya respondieron (cada vuelta cuesta tiempo y dinero). */
-    static final String ANSWERS = """
-            Las respuestas de las personas en los comentarios son decisiones tomadas: aplícalas en el documento y no vuelvas a \
-            preguntar lo que ya respondieron, aunque la respuesta sea breve («sí a las tres»). En `openQuestions` van solo preguntas \
-            nuevas que nadie respondió. Las aprobaciones formales, firmas o pasos que dependen de otra persona fuera del issue (p. ej. \
-            «que el responsable técnico apruebe la excepción») no son preguntas: anótalos en el documento como pendientes o condiciones \
-            y avanza; las aprobaciones las hacen las puertas del tablero.
-
-            """;
 
     private PoPrompt() {}
 
@@ -66,8 +54,14 @@ public final class PoPrompt {
                 u.append("- ").append(cm.author()).append(cm.byAgent() ? " (agente)" : "").append(": ").append(cm.body().strip()).append('\n');
             }
             u.append("</comentarios>\n\n");
-            u.append(ANSWERS);
         }
+        PoContext.Guide g = c.guide();
+        if (!g.rules().isEmpty()) {
+            u.append("<reglas>\n");
+            g.rules().forEach(r -> u.append("- ").append(r).append('\n'));
+            u.append("</reglas>\n\n");
+        }
+        if (!g.proposalFields().isBlank()) u.append(g.proposalFields().strip()).append("\n\n");
         u.append(documentInstruction(c));
         u.append(taskInstruction(c));
         return u.toString();
@@ -86,8 +80,7 @@ public final class PoPrompt {
         out.append(doc.substantialOnly()
                 ? "Si el issue es SUBSTANTIAL, escribe en `document` «" + doc.label() + "» en Markdown. Si es SIMPLE, deja `document` como cadena vacía: esta metodología no pide documentos para tareas simples.\n"
                 : "Escribe en `document` «" + doc.label() + "» completo en Markdown.\n");
-        out.append("El documento lleva el detalle completo (historia, criterios de aceptación, fuera de alcance y lo que pida la plantilla): ")
-                .append("el comentario solo resume y enlaza al documento.\n");
+        if (!c.guide().document().isBlank()) out.append(c.guide().document().strip()).append('\n');
         if (doc.instructions() != null && !doc.instructions().isBlank()) {
             out.append(doc.instructions().strip()).append('\n');
         }
@@ -96,9 +89,8 @@ public final class PoPrompt {
 
     private static String taskInstruction(PoContext c) {
         if (!c.splitsIntoTasks()) return "No repartas el issue en tareas: deja `tasks` como lista vacía.\n";
-        StringBuilder out = new StringBuilder("\nEs una épica y después de esta etapa se trabaja: reparte el plan en `tasks`, una por cada tarea del plan, ")
-                .append("en orden. Cada tarea la trabaja un solo rol en su propia rama y PR; que sea chica y verificable. En `dependsOn` van los números ")
-                .append("(desde 1) de las tareas que deben terminar antes. Una persona revisa el reparto y, al aprobarlo, arrancan. Roles posibles:\n");
+        StringBuilder out = new StringBuilder("\n").append(c.guide().taskSplit().isBlank() ? "Reparte la épica en `tasks`." : c.guide().taskSplit().strip())
+                .append(" Va en `tasks`. Roles posibles:\n");
         c.taskRoles().forEach(r -> out.append("- ").append(r).append('\n'));
         return out.toString();
     }
@@ -121,14 +113,14 @@ public final class PoPrompt {
      * entendió, lo que necesita de la persona y dónde leer el detalle. Si escribió un documento, la historia y
      * los criterios quedan solo ahí (no se repiten); si no, van aquí porque no hay otro lugar.
      */
-    public static String comment(String agentName, PoProposal p, DocLink doc, String tasksNote, boolean pointsApplied, String closing) {
+    public static String comment(String agentName, PoProposal p, DocLink doc, String tasksNote, boolean pointsApplied, String closing,
+            ec.kuador.board.catalog.AgentPolicy.Messages m) {
         StringBuilder c = new StringBuilder("**").append(agentName).append(":** ").append(p.understanding().strip()).append("\n\n");
-        list(c, QUESTIONS, p.openQuestions(), true);
+        list(c, m.questionsTitle(), p.openQuestions(), true);
         if (doc != null) {
-            c.append("📄 **Lee el documento completo:** [«").append(doc.label()).append("» v").append(doc.version()).append("](/projects/")
-                    .append(doc.projectKey()).append("/docs/").append(doc.id()).append(") (`").append(doc.path()).append("`). ")
-                    .append("Ahí están la historia, los criterios de aceptación (").append(p.acceptanceCriteria().size()).append(")")
-                    .append(p.outOfScope().isEmpty() ? "" : " y lo que queda fuera").append(".\n\n");
+            String link = "[«" + doc.label() + "» v" + doc.version() + "](/projects/" + doc.projectKey() + "/docs/" + doc.id() + ") (`" + doc.path() + "`)";
+            c.append(ec.kuador.board.catalog.AgentRules.fill(m.readDocument(), java.util.Map.of("documento", link, "criterios", p.acceptanceCriteria().size())))
+                    .append("\n\n");
         } else {
             c.append("**Historia:** ").append(p.userStory().strip()).append("\n\n");
             list(c, "Criterios de aceptación", p.acceptanceCriteria(), true);

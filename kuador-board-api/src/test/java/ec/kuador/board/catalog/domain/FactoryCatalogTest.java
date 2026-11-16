@@ -61,7 +61,9 @@ class FactoryCatalogTest {
         assertThat(factory.componentTemplates()).allSatisfy(c -> assertThat(c.commands().test()).isNotBlank());
         assertThat(factory.addedAfter(3)).extracting(e -> e.getKey().name()).contains("COMPONENT_TEMPLATE");
         // La versión 5 suma el rol Analista (informes a partir de planillas) a los espacios existentes.
-        assertThat(factory.addedAfter(4)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_ROLE:ANALYST");
+        assertThat(factory.addedAfter(4)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_ROLE:ANALYST", "AGENT_POLICY:DEFAULT");
+        // La versión 6 suma las reglas de agentes editables.
+        assertThat(factory.addedAfter(5)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_POLICY:DEFAULT");
     }
 
     @Test

@@ -8,6 +8,7 @@ import { ApiError, boardApi } from "@/lib/api";
 import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
+  AgentPromptPreview,
   Account,
   Activity,
   AgentRun,
@@ -557,6 +558,10 @@ export async function updateProjectAction(key: string, input: { name: string; de
 
 export async function setTransitionsAction(key: string, transitions: Transitions): Promise<ActionResult<Project>> {
   return run(() => boardApi.setTransitions(key, transitions), `/projects/${key}`);
+}
+
+export async function agentPromptPreviewAction(memberId: string, issue: string): Promise<ActionResult<AgentPromptPreview>> {
+  return run(() => boardApi.agentPromptPreview(memberId, issue));
 }
 
 export async function saveCatalogEntryAction<T extends CatalogType>(

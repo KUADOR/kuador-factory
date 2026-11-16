@@ -13,7 +13,7 @@ export type DocumentKind = string;
 
 // ---- Catálogo del espacio de trabajo (configurable; trae valores de fábrica) ----
 
-export type CatalogType = "workflow-templates" | "methodologies" | "roles" | "mcp-servers" | "component-templates";
+export type CatalogType = "workflow-templates" | "methodologies" | "roles" | "mcp-servers" | "component-templates" | "agent-policies";
 
 interface CatalogEntry {
   id: string | null;
@@ -161,6 +161,54 @@ export interface CatalogEntries {
   roles: AgentRole;
   "mcp-servers": McpServer;
   "component-templates": ComponentTemplate;
+  "agent-policies": AgentPolicy;
+}
+
+/**
+ * Reglas de agentes del espacio (una sola entrada, DEFAULT): lo que reciben todos los agentes además del manual de su
+ * rol, las perillas de costo y los textos que escriben en el tablero y en el repo. Los textos admiten {variables}.
+ */
+export interface AgentPolicy extends CatalogEntry {
+  description: string | null;
+  rules: {
+    common: string[];
+    board: string[];
+    questions: string[];
+    epicPlan: string;
+    bigCard: string;
+    codeReview: string;
+    sendBack: string;
+    web: string;
+    document: string;
+    taskSplit: string;
+    proposalFields: string;
+  };
+  limits: { questionRounds: number; commentsRead: number; filesRead: number; webSearches: number; turnsClaude: number; turnsOther: number };
+  messages: {
+    returnForReview: string;
+    returnWithQuestions: string;
+    toGate: string;
+    toAgent: string;
+    toPerson: string;
+    questionsTitle: string;
+    pendingTitle: string;
+    readDocument: string;
+    askFooter: string;
+    failedStart: string;
+    failedFinish: string;
+  };
+  repo: { agentsMd: string; workSteps: string; subagent: string; mcpInstructions: string; readme: string; pieceReadme: string; ci: string; gitignore: string };
+}
+
+/** «Ver qué recibe»: el pedido que recibiría un agente para una tarjeta, sin llamar al modelo. */
+export interface AgentPromptPreview {
+  agent: string;
+  kind: "REFINE" | "BOARD";
+  system: string;
+  user: string;
+  tools: string[];
+  core: string[];
+  note: string;
 }
 
 export interface Workspace {

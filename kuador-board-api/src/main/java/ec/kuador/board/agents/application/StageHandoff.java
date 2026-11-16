@@ -98,9 +98,9 @@ class StageHandoff {
     }
 
     /** Cierre del comentario según a dónde pasa el issue. */
-    static String closing(Next next, String requesterName) {
-        if (next.gate()) return "➡️ Lo pasé a «" + next.columnName() + "»: espera tu aprobación" + (requesterName == null ? "" : ", " + requesterName) + ".";
-        if (next.agents()) return "➡️ Lo pasé a «" + next.columnName() + "»: sigue el agente de esa etapa.";
-        return "➡️ Lo pasé a «" + next.columnName() + "» y te lo asigné" + (requesterName == null ? "" : ", " + requesterName) + ".";
+    static String closing(Next next, String requesterName, ec.kuador.board.catalog.AgentPolicy.Messages m) {
+        String template = next.gate() ? m.toGate() : next.agents() ? m.toAgent() : m.toPerson();
+        return ec.kuador.board.catalog.AgentRules.fill(template,
+                java.util.Map.of("columna", next.columnName(), "persona", requesterName == null ? "" : requesterName));
     }
 }

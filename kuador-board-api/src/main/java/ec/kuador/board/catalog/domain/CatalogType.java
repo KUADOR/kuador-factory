@@ -1,5 +1,7 @@
 package ec.kuador.board.catalog.domain;
 
+import ec.kuador.board.catalog.AgentPolicy;
+
 import ec.kuador.board.catalog.AgentRole;
 import ec.kuador.board.catalog.ComponentTemplate;
 import ec.kuador.board.catalog.McpServer;
@@ -14,7 +16,8 @@ public enum CatalogType {
     METHODOLOGY(Methodology.class, "methodologies"),
     AGENT_ROLE(AgentRole.class, "roles"),
     MCP_SERVER(McpServer.class, "mcp-servers"),
-    COMPONENT_TEMPLATE(ComponentTemplate.class, "component-templates");
+    COMPONENT_TEMPLATE(ComponentTemplate.class, "component-templates"),
+    AGENT_POLICY(AgentPolicy.class, "agent-policies");
 
     private final Class<?> recordType;
     private final String path;

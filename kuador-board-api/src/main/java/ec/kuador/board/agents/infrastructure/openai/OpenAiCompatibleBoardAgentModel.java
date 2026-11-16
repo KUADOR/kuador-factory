@@ -33,7 +33,6 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
 
     private static final Logger log = LoggerFactory.getLogger(OpenAiCompatibleBoardAgentModel.class);
     /** Vueltas máximas (cada una, una respuesta del modelo con sus llamadas a herramientas) antes de rendirse. */
-    private static final int MAX_TURNS = 30;
     private static final int MAX_TOOL_RESULT = 60_000;
     private static final java.util.concurrent.Semaphore SLOTS = new java.util.concurrent.Semaphore(2);
 
@@ -109,7 +108,8 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
             String usedModel = model;
             long input = 0;
             long output = 0;
-            for (int turn = 0; turn < MAX_TURNS; turn++) {
+            int maxTurns = task.limits().turnsOther();
+            for (int turn = 0; turn < maxTurns; turn++) {
                 ObjectNode body = json.createObjectNode();
                 body.put("model", model);
                 body.set("messages", messages);
@@ -173,7 +173,7 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
                     return new Result(end.outcome(), text, room.outputs(), usedModel, input, output);
                 }
             }
-            throw new AgentModelException("El agente no terminó en " + MAX_TURNS + " vueltas; divide el pedido o acláralo.");
+            throw new AgentModelException("El agente no terminó en " + maxTurns + " vueltas; divide el pedido o acláralo (o sube el límite en Catálogo → Reglas de agentes).");
         }
     }
 

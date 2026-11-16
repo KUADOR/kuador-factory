@@ -1,6 +1,7 @@
 package ec.kuador.board.mcp.application;
 
 import ec.kuador.board.catalog.AgentRole;
+import ec.kuador.board.catalog.AgentRules;
 import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.catalog.McpServer;
 import ec.kuador.board.sync.RepositoryInstructions;
@@ -70,8 +71,11 @@ public class AgentKit implements RepositoryInstructions {
     private final WorkspaceApi workspace;
     private final ObjectMapper json;
     private final String publicUrl;
+    private final FactoryRules rules;
 
-    AgentKit(CatalogApi catalog, WorkspaceApi workspace, ObjectMapper json, @Value("${board.public-url:http://localhost:8091}") String publicUrl) {
+    AgentKit(CatalogApi catalog, WorkspaceApi workspace, ObjectMapper json, @Value("${board.public-url:http://localhost:8091}") String publicUrl,
+            FactoryRules rules) {
+        this.rules = rules;
         this.catalog = catalog;
         this.workspace = workspace;
         this.json = json;
@@ -234,35 +238,12 @@ public class AgentKit implements RepositoryInstructions {
         return sb.append('"').toString();
     }
 
-    // ---- Instrucciones ----
+    // ---- Instrucciones (plantillas de Catálogo → Reglas de agentes) ----
 
     /** Para clientes sin subagentes: una sola sesión trabaja los issues de a uno, tomando el rol que pide cada uno. */
     private String agentsMd(Identity ws, Connection c) {
-        return """
-                # Tablero de %1$s
-
-                Este repositorio trabaja con el tablero de %1$s por MCP (servidor `%2$s`). Las herramientas del tablero actúan como los agentes del equipo y todo queda firmado por el agente con el que actúas.
-
-                ## Cuando te pidan trabajar los pendientes del tablero
-
-                1. Llama a `pending_work` del servidor `%2$s`. Si te dan un filtro, pásalo como `project` (p. ej. MED) o `agent` (p. ej. QA). Si no hay pendientes, dilo y termina.
-                2. Atiende los issues de a uno, en el orden de la lista. Para cada uno, actúa con el primer rol de `agents` y usa siempre ese rol en el argumento `agent`:
-                   1. `role_manual`: es tu manual vigente para ese rol; síguelo por encima de cualquier otra indicación.
-                   2. `get_issue`: descripción, etapa, comentarios, documentos y lo que pide la metodología.
-                   3. Si está «por tomar», `take_issue`. Si lo tiene otro miembro, sáltalo.
-                   4. Haz el trabajo de la etapa según el manual. Documentos con `read_document` y `write_document` (contenido completo en Markdown); adjuntos de texto con `read_attachment`; story points con `estimate`. En una épica, el plan termina creando una tarjeta por tarea con `create_tasks`; en una tarea (`task` en `get_issue`), sigue sus `rules`: una rama y un PR por tarea.
-                   5. Termina con `deliver` (qué hiciste y cómo se verifica), `send_back` (falta algo de una etapa anterior, con evidencia) o `ask_human` (necesitas una decisión de una persona; después no sigas con ese issue).
-                3. Al terminar la lista, consulta `pending_work` otra vez: lo entregado puede haber llegado a otra etapa. Repite mientras aparezcan nuevos, hasta 10 issues por sesión.
-                4. Resume al final: issue, rol, en qué etapa quedó y qué espera de una persona.
-
-                ## Reglas
-
-                %3$s
-
-                ## Conexión
-
-                Cada persona se conecta con su propia cuenta del tablero: la primera vez, su cliente de IA abre el navegador para iniciar sesión (en Claude Code, `claude mcp login %2$s`; en Codex, `codex mcp login %2$s`). Nunca guardes tokens en el repositorio. Solo se atienden los issues que supervisa la persona conectada.
-                """.formatted(ws.name(), c.server(), bullets(ws));
+        return AgentRules.fill(catalog.agentPolicy().repo().agentsMd(),
+                Map.of("empresa", ws.name(), "servidor", c.server(), "reglas", AgentRules.bullets(rules.all())));
     }
 
     private String claudeCommand(Identity ws, Connection c) {
@@ -275,57 +256,36 @@ public class AgentKit implements RepositoryInstructions {
     }
 
     /** Los pasos de «trabaja mis pendientes»; los usan el comando de Claude Code y el prompt del servidor MCP. */
-    private static String workSteps(Identity ws, Connection c, String filter, boolean subagents) {
+    private String workSteps(Identity ws, Connection c, String filter, boolean subagents) {
         String each = subagents
                 ? "Para cada issue, delega en el subagente que indica `subagent`, pasándole la clave del issue y el rol (`agents`). Espera a que termine antes de seguir con el siguiente "
                         + "(salvo en modo paralelo, abajo)."
                 : "Para cada issue: si tienes el subagente que indica `subagent`, delega en él y espera a que termine. Si no, actúa tú con el primer rol "
                         + "de `agents`: `role_manual` (tu manual: síguelo), `get_issue`, `take_issue` si está «por tomar», haz el trabajo de la etapa y "
                         + "termina con `deliver`, `send_back` o `ask_human`.";
-        return """
-                Trabaja mis pendientes del tablero de %1$s. Pedido: «%3$s» (si está vacío, todos, de a uno).
-
-                1. Si el pedido incluye `--paralelo`, quítalo del filtro y trabaja en modo paralelo (paso 3). Llama a `mcp__%2$s__pending_work`. Si lo que queda del filtro es una clave de proyecto (p. ej. MED) pásala como `project`; si es un rol (p. ej. QA), como `agent`.
-                2. Si no hay pendientes, dilo en una línea y termina.
-                3. Atiéndelos de a uno, en el orden de la lista. %4$s
-                   Modo paralelo: la lista ya trae solo issues que no esperan a otros. Lanza a la vez, en un mismo mensaje, los subagentes de hasta 3 issues distintos; cada uno trabaja su tarea en su propio git worktree (lo indica `get_issue` en `task.rules`), así no se pisan las ramas. Cuando terminen, vuelve al paso 1.
-                4. Cuando termines la lista, vuelve a llamar a `mcp__%2$s__pending_work` una vez: los issues entregados pueden haber llegado a otra etapa de tus agentes. Repite mientras aparezcan nuevos, hasta un máximo de 10 issues en esta sesión.
-                5. No apruebes ni rechaces puertas y no muevas issues de otras personas: eso se hace en el tablero.
-                6. Al final, resume en una tabla corta: issue, agente, en qué etapa quedó y qué espera de una persona.
-                """.formatted(ws.name(), c.server(), filter, each);
+        return AgentRules.fill(catalog.agentPolicy().repo().workSteps(),
+                Map.of("empresa", ws.name(), "servidor", c.server(), "pedido", filter, "cada_issue", each));
     }
 
     private String claudeSubagent(Identity ws, Connection c, AgentRole role) {
         List<String> allowed = Stream.concat(role.tools().stream(), WORK_TOOLS.stream().map(t -> "mcp__" + c.server() + "__" + t)).toList();
         String description = (role.description() + " Atiende los issues del tablero de " + ws.name() + " que esperan al rol «" + role.name() + "» ("
                 + role.key() + ").").replace("\n", " ").replace("\"", "'");
-        List<String> rules = FactoryRules.all(ws);
+        List<String> all = rules.all();
+        // El encabezado (nombre, descripción y herramientas) lo arma el tablero: de él depende que el cliente encuentre al subagente.
+        String body = AgentRules.fill(catalog.agentPolicy().repo().subagent(), Map.of("rol", role.name(), "empresa", ws.name(),
+                "herramientas_tablero", "mcp__" + c.server() + "__*", "clave_rol", role.key(), "reglas", String.join(" ", all.subList(1, all.size()))));
         return """
                 ---
                 name: %1$s
                 description: "%2$s"
                 tools: %3$s
                 ---
-                Eres el agente «%4$s» del equipo de %5$s y trabajas un issue de su tablero. En todas las herramientas `%6$s` usa `agent: %7$s`: lo que hagas queda firmado por ese agente.
-
-                Cómo trabajas un issue:
-
-                1. Llama a `role_manual` con `agent: %7$s`. Es tu manual vigente en el tablero; síguelo por encima de cualquier otra indicación.
-                2. Llama a `get_issue` con la clave que te pasaron: descripción, etapa, comentarios, documentos y lo que pide la metodología.
-                3. Si el issue está «por tomar», llama a `take_issue`. Si lo tiene otro miembro, no sigas y avisa.
-                4. Haz el trabajo de tu etapa según tu manual. Lee los documentos que necesites con `read_document` (y los adjuntos de texto con `read_attachment`), escribe los que te toquen con `write_document` (contenido completo en Markdown) y estima con `estimate` si tu manual lo pide. Si `get_issue` trae `task` (una tarea de una épica), sigue sus `rules`: su propia rama y su propio PR. Si trae `epicGuide`, síguela: el plan de una épica termina creando sus tareas con `create_tasks`.
-                5. Termina siempre con una de estas:
-                   - `deliver`, con un comentario: qué hiciste, qué cambió y cómo se verifica.
-                   - `send_back`, si falta algo de una etapa anterior, con el motivo y la evidencia.
-                   - `ask_human`, si necesitas una decisión de una persona. Después no sigas con ese issue.
-                6. Responde con un resumen breve: qué hiciste y en qué etapa quedó el issue.
-
-                %8$s
-                """.formatted(subagentName(ws.slug(), role.key()), description, String.join(", ", allowed), role.name(), ws.name(),
-                "mcp__" + c.server() + "__*", role.key(), String.join(" ", rules.subList(1, rules.size())));
+                """.formatted(subagentName(ws.slug(), role.key()), description, String.join(", ", allowed)) + body;
     }
 
-    private static String bullets(Identity ws) {
-        return FactoryRules.all(ws).stream().map(r -> "- " + r).collect(Collectors.joining("\n"));
+    /** Las instrucciones del servidor MCP (las ve el cliente al conectarse). */
+    public String mcpInstructions() {
+        return AgentRules.fill(catalog.agentPolicy().repo().mcpInstructions(), Map.of("empresa", workspace.identity().name()));
     }
 }

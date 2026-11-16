@@ -307,6 +307,20 @@ class BoardAgentIT {
         // La persona adjunta las ventas y le pide el informe.
         String key = call("POST", "/api/projects/VEN/issues", Map.of("title", "Informe de ventas de octubre", "type", "TASK",
                 "description", "Informe de ventas diarias del último mes, en PDF."), owner).body().get("key").asString();
+
+        // Reglas de agentes: quien administra suma una regla y la ve en «Ver qué recibe» sin gastar IA.
+        JsonNode policy = quiet("GET", "/api/catalog/agent-policies", owner).get(0);
+        assertThat(policy.get("key").asString()).isEqualTo("DEFAULT");
+        tools.jackson.databind.node.ObjectNode edited = (tools.jackson.databind.node.ObjectNode) policy.deepCopy();
+        ((tools.jackson.databind.node.ArrayNode) edited.get("rules").get("board")).add("Los montos van siempre en dólares con dos decimales.");
+        assertThat(call("PUT", "/api/catalog/agent-policies/DEFAULT", edited, owner).status()).isEqualTo(200);
+        JsonNode preview = call("GET", "/api/agents/" + analystId + "/prompt-preview?issue=" + key, null, owner).body();
+        assertThat(preview.get("kind").asString()).isEqualTo("BOARD");
+        assertThat(preview.get("system").asString()).contains("Los montos van siempre en dólares con dos decimales.")
+                .contains("Las puertas de aprobación las cierra una persona").contains("Lo que una persona ya respondió");
+        assertThat(preview.get("user").asString()).contains("Informe de ventas diarias del último mes");
+        assertThat(MESSAGES).as("la vista previa no llama al modelo").isEmpty();
+        assertThat(call("DELETE", "/api/catalog/agent-policies/DEFAULT", null, owner).status()).as("no se borran").isEqualTo(409);
         upload(key, "ventas.csv", "text/csv", "fecha,monto\n2026-10-01,40\n".getBytes(StandardCharsets.UTF_8), owner);
         call("PUT", "/api/issues/" + key + "/assignee", Map.of("assigneeId", analystId), owner);
 
@@ -320,6 +334,7 @@ class BoardAgentIT {
         String request = MESSAGES.getFirst();
         assertThat(request).contains("Analista de datos e informes", "Informe de ventas diarias del último mes", "\"container_upload\"", "file_in_1",
                 "code_execution", "\"deliver\"", "\"ask_human\"", "claude-opus-5-5");
+        assertThat(request).as("con la regla que sumó el espacio").contains("Los montos van siempre en dólares con dos decimales.");
         assertThat(UPLOADS.getFirst()).contains("filename=\"ventas.csv\"", "2026-10-01,40");
         JsonNode report = quiet("GET", "/api/issues/" + key + "/attachments", owner).get("items").valueStream()
                 .filter(a -> a.get("fileName").asString().equals("informe.pdf")).findFirst().orElseThrow();

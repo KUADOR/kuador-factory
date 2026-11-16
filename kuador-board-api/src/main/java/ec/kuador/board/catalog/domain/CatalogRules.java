@@ -36,6 +36,7 @@ public final class CatalogRules {
             case AGENT_ROLE -> role((AgentRole) entry);
             case MCP_SERVER -> mcp((McpServer) entry);
             case COMPONENT_TEMPLATE -> component((ComponentTemplate) entry);
+            case AGENT_POLICY -> policy(key, (ec.kuador.board.catalog.AgentPolicy) entry);
         }
     }
 
@@ -114,6 +115,44 @@ public final class CatalogRules {
     private static final Pattern REPO = Pattern.compile("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9._-]{1,100}$");
     private static final Pattern REF = Pattern.compile("^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$");
     private static final Pattern VARIABLE = Pattern.compile("^[A-Z][A-Z0-9_]{0,39}$");
+
+    private static void policy(String key, ec.kuador.board.catalog.AgentPolicy p) {
+        if (!ec.kuador.board.catalog.AgentPolicy.KEY.equals(key)) {
+            throw new DomainException("Las reglas de agentes son una sola entrada por espacio: " + ec.kuador.board.catalog.AgentPolicy.KEY + ".");
+        }
+        name(p.name());
+        if (p.rules() == null || p.limits() == null || p.messages() == null || p.repo() == null) {
+            throw new DomainException("Faltan secciones de las reglas de agentes (reglas, límites, mensajes y plantillas del repo).");
+        }
+        for (List<String> list : List.of(nz(p.rules().common()), nz(p.rules().board()), nz(p.rules().questions()))) {
+            if (list.size() > 40) throw new DomainException("Cada lista de reglas admite hasta 40 reglas.");
+            for (String r : list) if (r != null && r.length() > 2_000) throw new DomainException("Cada regla admite hasta 2000 caracteres.");
+        }
+        var l = p.limits();
+        range("Vueltas de preguntas", l.questionRounds(), 1, 10);
+        range("Comentarios que lee", l.commentsRead(), 1, 100);
+        range("Archivos que recibe", l.filesRead(), 1, 30);
+        range("Búsquedas web", l.webSearches(), 1, 30);
+        range("Vueltas con Claude", l.turnsClaude(), 1, 40);
+        range("Vueltas con otros proveedores", l.turnsOther(), 1, 80);
+        var r = p.rules();
+        var m = p.messages();
+        var t = p.repo();
+        for (String text : java.util.Arrays.asList(r.epicPlan(), r.bigCard(), r.codeReview(), r.sendBack(), r.web(), r.document(), r.taskSplit(),
+                r.proposalFields(), m.returnForReview(), m.returnWithQuestions(), m.toGate(), m.toAgent(), m.toPerson(), m.questionsTitle(),
+                m.pendingTitle(), m.readDocument(), m.askFooter(), m.failedStart(), m.failedFinish(), t.agentsMd(), t.workSteps(), t.subagent(),
+                t.mcpInstructions(), t.readme(), t.pieceReadme(), t.ci(), t.gitignore())) {
+            if (text != null && text.length() > MAX_TEXT) throw new DomainException("Un texto de las reglas de agentes pasa de " + MAX_TEXT + " caracteres.");
+        }
+    }
+
+    private static List<String> nz(List<String> l) {
+        return l == null ? List.of() : l;
+    }
+
+    private static void range(String what, int value, int min, int max) {
+        if (value < min || value > max) throw new DomainException(what + ": entre " + min + " y " + max + ".");
+    }
 
     private static void component(ComponentTemplate c) {
         name(c.name());

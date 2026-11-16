@@ -18,6 +18,7 @@ public final class CatalogKeys {
             case AgentRole r -> r.key();
             case McpServer s -> s.key();
             case ComponentTemplate c -> c.key();
+            case ec.kuador.board.catalog.AgentPolicy p -> p.key();
             default -> throw new IllegalArgumentException("No es una entrada del catálogo: " + entry);
         };
     }

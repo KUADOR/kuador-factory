@@ -13,10 +13,28 @@ public record PoContext(
         /** Documento que debe escribir según la metodología (o nulo), con su contenido actual si ya existe. */
         DocTask docTask, String existingDocContent,
         /** Si no está vacía, la épica se reparte en tareas con estos roles («CLAVE: nombre»); vacía = no se reparte. */
-        List<String> taskRoles) {
+        List<String> taskRoles,
+        /** Las reglas de agentes del espacio que aplican al refinar (Catálogo → Reglas de agentes). */
+        Guide guide) {
 
     public PoContext {
         taskRoles = taskRoles == null ? List.of() : List.copyOf(taskRoles);
+        guide = guide == null ? Guide.NONE : guide;
+    }
+
+    public PoContext(String agentName, String agentDescription, String roleInstructions, String projectKey, String projectName, String projectKind,
+            String methodologyName, String methodologySummary, List<String> methodologyRules, List<Doc> projectDocs, Issue issue, Issue epic,
+            List<Comment> comments, DocTask docTask, String existingDocContent, List<String> taskRoles) {
+        this(agentName, agentDescription, roleInstructions, projectKey, projectName, projectKind, methodologyName, methodologySummary, methodologyRules,
+                projectDocs, issue, epic, comments, docTask, existingDocContent, taskRoles, Guide.NONE);
+    }
+
+    /**
+     * {@code rules}: núcleo, reglas comunes, de preguntas e idioma. {@code proposalFields}: cómo llenar cada parte.
+     * {@code document} y {@code taskSplit}: cómo escribir el documento y repartir una épica.
+     */
+    public record Guide(List<String> rules, String proposalFields, String document, String taskSplit) {
+        public static final Guide NONE = new Guide(List.of(), "", "", "");
     }
 
     /** Sin repartir en tareas. */

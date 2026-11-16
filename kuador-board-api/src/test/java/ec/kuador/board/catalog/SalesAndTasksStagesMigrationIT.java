@@ -74,6 +74,14 @@ class SalesAndTasksStagesMigrationIT {
             assertThat(one(s, "select payload from catalog_entry where workspace_id = '" + OTHER + "' and entry_key = 'SALES'"))
                     .as("modificada por su equipo: se respeta").contains("Ventas propias").doesNotContain("PROPOSAL_REVIEW");
             assertThat(one(s, "select updated from platform_catalog_release where version = 6")).contains("SALES", "ANALYST");
+            // V32: las reglas de agentes llegan como entrada nueva del catálogo, que cada espacio recibe al arrancar.
+            assertThat(one(s, "select added from platform_catalog_release where version = 8")).contains("AGENT_POLICY", "DEFAULT");
+            String policy = one(s, "select published_payload from platform_catalog_entry where type = 'AGENT_POLICY'");
+            ec.kuador.board.catalog.AgentPolicy parsed = (ec.kuador.board.catalog.AgentPolicy) ec.kuador.board.catalog.infrastructure.platform.DbFactoryCatalog
+                    .parse(ec.kuador.board.catalog.domain.CatalogType.AGENT_POLICY, "DEFAULT", policy);
+            assertThat(parsed.limits().questionRounds()).isEqualTo(2);
+            assertThat(parsed).as("igual a la semilla").usingRecursiveComparison().ignoringFields("id", "builtIn", "version")
+                    .isEqualTo(new ec.kuador.board.catalog.infrastructure.defaults.YamlFactoryCatalog().agentPolicies().getFirst());
         }
     }
 

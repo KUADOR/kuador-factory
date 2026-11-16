@@ -5,7 +5,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Field, SelectInput, TextArea, TextInput, type SelectOption } from "@/components/ui/Field";
+import { Field, SelectInput, TextInput, type SelectOption } from "@/components/ui/Field";
+import { MarkdownEditor } from "@/components/ui/MarkdownEditor";
+
+import { issueTemplates } from "./issueTemplates";
 import { PriorityIcon, TypeIcon } from "@/components/ui/IssueIcons";
 import { PRIORITY_LABEL, allowedTypes, parentLabel, typeLabel, type TypeSource } from "@/lib/labels";
 import { PRIORITIES, type Issue, type IssueInput, type IssueStatus, type IssueType, type Member, type Priority, type Project } from "@/lib/types";
@@ -131,15 +134,20 @@ export function IssueForm({
           />
         )}
       </Field>
-      <Field label={software ? "Descripción y criterios de aceptación" : "Descripción"} hint="Admite Markdown.">
+      <Field
+        label={software ? "Descripción y criterios de aceptación" : "Descripción"}
+        hint={readOnly ? undefined : "Títulos, tablas y bloques de código (JSON, SQL…). Pega un JSON o celdas de una planilla y se formatean solos. Los agentes lo leen tal cual."}
+      >
         {(id) => (
-          <TextArea
+          <MarkdownEditor
             id={id}
-            rows={layout === "detail" ? 7 : 5}
             value={values.description ?? ""}
-            onChange={(e) => set("description", e.target.value)}
-            placeholder={readOnly ? undefined : software ? "Como … quiero … para …\n\nDado …, cuando …, entonces …" : "Detalles, contacto, próximos pasos…"}
-            className="leading-relaxed"
+            onChange={(v) => set("description", v)}
+            readOnly={readOnly}
+            startInView={layout === "detail"}
+            rows={layout === "detail" ? 14 : 10}
+            templates={issueTemplates(software, values.type)}
+            placeholder={software ? "Como … quiero … para …\n\nDado …, cuando …, entonces …\n\nUsa «Plantilla» para empezar con secciones y un contrato JSON." : "Detalles, contacto, próximos pasos…"}
           />
         )}
       </Field>

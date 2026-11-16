@@ -15,7 +15,9 @@ export default async function ProjectLayout({ params, children }: LayoutProps<"/
   }
   return (
     <LiveUpdates projectKey={project.key}>
-    <div className="flex min-h-full flex-col">
+    {/* Alto fijo a la pantalla: el tablero ocupa lo que queda y sus columnas hacen scroll por dentro (como Jira); las
+        demás páginas, más altas, hacen scroll con la página. */}
+    <div className="flex h-full flex-col">
       <PageHeader crumbs={[{ label: "Proyectos", href: "/" }, { label: project.key }]} title={project.name} description={project.description}>
         <ProjectTabs projectKey={project.key} kind={project.kind} />
       </PageHeader>

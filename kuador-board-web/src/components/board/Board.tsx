@@ -4,7 +4,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -15,6 +16,7 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Plus, Search, X } from "lucide-react";
 import { clsx } from "clsx";
+import { useSearchParams } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
 import { createIssueAction, moveIssueAction, updateColumnsAction } from "@/app/actions";
@@ -100,6 +102,21 @@ export function Board({
 
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(initialOpenKey ?? null);
+  // Un enlace «?issue=CLAVE» (notificación, actividad, documento) abre la tarjeta aunque el tablero ya estuviera abierto.
+  const linked = useSearchParams().get("issue")?.toUpperCase() ?? null;
+  const [lastLinked, setLastLinked] = useState(linked);
+  if (linked !== lastLinked) {
+    setLastLinked(linked);
+    if (linked) setOpenKey(linked);
+  }
+  /** Abre o cierra el detalle y lo deja en la URL, para compartirlo y para que «atrás» funcione. */
+  const showIssue = (key: string | null) => {
+    setOpenKey(key);
+    const url = new URL(window.location.href);
+    if (key) url.searchParams.set("issue", key);
+    else url.searchParams.delete("issue");
+    window.history.replaceState(window.history.state, "", url);
+  };
   const [creatingIn, setCreatingIn] = useState<IssueStatus | null>(null);
   const [text, setText] = useState("");
   const [assignee, setAssignee] = useState("");
@@ -111,7 +128,10 @@ export function Board({
   const origin = useRef<Columns | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // Con el mouse se arrastra al moverlo; en el celular hay que mantener presionada la tarjeta, así deslizar el dedo
+    // mueve el tablero (scroll horizontal) en vez de arrastrar.
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
       keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
@@ -246,9 +266,17 @@ export function Board({
   const filtering = Boolean(query || assignee || type);
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2 px-6 py-3">
-        <div className="relative w-56">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {openKey && !openIssue && (
+        <p role="status" className="mx-6 mt-3 flex items-center gap-2 rounded-md bg-warn/10 px-3 py-2 text-[13px] text-fg">
+          No encontré {openKey} en este tablero (puede haberse borrado o estar en otro proyecto).
+          <button type="button" onClick={() => showIssue(null)} className="k-link ml-auto text-xs">
+            Cerrar
+          </button>
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
+        <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 z-10 size-4 -translate-y-1/2 text-fg-faint" aria-hidden />
           <TextInput size="sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="Buscar en el tablero" aria-label="Buscar issues" className="pl-8" />
         </div>
@@ -322,7 +350,7 @@ export function Board({
           setDragFrom(undefined);
         }}
       >
-        <div className="flex flex-1 snap-x gap-2.5 overflow-x-auto px-6 pb-6">
+        <div className="flex min-h-0 flex-1 snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-4 sm:snap-none sm:px-6">
           {project.columns.map((column, index) => (
             <Column
               key={column.key + column.name + column.category}
@@ -337,7 +365,7 @@ export function Board({
               epics={epicTitles}
               plans={plans}
               working={working}
-              onOpen={setOpenKey}
+              onOpen={showIssue}
               onCreate={canEdit ? setCreatingIn : undefined}
             />
           ))}
@@ -372,8 +400,8 @@ export function Board({
           workingAgent={working.get(openIssue.key)}
           me={me}
           roleName={roleName}
-          onOpenIssue={setOpenKey}
-          onClose={() => setOpenKey(null)}
+          onOpenIssue={showIssue}
+          onClose={() => showIssue(null)}
         />
       )}
 

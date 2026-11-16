@@ -13,6 +13,7 @@ import {
   updateTelegramGroupAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
+import { QrCode } from "@/components/ui/QrCode";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Field, PasswordInput, Switch } from "@/components/ui/Field";
 import { Section } from "@/components/ui/Section";
@@ -28,7 +29,7 @@ export function TelegramConnection({ setup: initial }: { setup: TelegramSetup })
   const [setup, setSetup] = useState(initial);
   const [token, setToken] = useState("");
   const [editing, setEditing] = useState(!initial.ownBot && !initial.platformBot);
-  const [code, setCode] = useState<{ command: string; bot: string } | null>(null);
+  const [code, setCode] = useState<{ command: string; bot: string; url: string } | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -53,7 +54,7 @@ export function TelegramConnection({ setup: initial }: { setup: TelegramSetup })
         return;
       }
       setCode(r.data);
-      // Mientras la persona escribe el comando en el grupo, se revisa si ya quedó vinculado (hasta 2 minutos).
+      // Mientras la persona escanea el QR o escribe el comando en el grupo, se revisa si ya quedó vinculado (hasta 2 minutos).
       const before = setup.groups.length;
       for (let i = 0; i < 40; i++) {
         await new Promise((ok) => setTimeout(ok, 3000));
@@ -113,19 +114,31 @@ export function TelegramConnection({ setup: initial }: { setup: TelegramSetup })
               <Button size="sm" loading={pending && !!code} onClick={linkGroup}>Vincular grupo</Button>
             </div>
             {code && (
-              <div className="flex flex-col gap-2 rounded-md border border-line bg-sunken p-3 text-[13px]">
-                <p className="text-fg-muted">
-                  Agrega a <span className="font-medium text-fg">@{code.bot}</span> al grupo y envía este mensaje en el grupo. Sirve una vez durante 15 minutos.
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="min-w-0 flex-1 truncate rounded bg-surface px-2 py-1.5 font-mono text-xs text-fg-strong">{code.command}</code>
-                  <Button
-                    size="sm"
-                    icon={Copy}
-                    iconOnly
-                    label="Copiar"
-                    onClick={() => void navigator.clipboard.writeText(code.command).then(() => notify.ok("Copiado"))}
-                  />
+              <div className="flex flex-col gap-3 rounded-md border border-line bg-sunken p-3 text-[13px]">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                  <QrCode value={code.url} label={`Código QR para agregar a @${code.bot} a un grupo`} className="size-40" />
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <p className="text-fg-muted">
+                      Escanéalo con tu teléfono: Telegram te pide elegir el grupo, agrega a <span className="font-medium text-fg">@{code.bot}</span> y
+                      el grupo queda vinculado solo. Sirve una vez durante 15 minutos.
+                    </p>
+                    <a className="k-link w-fit" href={code.url} target="_blank" rel="noopener noreferrer">
+                      O ábrelo en esta computadora
+                    </a>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5 border-t border-line pt-3">
+                  <p className="text-xs text-fg-faint">Si el bot ya está en el grupo, envía este mensaje en el grupo:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="min-w-0 flex-1 truncate rounded bg-surface px-2 py-1.5 font-mono text-xs text-fg-strong">{code.command}</code>
+                    <Button
+                      size="sm"
+                      icon={Copy}
+                      iconOnly
+                      label="Copiar"
+                      onClick={() => void navigator.clipboard.writeText(code.command).then(() => notify.ok("Copiado"))}
+                    />
+                  </div>
                 </div>
               </div>
             )}

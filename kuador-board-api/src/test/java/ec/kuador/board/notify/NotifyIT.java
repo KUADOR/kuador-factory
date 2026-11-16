@@ -268,10 +268,13 @@ class NotifyIT {
         queue("{\"chat\":{\"id\":555,\"type\":\"private\"},\"text\":\"/start " + code + "\"}");
         eventually("vinculado con el bot propio", () -> SENT.stream().anyMatch(m -> OWN_TOKEN.equals(m.get("_token")) && m.get("text").contains("Listo, Gus")));
 
-        // Un grupo: se agrega el bot y se escribe el comando con el código.
-        String command = call("POST", "/api/workspace/telegram/group-code", null, owner).body().get("command").asString();
+        // Un grupo: se agrega el bot con el enlace del QR («?startgroup=») y Telegram envía «/start@bot CÓDIGO» en el grupo
+        // (o la persona escribe «/vincular CÓDIGO»).
+        JsonNode groupCode = call("POST", "/api/workspace/telegram/group-code", null, owner).body();
+        String command = groupCode.get("command").asString();
         assertThat(command).startsWith("/vincular ");
-        queue("{\"chat\":{\"id\":-1001,\"type\":\"supergroup\",\"title\":\"Equipo Grp\"},\"text\":\"" + command.replace("/vincular", "/vincular@propio_bot") + "\"}");
+        assertThat(groupCode.get("url").asString()).isEqualTo("https://t.me/propio_bot?startgroup=" + command.substring("/vincular ".length()));
+        queue("{\"chat\":{\"id\":-1001,\"type\":\"supergroup\",\"title\":\"Equipo Grp\"},\"text\":\"" + command.replace("/vincular", "/start@propio_bot") + "\"}");
         eventually("grupo vinculado", () -> {
             try {
                 return call("GET", "/api/workspace/telegram", null, owner).body().get("groups").size() == 1;

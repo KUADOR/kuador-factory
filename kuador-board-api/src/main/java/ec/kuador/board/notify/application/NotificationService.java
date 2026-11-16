@@ -171,9 +171,10 @@ public class NotificationService {
         String t = text == null ? "" : text.strip();
         boolean group = "group".equals(chatType) || "supergroup".equals(chatType);
         if (group) {
-            // En grupos el comando puede llegar como «/vincular@NombreDelBot CÓDIGO».
-            if (!t.matches("(?s)^/vincular(@\\w+)?\\s+\\S+.*")) return;
-            String code = t.replaceFirst("^/vincular(@\\w+)?\\s+", "").split("\\s+")[0];
+            // En grupos el comando puede llegar como «/vincular@NombreDelBot CÓDIGO». Al agregar el bot con el enlace
+            // «?startgroup=CÓDIGO» (el QR), Telegram envía en el grupo «/start@NombreDelBot CÓDIGO».
+            if (!t.matches("(?s)^/(vincular|start)(@\\w+)?\\s+\\S+.*")) return;
+            String code = t.replaceFirst("^/(vincular|start)(@\\w+)?\\s+", "").split("\\s+")[0];
             Optional<NotifyStore.LinkTarget> target = consume(code, bot.get()).filter(x -> x.memberId() == null);
             if (target.isEmpty()) {
                 reply(bot.get(), chatId, "Ese código ya se usó o venció. Genera otro en el tablero: Conexiones → Telegram → Vincular grupo.");

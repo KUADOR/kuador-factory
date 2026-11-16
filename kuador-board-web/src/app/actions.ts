@@ -469,7 +469,7 @@ export async function disconnectTelegramBotAction(): Promise<ActionResult<Telegr
   return run(() => boardApi.disconnectTelegramBot(), "/conexiones");
 }
 
-export async function telegramGroupCodeAction(): Promise<ActionResult<{ command: string; bot: string }>> {
+export async function telegramGroupCodeAction(): Promise<ActionResult<{ command: string; bot: string; url: string }>> {
   return run(() => boardApi.telegramGroupCode());
 }
 

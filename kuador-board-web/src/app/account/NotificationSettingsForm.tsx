@@ -1,12 +1,12 @@
 "use client";
 
 import { Send } from "lucide-react";
-import QRCode from "qrcode";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { notificationsAction, telegramLinkAction, testNotificationsAction, unlinkTelegramAction, updateNotificationsAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Field";
+import { QrCode } from "@/components/ui/QrCode";
 import { notify } from "@/components/ui/Toaster";
 import type { NotificationSettings, NotificationView } from "@/lib/types";
 
@@ -22,7 +22,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
   const [pending, start] = useTransition();
   const waiting = useRef<ReturnType<typeof setInterval> | null>(null);
   // El enlace de un solo uso y su QR mientras se espera que la persona pulse «Iniciar»; «expired» si pasó el tiempo.
-  const [link, setLink] = useState<{ url: string; qr: string; expired: boolean } | null>(null);
+  const [link, setLink] = useState<{ url: string; expired: boolean } | null>(null);
   const s = view.settings;
 
   useEffect(() => () => {
@@ -51,8 +51,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
         return;
       }
       // QR para abrirlo desde el teléfono (Telegram suele estar ahí); el enlace también sirve en esta computadora.
-      const qr = await QRCode.toString(r.data.url, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#000000", light: "#ffffff" } });
-      setLink({ url: r.data.url, qr, expired: false });
+      setLink({ url: r.data.url, expired: false });
       // Mientras la persona pulsa «Iniciar» en Telegram, se revisa si ya quedó vinculado (hasta 3 minutos).
       let tries = 0;
       if (waiting.current) clearInterval(waiting.current);
@@ -106,13 +105,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
                     <p className="text-xs text-fg-muted">
                       Escanéalo con la cámara de tu teléfono: se abre @{view.telegramBot} en Telegram; pulsa «Iniciar». Sirve una vez durante 15 minutos.
                     </p>
-                    {/* Fondo blanco siempre: un QR invertido (modo oscuro) muchas cámaras no lo leen. */}
-                    <div
-                      role="img"
-                      aria-label={`Código QR para conectar con @${view.telegramBot}`}
-                      className="size-44 rounded-md bg-white p-2 [&>svg]:size-full"
-                      dangerouslySetInnerHTML={{ __html: link.qr }}
-                    />
+                    <QrCode value={link.url} label={`Código QR para conectar con @${view.telegramBot}`} />
                     <p className="text-xs text-fg-muted">
                       Esperando a que pulses «Iniciar»…{" "}
                       <a className="k-link" href={link.url} target="_blank" rel="noopener noreferrer">

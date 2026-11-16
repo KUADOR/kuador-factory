@@ -55,7 +55,8 @@ public class TelegramSetupService {
     /** {@code ownBot}: el del espacio; {@code platformBot}: el de respaldo de la plataforma (si hay). */
     public record Setup(String ownBot, String platformBot, List<TelegramGroup> groups) {}
 
-    public record GroupCode(String command, String bot) {}
+    /** {@code url}: abre Telegram para elegir un grupo, agrega el bot y le pasa el código (lo mismo que escribir {@code command}). */
+    public record GroupCode(String command, String bot, String url) {}
 
     @Transactional(readOnly = true)
     public Setup setup() {
@@ -106,7 +107,8 @@ public class TelegramSetupService {
     public GroupCode groupCode() {
         UUID ws = TenantContext.require();
         TelegramBotConfig bot = bots.forWorkspace(ws).orElseThrow(() -> new DomainException("Primero conecta el bot de Telegram del espacio."));
-        return new GroupCode("/vincular " + notifications.newGroupCode(ws), bot.username());
+        String code = notifications.newGroupCode(ws);
+        return new GroupCode("/vincular " + code, bot.username(), "https://t.me/" + bot.username() + "?startgroup=" + code);
     }
 
     @Transactional

@@ -217,7 +217,7 @@ export const boardApi = {
   telegramSetup: () => request<TelegramSetup>("/api/workspace/telegram"),
   connectTelegramBot: (token: string) => request<TelegramSetup>("/api/workspace/telegram", json("PUT", { token })),
   disconnectTelegramBot: () => request<TelegramSetup>("/api/workspace/telegram", { method: "DELETE" }),
-  telegramGroupCode: () => request<{ command: string; bot: string }>("/api/workspace/telegram/group-code", { method: "POST" }),
+  telegramGroupCode: () => request<{ command: string; bot: string; url: string }>("/api/workspace/telegram/group-code", { method: "POST" }),
   updateTelegramGroup: (id: string, input: { onAssigned: boolean; onGates: boolean; onPlans: boolean }) =>
     request<TelegramGroup>(`/api/workspace/telegram/groups/${encodeURIComponent(id)}`, json("PUT", input)),
   removeTelegramGroup: (id: string) => request<void>(`/api/workspace/telegram/groups/${encodeURIComponent(id)}`, { method: "DELETE" }),

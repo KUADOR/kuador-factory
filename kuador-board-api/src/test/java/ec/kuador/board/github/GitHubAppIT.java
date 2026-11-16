@@ -213,6 +213,17 @@ class GitHubAppIT {
         assertThat(GITHUB.file("acme/pi", "main", ".specify/memory/constitution.md")).contains("Portal Pi");
         assertThat(call("GET", "/api/projects/PI/components", null, devSession).body()).extracting(n -> n.get("path").asString()).containsExactly("api", "web");
 
+        // El equipo ajusta la pieza creada: va con Java 21 y Spring Boot 3, y deja una nota para los agentes.
+        assertThat(call("PUT", "/api/projects/PI/components/api", Map.of("stack", "Java 21 · Spring Boot 3", "build", "./mvnw -B package",
+                "test", "./mvnw -B verify", "notes", "Nada de APIs de Java 22+."), devSession).status()).as("solo quien administra").isEqualTo(403);
+        Reply adjusted = call("PUT", "/api/projects/PI/components/api", Map.of("stack", "Java 21 · Spring Boot 3", "build", "./mvnw -B package",
+                "test", "./mvnw -B verify", "notes", "Nada de APIs de Java 22+."), owner);
+        assertThat(adjusted.status()).isEqualTo(200);
+        JsonNode api = call("GET", "/api/projects/PI/components", null, devSession).body().get(0);
+        assertThat(api.get("stack").asString()).isEqualTo("Java 21 · Spring Boot 3");
+        assertThat(api.get("notes").asString()).isEqualTo("Nada de APIs de Java 22+.");
+        assertThat(api.get("run").isNull()).as("sin comando").isTrue();
+
         // Vinculado y sincronizado desde el primer momento, con tokens de corta duración reutilizados.
         Reply sync = call("GET", "/api/projects/PI/sync", null, owner);
         assertThat(sync.status()).as(String.valueOf(sync.body())).isEqualTo(200);

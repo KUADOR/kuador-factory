@@ -97,7 +97,7 @@ export interface McpServer extends CatalogEntry {
   docsUrl: string | null;
 }
 
-export type ComponentKind = "BACKEND" | "FRONTEND" | "MICROFRONTEND" | "SHELL" | "MOBILE" | "LIBRARY" | "OTHER";
+export type ComponentKind = "BACKEND" | "FRONTEND" | "MONOLITH" | "MICROFRONTEND" | "SHELL" | "MOBILE" | "LIBRARY" | "OTHER";
 
 /**
  * Plantilla de pieza (API, web, microservicio, microfrontend...). Sin {@code templateRepo}, la pieza nace
@@ -129,7 +129,18 @@ export interface ProjectPiece {
   build: string | null;
   test: string | null;
   run: string | null;
+  /** Lo que el equipo quiere que los agentes sepan de la pieza (versiones, convenciones). */
+  notes: string | null;
   createdAt: string;
+}
+
+/** Lo que se ajusta de una pieza ya creada. */
+export interface PieceUpdate {
+  stack: string;
+  build: string | null;
+  test: string | null;
+  run: string | null;
+  notes: string | null;
 }
 
 /** Una pieza a crear: sin {@code repoName} va en una carpeta del repo del proyecto; con él, en un repo propio. */

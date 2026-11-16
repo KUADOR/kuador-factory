@@ -1,13 +1,13 @@
 "use client";
 
-import { ExternalLink, GitBranchPlus, GitPullRequest, Plus, ShieldCheck, Trash, TriangleAlert } from "lucide-react";
+import { ExternalLink, GitBranchPlus, GitPullRequest, Pencil, Plus, ShieldCheck, Trash, TriangleAlert } from "lucide-react";
 import { useState, useTransition } from "react";
 
-import { addPieceAction, setupPiecesAction } from "@/app/actions";
+import { addPieceAction, setupPiecesAction, updatePieceAction } from "@/app/actions";
 import { COMPONENT_KIND_LABEL } from "@/components/catalog/editors";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
-import { Field, SelectInput, Switch, TextInput } from "@/components/ui/Field";
+import { Field, SelectInput, Switch, TextArea, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
 import type { ComponentTemplate, GitHubConnection, PieceInput, ProjectPiece, SetupResult } from "@/lib/types";
 
@@ -278,16 +278,7 @@ export function PiecesList({ projectKey, pieces, templates, mainRepo }: { projec
       ) : (
         <ul className="flex flex-col divide-y divide-line rounded-md border border-line">
           {pieces.map((p) => (
-            <li key={p.name} className="grid gap-1 px-3 py-2.5 text-[13px] sm:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)] sm:items-center sm:gap-3">
-              <span className="font-mono font-medium text-fg-strong">{p.name}</span>
-              <span className="min-w-0 truncate text-fg-muted">
-                {COMPONENT_KIND_LABEL[p.kind]} · {p.stack}
-              </span>
-              <code className="min-w-0 truncate font-mono text-xs text-fg">
-                {p.repository}
-                {p.path ? `/${p.path}` : ""}
-              </code>
-            </li>
+            <PieceItem key={p.name} projectKey={projectKey} piece={p} />
           ))}
         </ul>
       )}
@@ -343,5 +334,87 @@ export function PiecesList({ projectKey, pieces, templates, mainRepo }: { projec
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Una pieza del proyecto. «Ajustar» cambia su stack, comandos y notas para los agentes (p. ej. si se nació con Java 25
+ * y Spring Boot 4 pero el equipo va con Java 21 y Spring Boot 3): es lo que leen los agentes. El código del repo no cambia.
+ */
+function PieceItem({ projectKey, piece }: { projectKey: string; piece: ProjectPiece }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ stack: piece.stack, build: piece.build ?? "", test: piece.test ?? "", run: piece.run ?? "", notes: piece.notes ?? "" });
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const save = () =>
+    start(async () => {
+      const r = await updatePieceAction(projectKey, piece.name, {
+        stack: draft.stack,
+        build: draft.build || null,
+        test: draft.test || null,
+        run: draft.run || null,
+        notes: draft.notes || null,
+      });
+      if (r.ok) {
+        setError(null);
+        setEditing(false);
+        notify.ok(`Pieza ${piece.name} ajustada`);
+      } else setError(r.error);
+    });
+  return (
+    <li className="flex flex-col gap-2 px-3 py-2.5 text-[13px]">
+      <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-3">
+        <span className="font-mono font-medium text-fg-strong">{piece.name}</span>
+        <span className="min-w-0 truncate text-fg-muted">
+          {COMPONENT_KIND_LABEL[piece.kind]} · {piece.stack}
+        </span>
+        <code className="min-w-0 truncate font-mono text-xs text-fg">
+          {piece.repository}
+          {piece.path ? `/${piece.path}` : ""}
+        </code>
+        {!editing && (
+          <Button size="sm" tone="ghost" icon={Pencil} onClick={() => setEditing(true)}>
+            Ajustar
+          </Button>
+        )}
+      </div>
+      {!editing && piece.notes && <p className="rounded bg-hover px-2.5 py-1.5 text-xs whitespace-pre-line text-fg-muted">📝 {piece.notes}</p>}
+      {editing && (
+        <form
+          className="flex flex-col gap-3 rounded-md border border-line bg-sunken p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save();
+          }}
+        >
+          <Field label="Stack y versiones" hint="Lo que de verdad usa la pieza; los agentes trabajan con esto. Ej.: «Java 21 · Spring Boot 3.5 · PostgreSQL 16».">
+            {(id) => <TextInput id={id} required maxLength={120} value={draft.stack} onChange={(e) => setDraft({ ...draft, stack: e.target.value })} />}
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Compilar">{(id) => <TextInput id={id} maxLength={300} value={draft.build} onChange={(e) => setDraft({ ...draft, build: e.target.value })} className="font-mono text-xs" />}</Field>
+            <Field label="Probar">{(id) => <TextInput id={id} maxLength={300} value={draft.test} onChange={(e) => setDraft({ ...draft, test: e.target.value })} className="font-mono text-xs" />}</Field>
+            <Field label="Levantar">{(id) => <TextInput id={id} maxLength={300} value={draft.run} onChange={(e) => setDraft({ ...draft, run: e.target.value })} className="font-mono text-xs" />}</Field>
+          </div>
+          <Field
+            label="Notas para los agentes"
+            hint="Versiones, convenciones o lo que no deben hacer. Ej.: «Bajamos de Java 25 a 21: nada de APIs de Java 22+. Spring Boot 3.5, no 4.»"
+          >
+            {(id) => <TextArea id={id} rows={4} maxLength={4000} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />}
+          </Field>
+          <p className="text-xs text-fg-faint">
+            Cambia lo que leen los agentes en el tablero y por MCP. El código y el README del repo no se tocan: actualízalos en el repo (o pídeselo a un agente).
+          </p>
+          {error && <p className="text-[13px] text-danger">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button tone="ghost" size="sm" onClick={() => setEditing(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" tone="primary" size="sm" loading={pending}>
+              Guardar
+            </Button>
+          </div>
+        </form>
+      )}
+    </li>
   );
 }

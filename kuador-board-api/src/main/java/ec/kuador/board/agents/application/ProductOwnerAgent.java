@@ -65,10 +65,13 @@ public class ProductOwnerAgent {
     private final AiKeyProvider keys;
     private final StageHandoff handoff;
     private final WorkspaceApi workspace;
+    private final ec.kuador.board.sync.RepositoriesApi repositories;
 
     ProductOwnerAgent(AgentRunRepository runs, ProductOwnerModel model, IssueApi issues, DocsApi docs, ProjectApi projects,
-            MemberApi members, CatalogApi catalog, PlatformTransactionManager txManager, Clock clock, AiKeyProvider keys, WorkspaceApi workspace) {
+            MemberApi members, CatalogApi catalog, PlatformTransactionManager txManager, Clock clock, AiKeyProvider keys, WorkspaceApi workspace,
+            ec.kuador.board.sync.RepositoriesApi repositories) {
         this.workspace = workspace;
+        this.repositories = repositories;
         this.keys = keys;
         this.handoff = new StageHandoff(issues, projects);
         this.runs = runs;
@@ -161,6 +164,12 @@ public class ProductOwnerAgent {
         List<PoContext.Doc> projectDocs = allDocs.stream()
                 .filter(d -> d.issueKey() == null && CONTEXT_DOC_KINDS.contains(d.kind()))
                 .map(d -> new PoContext.Doc(d.kind(), d.title(), d.path(), d.content())).toList();
+        // Las piezas del proyecto (stack, versiones y notas del equipo): el Arquitecto planifica con lo que de verdad se usa.
+        String piecesText = Pieces.markdown(repositories, project.key());
+        if (!piecesText.isEmpty()) {
+            projectDocs = new java.util.ArrayList<>(projectDocs);
+            projectDocs.add(new PoContext.Doc("PIEZAS", "Piezas del proyecto", "(tablero)", piecesText));
+        }
         // El documento que le toca: el de issue que la metodología asigna a su rol.
         Optional<DocumentDef> docDef = methodology.flatMap(m -> m.documents(DocumentDef.Scope.ISSUE).stream()
                 .filter(d -> role.key().equals(d.writtenBy())).findFirst());

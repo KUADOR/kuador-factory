@@ -4,6 +4,7 @@ import { headers as incomingHeaders } from "next/headers";
 
 import { getSessionToken } from "./session";
 import type {
+  PieceUpdate,
   AgentPromptPreview,
   Account,
   Activity,
@@ -348,6 +349,8 @@ export const boardApi = {
     request<GitHubConnection>("/api/github/installations", json("POST", { installationId, code, state })),
   githubDisconnect: (installationId: number) => request<void>(`/api/github/installations/${installationId}`, { method: "DELETE" }),
   pieces: (key: string) => request<ProjectPiece[]>(`/api/projects/${encodeURIComponent(key)}/components`),
+  updatePiece: (key: string, name: string, input: PieceUpdate) =>
+    request<ProjectPiece>(`/api/projects/${encodeURIComponent(key)}/components/${encodeURIComponent(name)}`, json("PUT", input)),
   setupPieces: (key: string, input: PiecesSetup) => request<SetupResult>(`/api/projects/${encodeURIComponent(key)}/components/setup`, json("POST", input)),
   addPiece: (key: string, piece: PieceInput, privateRepo: boolean) =>
     request<SetupResult>(`/api/projects/${encodeURIComponent(key)}/components`, json("POST", { piece, privateRepo })),

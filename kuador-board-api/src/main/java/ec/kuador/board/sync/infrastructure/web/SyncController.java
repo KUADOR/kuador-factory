@@ -75,12 +75,16 @@ class SyncController {
     record AddPieceRequest(@NotNull @Valid PieceRequest piece, Boolean privateRepo) {}
 
     record PieceResponse(String name, String templateKey, Long templateVersion, String templateRef, String kind, String stack, String repository,
-            String path, String build, String test, String run, Instant createdAt) {
+            String path, String build, String test, String run, String notes, Instant createdAt) {
         static PieceResponse from(ProjectComponent c) {
             return new PieceResponse(c.name(), c.templateKey(), c.templateVersion(), c.templateRef(), c.kind(), c.stack(), c.repoLocation(), c.path(),
-                    c.buildCommand(), c.testCommand(), c.runCommand(), c.createdAt());
+                    c.buildCommand(), c.testCommand(), c.runCommand(), c.notes(), c.createdAt());
         }
     }
+
+    record PieceUpdateRequest(@jakarta.validation.constraints.Size(max = 120) String stack, @jakarta.validation.constraints.Size(max = 300) String build,
+            @jakarta.validation.constraints.Size(max = 300) String test, @jakarta.validation.constraints.Size(max = 300) String run,
+            @jakarta.validation.constraints.Size(max = 4000) String notes) {}
 
     record SetupResponse(LinkResponse link, List<ComponentService.RepoResult> repositories, List<PieceResponse> pieces, int documents) {
         static SetupResponse from(ComponentService.Result r) {
@@ -91,6 +95,14 @@ class SyncController {
     @GetMapping("/components")
     List<PieceResponse> pieces(@PathVariable String projectKey) {
         return components.list(projectKey).stream().map(PieceResponse::from).toList();
+    }
+
+    /** Ajusta una pieza ya creada: stack (versiones), comandos y notas para los agentes. */
+    @PutMapping("/components/{name}")
+    PieceResponse updatePiece(@PathVariable String projectKey, @PathVariable String name, @Valid @RequestBody PieceUpdateRequest r,
+            @AuthenticationPrincipal AuthenticatedMember who) {
+        return PieceResponse.from(components.update(projectKey, name, new ComponentService.PieceUpdate(r.stack(), r.build(), r.test(), r.run(), r.notes()),
+                who.memberId()));
     }
 
     /** Arma el proyecto en GitHub: repo del proyecto con sus bases y documentos, y sus piezas (carpetas o repos propios). */

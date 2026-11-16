@@ -22,6 +22,8 @@ public record ComponentTemplate(
     public enum Kind {
         BACKEND,
         FRONTEND,
+        /** Una sola aplicación con backend y pantallas (MVC, full-stack). */
+        MONOLITH,
         MICROFRONTEND,
         SHELL,
         MOBILE,

@@ -92,7 +92,8 @@ public class ComponentService implements RepositoriesApi {
     @Transactional(readOnly = true)
     public List<Piece> pieces(String projectKey) {
         return components.findByProject(projectKey).stream()
-                .map(c -> new Piece(c.name(), c.kind(), c.stack(), c.templateKey(), c.repoLocation(), c.path(), c.buildCommand(), c.testCommand(), c.runCommand()))
+                .map(c -> new Piece(c.name(), c.kind(), c.stack(), c.templateKey(), c.repoLocation(), c.path(), c.buildCommand(), c.testCommand(), c.runCommand(),
+                        c.notes()))
                 .toList();
     }
 
@@ -100,6 +101,38 @@ public class ComponentService implements RepositoriesApi {
     public List<ProjectComponent> list(String projectKey) {
         software(projectKey);
         return components.findByProject(projectKey);
+    }
+
+    /** Lo que el equipo ajusta de una pieza ya creada (p. ej. bajar de Java 25 a Java 21). Vacío = sin comando. */
+    public record PieceUpdate(String stack, String build, String test, String run, String notes) {}
+
+    /**
+     * Ajusta una pieza ya creada: stack, comandos y notas para los agentes. No toca el repo (el código y el README los
+     * cambia el equipo); los agentes leen estos datos en el tablero y el kit los usa la próxima vez que se actualiza.
+     */
+    @Transactional
+    public ProjectComponent update(String projectKey, String name, PieceUpdate u, UUID actorId) {
+        software(projectKey);
+        ProjectComponent current = components.findByProject(projectKey).stream().filter(c -> c.name().equals(name)).findFirst()
+                .orElseThrow(() -> new ec.kuador.board.shared.error.NotFoundException("No existe la pieza «" + name + "» en " + projectKey + "."));
+        String stack = u.stack() == null ? "" : u.stack().strip();
+        if (stack.isEmpty() || stack.length() > 120) throw new DomainException("Indica el stack de la pieza (hasta 120 caracteres), p. ej. «Java 21 · Spring Boot 3».");
+        String notes = blankToNull(u.notes());
+        if (notes != null && notes.length() > 4000) throw new DomainException("Las notas admiten hasta 4000 caracteres.");
+        ProjectComponent updated = current.adjusted(stack, command(u.build()), command(u.test()), command(u.run()), notes);
+        components.save(updated);
+        log.info("Pieza {} de {} ajustada por {}", name, projectKey, actorId);
+        return updated;
+    }
+
+    private static String command(String c) {
+        String v = blankToNull(c);
+        if (v != null && v.length() > 300) throw new DomainException("Cada comando admite hasta 300 caracteres.");
+        return v;
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.strip();
     }
 
     // ---- Armado inicial ----
@@ -272,7 +305,7 @@ public class ComponentService implements RepositoriesApi {
         ProjectComponent c = new ProjectComponent(UUID.randomUUID(), projectKey, p.spec().name(), t == null ? null : t.key(), t == null ? null : t.version(),
                 t == null ? null : t.templateRepo(), t == null ? null : t.templateRef(), p.kind(), p.stack(),
                 t == null ? null : t.commands().build(), t == null ? null : t.commands().test(), t == null ? null : t.commands().run(),
-                repository, p.folder(), installationId, actorId, now);
+                repository, p.folder(), installationId, actorId, now, null);
         components.save(c);
         return c;
     }

@@ -8,6 +8,8 @@ import { ApiError, boardApi } from "@/lib/api";
 import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
+  PieceUpdate,
+  ProjectPiece,
   AgentPromptPreview,
   Account,
   Activity,
@@ -617,6 +619,10 @@ export async function linkRepositoryAction(
 
 export async function setupPiecesAction(projectKey: string, input: PiecesSetup): Promise<ActionResult<SetupResult>> {
   return run(() => boardApi.setupPieces(projectKey, input), `/projects/${projectKey}/settings`);
+}
+
+export async function updatePieceAction(projectKey: string, name: string, input: PieceUpdate): Promise<ActionResult<ProjectPiece>> {
+  return run(() => boardApi.updatePiece(projectKey, name, input), `/projects/${projectKey}/settings/repositorio`);
 }
 
 export async function addPieceAction(projectKey: string, piece: PieceInput, privateRepo: boolean): Promise<ActionResult<SetupResult>> {

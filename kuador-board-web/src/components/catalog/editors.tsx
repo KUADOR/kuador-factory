@@ -501,6 +501,7 @@ export function McpEditor({ value, onChange, isNew }: { value: McpServer; onChan
 const COMPONENT_KINDS: { value: ComponentKind; label: string }[] = [
   { value: "BACKEND", label: "Backend / API" },
   { value: "FRONTEND", label: "Frontend" },
+  { value: "MONOLITH", label: "Monolito (backend y pantallas)" },
   { value: "MICROFRONTEND", label: "Microfrontend" },
   { value: "SHELL", label: "Shell de microfrontends" },
   { value: "MOBILE", label: "Móvil" },

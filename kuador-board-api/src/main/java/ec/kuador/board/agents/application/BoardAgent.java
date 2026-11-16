@@ -62,11 +62,13 @@ public class BoardAgent {
     private final io.micrometer.core.instrument.MeterRegistry metrics;
     private final StageHandoff handoff;
     private final CodeReviewApi code;
+    private final ec.kuador.board.sync.RepositoriesApi pieces;
 
     BoardAgent(AgentRunRepository runs, AiProviders providers, BoardTeam team, WorkspaceAi ai, IssueApi issues, ProjectApi projects, MemberApi members,
             CatalogApi catalog, AttachmentApi attachments, WorkspaceApi workspace, PlatformTransactionManager txManager, Clock clock,
-            io.micrometer.core.instrument.MeterRegistry metrics, CodeReviewApi code) {
+            io.micrometer.core.instrument.MeterRegistry metrics, CodeReviewApi code, ec.kuador.board.sync.RepositoriesApi repositories) {
         this.code = code;
+        this.pieces = repositories;
         this.runs = runs;
         this.providers = providers;
         this.team = team;
@@ -176,6 +178,7 @@ public class BoardAgent {
                 .map(n -> "Al entregar, la tarjeta pasa a «" + n.columnName() + "»" + (n.gate() ? ", donde una persona la revisa y aprueba" : "") + ".\n")
                 .orElse("Al entregar, la tarjeta vuelve a la persona que te la pidió.\n"));
         user.append("Título: ").append(card.title()).append("\n");
+        if (board.software()) user.append(Pieces.markdown(pieces, card.projectKey()));
         if (card.description() != null && !card.description().isBlank()) user.append("\nPedido:\n").append(card.description().strip()).append("\n");
         List<IssueApi.CommentView> comments = card.comments();
         List<IssueApi.CommentView> recent = comments.subList(Math.max(0, comments.size() - policy.limits().commentsRead()), comments.size());

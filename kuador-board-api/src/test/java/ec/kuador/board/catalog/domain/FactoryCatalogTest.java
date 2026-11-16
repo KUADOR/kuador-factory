@@ -61,9 +61,11 @@ class FactoryCatalogTest {
         assertThat(factory.componentTemplates()).allSatisfy(c -> assertThat(c.commands().test()).isNotBlank());
         assertThat(factory.addedAfter(3)).extracting(e -> e.getKey().name()).contains("COMPONENT_TEMPLATE");
         // La versión 5 suma el rol Analista (informes a partir de planillas) a los espacios existentes.
-        assertThat(factory.addedAfter(4)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_ROLE:ANALYST", "AGENT_POLICY:DEFAULT");
-        // La versión 6 suma las reglas de agentes editables.
-        assertThat(factory.addedAfter(5)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_POLICY:DEFAULT");
+        assertThat(factory.addedAfter(4)).extracting(e -> e.getKey().name() + ":" + e.getValue()).startsWith("AGENT_ROLE:ANALYST", "AGENT_POLICY:DEFAULT");
+        // La versión 6 suma las reglas de agentes editables; la 7, la API Spring Boot 3 (Java 21) y los monolitos.
+        assertThat(factory.addedAfter(5)).extracting(e -> e.getKey().name() + ":" + e.getValue()).first().isEqualTo("AGENT_POLICY:DEFAULT");
+        assertThat(factory.addedAfter(6)).extracting(e -> e.getValue()).contains("API_SPRING_3", "MONOLITH_SPRING", "MONOLITH_LARAVEL", "MONOLITH_NEXTJS");
+        assertThat(factory.componentTemplates()).filteredOn(c -> c.kind() == ec.kuador.board.catalog.ComponentTemplate.Kind.MONOLITH).hasSize(6);
     }
 
     @Test

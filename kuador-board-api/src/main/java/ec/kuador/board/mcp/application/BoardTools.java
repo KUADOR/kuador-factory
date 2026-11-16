@@ -485,6 +485,7 @@ public class BoardTools {
         if (p.build() != null) m.put("build", p.build());
         if (p.test() != null) m.put("test", p.test());
         if (p.run() != null) m.put("run", p.run());
+        if (p.notes() != null) m.put("notes", p.notes());
         return m;
     }
 

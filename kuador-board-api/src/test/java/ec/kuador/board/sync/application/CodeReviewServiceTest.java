@@ -43,7 +43,7 @@ class CodeReviewServiceTest {
         ComponentRepository components = new ComponentRepository() {
             public List<ProjectComponent> findByProject(String p) {
                 return List.of(piece("acme/med"), piece("acme/med-web"), new ProjectComponent(UUID.randomUUID(), p, "local", null, null, null, null,
-                        "API", "java", null, null, null, "/tmp/local", "", null, null, Instant.now()));
+                        "API", "java", null, null, null, "/tmp/local", "", null, null, Instant.now(), null));
             }
             public void save(ProjectComponent c) {}
         };
@@ -64,7 +64,7 @@ class CodeReviewServiceTest {
     }
 
     private static ProjectComponent piece(String repo) {
-        return new ProjectComponent(UUID.randomUUID(), "MED", repo, null, null, null, null, "API", "java", null, null, null, repo, "", 42L, null, Instant.now());
+        return new ProjectComponent(UUID.randomUUID(), "MED", repo, null, null, null, null, "API", "java", null, null, null, repo, "", 42L, null, Instant.now(), null);
     }
 
     @Test

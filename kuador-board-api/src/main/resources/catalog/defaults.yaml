@@ -7,7 +7,7 @@
 # Versión del catálogo de fábrica. Cada espacio guarda hasta qué versión recibió; al arrancar recibe
 # una sola vez lo que se agregó después (ver «releases»). Así una entrada nueva llega a los espacios
 # existentes sin pisar sus cambios ni revivir lo que un equipo borró.
-version: 6
+version: 7
 releases:
   - version: 2
     added:
@@ -32,6 +32,15 @@ releases:
   - version: 6
     added:
       - { type: AGENT_POLICY, key: DEFAULT }
+  - version: 7
+    added:
+      - { type: COMPONENT_TEMPLATE, key: API_SPRING_3 }
+      - { type: COMPONENT_TEMPLATE, key: MONOLITH_SPRING }
+      - { type: COMPONENT_TEMPLATE, key: MONOLITH_DOTNET }
+      - { type: COMPONENT_TEMPLATE, key: MONOLITH_LARAVEL }
+      - { type: COMPONENT_TEMPLATE, key: MONOLITH_DJANGO }
+      - { type: COMPONENT_TEMPLATE, key: MONOLITH_RAILS }
+      - { type: COMPONENT_TEMPLATE, key: MONOLITH_NEXTJS }
 
 workflowTemplates:
   - key: SOFTWARE
@@ -949,6 +958,93 @@ componentTemplates:
     commands: { build: "pnpm build", test: "pnpm test", run: "pnpm dev" }
     ciChecks: [ci]
     suggestedRoles: [ARCHITECT, FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: API_SPRING_3
+    name: API Spring Boot 3 (Java 21 LTS)
+    description: "API REST con Spring Boot 3 sobre Java 21 (versión de soporte largo), para equipos que todavía no pasan a Java 25 y Spring Boot 4."
+    kind: BACKEND
+    stack: "Java 21 · Spring Boot 3 · PostgreSQL"
+    templateRepo: null
+    templateRef: null
+    variables:
+      - { name: PAQUETE, description: "Paquete base de Java", defaultValue: "com.empresa.proyecto" }
+    commands: { build: "./mvnw -B package", test: "./mvnw -B verify", run: "./mvnw spring-boot:run" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MONOLITH_SPRING
+    name: Monolito Spring Boot (MVC)
+    description: "Una sola aplicación con backend y pantallas renderizadas en el servidor (Thymeleaf), por módulos, con migraciones Flyway."
+    kind: MONOLITH
+    stack: "Java 21 · Spring Boot 3 · Thymeleaf · PostgreSQL"
+    templateRepo: null
+    templateRef: null
+    variables:
+      - { name: PAQUETE, description: "Paquete base de Java", defaultValue: "com.empresa.proyecto" }
+    commands: { build: "./mvnw -B package", test: "./mvnw -B verify", run: "./mvnw spring-boot:run" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MONOLITH_DOTNET
+    name: Monolito ASP.NET Core MVC
+    description: "Aplicación .NET con controladores y vistas Razor, Entity Framework Core y migraciones."
+    kind: MONOLITH
+    stack: "C# · .NET 8 · ASP.NET Core MVC · EF Core · SQL Server"
+    templateRepo: null
+    templateRef: null
+    variables:
+      - { name: NAMESPACE, description: "Espacio de nombres raíz", defaultValue: "Empresa.Proyecto" }
+    commands: { build: "dotnet build", test: "dotnet test", run: "dotnet run" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MONOLITH_LARAVEL
+    name: Monolito Laravel
+    description: "Aplicación PHP con Laravel: rutas, controladores, vistas Blade, Eloquent y colas."
+    kind: MONOLITH
+    stack: "PHP 8.3 · Laravel 11 · Blade · MySQL"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "composer install && npm ci && npm run build", test: "php artisan test", run: "php artisan serve" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MONOLITH_DJANGO
+    name: Monolito Django
+    description: "Aplicación Python con Django: apps por dominio, ORM, plantillas y panel de administración."
+    kind: MONOLITH
+    stack: "Python 3.12 · Django 5 · PostgreSQL"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "pip install -r requirements.txt", test: "python manage.py test", run: "python manage.py runserver" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MONOLITH_RAILS
+    name: Monolito Ruby on Rails
+    description: "Aplicación Rails con Hotwire: modelos, controladores y vistas en un mismo proyecto."
+    kind: MONOLITH
+    stack: "Ruby 3.3 · Rails 7.2 · Hotwire · PostgreSQL"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "bundle install", test: "bin/rails test", run: "bin/rails server" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MONOLITH_NEXTJS
+    name: Monolito Next.js full-stack
+    description: "Aplicación TypeScript con Next.js: pantallas, rutas de API y acciones de servidor en un solo proyecto, con Prisma."
+    kind: MONOLITH
+    stack: "TypeScript · Next.js 16 · Prisma · PostgreSQL"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "pnpm build", test: "pnpm test", run: "pnpm dev" }
+    ciChecks: [ci]
+    suggestedRoles: [ARCHITECT, BACKEND, FRONTEND, QA]
     mcpServers: [CONTEXT7]
 
 # Reglas de agentes: lo que reciben todos los agentes además del manual de su rol, las perillas de costo y los textos

@@ -50,6 +50,7 @@ class ComponentEntity {
     private UUID createdBy;
     @Column(name = "created_at")
     private Instant createdAt;
+    private String notes;
 
     protected ComponentEntity() {}
 
@@ -72,12 +73,13 @@ class ComponentEntity {
         e.installationId = c.installationId();
         e.createdBy = c.createdBy();
         e.createdAt = c.createdAt();
+        e.notes = c.notes();
         return e;
     }
 
     ProjectComponent toDomain() {
         return new ProjectComponent(id, projectKey, name, templateKey, templateVersion, templateRepo, templateRef, kind, stack, buildCommand,
-                testCommand, runCommand, repoLocation, path, installationId, createdBy, createdAt);
+                testCommand, runCommand, repoLocation, path, installationId, createdBy, createdAt, notes);
     }
 }
 

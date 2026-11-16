@@ -125,7 +125,9 @@ class ProductOwnerAgentTest {
         projects.add("KUA", "SOFTWARE", "SDD");
         catalog = new InMemoryCatalog();
         agent = new ProductOwnerAgent(runRepo, model, issues, docs, projects, memberApi, catalog, new NoTx(), Clock.fixed(NOW, ZoneOffset.UTC),
-                () -> Optional.ofNullable(workspaceKey), () -> new ec.kuador.board.workspace.WorkspaceApi.Identity("kuador", "Kuador", "es", "en"));
+                () -> Optional.ofNullable(workspaceKey), () -> new ec.kuador.board.workspace.WorkspaceApi.Identity("kuador", "Kuador", "es", "en"),
+                projectKey -> List.of(new ec.kuador.board.sync.RepositoriesApi.Piece("api", "BACKEND", "Java 21 · Spring Boot 3", "API_SPRING_HEXAGONAL",
+                        "acme/kua", "api", "./mvnw package", "./mvnw verify", null, "Bajamos de Java 25 a 21: no usar APIs de Java 22+.")));
     }
 
     private static IssueApi.IssueContext issue(String key, String title, String type, Integer points, String parent, UUID assignee,
@@ -161,7 +163,9 @@ class ProductOwnerAgentTest {
         PoContext ctx = seen.getFirst();
         assertThat(ctx.methodologyRules()).contains("No se implementa nada sin una spec aprobada por una persona.");
         assertThat(ctx.roleInstructions()).as("instrucciones del rol en el catálogo").contains("Product Owner");
-        assertThat(ctx.projectDocs()).extracting(PoContext.Doc::kind).containsExactly("CONSTITUTION");
+        assertThat(ctx.projectDocs()).extracting(PoContext.Doc::kind).containsExactly("CONSTITUTION", "PIEZAS");
+        assertThat(ctx.projectDocs().getLast().content()).as("el stack que ajustó el equipo y sus notas")
+                .contains("Java 21 · Spring Boot 3").contains("no usar APIs de Java 22+");
         assertThat(ctx.epic().title()).isEqualTo("Plataforma de citas");
         assertThat(ctx.comments()).extracting(PoContext.Comment::author).containsExactly("Diana");
         assertThat(ctx.docTask().kind()).as("el documento que SDD asigna al PO").isEqualTo("SPEC");

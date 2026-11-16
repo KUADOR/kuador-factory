@@ -33,7 +33,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { notify } from "@/components/ui/Toaster";
 import { useLiveVersion } from "@/components/live/LiveUpdates";
 import { parentLabel, documentsOf } from "@/lib/labels";
-import type { Activity, AgentRun, Comment, DocumentMeta, Issue, Me, Member, Methodology, Project } from "@/lib/types";
+import type { Activity, AgentRun, Comment, DocumentMeta, Issue, Me, Member, Methodology, Project, AgentMode } from "@/lib/types";
 
 import { EpicPlan } from "./EpicPlan";
 import { IssueAttachments } from "./IssueAttachments";
@@ -53,7 +53,13 @@ export function IssueDetail({
   roleName,
   onOpenIssue,
   onClose,
+  modes = {},
+  lastRun,
 }: {
+  /** Dónde trabaja cada agente del equipo. */
+  modes?: Record<string, AgentMode>;
+  /** Última ejecución de un agente en este issue. */
+  lastRun?: AgentRun;
   issue: Issue;
   project: Project;
   members: Member[];
@@ -106,7 +112,7 @@ export function IssueDetail({
         />
       }
     >
-      <StageBar issue={issue} project={project} me={me} members={members} roleName={roleName} />
+      <StageBar issue={issue} project={project} me={me} members={members} roleName={roleName} modes={modes} lastRun={lastRun} workingAgent={workingAgent} />
       {issue.type === "EPIC" && <EpicPlan epic={issue} project={project} roleName={roleName} onOpen={onOpenIssue} />}
       <IssueForm
         project={project}

@@ -9,6 +9,8 @@ import { Field, SelectInput, TextInput, type SelectOption } from "@/components/u
 import { MarkdownEditor } from "@/components/ui/MarkdownEditor";
 
 import { issueTemplates } from "./issueTemplates";
+import { firstStageAhead } from "./nextStep";
+import { stageOf } from "./stages";
 import { PriorityIcon, TypeIcon } from "@/components/ui/IssueIcons";
 import { PRIORITY_LABEL, allowedTypes, parentLabel, typeLabel, type TypeSource } from "@/lib/labels";
 import { PRIORITIES, type Issue, type IssueInput, type IssueStatus, type IssueType, type Member, type Priority, type Project } from "@/lib/types";
@@ -159,6 +161,7 @@ export function IssueForm({
       <Field label="Estado">
         {(id) => <SelectInput id={id} size="sm" disabled={readOnly} options={statusOptions} value={values.status} onChange={(v) => v && set("status", v)} />}
       </Field>
+      {!selfKey && <StartHint project={project} members={members} status={values.status} onPick={(status) => set("status", status)} />}
       <Field label="Responsable">
         {(id) => <SelectInput id={id} size="sm" disabled={readOnly} filter options={memberOptions} value={values.assigneeId ?? ""} onChange={(v) => set("assigneeId", v || null)} />}
       </Field>
@@ -258,4 +261,36 @@ export function IssueForm({
       )}
     </form>
   );
+}
+
+/**
+ * Al crear: qué pasa con la tarjeta en la columna elegida. En una columna de espera (Backlog, Prospecto, Pendiente)
+ * avisa que nadie la trabaja y ofrece crearla directo en la etapa que arranca el flujo.
+ */
+function StartHint({ project, members, status, onPick }: { project: Project; members: Member[]; status: string; onPick: (status: string) => void }) {
+  const column = project.columns.find((c) => c.key === status);
+  const stage = stageOf(project, status);
+  const agentFor = (roles: string[]) => members.find((m) => m.kind === "AGENT" && roles.includes(m.role));
+  let text: React.ReactNode = null;
+  if (stage?.gate) text = "Queda esperando la aprobación de una persona.";
+  else if (stage && stage.roles.length > 0) {
+    const agent = agentFor(stage.roles);
+    text = agent ? <>Al crearla la toma <b className="font-medium text-fg-strong">{agent.name}</b>.</> : "Queda por tomar en esta etapa.";
+  } else if (column?.category === "TODO") {
+    const ahead = firstStageAhead(project, status);
+    if (ahead) {
+      const agent = agentFor(stageOf(project, ahead.key)?.roles ?? []);
+      text = (
+        <>
+          En «{column.name}» espera y nadie la trabaja.{" "}
+          <button type="button" className="k-link" onClick={() => onPick(ahead.key)}>
+            Crearla en «{ahead.name}»
+          </button>
+          {agent ? ` para que la tome ${agent.name}.` : " para que arranque el flujo."}
+        </>
+      );
+    }
+  }
+  if (!text) return null;
+  return <p className="-mt-2 rounded-md bg-hover px-2.5 py-2 text-[11px] leading-relaxed text-fg-muted">{text}</p>;
 }

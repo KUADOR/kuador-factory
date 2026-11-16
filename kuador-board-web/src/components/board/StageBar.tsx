@@ -1,23 +1,52 @@
 "use client";
 
-import { ArrowRight, Check, Hand, Lock, RotateCcw, SquareTerminal, Undo2 } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, Hand, Hourglass, Lock, LoaderCircle, RotateCcw, TriangleAlert, Undo2, Zap } from "lucide-react";
 import { useState, useTransition } from "react";
 
-import { deliverIssueAction, reviewIssueAction, superviseIssueAction, takeIssueAction } from "@/app/actions";
+import {
+  assignIssueAction,
+  deliverIssueAction,
+  moveIssueAction,
+  retryAgentRunAction,
+  reviewIssueAction,
+  superviseIssueAction,
+  takeIssueAction,
+} from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/Field";
 import { useAccess } from "@/components/shell/AccessContext";
 import { Badge } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
-import type { Issue, Me, Member, Project } from "@/lib/types";
+import type { AgentMode, AgentRun, Issue, Me, Member, Project } from "@/lib/types";
 
+import { nextStep, type NextStep, type StepAction } from "./nextStep";
 import { nextColumn, roleList, stageOf } from "./stages";
 
 /**
  * Estado de la etapa del issue y lo que la persona (o el agente) puede hacer: tomarlo, entregarlo
  * a la siguiente etapa o, en una puerta, aprobarlo o rechazarlo con un motivo.
  */
-export function StageBar({ issue, project, me, members, roleName }: { issue: Issue; project: Project; me: Me; members: Member[]; roleName: (key: string) => string }) {
+export function StageBar({
+  issue,
+  project,
+  me,
+  members,
+  roleName,
+  modes = {},
+  lastRun,
+  workingAgent,
+}: {
+  issue: Issue;
+  project: Project;
+  me: Me;
+  members: Member[];
+  roleName: (key: string) => string;
+  /** Dónde trabaja cada agente del equipo (tablero o PC de una persona). */
+  modes?: Record<string, AgentMode>;
+  /** Última ejecución de un agente en esta tarjeta. */
+  lastRun?: AgentRun;
+  workingAgent?: Member;
+}) {
   const stage = stageOf(project, issue.status);
   const column = project.columns.find((c) => c.key === issue.status);
   const next = nextColumn(project, issue.status);
@@ -26,7 +55,6 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
   const { canEdit } = useAccess();
-  if (!stage && issue.reworkCount === 0 && !issue.supervisorId && assignee?.kind !== "AGENT") return null;
 
   const isHuman = me.kind === "HUMAN";
   const canApprove = !!stage?.gate && isHuman && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
@@ -34,11 +62,6 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
   // Quien solo mira no toma ni entrega: como mucho aprueba o rechaza en su puerta.
   const canTake = canEdit && !issue.assigneeId && (stage?.gate ? covers || canApprove : !stage || stage.roles.length === 0 || covers);
   const mine = issue.assigneeId === me.id;
-  // Trabajo para agentes: asignado a uno, o sin tomar en una etapa que cubre algún agente del equipo.
-  const agentRoles = new Set(members.filter((m) => m.kind === "AGENT").map((m) => m.role));
-  const forAgents = assignee ? assignee.kind === "AGENT" : !!stage && stage.roles.some((r) => agentRoles.has(r));
-  const supervisor = members.find((m) => m.id === issue.supervisorId);
-
   const act = (work: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
     start(async () => {
       const r = await work();
@@ -46,8 +69,25 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
       else notify.error("No se pudo completar", r.error);
     });
 
+  const step = nextStep({ issue, project, me, members, modes, lastRun, workingAgent, canEdit, roleName });
+  const runStep = (a: StepAction) => {
+    switch (a.kind) {
+      case "move":
+        return act(() => moveIssueAction(project.key, issue.key, a.to.key, 0), `${issue.key} pasó a ${a.to.name}`);
+      case "assign":
+        return act(() => assignIssueAction(project.key, issue.key, a.memberId), `${issue.key} asignado`);
+      case "take":
+        return act(() => takeIssueAction(project.key, issue.key), `Tomaste ${issue.key}`);
+      case "supervise":
+        return act(() => superviseIssueAction(project.key, issue.key), `Tus agentes atenderán ${issue.key}`);
+      case "retry":
+        return act(() => retryAgentRunAction(a.runId, project.key), "Reintentando");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3 border-b border-line bg-sunken px-5 py-3">
+      <NextStepCallout step={step} pending={pending} onAction={runStep} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="flex items-center gap-1.5 text-[13px] font-medium text-fg-strong">
           {stage?.gate && <Lock className="size-3.5 text-sol-text" aria-hidden />}
@@ -75,39 +115,15 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
         </span>
       </div>
 
-      {forAgents && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-fg-muted">
-          <SquareTerminal className="size-3.5 text-fg-faint" aria-hidden />
-          {supervisor ? (
-            <span>
-              {supervisor.id === me.id ? (
-                "Lo atienden tus agentes, en tu cliente de IA."
-              ) : (
-                <>
-                  Lo atienden los agentes de <span className="font-medium text-fg-strong">{supervisor.name}</span>, en su cliente de IA.
-                </>
-              )}
-            </span>
-          ) : (
-            <span>Espera a un agente, pero nadie lo supervisa todavía.</span>
-          )}
-          {canEdit && isHuman && supervisor?.id !== me.id && (
-            <Button size="sm" tone="ghost" loading={pending} onClick={() => act(() => superviseIssueAction(project.key, issue.key), `Tus agentes atenderán ${issue.key}`)}>
-              Que lo atiendan mis agentes
-            </Button>
-          )}
-        </div>
-      )}
-
       {stage && !rejecting && (
         <div className="flex flex-wrap items-center gap-2">
-          {canTake && (
+          {canTake && !step.actions.some((a) => a.kind === "take") && (
             <Button size="sm" tone={canApprove ? "secondary" : "primary"} icon={Hand} loading={pending} onClick={() => act(() => takeIssueAction(project.key, issue.key), `Tomaste ${issue.key}`)}>
               Tomar
             </Button>
           )}
-          {canEdit && !stage.gate && (mine || (isHuman && !!issue.assigneeId)) && next && (
-            <Button size="sm" tone="primary" icon={ArrowRight} loading={pending} onClick={() => act(() => deliverIssueAction(project.key, issue.key, null), `${issue.key} pasó a ${next.name}`)}>
+          {canEdit && !stage.gate && !workingAgent && (mine || (isHuman && !!issue.assigneeId)) && next && (
+            <Button size="sm" tone={step.actions.length > 0 ? "secondary" : "primary"} icon={ArrowRight} loading={pending} onClick={() => act(() => deliverIssueAction(project.key, issue.key, null), `${issue.key} pasó a ${next.name}`)}>
               Entregar a {next.name}
             </Button>
           )}
@@ -145,6 +161,39 @@ export function StageBar({ issue, project, me, members, roleName }: { issue: Iss
             </Button>
           </div>
         </form>
+      )}
+    </div>
+  );
+}
+
+const STEP_STYLE: Record<NextStep["tone"], { icon: React.ComponentType<{ className?: string }>; box: string; icon_: string; label: string }> = {
+  action: { icon: Zap, box: "border-sol/50 bg-sol/10", icon_: "text-sol-text", label: "Siguiente paso" },
+  wait: { icon: Hourglass, box: "border-line-strong bg-surface", icon_: "text-fg-muted", label: "En espera" },
+  working: { icon: LoaderCircle, box: "border-info/40 bg-info/10", icon_: "text-info animate-spin [animation-duration:2.4s]", label: "En curso" },
+  warn: { icon: TriangleAlert, box: "border-danger/40 bg-danger/10", icon_: "text-danger", label: "Trabado" },
+  done: { icon: CheckCircle2, box: "border-ok/40 bg-ok/10", icon_: "text-ok", label: "Listo" },
+};
+
+/** Lo que tiene que pasar ahora, siempre visible arriba del detalle (en cualquier tipo de tablero). */
+function NextStepCallout({ step, pending, onAction }: { step: NextStep; pending: boolean; onAction: (a: StepAction) => void }) {
+  const style = STEP_STYLE[step.tone];
+  const Icon = style.icon;
+  return (
+    <div role="status" className={`flex flex-wrap items-start gap-x-3 gap-y-2 rounded-lg border px-3 py-2.5 ${style.box}`}>
+      <Icon className={`mt-0.5 size-4 shrink-0 ${style.icon_}`} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium tracking-wide text-fg-muted uppercase">{style.label}</p>
+        <p className="text-[13px] font-medium text-fg-strong">{step.title}</p>
+        {step.detail && <p className="mt-0.5 text-xs leading-relaxed text-fg-muted">{step.detail}</p>}
+      </div>
+      {step.actions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {step.actions.map((a, i) => (
+            <Button key={a.label} size="sm" tone={i === 0 ? "primary" : "secondary"} loading={pending && i === 0} disabled={pending} onClick={() => onAction(a)}>
+              {a.label}
+            </Button>
+          ))}
+        </div>
       )}
     </div>
   );

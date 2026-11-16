@@ -22,7 +22,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Cadena automática: cuando un issue cambia de columna, lo que quedó sin asignar en una etapa que cubre un
+ * Cadena automática: cuando un issue se crea o cambia de columna, lo que quedó sin asignar en una etapa que cubre un
  * agente «En el tablero» del equipo se le asigna a ese agente, y el agente arranca solo. Así el trabajo avanza
  * de etapa en etapa sin que una persona mueva y asigne cada tarjeta; se detiene en las puertas de aprobación,
  * en las preguntas y en las etapas que hace una persona. Revisa todo el tablero porque al terminar una tarea
@@ -50,11 +50,22 @@ class AgentChain {
     @Async
     @TransactionalEventListener
     void on(IssueMoved event) {
-        TenantContext.run(event.workspaceId(), () -> {
+        chain(event.workspaceId(), event.projectKey(), event.issueKey(), event.actorId());
+    }
+
+    /** Una tarjeta creada directo en una etapa (p. ej. en Refinamiento) también arranca sola. */
+    @Async
+    @TransactionalEventListener
+    void on(ec.kuador.board.issue.IssueCreated event) {
+        chain(event.workspaceId(), event.projectKey(), event.issueKey(), event.actorId());
+    }
+
+    private void chain(UUID workspaceId, String projectKey, String issueKey, UUID actorId) {
+        TenantContext.run(workspaceId, () -> {
             try {
-                tx.executeWithoutResult(s -> assignOpenWork(event.workspaceId(), event.projectKey(), event.actorId()));
+                tx.executeWithoutResult(s -> assignOpenWork(workspaceId, projectKey, actorId));
             } catch (RuntimeException e) {
-                log.warn("No se pudo encadenar el trabajo de {} en {}: {}", event.issueKey(), event.projectKey(), e.getMessage());
+                log.warn("No se pudo encadenar el trabajo de {} en {}: {}", issueKey, projectKey, e.getMessage());
             }
         });
     }

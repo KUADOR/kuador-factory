@@ -48,7 +48,16 @@ export default async function BoardPage({ params, searchParams }: Props) {
   return (
     <>
       <SetupBanner projectKey={project.key} pending={pending} />
-      <Board project={project} issues={issues} members={members} runs={runs} me={me} roles={roles} initialOpenKey={issue?.toUpperCase()} />
+      <Board
+        project={project}
+        issues={issues}
+        members={members}
+        runs={runs}
+        me={me}
+        roles={roles}
+        initialOpenKey={issue?.toUpperCase()}
+        modes={Object.fromEntries((team ?? []).map((a) => [a.id, a.mode]))}
+      />
     </>
   );
 }

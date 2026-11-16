@@ -19,6 +19,7 @@ import { clsx } from "clsx";
 import { useSearchParams } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
+import { firstStageAhead } from "./nextStep";
 import { createIssueAction, moveIssueAction, updateColumnsAction } from "@/app/actions";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -29,7 +30,7 @@ import { notify } from "@/components/ui/Toaster";
 import { allowedTypes, typeLabel } from "@/lib/labels";
 import { useAccess } from "@/components/shell/AccessContext";
 import { roleLabel } from "@/lib/labels";
-import type { AgentRole, AgentRun, BoardColumn, CardPlan, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
+import type { AgentMode, AgentRole, AgentRun, BoardColumn, CardPlan, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
 
 import { AddColumn, Column, type ColumnActions } from "./Column";
 import { COLUMN_DROP_PREFIX } from "./dnd";
@@ -63,6 +64,7 @@ export function Board({
   me,
   roles,
   initialOpenKey,
+  modes = {},
 }: {
   project: Project;
   issues: Issue[];
@@ -73,6 +75,8 @@ export function Board({
   me: Me;
   roles: AgentRole[];
   initialOpenKey?: string;
+  /** Dónde trabaja cada agente del equipo (tablero o PC de una persona). */
+  modes?: Record<string, AgentMode>;
 }) {
   const roleName = (key: string) => roleLabel(key, roles.find((r) => r.key === key)?.name);
   const { canEdit } = useAccess();
@@ -358,6 +362,7 @@ export function Board({
               actions={actionsFor(index)}
               blocked={dragFrom && !canMove(dragFrom, column.key) ? `No se puede pasar desde «${dragFromName}»` : undefined}
               stage={project.stages.find((s) => s.column === column.key)}
+              startsAt={column.category === "TODO" ? firstStageAhead(project, column.key)?.name : undefined}
               roleName={roleName}
               projectType={project}
               issues={(columns[column.key] ?? []).map((k) => byKey.get(k)).filter(filtering ? visible : (i): i is Issue => !!i)}
@@ -402,6 +407,8 @@ export function Board({
           roleName={roleName}
           onOpenIssue={showIssue}
           onClose={() => showIssue(null)}
+          modes={modes}
+          lastRun={runs.filter((r) => r.issueKey === openIssue.key).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]}
         />
       )}
 

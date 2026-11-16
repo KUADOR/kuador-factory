@@ -90,6 +90,7 @@ export function Column({
   working,
   blocked,
   stage,
+  startsAt,
   roleName,
   actions,
   onOpen,
@@ -108,6 +109,8 @@ export function Column({
   blocked?: string;
   /** Roles que cubren la columna y si es puerta (Fase 1). */
   stage?: StageDef;
+  /** En una columna de espera: la etapa a la que hay que llevar las tarjetas para que arranquen. */
+  startsAt?: string;
   roleName: (key: string) => string;
   actions: ColumnActions;
   onOpen: (key: string) => void;
@@ -200,6 +203,11 @@ export function Column({
         </span>
         )}
       </header>
+      {!stage && startsAt && (
+        <p className="-mt-1.5 truncate px-3 pb-2 text-[11px] text-fg-faint" title={`Las tarjetas esperan aquí; para que arranquen, llévalas a «${startsAt}».`}>
+          Para que arranquen → «{startsAt}»
+        </p>
+      )}
       {stage && (stage.gate || stage.roles.length > 0) && (
         <p className="-mt-1.5 flex items-center gap-1.5 truncate px-3 pb-2 text-[11px] text-fg-muted">
           {stage.gate ? (

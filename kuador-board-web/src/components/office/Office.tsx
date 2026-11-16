@@ -1,7 +1,7 @@
 "use client";
 
 import { clsx } from "clsx";
-import { Building2, List, Maximize2, Stamp, Volume2, VolumeX } from "lucide-react";
+import { Building2, List, Maximize2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -9,10 +9,17 @@ import { Avatar } from "@/components/ui/Avatar";
 import { SidePanel } from "@/components/ui/SidePanel";
 import type { AgentMode, AgentRun, Issue, Me, Member, Project } from "@/lib/types";
 
-import { Desk, type DeskState } from "./Desk";
+import { Office3D } from "./Office3D";
+import type { OfficeScene, SceneSeat, SceneZones } from "./scene3d";
 
 /** Dónde está una tarjeta en la oficina: en un escritorio, en la sala de revisión, en la bandeja o en el archivo. */
 type Spot = `desk:${string}` | "review" | "inbox" | "done";
+
+/**
+ * Estado de un puesto: trabajando, preguntó, falló, por aprobar, con tarjetas asignadas, esperando /pendientes
+ * (agente local) o libre.
+ */
+export type DeskState = "working" | "asking" | "error" | "review" | "busy" | "queued" | "idle";
 
 /** Lo que muestra cada puesto. */
 export interface Seat {
@@ -54,8 +61,9 @@ export function Office({
 }) {
   const [view, setView] = useState<"office" | "list">("office");
   const [openId, setOpenId] = useState<string | null>(null);
-  const floor = useRef<HTMLDivElement>(null);
   const wrapper = useRef<HTMLDivElement>(null);
+  const scene = useRef<OfficeScene | null>(null);
+  const [rotate, setRotate] = useState(true);
   const sound = useSyncExternalStore(subscribeSound, () => readSound(), () => false);
   const hidden = useSyncExternalStore(subscribeVisibility, () => document.hidden, () => false);
 
@@ -72,6 +80,33 @@ export function Office({
   const inbox = issues.filter((i) => spotOf(i) === "inbox");
   const archived = issues.filter((i) => done.has(i.status)).length;
   const open = seats.find((s) => s.member.id === openId) ?? null;
+  const sceneSeats: SceneSeat[] = seats.map((s) => ({
+    id: s.member.id,
+    name: s.member.name,
+    role: roleNames[s.member.role] ?? s.member.role,
+    color: s.member.avatarColor,
+    agent: s.member.kind === "AGENT",
+    laptop: s.member.kind === "AGENT" && s.mode === "LOCAL",
+    state: s.state,
+    screenKey: s.current?.key ?? null,
+    note: s.note,
+    me: s.member.id === me.id,
+    approvals: s.approvals.length,
+  }));
+  const zones: SceneZones = {
+    title: project.name,
+    review: inReview.map((i) => i.key),
+    inbox: inbox.length,
+    archived,
+    board: project.columns.map((c) => ({ name: c.name, n: issues.filter((i) => i.status === c.key).length })),
+  };
+  const legend = [
+    { icon: "💻", n: seats.filter((s) => s.state === "working").length, label: "trabajando" },
+    { icon: "❓", n: seats.filter((s) => s.state === "asking").length, label: "preguntaron" },
+    { icon: "🖋️", n: inReview.length, label: "por aprobar" },
+    { icon: "⚠️", n: seats.filter((s) => s.state === "error").length, label: "trabados" },
+    { icon: "📥", n: inbox.length, label: "en la bandeja" },
+  ].filter((l) => l.n > 0 || l.label === "trabajando");
 
   // Papeles que vuelan cuando una tarjeta cambia de lugar. Se dibujan fuera de React (son efímeros).
   const spots = useRef<Map<string, Spot> | null>(null);
@@ -80,13 +115,12 @@ export function Office({
     const next = new Map(issues.map((i) => [i.key, spotOf(i)] as const));
     const before = spots.current;
     spots.current = next;
-    const container = floor.current;
-    if (!before || !container || view !== "office" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!before || !scene.current || view !== "office") return;
     let flew = false;
     for (const [key, to] of next) {
       const from = before.get(key);
       if (!from || from === to) continue;
-      flew = fly(container, key, from, to) || flew;
+      flew = scene.current.fly(from, to, key) || flew;
     }
     if (flew && readSound()) chime();
     // spotOf depende de los datos que ya resume issuesKey.
@@ -104,6 +138,9 @@ export function Office({
           <ToolButton active={view === "office"} onClick={() => setView("office")} icon={Building2} label="Oficina" />
           <ToolButton active={view === "list"} onClick={() => setView("list")} icon={List} label="Lista" />
         </div>
+        {view === "office" && (
+          <ToolButton onClick={() => setRotate(!rotate)} icon={rotate ? Pause : Play} label={rotate ? "Detener el giro de la cámara" : "Girar la cámara sola"} iconOnly />
+        )}
         <ToolButton onClick={() => writeSound(!sound)} icon={sound ? Volume2 : VolumeX} label={sound ? "Sonido activado" : "Sin sonido"} iconOnly />
         <ToolButton
           onClick={() => (document.fullscreenElement ? document.exitFullscreen() : wrapper.current?.requestFullscreen())}
@@ -116,51 +153,27 @@ export function Office({
       {view === "list" ? (
         <OfficeList seats={seats} roleNames={roleNames} projectKey={project.key} meId={me.id} />
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto px-4 pb-6 sm:px-6">
-          <div ref={floor} className="office-floor relative rounded-xl border border-line p-3 sm:min-w-[40rem] sm:p-5">
-            <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-              <Whiteboard project={project} issues={issues} />
-              <div className="grid grid-cols-2 gap-3">
-                <div data-spot="inbox" className="office-zone flex flex-col items-center justify-center gap-1 rounded-lg p-3 text-center">
-                  <span aria-hidden className="office-tray" />
-                  <span className="text-xs font-medium text-fg-strong">Bandeja</span>
-                  <span className="tabular text-[11px] text-fg-muted">{inbox.length} sin asignar</span>
-                </div>
-                <div data-spot="done" className="office-zone flex flex-col items-center justify-center gap-1 rounded-lg p-3 text-center">
-                  <span aria-hidden className="office-shelf" />
-                  <span className="text-xs font-medium text-fg-strong">Archivo</span>
-                  <span className="tabular text-[11px] text-fg-muted">{archived} terminadas</span>
-                </div>
-              </div>
+        <div className="relative min-h-0 flex-1 px-4 pb-4 sm:px-6">
+          <div className="relative h-full min-h-[26rem] overflow-hidden rounded-xl border border-line">
+            <Office3D
+              seats={sceneSeats}
+              zones={zones}
+              onSelect={setOpenId}
+              sceneRef={scene}
+              autoRotate={rotate}
+              paused={hidden}
+              fallback={<OfficeList seats={seats} roleNames={roleNames} projectKey={project.key} meId={me.id} />}
+            />
+            <div className="pointer-events-none absolute top-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-1.5">
+              {legend.map((l) => (
+                <span key={l.label} className="office3d-chip">
+                  {l.icon} {l.n} {l.label}
+                </span>
+              ))}
             </div>
-
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_16rem]">
-              <ul aria-label="Puestos de trabajo" className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6">
-                {seats.map((s) => (
-                  <li key={s.member.id} data-spot={`desk:${s.member.id}`}>
-                    <Desk seat={s} me={s.member.id === me.id} roleName={roleNames[s.member.role] ?? s.member.role} onOpen={() => setOpenId(s.member.id)} />
-                  </li>
-                ))}
-              </ul>
-              {gates.size > 0 && (
-                <section data-spot="review" aria-label="Sala de revisión" className="office-room self-start rounded-xl p-4">
-                  <h2 className="flex items-center gap-1.5 text-xs font-semibold text-fg-strong">
-                    <Stamp className="size-3.5 text-sol-text" aria-hidden /> Sala de revisión
-                  </h2>
-                  <p className="mt-0.5 text-[11px] text-fg-muted">Esperan la aprobación de una persona.</p>
-                  <ul className="mt-3 flex flex-wrap gap-2">
-                    {inReview.length === 0 && <li className="text-[11px] text-fg-faint">Nada por aprobar.</li>}
-                    {inReview.map((i) => (
-                      <li key={i.key}>
-                        <Link href={`/projects/${project.key}?issue=${i.key}`} className="office-paper-static" title={i.title}>
-                          {i.key}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </div>
+            <p className="pointer-events-none absolute bottom-3 left-3 hidden text-[11px] text-fg-muted sm:block">
+              Arrastra para girar · rueda o pellizco para acercar · clic en un puesto para ver su cola
+            </p>
           </div>
         </div>
       )}
@@ -208,25 +221,6 @@ function seat(m: Member, issues: Issue[], runs: AgentRun[], gates: Set<string>, 
   if (approvals.length > 0) return { member: m, state: "review", current: approvals[0], queue, approvals, mode, note: `${approvals.length} por aprobar` };
   if (queue.length > 0) return { member: m, state: "busy", current: queue[0], queue, approvals, mode, note: `${queue.length} asignada(s)` };
   return { member: m, state: "idle", current: null, queue, approvals, mode, note: "Libre" };
-}
-
-function Whiteboard({ project, issues }: { project: Project; issues: Issue[] }) {
-  const counts = project.columns.map((c) => ({ ...c, n: issues.filter((i) => i.status === c.key).length }));
-  const max = Math.max(1, ...counts.map((c) => c.n));
-  return (
-    <section aria-label="Pizarra" className="office-board rounded-lg p-3">
-      <h2 className="text-xs font-semibold text-fg-strong">Pizarra · {project.name}</h2>
-      <ul className="mt-2 flex items-end gap-2 overflow-x-auto">
-        {counts.map((c) => (
-          <li key={c.key} className="flex w-14 shrink-0 flex-col items-center gap-1" title={`${c.name}: ${c.n}`}>
-            <span className="tabular text-[11px] font-medium text-fg-strong">{c.n}</span>
-            <span aria-hidden className="office-bar w-6 rounded-t" style={{ height: `${6 + (c.n / max) * 48}px` }} />
-            <span className="w-full truncate text-center text-[10px] text-fg-muted">{c.name}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
 }
 
 function OfficeList({ seats, roleNames, projectKey, meId }: { seats: Seat[]; roleNames: Record<string, string>; projectKey: string; meId: string }) {
@@ -336,41 +330,6 @@ function ToolButton({
       {!iconOnly && label}
     </button>
   );
-}
-
-// ---- Papel que vuela ----
-
-/** Anima un papel desde un lugar al otro. Devuelve si pudo (los dos lugares están en pantalla). */
-function fly(container: HTMLElement, key: string, from: Spot, to: Spot): boolean {
-  const a = container.querySelector<HTMLElement>(`[data-spot="${from}"]`);
-  const b = container.querySelector<HTMLElement>(`[data-spot="${to}"]`);
-  if (!a || !b) return false;
-  const box = container.getBoundingClientRect();
-  const ra = a.getBoundingClientRect();
-  const rb = b.getBoundingClientRect();
-  const x1 = ra.left + ra.width / 2 - box.left;
-  const y1 = ra.top + ra.height / 3 - box.top;
-  const x2 = rb.left + rb.width / 2 - box.left;
-  const y2 = rb.top + rb.height / 3 - box.top;
-  const paper = document.createElement("div");
-  paper.className = "office-paper";
-  paper.textContent = key;
-  paper.style.left = `${x1}px`;
-  paper.style.top = `${y1}px`;
-  container.appendChild(paper);
-  const lift = Math.min(160, 40 + Math.hypot(x2 - x1, y2 - y1) / 3);
-  const animation = paper.animate(
-    [
-      { transform: "translate(-50%, -50%) scale(0.6) rotate(-8deg)", opacity: 0 },
-      { transform: `translate(calc(-50% + ${(x2 - x1) / 2}px), calc(-50% + ${(y2 - y1) / 2 - lift}px)) scale(1.1) rotate(6deg)`, opacity: 1, offset: 0.5 },
-      { transform: `translate(calc(-50% + ${x2 - x1}px), calc(-50% + ${y2 - y1}px)) scale(0.8) rotate(0deg)`, opacity: 0.9, offset: 0.92 },
-      { transform: `translate(calc(-50% + ${x2 - x1}px), calc(-50% + ${y2 - y1}px)) scale(0.5)`, opacity: 0 },
-    ],
-    { duration: 1400, easing: "cubic-bezier(.3,.7,.3,1)" },
-  );
-  animation.onfinish = () => paper.remove();
-  b.animate([{ transform: "scale(1)" }, { transform: "scale(1.04)" }, { transform: "scale(1)" }], { duration: 400, delay: 1250 });
-  return true;
 }
 
 /** Un «ding» corto, sin archivos de audio. */

@@ -279,323 +279,95 @@ textarea {
   to { transform: translateX(300%); }
 }
 
-/* ---- Oficina en vivo ----
-   Dibujo propio en SVG: los colores salen de los tokens del tema (claro u oscuro) mezclados con tonos de madera y
-   plantas. Las animaciones se pausan con la pestaña oculta y se apagan con «reducir movimiento». */
+/* ---- Oficina en vivo (3D) ----
+   La escena es WebGL; aquí van las etiquetas HTML que flotan sobre cada puesto y los avisos superpuestos. */
 @layer components {
-  .office {
-    --office-floor: color-mix(in oklab, var(--color-sunken) 82%, #c9a46a 18%);
-    --office-wood: color-mix(in oklab, #b98552 78%, var(--color-fg-strong) 8%);
-    --office-wood-dark: color-mix(in oklab, #7a5233 85%, var(--color-fg-strong) 5%);
-    --office-metal: color-mix(in oklab, var(--color-fg-muted) 70%, var(--color-surface));
-    --office-screen-off: color-mix(in oklab, var(--color-fg-strong) 72%, var(--color-sunken));
-    --office-screen-on: color-mix(in oklab, var(--color-info) 35%, #0b1424);
-    --office-green: #4f9d69;
+  .office3d canvas {
+    cursor: grab;
   }
-  .office-floor {
-    background-color: var(--office-floor);
-    background-image:
-      linear-gradient(color-mix(in oklab, var(--color-line) 70%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in oklab, var(--color-line) 70%, transparent) 1px, transparent 1px);
-    background-size: 48px 48px;
+  .office3d canvas:active {
+    cursor: grabbing;
   }
-  .office-zone,
-  .office-board,
-  .office-room {
-    background: var(--color-surface);
-    border: 1px solid var(--color-line-strong);
-    box-shadow: 0 1px 0 var(--color-line);
+  .office3d-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+    transform: translateY(-50%);
   }
-  .office-room {
-    border-style: dashed;
-    border-color: color-mix(in oklab, var(--color-sol) 60%, var(--color-line-strong));
-  }
-  .office-bar {
-    background: linear-gradient(var(--color-sol), color-mix(in oklab, var(--color-sol) 55%, var(--color-surface)));
-  }
-  .office-tray {
-    width: 34px;
-    height: 16px;
-    border-radius: 3px;
-    background: var(--office-wood);
-    box-shadow: inset 0 -5px 0 var(--office-wood-dark), 6px -6px 0 -2px var(--color-surface), 6px -6px 0 -1px var(--color-line-strong);
-  }
-  .office-shelf {
-    width: 34px;
-    height: 22px;
-    border-radius: 2px;
-    background: repeating-linear-gradient(90deg, var(--color-info) 0 5px, var(--color-epic) 5px 9px, var(--color-ok) 9px 13px, var(--office-wood) 13px 15px);
-    border-bottom: 4px solid var(--office-wood-dark);
-  }
-  .office-paper,
-  .office-paper-static {
-    font-family: var(--font-mono);
-    font-size: 10px;
+  .office3d-name {
+    font-size: 12px;
     font-weight: 600;
-    color: #2a2a2a;
-    background: #fffdf5;
-    border: 1px solid #e3dccb;
-    border-radius: 3px;
-    padding: 6px 7px 10px;
-    box-shadow: 0 6px 14px rgb(0 0 0 / 0.18);
-    background-image: linear-gradient(#d9d2bf 1px, transparent 1px);
-    background-size: 100% 4px;
-    background-position: 0 14px;
-    background-repeat: repeat-y;
+    color: var(--color-fg-strong);
+    background: color-mix(in oklab, var(--color-surface) 88%, transparent);
+    border: 1px solid var(--color-line-strong);
+    border-radius: 999px;
+    padding: 2px 9px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.18);
+    backdrop-filter: blur(6px);
   }
-  .office-paper {
-    position: absolute;
-    z-index: 30;
-    pointer-events: none;
+  .office3d-note {
+    font-size: 10.5px;
+    color: var(--color-fg-muted);
+    background: color-mix(in oklab, var(--color-surface) 75%, transparent);
+    border-radius: 999px;
+    padding: 1px 7px;
+    white-space: nowrap;
   }
-  .office-paper-static {
-    display: inline-block;
-    transform: rotate(-2deg);
+  .office3d-label[data-state="working"] .office3d-note {
+    color: var(--color-info);
   }
-  .office-paper-static:hover {
-    transform: rotate(0) translateY(-2px);
+  .office3d-label[data-state="error"] .office3d-note {
+    color: var(--color-danger);
   }
-
-  .office-desk {
-    transition: background-color 150ms;
-  }
-  .office-desk:hover,
-  .office-desk:focus-visible {
-    background: color-mix(in oklab, var(--color-surface) 70%, transparent);
-  }
-  .office-me {
-    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--color-sol) 70%, transparent);
-  }
-  .office-shadow {
-    fill: rgb(0 0 0 / 0.12);
-  }
-  .office-chair {
-    fill: color-mix(in oklab, var(--color-fg-strong) 55%, var(--color-sunken));
-  }
-  .office-desktop {
-    fill: var(--office-wood);
-  }
-  .office-leg {
-    fill: var(--office-wood-dark);
-  }
-  .office-keyboard {
-    fill: var(--office-metal);
-  }
-  .office-monitor {
-    fill: color-mix(in oklab, var(--color-fg-strong) 80%, var(--color-sunken));
-  }
-  .office-screen {
-    fill: var(--office-screen-off);
-  }
-  .office-screen-on {
-    fill: var(--office-screen-on);
-  }
-  .office-error .office-screen-on {
-    fill: color-mix(in oklab, var(--color-danger) 40%, #1a0b0b);
-  }
-  .office-screen-text {
-    font-family: var(--font-mono);
-    font-size: 7px;
-    font-weight: 700;
-    fill: #e9f1ff;
-  }
-  .office-code rect {
-    fill: color-mix(in oklab, var(--color-ok) 70%, white);
-    opacity: 0.85;
-  }
-  .office-robot-head {
-    fill: color-mix(in oklab, var(--color-surface) 70%, var(--color-fg-muted));
-    stroke: color-mix(in oklab, var(--color-fg-strong) 30%, transparent);
-  }
-  .office-visor {
-    fill: #121826;
-  }
-  .office-chest {
-    fill: rgb(255 255 255 / 0.35);
-  }
-  .office-antenna {
-    stroke: var(--office-metal);
-    stroke-width: 2;
-  }
-  .office-mug {
-    fill: color-mix(in oklab, var(--color-surface) 50%, var(--color-sol));
-  }
-  .office-steam path {
-    fill: none;
-    stroke: var(--color-fg-faint);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-  }
-  .office-pot {
-    fill: #b8643e;
-  }
-  .office-leaf {
-    fill: none;
-    stroke: var(--office-green);
-    stroke-width: 3;
-    stroke-linecap: round;
-  }
-  .office-cactus {
-    fill: var(--office-green);
-  }
-  .office-lamp-arm {
-    fill: none;
-    stroke: var(--office-metal);
-    stroke-width: 2.5;
-  }
-  .office-lamp {
-    fill: var(--color-sol);
-  }
-  .office-book-a {
-    fill: var(--color-info);
-  }
-  .office-book-b {
-    fill: var(--color-epic);
-  }
-  .office-book-c {
-    fill: var(--color-danger);
-  }
-  .office-frame {
-    fill: var(--color-surface);
-    stroke: var(--office-wood-dark);
-    stroke-width: 2;
-  }
-  .office-smoke circle {
-    fill: color-mix(in oklab, var(--color-fg-muted) 60%, transparent);
-  }
-  .office-bubble {
-    position: absolute;
-    top: 0;
-    right: 18%;
-    z-index: 2;
-    font-size: 13px;
+  .office3d-bubble {
+    font-size: 15px;
     line-height: 1;
-    padding: 5px 7px;
+    padding: 5px 8px;
     border-radius: 999px;
     background: var(--color-surface);
     border: 1px solid var(--color-line-strong);
-    box-shadow: 0 4px 10px rgb(0 0 0 / 0.12);
+    box-shadow: 0 6px 14px rgb(0 0 0 / 0.2);
+    animation: office-float 2.2s ease-in-out infinite;
   }
-  .office-bubble-error {
-    border-color: color-mix(in oklab, var(--color-danger) 60%, var(--color-line-strong));
+  .office3d-label[data-state="asking"] .office3d-bubble,
+  .office3d-label[data-state="error"] .office3d-bubble {
+    animation-duration: 1s;
   }
-
-  /* Animaciones */
-  .office-working .office-arm-left {
-    animation: office-type 0.32s ease-in-out infinite alternate;
+  .office3d-sign {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-fg-strong);
+    background: color-mix(in oklab, var(--color-surface) 85%, transparent);
+    border: 1px dashed color-mix(in oklab, var(--color-sol) 60%, var(--color-line-strong));
+    border-radius: 6px;
+    padding: 2px 8px;
+    white-space: nowrap;
+    pointer-events: none;
   }
-  .office-working .office-arm-right {
-    animation: office-type 0.32s ease-in-out 0.16s infinite alternate;
-  }
-  .office-working .office-code rect {
-    animation: office-code 1.6s steps(4) infinite;
-  }
-  .office-working .office-code rect:nth-child(2) {
-    animation-delay: 0.4s;
-  }
-  .office-working .office-code rect:nth-child(3) {
-    animation-delay: 0.8s;
-  }
-  .office-working .office-led,
-  .office-asking .office-led {
-    animation: office-blink 1s steps(2) infinite;
-  }
-  .office-body {
-    animation: office-breathe 4s ease-in-out infinite;
-    transform-origin: 72px 76px;
-  }
-  .office-steam path {
-    animation: office-steam 2.4s ease-in-out infinite;
-  }
-  .office-steam path:nth-child(2) {
-    animation-delay: 1.2s;
-  }
-  .office-smoke circle {
-    animation: office-smoke 2.2s ease-out infinite;
-  }
-  .office-smoke circle:nth-child(2) {
-    animation-delay: 0.6s;
-  }
-  .office-smoke circle:nth-child(3) {
-    animation-delay: 1.2s;
-  }
-  .office-bubble {
-    animation: office-float 2.4s ease-in-out infinite;
-  }
-  .office-paused *,
-  .office-paused *::before,
-  .office-paused *::after {
-    animation-play-state: paused !important;
+  .office3d-chip {
+    font-size: 11.5px;
+    color: var(--color-fg-strong);
+    background: color-mix(in oklab, var(--color-surface) 85%, transparent);
+    border: 1px solid var(--color-line-strong);
+    border-radius: 999px;
+    padding: 3px 9px;
+    backdrop-filter: blur(6px);
   }
 }
 
-@keyframes office-type {
-  to {
-    transform: translateY(-2px);
-  }
-}
-@keyframes office-code {
-  0% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.2;
-  }
-}
-@keyframes office-blink {
-  50% {
-    opacity: 0.2;
-  }
-}
-@keyframes office-breathe {
-  50% {
-    transform: translateY(-0.8px);
-  }
-}
-@keyframes office-steam {
-  0% {
-    opacity: 0;
-    transform: translateY(2px);
-  }
-  40% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
-@keyframes office-smoke {
-  0% {
-    opacity: 0.8;
-    transform: translateY(4px) scale(0.6);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-10px) scale(1.3);
-  }
-}
 @keyframes office-float {
   50% {
-    transform: translateY(-3px);
+    transform: translateY(-4px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .office *,
-  .office *::before,
-  .office *::after {
-    animation: none !important;
-  }
-}
-@layer components {
-  .office-smoke circle,
-  .office-steam path,
-  .office-arm {
-    transform-box: fill-box;
-    transform-origin: center;
+  .office3d-bubble {
+    animation: none;
   }
 }

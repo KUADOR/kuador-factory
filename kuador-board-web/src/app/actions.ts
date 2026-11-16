@@ -168,6 +168,9 @@ export async function assignIssueAction(projectKey: string, key: string, assigne
   return run(() => boardApi.assignIssue(key, assigneeId), boardPath(projectKey));
 }
 
+/** Posición «al final de la columna»: el mayor int de Java. */
+const END_OF_COLUMN = 2_147_483_647;
+
 export async function updateIssueAction(
   issue: Pick<Issue, "key" | "projectKey" | "status">,
   input: IssueInput,
@@ -175,8 +178,9 @@ export async function updateIssueAction(
 ): Promise<ActionResult<Issue>> {
   return run(async () => {
     const updated = await boardApi.updateIssue(issue.key, input);
-    // Cambiar de columna desde el formulario lo deja al final de la columna nueva.
-    return status === issue.status ? updated : boardApi.moveIssue(issue.key, status, Number.MAX_SAFE_INTEGER);
+    // Cambiar de columna desde el formulario lo deja al final de la columna nueva (el API recorta la posición al tamaño
+    // de la columna). El índice es un int de Java: Number.MAX_SAFE_INTEGER no cabe y el API respondía 400.
+    return status === issue.status ? updated : boardApi.moveIssue(issue.key, status, END_OF_COLUMN);
   }, boardPath(issue.projectKey));
 }
 

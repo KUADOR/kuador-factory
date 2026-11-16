@@ -434,6 +434,8 @@ export interface TeamAgent {
   /** null = el modelo por defecto del espacio. */
   model: string | null;
   inTeam: boolean;
+  /** false = el rol trabaja sobre el código del repo: solo trabaja en la PC de una persona. */
+  serverAllowed: boolean;
 }
 
 /** Consumo de IA del mes (agentes que trabajan en el tablero). Costos en USD; nulos si falta el precio de algún modelo. */

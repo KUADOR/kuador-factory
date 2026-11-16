@@ -7,6 +7,9 @@ import { SettingsSection } from "../SettingsSection";
 import { TeamEditor } from "./TeamEditor";
 
 export const dynamic = "force-dynamic";
+
+/** Herramientas que cambian o ejecutan el código del repo: el rol que las usa solo trabaja en la PC de una persona (como en el API). */
+const CODE_TOOLS = ["Bash", "Edit", "Write"];
 export const metadata: Metadata = { title: "Equipo de agentes" };
 
 export default async function TeamSettingsPage({ params }: PageProps<"/projects/[key]/settings/equipo">) {
@@ -27,7 +30,7 @@ export default async function TeamSettingsPage({ params }: PageProps<"/projects/
         projectKey={key}
         software={project.kind === "SOFTWARE"}
         team={team}
-        roles={roles.map((r) => ({ key: r.key, name: r.name, description: r.description }))}
+        roles={roles.map((r) => ({ key: r.key, name: r.name, description: r.description, worksOnCode: r.tools.some((t) => CODE_TOOLS.includes(t)) }))}
         ai={ai}
       />
     </SettingsSection>

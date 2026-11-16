@@ -20,7 +20,9 @@ const MODE_CHOICES: { value: AgentMode; label: string; hint: string }[] = [
 ];
 
 
-type Role = { key: string; name: string; description: string };
+const CODE_ONLY_LOCAL = "Trabaja sobre el código del repo: lo trabaja el Claude Code o Codex de alguien del equipo con /pendientes, donde está el repo.";
+
+type Role = { key: string; name: string; description: string; worksOnCode: boolean };
 
 /** Equipo de agentes del tablero: dónde trabaja cada uno, sumar uno del espacio o crear uno nuevo. */
 export function TeamEditor({ projectKey, software, team: initial, roles, ai }: { projectKey: string; software: boolean; team: TeamAgent[]; roles: Role[]; ai: WorkspaceAiStatus }) {
@@ -160,10 +162,11 @@ function AgentRow({
           ariaLabel={`Dónde trabaja ${agent.name}`}
           size="sm"
           value={agent.mode}
-          disabled={disabled || saving || !canConfigure}
+          disabled={disabled || saving || !canConfigure || !agent.serverAllowed}
           onChange={(v) => v && save(v, agent.model)}
           options={MODE_CHOICES.map((c) => ({ value: c.value, label: c.label }))}
         />
+        {!agent.serverAllowed && <p className="mt-1 text-xs text-fg-faint">{CODE_ONLY_LOCAL}</p>}
       </div>
       {/* El modelo vale cuando trabaja con la IA de la empresa: en el tablero y en las automatizaciones (p. ej. el Agente PO). */}
       {(agent.mode === "SERVER" || models.length > 0) && (
@@ -204,13 +207,15 @@ function CreateAgent({
   const [mode, setMode] = useState<AgentMode>(defaultMode);
   const [model, setModel] = useState<string>("DEFAULT");
   const chosen = roles.find((r) => r.key === role);
+  const onlyLocal = chosen?.worksOnCode ?? false;
+  const effectiveMode: AgentMode = onlyLocal ? "LOCAL" : mode;
   return (
     <form
       className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-4"
       onSubmit={(e) => {
         e.preventDefault();
         if (!role) return;
-        onCreate({ name: name.trim(), role, description: description.trim() || null, mode, model: mode === "SERVER" && model !== "DEFAULT" ? model : null });
+        onCreate({ name: name.trim(), role, description: description.trim() || null, mode: effectiveMode, model: effectiveMode === "SERVER" && model !== "DEFAULT" ? model : null });
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
@@ -224,8 +229,9 @@ function CreateAgent({
       <Field label="Especialidad" hint="Opcional: qué hace en este equipo, además del manual de su rol. Ej.: «Informes de ventas de la florería en dólares».">
         {(id) => <TextArea id={id} rows={3} maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>
-      <ChoiceCards name="agent-mode" label="Dónde trabaja" columns={2} value={mode} onChange={setMode} choices={MODE_CHOICES} />
-      {mode === "SERVER" && (
+      <ChoiceCards name="agent-mode" label="Dónde trabaja" columns={2} value={effectiveMode} onChange={setMode} choices={MODE_CHOICES} disabled={onlyLocal} />
+      {onlyLocal && <p className="-mt-2 text-xs text-fg-faint">{CODE_ONLY_LOCAL}</p>}
+      {effectiveMode === "SERVER" && (
         <div className="w-72">
           <Field label="Modelo">
             {(id) => (

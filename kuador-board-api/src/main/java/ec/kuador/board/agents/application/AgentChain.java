@@ -2,6 +2,8 @@ package ec.kuador.board.agents.application;
 
 import ec.kuador.board.agents.domain.AgentMode;
 import ec.kuador.board.agents.domain.AgentTeamStore;
+import ec.kuador.board.catalog.AgentRole;
+import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.issue.IssueApi;
 import ec.kuador.board.issue.IssueMoved;
 import ec.kuador.board.member.MemberApi;
@@ -34,12 +36,14 @@ class AgentChain {
     private final IssueApi issues;
     private final MemberApi members;
     private final AgentTeamStore team;
+    private final CatalogApi catalog;
     private final TransactionTemplate tx;
 
-    AgentChain(IssueApi issues, MemberApi members, AgentTeamStore team, PlatformTransactionManager txManager) {
+    AgentChain(IssueApi issues, MemberApi members, AgentTeamStore team, CatalogApi catalog, PlatformTransactionManager txManager) {
         this.issues = issues;
         this.members = members;
         this.team = team;
+        this.catalog = catalog;
         this.tx = new TransactionTemplate(txManager);
     }
 
@@ -66,13 +70,14 @@ class AgentChain {
         }
     }
 
-    /** Agentes del equipo del tablero que trabajan en el servidor, en el orden del equipo. */
+    /** Agentes del equipo del tablero que trabajan en el servidor, en el orden del equipo. Los que trabajan sobre el código, nunca. */
     private List<MemberView> serverAgents(UUID workspaceId, String projectKey) {
         Map<UUID, AgentTeamStore.Profile> profiles = team.profiles(workspaceId);
         return team.team(workspaceId, projectKey).stream()
                 .filter(id -> Optional.ofNullable(profiles.get(id)).map(p -> p.mode() == AgentMode.SERVER).orElse(false))
                 .flatMap(id -> members.find(id).stream())
                 .filter(MemberView::agent)
+                .filter(a -> !catalog.role(a.role()).map(AgentRole::worksOnCode).orElse(false))
                 .toList();
     }
 }

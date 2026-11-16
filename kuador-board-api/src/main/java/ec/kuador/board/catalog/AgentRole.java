@@ -12,6 +12,17 @@ public record AgentRole(
         UUID id, String key, String name, String description, String instructions, List<String> tools, Automation automation,
         boolean builtIn, long version) {
 
+    /** Herramientas que cambian o ejecutan el código del repo. */
+    private static final java.util.Set<String> CODE_TOOLS = java.util.Set.of("Bash", "Edit", "Write");
+
+    /**
+     * El rol trabaja sobre el código del repo (lo edita o ejecuta sus pruebas y comandos): necesita el repo, el entorno
+     * y la red de una PC, así que solo trabaja en modo local; en el tablero no tendría con qué.
+     */
+    public boolean worksOnCode() {
+        return tools != null && tools.stream().anyMatch(CODE_TOOLS::contains);
+    }
+
     public enum Automation {
         NONE,
         /** Refinar un issue: historia, criterios, preguntas, estimación y el documento de su metodología. */

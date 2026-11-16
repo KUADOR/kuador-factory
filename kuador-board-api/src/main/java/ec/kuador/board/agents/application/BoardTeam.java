@@ -15,6 +15,7 @@ import ec.kuador.board.shared.tenant.TenantContext;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -50,7 +51,7 @@ public class BoardTeam extends TenantAwareListener {
     }
 
     public record TeamAgent(UUID id, String name, String role, String roleName, String description, String avatarColor, AgentMode mode,
-            String model, boolean inTeam) {}
+            String model, boolean inTeam, boolean serverAllowed) {}
 
     /** Agentes del tablero primero; después los del espacio que se pueden sumar. */
     @Transactional(readOnly = true)
@@ -89,7 +90,7 @@ public class BoardTeam extends TenantAwareListener {
         String agentName = name == null || name.isBlank() ? "Agente " + role.name() : name.strip();
         MemberView agent = members.createAgent(role.key(), agentName, description == null || description.isBlank() ? role.description() : description.strip(),
                 COLORS[(int) (Math.abs(agentName.hashCode()) % COLORS.length)]);
-        store.saveProfile(ws, new AgentTeamStore.Profile(agent.id(), mode == null ? AgentMode.LOCAL : mode, cleanModel(model)), clock.instant());
+        store.saveProfile(ws, new AgentTeamStore.Profile(agent.id(), allowedMode(role, mode), cleanModel(model)), clock.instant());
         store.addToTeam(ws, projectKey, agent.id());
         return team(projectKey);
     }
@@ -98,14 +99,31 @@ public class BoardTeam extends TenantAwareListener {
     @Transactional
     public TeamAgent setProfile(UUID memberId, AgentMode mode, String model) {
         MemberView agent = agent(memberId);
-        AgentTeamStore.Profile profile = new AgentTeamStore.Profile(memberId, mode == null ? AgentMode.LOCAL : mode, cleanModel(model));
+        AgentTeamStore.Profile profile = new AgentTeamStore.Profile(memberId, allowedMode(catalog.role(agent.role()).orElse(null), mode), cleanModel(model));
         store.saveProfile(TenantContext.require(), profile, clock.instant());
         return view(agent, profile, false);
     }
 
+    /** Dónde trabaja de verdad: un rol que trabaja sobre el código trabaja local aunque esté guardado «en el tablero». */
     @Transactional(readOnly = true)
     public AgentTeamStore.Profile profile(UUID memberId) {
-        return store.profile(memberId).orElse(new AgentTeamStore.Profile(memberId, AgentMode.LOCAL, null));
+        AgentTeamStore.Profile p = store.profile(memberId).orElse(new AgentTeamStore.Profile(memberId, AgentMode.LOCAL, null));
+        boolean code = members.find(memberId).map(m -> worksOnCode(m.role())).orElse(false);
+        return code && p.mode() == AgentMode.SERVER ? new AgentTeamStore.Profile(memberId, AgentMode.LOCAL, p.model()) : p;
+    }
+
+    /** El rol trabaja sobre el código del repo: no puede trabajar en el tablero. */
+    public boolean worksOnCode(String roleKey) {
+        return catalog.role(roleKey).map(AgentRole::worksOnCode).orElse(false);
+    }
+
+    private static AgentMode allowedMode(AgentRole role, AgentMode mode) {
+        if (mode != AgentMode.SERVER) return AgentMode.LOCAL;
+        if (role != null && role.worksOnCode()) {
+            throw new DomainException("«" + role.name() + "» trabaja sobre el código del repo (lo edita o corre sus pruebas): en el tablero no tiene el repo "
+                    + "ni con qué ejecutarlo. Déjalo «En la PC de una persona» y lo trabaja su Claude Code o Codex con /pendientes.");
+        }
+        return mode;
     }
 
     /** Tablero nuevo: su equipo es el de la plantilla (los agentes del espacio con esos roles). En otro hilo, tras el commit. */
@@ -125,7 +143,7 @@ public class BoardTeam extends TenantAwareListener {
             members.agents().stream().filter(m -> event.teamRoles().contains(m.role())).forEach(m -> {
                 store.addToTeam(event.workspaceId(), event.projectKey(), m.id());
                 // Fuera de software nadie tiene un Claude Code abierto: el agente trabaja en el tablero (si nadie eligió otra cosa).
-                if (!event.software() && !profiles.containsKey(m.id())) {
+                if (!event.software() && !profiles.containsKey(m.id()) && !worksOnCode(m.role())) {
                     store.saveProfile(event.workspaceId(), new AgentTeamStore.Profile(m.id(), AgentMode.SERVER, null), clock.instant());
                 }
             });
@@ -133,9 +151,11 @@ public class BoardTeam extends TenantAwareListener {
     }
 
     private TeamAgent view(MemberView m, AgentTeamStore.Profile p, boolean inTeam) {
-        String roleName = catalog.role(m.role()).map(AgentRole::name).orElse(m.role());
-        return new TeamAgent(m.id(), m.name(), m.role(), roleName, m.description(), m.avatarColor(), p == null ? AgentMode.LOCAL : p.mode(),
-                p == null ? null : p.model(), inTeam);
+        Optional<AgentRole> role = catalog.role(m.role());
+        boolean serverAllowed = role.map(r -> !r.worksOnCode()).orElse(true);
+        AgentMode mode = p == null || !serverAllowed ? AgentMode.LOCAL : p.mode();
+        return new TeamAgent(m.id(), m.name(), m.role(), role.map(AgentRole::name).orElse(m.role()), m.description(), m.avatarColor(), mode,
+                p == null ? null : p.model(), inTeam, serverAllowed);
     }
 
     private MemberView agent(UUID memberId) {

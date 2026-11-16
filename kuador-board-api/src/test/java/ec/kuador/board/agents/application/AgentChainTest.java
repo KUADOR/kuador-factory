@@ -6,6 +6,7 @@ import ec.kuador.board.agents.domain.AgentMode;
 import ec.kuador.board.agents.domain.AgentTeamStore;
 import ec.kuador.board.issue.IssueApi;
 import ec.kuador.board.member.MemberView;
+import ec.kuador.board.testing.InMemoryCatalog;
 import ec.kuador.board.testing.InMemoryMembers;
 import ec.kuador.board.testing.IssueApiStub;
 import ec.kuador.board.testing.NoTx;
@@ -24,6 +25,7 @@ class AgentChainTest {
     static final UUID ARCHITECT = UUID.randomUUID();
     static final UUID BACKEND = UUID.randomUUID();
     static final UUID QA_LOCAL = UUID.randomUUID();
+    static final UUID FRONTEND_SERVER = UUID.randomUUID();
 
     final List<String> assigned = new ArrayList<>();
 
@@ -33,6 +35,7 @@ class AgentChainTest {
         members.add(new MemberView(ARCHITECT, TestTenant.WORKSPACE, "Arquitecto", true, "ARCHITECT", "#fff", null));
         members.add(new MemberView(BACKEND, TestTenant.WORKSPACE, "Backend", true, "BACKEND", "#fff", null));
         members.add(new MemberView(QA_LOCAL, TestTenant.WORKSPACE, "QA", true, "QA", "#fff", null));
+        members.add(new MemberView(FRONTEND_SERVER, TestTenant.WORKSPACE, "Frontend", true, "FRONTEND", "#fff", null));
         IssueApi issues = new IssueApiStub() {
             @Override public List<QueueItem> openForAgents(String projectKey) { return open; }
             @Override public void reassign(String k, UUID m, UUID actor) { assigned.add(k + "→" + m + " por " + actor); }
@@ -40,11 +43,11 @@ class AgentChainTest {
         AgentTeamStore team = new AgentTeamStore() {
             public Map<UUID, Profile> profiles(UUID ws) {
                 return Map.of(ARCHITECT, new Profile(ARCHITECT, AgentMode.SERVER, null), BACKEND, new Profile(BACKEND, AgentMode.SERVER, null),
-                        QA_LOCAL, new Profile(QA_LOCAL, AgentMode.LOCAL, null));
+                        QA_LOCAL, new Profile(QA_LOCAL, AgentMode.LOCAL, null), FRONTEND_SERVER, new Profile(FRONTEND_SERVER, AgentMode.SERVER, null));
             }
             public Optional<Profile> profile(UUID id) { return Optional.ofNullable(profiles(null).get(id)); }
             public void saveProfile(UUID ws, Profile p, Instant now) {}
-            public List<UUID> team(UUID ws, String projectKey) { return List.of(ARCHITECT, QA_LOCAL); } // Backend no está en este tablero
+            public List<UUID> team(UUID ws, String projectKey) { return List.of(ARCHITECT, QA_LOCAL, FRONTEND_SERVER); } // Backend no está en este tablero
             public List<String> boardsOf(UUID ws, UUID id) { return List.of(); }
             public void addToTeam(UUID ws, String p, UUID id) {}
             public void removeFromTeam(UUID ws, String p, UUID id) {}
@@ -52,7 +55,7 @@ class AgentChainTest {
             public void saveAiKey(UUID ws, AiKey k, Instant now) {}
             public void deleteAiKey(UUID ws) {}
         };
-        return new AgentChain(issues, members, team, new NoTx());
+        return new AgentChain(issues, members, team, new InMemoryCatalog(), new NoTx());
     }
 
     private static IssueApi.QueueItem open(String key, String... roles) {
@@ -61,9 +64,10 @@ class AgentChainTest {
 
     @Test
     void assignsOpenWorkToTheServerAgentOfTheBoardThatCoversTheStage() {
-        chain(List.of(open("MED-1", "ARCHITECT"), open("MED-2", "QA"), open("MED-3", "BACKEND"))).assignOpenWork(TestTenant.WORKSPACE, "MED", PERSON);
+        chain(List.of(open("MED-1", "ARCHITECT"), open("MED-2", "QA"), open("MED-3", "BACKEND"), open("MED-4", "FRONTEND")))
+                .assignOpenWork(TestTenant.WORKSPACE, "MED", PERSON);
 
-        assertThat(assigned).as("QA trabaja local (lo toma desde /pendientes) y Backend no está en el tablero")
+        assertThat(assigned).as("QA trabaja local, Backend no está en el tablero y Frontend, guardado «en el tablero», trabaja sobre el código")
                 .containsExactly("MED-1→" + ARCHITECT + " por " + PERSON);
     }
 

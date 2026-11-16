@@ -295,6 +295,14 @@ class BoardAgentIT {
         assertThat(analyst.get("mode").asString()).as("fuera de software, el agente trabaja en el tablero").isEqualTo("SERVER");
         String analystId = analyst.get("id").asString();
         assertThat(call("PUT", "/api/agents/" + analystId + "/profile", Map.of("mode", "SERVER"), owner).body().get("mode").asString()).isEqualTo("SERVER");
+        assertThat(analyst.get("serverAllowed").asBoolean()).isTrue();
+
+        // QA trabaja sobre el código del repo: en el tablero no tendría con qué, así que solo trabaja local.
+        JsonNode qa = quiet("GET", "/api/projects/VEN/team", owner).valueStream().filter(a -> a.get("role").asString().equals("QA")).findFirst().orElseThrow();
+        assertThat(qa.get("serverAllowed").asBoolean()).isFalse();
+        Reply toServer = call("PUT", "/api/agents/" + qa.get("id").asString() + "/profile", Map.of("mode", "SERVER"), owner);
+        assertThat(toServer.status()).isEqualTo(422);
+        assertThat(toServer.body().get("detail").asString()).contains("código del repo", "/pendientes");
 
         // La persona adjunta las ventas y le pide el informe.
         String key = call("POST", "/api/projects/VEN/issues", Map.of("title", "Informe de ventas de octubre", "type", "TASK",

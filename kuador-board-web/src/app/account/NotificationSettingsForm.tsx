@@ -1,6 +1,7 @@
 "use client";
 
 import { Send } from "lucide-react";
+import QRCode from "qrcode";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { notificationsAction, telegramLinkAction, testNotificationsAction, unlinkTelegramAction, updateNotificationsAction } from "@/app/actions";
@@ -20,6 +21,8 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
   const [view, setView] = useState(initial);
   const [pending, start] = useTransition();
   const waiting = useRef<ReturnType<typeof setInterval> | null>(null);
+  // El enlace de un solo uso y su QR mientras se espera que la persona pulse «Iniciar»; «expired» si pasó el tiempo.
+  const [link, setLink] = useState<{ url: string; qr: string; expired: boolean } | null>(null);
   const s = view.settings;
 
   useEffect(() => () => {
@@ -47,8 +50,10 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
         notify.error("No se pudo conectar Telegram", r.error);
         return;
       }
-      window.open(r.data.url, "_blank", "noopener");
-      // Mientras la persona pulsa «Iniciar» en Telegram, se revisa si ya quedó vinculado (hasta 2 minutos).
+      // QR para abrirlo desde el teléfono (Telegram suele estar ahí); el enlace también sirve en esta computadora.
+      const qr = await QRCode.toString(r.data.url, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#000000", light: "#ffffff" } });
+      setLink({ url: r.data.url, qr, expired: false });
+      // Mientras la persona pulsa «Iniciar» en Telegram, se revisa si ya quedó vinculado (hasta 3 minutos).
       let tries = 0;
       if (waiting.current) clearInterval(waiting.current);
       waiting.current = setInterval(async () => {
@@ -56,9 +61,13 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
         const v = await notificationsAction();
         if (v.ok && v.data.settings.telegramChatId != null) {
           setView(v.data);
+          setLink(null);
           notify.ok("Telegram conectado");
           if (waiting.current) clearInterval(waiting.current);
-        } else if (tries > 60 && waiting.current) clearInterval(waiting.current);
+        } else if (tries > 90 && waiting.current) {
+          clearInterval(waiting.current);
+          setLink((l) => (l ? { ...l, expired: true } : l));
+        }
       }, 2000);
     });
 
@@ -91,11 +100,38 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
                 </button>
               </p>
             ) : (
-              <div className="mt-1.5 flex flex-col items-start gap-1.5">
-                <p className="text-xs text-fg-muted">Abre el bot @{view.telegramBot} y pulsa «Iniciar»: el enlace sirve una vez durante 15 minutos.</p>
-                <Button size="sm" tone="secondary" loading={pending} onClick={connectTelegram}>
-                  Conectar Telegram
-                </Button>
+              <div className="mt-1.5 flex flex-col items-start gap-2">
+                {link && !link.expired ? (
+                  <>
+                    <p className="text-xs text-fg-muted">
+                      Escanéalo con la cámara de tu teléfono: se abre @{view.telegramBot} en Telegram; pulsa «Iniciar». Sirve una vez durante 15 minutos.
+                    </p>
+                    {/* Fondo blanco siempre: un QR invertido (modo oscuro) muchas cámaras no lo leen. */}
+                    <div
+                      role="img"
+                      aria-label={`Código QR para conectar con @${view.telegramBot}`}
+                      className="size-44 rounded-md bg-white p-2 [&>svg]:size-full"
+                      dangerouslySetInnerHTML={{ __html: link.qr }}
+                    />
+                    <p className="text-xs text-fg-muted">
+                      Esperando a que pulses «Iniciar»…{" "}
+                      <a className="k-link" href={link.url} target="_blank" rel="noopener noreferrer">
+                        O ábrelo en esta computadora
+                      </a>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-fg-muted">
+                      {link?.expired
+                        ? "Telegram no confirmó la conexión. Si pulsaste «Iniciar» y el bot no te respondió, avisa a quien administra: el bot no está recibiendo mensajes."
+                        : `Conecta tu Telegram con el bot @${view.telegramBot} para recibir los avisos ahí.`}
+                    </p>
+                    <Button size="sm" tone="secondary" loading={pending} onClick={connectTelegram}>
+                      {link?.expired ? "Generar otro código" : "Conectar Telegram"}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </div>

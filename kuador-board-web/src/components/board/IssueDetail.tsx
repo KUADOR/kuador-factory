@@ -55,7 +55,13 @@ export function IssueDetail({
   onClose,
   modes = {},
   lastRun,
+  everyone,
 }: {
+  /**
+   * Todos los miembros del espacio, para mostrar nombres: un comentario puede ser de un agente que no está en el equipo
+   * de este tablero (y no por eso es un «miembro eliminado»).
+   */
+  everyone?: Member[];
   /** Dónde trabaja cada agente del equipo. */
   modes?: Record<string, AgentMode>;
   /** Última ejecución de un agente en este issue. */
@@ -72,7 +78,8 @@ export function IssueDetail({
   onOpenIssue?: (key: string) => void;
   onClose: () => void;
 }) {
-  const byId = new Map(members.map((m) => [m.id, m]));
+  const known = everyone ?? members;
+  const byId = new Map(known.map((m) => [m.id, m]));
   const { canEdit } = useAccess();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +159,7 @@ export function IssueDetail({
             <dd className="text-fg">{dateFormat.format(new Date(issue.updatedAt))}</dd>
           </dl>
         }
-        below={<IssueTabs issueKey={issue.key} members={members} project={project} />}
+        below={<IssueTabs issueKey={issue.key} members={known} project={project} />}
       />
       <ConfirmDialog
         open={confirming}

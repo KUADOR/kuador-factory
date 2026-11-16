@@ -65,6 +65,7 @@ export function Board({
   roles,
   initialOpenKey,
   modes = {},
+  everyone,
 }: {
   project: Project;
   issues: Issue[];
@@ -77,6 +78,8 @@ export function Board({
   initialOpenKey?: string;
   /** Dónde trabaja cada agente del equipo (tablero o PC de una persona). */
   modes?: Record<string, AgentMode>;
+  /** Todos los miembros del espacio, para mostrar el nombre de quien escribió aunque no esté en este tablero. */
+  everyone?: Member[];
 }) {
   const roleName = (key: string) => roleLabel(key, roles.find((r) => r.key === key)?.name);
   const { canEdit } = useAccess();
@@ -408,6 +411,7 @@ export function Board({
           onOpenIssue={showIssue}
           onClose={() => showIssue(null)}
           modes={modes}
+          everyone={everyone}
           lastRun={runs.filter((r) => r.issueKey === openIssue.key).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]}
         />
       )}

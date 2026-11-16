@@ -57,6 +57,7 @@ export default async function BoardPage({ params, searchParams }: Props) {
         roles={roles}
         initialOpenKey={issue?.toUpperCase()}
         modes={Object.fromEntries((team ?? []).map((a) => [a.id, a.mode]))}
+        everyone={everyone}
       />
     </>
   );

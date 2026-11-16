@@ -47,6 +47,11 @@ public class ProductOwnerAgent {
     private static final Set<String> CONTEXT_DOC_KINDS = Set.of("CONSTITUTION", "PRODUCT", "ARCHITECTURE", "GLOSSARY", "AGENT_RULES");
     private static final int[] FIBONACCI = {1, 2, 3, 5, 8, 13};
     private static final int MAX_COMMENTS = 20;
+    /**
+     * Vueltas de preguntas del agente en el mismo issue antes de avanzar igual: si después de responderle sigue
+     * preguntando, las preguntas quedan como pendientes en el comentario y el issue pasa a la siguiente etapa.
+     */
+    static final int MAX_QUESTION_ROUNDS = 2;
 
     private final AgentRunRepository runs;
     private final ProductOwnerModel model;
@@ -210,6 +215,17 @@ public class ProductOwnerAgent {
             }
             tasksNote = note.toString();
             done.add(created.size() + " tarea(s)");
+        }
+        // Freno: ya preguntó varias veces y le respondieron; lo que siga abierto no detiene el trabajo.
+        long rounds = context.comments().stream()
+                .filter(c -> c.byAgent() && c.author().equals(agent.name()) && c.body().contains("**" + PoPrompt.QUESTIONS + "**")).count();
+        if (!p.openQuestions().isEmpty() && rounds >= MAX_QUESTION_ROUNDS && handoff.next(agent, key).isPresent()) {
+            StringBuilder pending = new StringBuilder("**Pendientes (no frenan el avance; ya pregunté ").append(rounds).append(" veces):**\n");
+            for (String q : p.openQuestions()) pending.append("- ").append(q.strip()).append('\n');
+            tasksNote = tasksNote == null ? pending.toString().strip() : tasksNote + "\n\n" + pending.toString().strip();
+            done.add("avanzó con " + p.openQuestions().size() + " pendiente(s)");
+            p = new PoProposal(p.understanding(), p.userStory(), p.acceptanceCriteria(), List.of(), p.outOfScope(), p.storyPoints(), p.complexity(),
+                    p.document(), p.tasks());
         }
         boolean pointsApplied = issues.setStoryPointsIfEmpty(key, p.storyPoints(), agent.id());
         if (pointsApplied) done.add(p.storyPoints() + " pts");

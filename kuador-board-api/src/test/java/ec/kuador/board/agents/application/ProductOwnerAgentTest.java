@@ -27,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import ec.kuador.board.testing.InMemoryCatalog;
 import ec.kuador.board.testing.InMemoryMembers;
 import ec.kuador.board.testing.InMemoryProjects;
+import ec.kuador.board.agents.domain.PoPrompt;
 import ec.kuador.board.testing.NoTx;
 import ec.kuador.board.testing.TestTenant;
 import org.junit.jupiter.api.Test;
@@ -248,6 +249,43 @@ class ProductOwnerAgentTest {
 
         assertThat(issueStore.get("KUA-8").storyPoints()).isEqualTo(8);
         assertThat(comments.getFirst()).contains("ya tenía estimación; no la cambié");
+    }
+
+    /** Una historia en Refinamiento con {@code rounds} vueltas de preguntas del agente, cada una respondida por la persona. */
+    private void refiningAfter(int rounds) {
+        projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
+        List<IssueApi.CommentView> thread = new ArrayList<>();
+        for (int i = 0; i < rounds; i++) {
+            thread.add(new IssueApi.CommentView(PO, "**Agente PO:** Resumen\n\n**Necesito que respondas**\n1. ¿Se aprueba la excepción P-1?", NOW));
+            thread.add(new IssueApi.CommentView(PERSON, "Sí; queda pendiente la aprobación formal del responsable técnico.", NOW));
+        }
+        issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "Contrato OpenAPI", "Usuarios y roles", "STORY", "REFINEMENT", "HIGH", 5,
+                List.of(), null, PO, PERSON, thread));
+        modelBehaviour = c -> new ProductOwnerModel.Result(proposal(PoProposal.Complexity.SUBSTANTIAL, 5,
+                List.of("¿Se aprueba formalmente la excepción P-1?")), "m", 1, 1);
+    }
+
+    @Test
+    void itDoesNotAskTheSameThingForeverAfterTwoAnsweredRoundsItMovesOn() {
+        refiningAfter(2);
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(PoPrompt.user(seen.getFirst())).as("se le dice que lo respondido está decidido").contains("no vuelvas a preguntar");
+        assertThat(comments.getLast()).doesNotContain("**Necesito que respondas**").contains("Pendientes (no frenan el avance; ya pregunté 2 veces)")
+                .contains("¿Se aprueba formalmente la excepción P-1?");
+        assertThat(issueStore.get("KUA-8").status()).as("pasó a la siguiente etapa").isEqualTo("APPROVAL");
+        assertThat(onlyRun().summary()).contains("avanzó con 1 pendiente(s)");
+    }
+
+    @Test
+    void afterOneRoundItCanStillAsk() {
+        refiningAfter(1);
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(comments.getLast()).contains("**Necesito que respondas**");
+        assertThat(issueStore.get("KUA-8").status()).isEqualTo("REFINEMENT");
     }
 
     @Test

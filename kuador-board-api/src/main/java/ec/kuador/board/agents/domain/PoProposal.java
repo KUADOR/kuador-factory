@@ -14,7 +14,7 @@ public record PoProposal(
         String userStory,
         @JsonPropertyDescription("Criterios de aceptación verificables; cada uno en formato «Dado …, cuando …, entonces …».")
         List<String> acceptanceCriteria,
-        @JsonPropertyDescription("Decisiones de producto que debe tomar una persona. Vacío si no hay ninguna. No incluyas dudas técnicas.")
+        @JsonPropertyDescription("Solo decisiones nuevas que debe tomar una persona y que nadie respondió en los comentarios. Vacío si no hay ninguna. No repitas preguntas ya respondidas, no incluyas dudas técnicas ni pidas aprobaciones formales o firmas (eso va en el documento como pendiente).")
         List<String> openQuestions,
         @JsonPropertyDescription("Lo que explícitamente queda fuera de este issue. Puede ser vacío.")
         List<String> outOfScope,

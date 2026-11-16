@@ -11,6 +11,19 @@ public final class PoPrompt {
 
     static final int MAX_DOC_CHARS = 30_000;
 
+    /** Título de las preguntas en el comentario; también sirve para contar cuántas veces preguntó. */
+    public static final String QUESTIONS = "Necesito que respondas";
+
+    /** Para no volver a preguntar lo que ya respondieron (cada vuelta cuesta tiempo y dinero). */
+    static final String ANSWERS = """
+            Las respuestas de las personas en los comentarios son decisiones tomadas: aplícalas en el documento y no vuelvas a \
+            preguntar lo que ya respondieron, aunque la respuesta sea breve («sí a las tres»). En `openQuestions` van solo preguntas \
+            nuevas que nadie respondió. Las aprobaciones formales, firmas o pasos que dependen de otra persona fuera del issue (p. ej. \
+            «que el responsable técnico apruebe la excepción») no son preguntas: anótalos en el documento como pendientes o condiciones \
+            y avanza; las aprobaciones las hacen las puertas del tablero.
+
+            """;
+
     private PoPrompt() {}
 
     /** Rol del catálogo + especialidad del miembro. Estable entre issues: cacheable. */
@@ -53,6 +66,7 @@ public final class PoPrompt {
                 u.append("- ").append(cm.author()).append(cm.byAgent() ? " (agente)" : "").append(": ").append(cm.body().strip()).append('\n');
             }
             u.append("</comentarios>\n\n");
+            u.append(ANSWERS);
         }
         u.append(documentInstruction(c));
         u.append(taskInstruction(c));
@@ -109,7 +123,7 @@ public final class PoPrompt {
      */
     public static String comment(String agentName, PoProposal p, DocLink doc, String tasksNote, boolean pointsApplied, String closing) {
         StringBuilder c = new StringBuilder("**").append(agentName).append(":** ").append(p.understanding().strip()).append("\n\n");
-        list(c, "Necesito que respondas", p.openQuestions(), true);
+        list(c, QUESTIONS, p.openQuestions(), true);
         if (doc != null) {
             c.append("📄 **Lee el documento completo:** [«").append(doc.label()).append("» v").append(doc.version()).append("](/projects/")
                     .append(doc.projectKey()).append("/docs/").append(doc.id()).append(") (`").append(doc.path()).append("`). ")

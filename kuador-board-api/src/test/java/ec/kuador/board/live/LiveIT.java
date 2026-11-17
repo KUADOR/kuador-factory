@@ -37,8 +37,8 @@ import tools.jackson.databind.ObjectMapper;
 /** Un navegador abierto en un proyecto recibe el aviso cuando otro mueve o comenta un issue; otro espacio, no. */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class LiveIT {
 
     @Container

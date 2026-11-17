@@ -118,7 +118,7 @@ public class ProductOwnerAgent {
             finish(run.skipped("El rol «" + roleName + "» no tiene automatización configurada en el catálogo.", now()));
             return;
         }
-        // La clave de la empresa (Conexiones → IA); la del servidor solo como respaldo si existe.
+        // Siempre la clave de la empresa (Conexiones → IA): no hay clave del servidor.
         Optional<String> key = tx.execute(s -> keys.currentKey());
         if (Boolean.TRUE.equals(tx.execute(s -> keys.overBudget()))) {
             finish(run.skipped("El espacio llegó a su tope mensual de IA (Conexiones → IA).", now()));
@@ -128,7 +128,7 @@ public class ProductOwnerAgent {
             finish(run.skipped("Los agentes de este espacio ya trabajaron muchas tarjetas en la última hora: vuelve a asignarla en un rato.", now()));
             return;
         }
-        if (key.isEmpty() && !model.available()) {
+        if (key.isEmpty()) {
             finish(run.skipped("El Agente PO trabaja con Claude por ahora: falta una clave de Anthropic en Conexiones → IA. Ponla y vuelve a asignar el issue.", now()));
             return;
         }
@@ -143,7 +143,7 @@ public class ProductOwnerAgent {
             // Con la clave de la empresa, el modelo elegido para este agente (Configuración → Equipo de agentes).
             String chosen = key.isPresent() ? tx.execute(s -> keys.modelForAgent(agent.get().id())).orElse(null) : null;
             String effort = key.isPresent() ? tx.execute(s -> keys.effortForAgent(agent.get().id())).orElse(null) : null;
-            ProductOwnerModel.Result result = key.isPresent() ? model.propose(key.get(), chosen, effort, context) : model.propose(context);
+            ProductOwnerModel.Result result = model.propose(key.get(), chosen, effort, context);
             PoProposal proposal = validate(result.proposal());
             if (context.splitsIntoTasks() && proposal.tasks().isEmpty()) {
                 throw new AgentModelException("El plan de la épica llegó sin tareas; reintenta para que reparta el trabajo.");

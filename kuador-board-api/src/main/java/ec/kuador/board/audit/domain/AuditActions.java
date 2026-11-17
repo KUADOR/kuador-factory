@@ -32,7 +32,6 @@ public final class AuditActions {
         security("DELETE /api/invitations/{id}", "Anuló una invitación");
         security("POST /api/members", "Agregó un miembro");
         security("PUT /api/members/{memberId}/access", "Cambió el acceso de un miembro");
-        security("PUT /api/members/{memberId}/credentials", "Cambió el acceso de un miembro (correo o contraseña)");
         security("DELETE /api/members/{memberId}", "Quitó a un miembro");
         security("POST /api/members/{memberId}/tokens", "Creó un token de agente");
         security("DELETE /api/auth/tokens/{tokenId}", "Revocó un token");

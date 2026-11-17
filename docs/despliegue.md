@@ -88,9 +88,6 @@ BOARD_PLATFORM_ADMINS=
 BOARD_TELEGRAM_BOT_TOKEN=
 BOARD_TELEGRAM_BOT_USERNAME=
 
-# En el servidor no hay carpetas locales que sincronizar.
-BOARD_SYNC_ALLOWED_ROOTS=
-
 # Documentación de la API apagada en producción.
 SPRINGDOC_API_DOCS_ENABLED=false
 SPRINGDOC_SWAGGER_UI_ENABLED=false
@@ -100,8 +97,9 @@ MANAGEMENT_SERVER_PORT=9464
 LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs
 ```
 
-Sin `ANTHROPIC_API_KEY`: los agentes corren en el Claude Code (o Codex, u otro cliente) de cada
-persona, con su propia suscripción, conectados al MCP.
+La API no tiene clave de IA propia: los agentes del tablero usan la clave de cada espacio (*Conexiones →
+IA*) y los agentes locales corren en el Claude Code (o Codex, u otro cliente) de cada persona, con su
+propia suscripción, conectados al MCP.
 
 ## 3b. Garage (adjuntos)
 

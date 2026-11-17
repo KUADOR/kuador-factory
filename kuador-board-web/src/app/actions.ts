@@ -11,7 +11,6 @@ import type {
   PieceUpdate,
   ProjectPiece,
   AgentPromptPreview,
-  Account,
   Activity,
   AgentRun,
   Exported,
@@ -129,10 +128,6 @@ export async function changePasswordAction(currentPassword: string, newPassword:
 }
 
 // ---- Accesos y tokens ----
-
-export async function grantAccessAction(memberId: string, email: string, password: string): Promise<ActionResult<Account>> {
-  return run(() => boardApi.grantAccess(memberId, email, password), "/team");
-}
 
 export async function createAgentTokenAction(memberId: string, name: string): Promise<ActionResult<IssuedToken>> {
   return run(() => boardApi.createAgentToken(memberId, name), "/team");

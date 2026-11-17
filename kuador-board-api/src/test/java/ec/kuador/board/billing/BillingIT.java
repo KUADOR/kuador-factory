@@ -30,8 +30,8 @@ import tools.jackson.databind.ObjectMapper;
 /** Planes a la venta, límites del plan gratuito, cambio de plan con prueba y la administración de la plataforma. */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.platform.admins=Pia@Plataforma.test",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.platform.admins=Pia@Plataforma.test",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class BillingIT {
 

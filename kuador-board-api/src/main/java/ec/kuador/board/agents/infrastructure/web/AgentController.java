@@ -2,7 +2,6 @@ package ec.kuador.board.agents.infrastructure.web;
 
 import ec.kuador.board.agents.domain.AgentRun;
 import ec.kuador.board.agents.domain.AgentRunRepository;
-import ec.kuador.board.agents.domain.ProductOwnerModel;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,16 +14,16 @@ class AgentController {
 
     private final AgentRunRepository runs;
     private final ec.kuador.board.agents.application.AgentRetry retry;
-    private final ProductOwnerModel model;
+    private final ec.kuador.board.agents.application.AiKeyProvider keys;
     private final String modelName;
     private final ec.kuador.board.agents.application.AiUsage usage;
 
-    AgentController(AgentRunRepository runs, ProductOwnerModel model, @Value("${board.agents.model:claude-opus-5-5}") String modelName,
+    AgentController(AgentRunRepository runs, ec.kuador.board.agents.application.AiKeyProvider keys, @Value("${board.agents.model:claude-opus-5-5}") String modelName,
             ec.kuador.board.agents.application.AgentRetry retry, ec.kuador.board.agents.application.AiUsage usage) {
         this.usage = usage;
         this.retry = retry;
         this.runs = runs;
-        this.model = model;
+        this.keys = keys;
         this.modelName = modelName;
     }
 
@@ -33,7 +32,9 @@ class AgentController {
 
     @GetMapping("/api/agents/status")
     StatusResponse status() {
-        return new StatusResponse(model.available(), model.available() ? null : model.unavailableReason(), modelName);
+        // Los agentes del tablero trabajan con la clave de IA del espacio: sin ella, no hay automatización.
+        boolean enabled = keys.currentKey().isPresent();
+        return new StatusResponse(enabled, enabled ? null : "Falta la clave de IA del espacio: ponla en Conexiones → IA.", modelName);
     }
 
     /** Ejecuciones recientes, de un agente y/o un issue. */

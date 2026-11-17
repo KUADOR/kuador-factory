@@ -1,8 +1,0 @@
-# Solo en las pruebas: se suma a la configuración principal (no la reemplaza).
-board:
-  agents:
-    # Las pruebas del Agente PO usan la clave del servidor (contra una API falsa).
-    platform-key-fallback: true
-  auth:
-    # Las pruebas de integración dan acceso con contraseña directa para no pasar por el correo.
-    temporary-passwords: true

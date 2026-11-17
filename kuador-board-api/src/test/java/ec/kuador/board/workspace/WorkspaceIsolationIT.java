@@ -37,8 +37,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WorkspaceIsolationIT {
 

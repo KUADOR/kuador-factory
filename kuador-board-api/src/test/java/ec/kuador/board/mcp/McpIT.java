@@ -37,8 +37,8 @@ import tools.jackson.databind.ObjectMapper;
 /** Servidor MCP por HTTP, como lo usa Claude Code: conexión de una persona, cola de sus agentes y un issue de punta a punta. */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class McpIT {
 
     @Container

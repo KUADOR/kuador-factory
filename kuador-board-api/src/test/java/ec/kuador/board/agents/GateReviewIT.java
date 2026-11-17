@@ -34,8 +34,8 @@ import tools.jackson.databind.node.ObjectNode;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class GateReviewIT {
 
     @Container

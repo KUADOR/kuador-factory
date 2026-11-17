@@ -86,7 +86,7 @@ final class GitHubFiles implements RepositoryFiles {
                 String commit = commit(files, commitMessage, head.get());
                 GitData.advance(client, repo, existingBranch, commit);
                 log.info("Commit {} agregado al PR del tablero en {}:{}", commit, repo, existingBranch);
-                return new Published(false, null, null, existingBranch);
+                return new Published(null, null, existingBranch);
             }
             log.info("La rama {} ya no existe en {}; se abre un PR nuevo", existingBranch, repo);
         }
@@ -98,7 +98,7 @@ final class GitHubFiles implements RepositoryFiles {
         JsonNode pr = client.post("/repos/" + repo + "/pulls", GitHubClient.JSON.createObjectNode()
                 .put("title", title).put("head", newBranch).put("base", branch).put("body", description));
         log.info("PR #{} abierto en {} desde {}", pr.path("number").asInt(), repo, newBranch);
-        return new Published(false, pr.path("number").asInt(), pr.path("html_url").asString(), newBranch);
+        return new Published(pr.path("number").asInt(), pr.path("html_url").asString(), newBranch);
     }
 
     @Override

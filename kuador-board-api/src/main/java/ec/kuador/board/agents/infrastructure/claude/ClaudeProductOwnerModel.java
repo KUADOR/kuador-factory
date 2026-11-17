@@ -28,8 +28,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * El Agente PO sobre la API de Claude: una sola llamada con salida estructurada (la propuesta llega
- * como JSON validado contra {@link PoProposal}). Sin ANTHROPIC_API_KEY los agentes quedan
- * desactivados. Con {@code refusal-fallback}, si el modelo declina por sus clasificadores de
+ * como JSON validado contra {@link PoProposal}), siempre con la clave de IA del espacio (no hay clave del
+ * servidor). Con {@code refusal-fallback}, si el modelo declina por sus clasificadores de
  * seguridad, el servidor reintenta con un modelo alternativo (beta server-side-fallback).
  * <p>
  * El modelo siempre piensa y ese razonamiento cuenta dentro de {@code max_tokens}, junto con el documento
@@ -39,7 +39,6 @@ import org.springframework.stereotype.Component;
 @Component
 class ClaudeProductOwnerModel implements ProductOwnerModel {
 
-    private final AnthropicClient client;
     private final String baseUrl;
     private final String model;
     private final OutputConfig.Effort effort;
@@ -49,34 +48,15 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
     static final long MAX_TOKENS = 64_000L;
 
     ClaudeProductOwnerModel(
-            @Value("${board.agents.anthropic-api-key:}") String apiKey,
             @Value("${board.agents.model:claude-opus-5-5}") String model,
             @Value("${board.agents.effort:medium}") String effort,
             @Value("${board.agents.refusal-fallback:true}") boolean refusalFallback,
-            // La clave del servidor como respaldo de los espacios sin clave propia: apagado, cada cliente usa la suya y su tope.
-            @Value("${board.agents.platform-key-fallback:false}") boolean platformKeyFallback,
             // Solo para pruebas contra una API falsa; en producción queda vacío (api.anthropic.com).
             @Value("${board.agents.anthropic-base-url:}") String baseUrl) {
-        AnthropicOkHttpClient.Builder client = AnthropicOkHttpClient.builder()
-                .apiKey(apiKey.strip())
-                .timeout(Duration.ofMinutes(10))
-                .maxRetries(2);
-        if (!baseUrl.isBlank()) client.baseUrl(baseUrl.strip());
-        this.client = apiKey.isBlank() || !platformKeyFallback ? null : client.build();
         this.baseUrl = baseUrl.strip();
         this.model = model;
         this.effort = OutputConfig.Effort.of(effort.strip().toLowerCase());
         this.refusalFallback = refusalFallback;
-    }
-
-    @Override
-    public boolean available() {
-        return client != null;
-    }
-
-    @Override
-    public String unavailableReason() {
-        return "Falta la clave de IA del espacio: ponla en Conexiones → IA.";
     }
 
     @Override
@@ -102,12 +82,6 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
         }
     }
 
-    @Override
-    public Result propose(PoContext context) {
-        if (client == null) throw new AgentModelException(unavailableReason());
-        return propose(client, model, effort, context);
-    }
-
     private Result propose(AnthropicClient client, String model, OutputConfig.Effort effort, PoContext context) {
         StructuredMessageCreateParams.Builder<PoProposal> builder = MessageCreateParams.builder()
                 .model(model)
@@ -128,7 +102,7 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
             stream.stream().forEach(accumulator::accumulate);
             response = accumulator.message(PoProposal.class);
         } catch (UnauthorizedException e) {
-            throw new AgentModelException("Anthropic rechazó la clave (ANTHROPIC_API_KEY inválida o revocada).", e);
+            throw new AgentModelException("Anthropic rechazó la clave de IA del espacio (inválida o revocada): revísala en Conexiones → IA.", e);
         } catch (RateLimitException e) {
             throw new AgentModelException("Límite de uso de la API de Anthropic alcanzado; reintenta en unos minutos.", e);
         } catch (AnthropicServiceException e) {

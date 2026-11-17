@@ -19,7 +19,7 @@ createdb -O kuador kuador_board
 
 # 2. API → http://127.0.0.1:8091  (Swagger: /swagger-ui.html)
 cd kuador-board-api
-cp .env.example .env   # primera cuenta, BOARD_SECRETS_KEY y BOARD_SYNC_ALLOWED_ROOTS
+cp .env.example .env   # primera cuenta y BOARD_SECRETS_KEY
 JAVA_HOME=~/.sdkman/candidates/java/25.0.2.fx-zulu ./mvnw spring-boot:run
 
 # 3. Web → http://localhost:3600
@@ -192,8 +192,8 @@ Salvaguardas:
 - Cada ejecución queda en `agent_run`, con modelo, tokens, resumen o error. Se ve en **Equipo** y
   en el **Historial** del issue.
 
-Activar: `ANTHROPIC_API_KEY` en el `.env` de la API. Sin clave, cada asignación se registra como
-`SKIPPED`, con el motivo. **Cada asignación al Agente PO consume tokens.** Configurable:
+Activar: cada espacio pone su clave de IA en *Conexiones → IA* (no hay clave del servidor). Sin clave,
+cada asignación se registra como `SKIPPED`, con el motivo. **Cada asignación al Agente PO consume tokens.** Configurable:
 `BOARD_AGENTS_MODEL`, `BOARD_AGENTS_EFFORT`, `BOARD_AGENTS_REFUSAL_FALLBACK`.
 
 ## Eventos de dominio
@@ -270,37 +270,29 @@ se devuelve ni se registra en logs. La API solo habla con `BOARD_GITHUB_API_URL`
 Pendiente: un **webhook** para importar en cuanto se fusiona algo. Necesita que el tablero tenga
 una URL pública; hasta entonces, el estado se actualiza al abrir *Sincronizar*.
 
-## Sincronización con una carpeta local (solo pruebas personales)
+## Estados de sincronización
 
-En *Configurar → Repositorio* se vincula la carpeta local del repo; en *Docs → Sincronizar* se ve el
-estado de cada documento. El tablero **escribe archivos pero no hace commits**: revisa con
-`git diff` y haz commit tú.
+En *Docs → Sincronizar* se ve el estado de cada documento frente a la rama principal del repo de GitHub.
 
 | Estado | Significa | Acción |
 |---|---|---|
 | Sincronizado | Igual en ambos lados | — |
-| Cambió en el tablero / Solo en el tablero | Editado aquí después de sincronizar / nunca exportado | Exportar |
+| Cambió en el tablero / Solo en el tablero | Editado aquí después de sincronizar / nunca exportado | Exportar (abre o actualiza el PR del tablero) |
 | Cambió en el repo | Editado en el repo (tú, Spec Kit, un editor) | Importar como versión nueva |
 | **Conflicto** | Cambió en ambos lados | Comparar (diff) y elegir un lado |
 | Borrado en el repo | Se sincronizó y luego se borró el archivo | Exportar para recrearlo, o dejarlo así |
 
 - Sincroniza en **tres vías**: guarda la versión del tablero y el SHA-256 del archivo de la última
   sincronización, para saber qué lado cambió.
-- *Sincronizar lo seguro* exporta e importa lo que cambió de un solo lado. **Los conflictos nunca
-  se resuelven solos.**
+- *Sincronizar lo seguro* importa lo fusionado y lleva los cambios del tablero a un Pull Request.
+  **Los conflictos nunca se resuelven solos.**
 - **Importar lo existente**: detecta `.specify/memory/constitution.md`, `PRODUCT.md`, `AGENTS.md`,
   `docs/architecture.md`, `docs/glossary.md`, `specs/*/{spec,plan,tasks}.md`, `odd/tasks/*.md` y
   `docs/issues/*.md`. Una carpeta de spec se importa a un issue existente o a uno nuevo, conservando
   su ruta real (p. ej. `specs/001-lead-capture/`).
-- **Seguridad** (la API escribe en el disco):
-  - solo carpetas dentro de `BOARD_SYNC_ALLOWED_ROOTS`; si la variable está vacía, la sincronización
-    está desactivada;
-  - solo archivos `.md` de hasta 1 MB en UTF-8;
-  - se rechazan `..`, rutas absolutas y enlaces simbólicos, y toda ruta se resuelve dentro de la
-    raíz real;
-  - escritura atómica;
-  - solo las personas sincronizan.
-- Hexagonal: `RepositoryFiles` es un puerto; la carpeta local es un adaptador y GitHub será otro.
+- Solo GitHub (con token o con la app). La sincronización con una carpeta del servidor se quitó: con
+  varios clientes no es segura.
+- Hexagonal: `RepositoryFiles` es un puerto; GitHub (token y app) son sus adaptadores.
 
 ## Modelo
 
@@ -370,7 +362,7 @@ estado de cada documento. El tablero **escribe archivos pero no hace commits**: 
 | GET | `/api/issues/{key}/docs` | Documentos de un issue |
 | GET · PUT | `/api/docs/{id}` | Leer / guardar versión `{baseVersion, content, note}` |
 | GET · POST | `/api/docs/{id}/versions[/{n}]` · `…/{n}/restore` | Versiones / restaurar (crea una versión nueva) |
-| GET · PUT · DELETE | `/api/projects/{key}/repository` | Repositorio vinculado `{kind: GITHUB\|LOCAL, location, branch?, token?}` (solo personas; el token nunca se devuelve) |
+| GET · PUT · DELETE | `/api/projects/{key}/repository` | Repositorio vinculado `{kind: GITHUB\|GITHUB_APP, location, branch?, token?, installationId?}` (solo personas; el token nunca se devuelve) |
 | GET | `/api/projects/{key}/sync` | Estado de cada documento y archivos solo en el repo |
 | GET | `/api/projects/{key}/sync/docs/{id}/compare` | Contenido del tablero y del archivo |
 | POST | `/api/projects/{key}/sync/docs/{id}/export` · `…/import` | `{force}`: `true` solo para resolver un conflicto; exportar en GitHub abre o actualiza el PR |

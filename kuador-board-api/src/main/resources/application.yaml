@@ -70,9 +70,6 @@ springdoc:
     path: /swagger-ui.html
 
 board:
-  auth:
-    # Contraseñas temporales puestas por quien administra (asignan un correo sin confirmarlo). Apagado: se invita por correo.
-    temporary-passwords: ${BOARD_TEMPORARY_PASSWORDS:false}
   # URL con la que los clientes de IA (Claude Code, Codex...) llegan a esta API: va en el kit de agentes locales.
   public-url: ${BOARD_PUBLIC_URL:http://localhost:8091}
   # URL del tablero web (la GitHub App vuelve ahí después de registrarse o instalarse).
@@ -84,10 +81,7 @@ board:
   web:
     secret: ${BOARD_WEB_SECRET:}
   agents:
-    # Sin clave, los agentes quedan desactivados (cada asignación se registra como SKIPPED).
-    anthropic-api-key: ${ANTHROPIC_API_KEY:}
-    # Usar esa clave cuando un espacio no tiene la suya (sin tope por espacio). Apagado: cada cliente pone su clave.
-    platform-key-fallback: ${BOARD_PLATFORM_KEY_FALLBACK:false}
+    # Los agentes del tablero usan la clave de IA de cada espacio (Conexiones → IA); sin ella, cada asignación queda SKIPPED.
     model: ${BOARD_AGENTS_MODEL:claude-opus-5-5}
     effort: ${BOARD_AGENTS_EFFORT:medium}
     # Si el modelo declina por sus clasificadores de seguridad, el servidor reintenta con otro modelo.
@@ -96,10 +90,6 @@ board:
   secrets-key: ${BOARD_SECRETS_KEY:}
   github:
     api-url: ${BOARD_GITHUB_API_URL:https://api.github.com}
-  sync:
-    # Carpetas (separadas por coma) dentro de las cuales se pueden vincular repositorios locales.
-    # Vacío = sincronización local desactivada.
-    allowed-roots: ${BOARD_SYNC_ALLOWED_ROOTS:}
   platform:
     # Correos (separados por coma) de quienes administran la plataforma: planes y licencias de todos los espacios.
     admins: ${BOARD_PLATFORM_ADMINS:}

@@ -127,7 +127,6 @@ class SyncServiceTest {
 
         SyncService.Exported exported = sync.export("KUA", c.id(), false, PERSON);
 
-        assertThat(exported.direct()).isFalse();
         assertThat(exported.pullRequest()).isEqualTo(1);
         assertThat(repo.main).as("main no cambia hasta fusionar").doesNotContainKey(".specify/memory/constitution.md");
         SyncService.Entry pending = entry(c.id());
@@ -260,7 +259,7 @@ class SyncServiceTest {
         public Published publish(List<FileWrite> files, String message, String title, String description, String existingBranch) {
             if (existingBranch != null && branches.containsKey(existingBranch)) {
                 files.forEach(f -> prs.get(branches.get(existingBranch)).put(f.path(), f.content()));
-                return new Published(false, null, null, existingBranch);
+                return new Published(null, null, existingBranch);
             }
             int n = prs.size() + 1;
             Map<String, String> changes = new HashMap<>();
@@ -268,7 +267,7 @@ class SyncServiceTest {
             prs.put(n, changes);
             states.put(n, PullRequestState.OPEN);
             branches.put("tablero/docs-" + n, n);
-            return new Published(false, n, "https://github.com/pr/" + n, "tablero/docs-" + n);
+            return new Published(n, "https://github.com/pr/" + n, "tablero/docs-" + n);
         }
         public Optional<PullRequestState> pullRequestState(int number) { return Optional.ofNullable(states.get(number)); }
         void merge(int n) {

@@ -39,8 +39,8 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.web.secret=secreto-de-la-web", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.web.secret=secreto-de-la-web", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class AuditIT {
 
     @Container

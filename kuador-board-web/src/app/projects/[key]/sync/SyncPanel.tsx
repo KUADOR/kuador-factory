@@ -33,7 +33,6 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string; url?: string | null } | null>(null);
   const [comparing, setComparing] = useState<SyncComparison | null>(null);
-  const github = status.link.kind === "GITHUB";
 
   const act = (work: () => Promise<{ ok: true; data?: unknown } | { ok: false; error: string }>, success: string) =>
     startTransition(async () => {
@@ -47,7 +46,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
       }
     });
 
-  /** Exportar: en GitHub abre o actualiza el PR del tablero; en carpeta local escribe directo. */
+  /** Exportar: abre o actualiza el PR del tablero en GitHub. */
   const exportDoc = (docId: string, force: boolean) =>
     startTransition(async () => {
       const r = await syncExportAction(projectKey, docId, force);
@@ -80,9 +79,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
           ))}
         </dl>
         <p className="min-w-60 flex-1 text-xs leading-relaxed text-fg-muted">
-          {github
-            ? "«Sincronizar lo seguro» importa lo que ya se fusionó en la rama principal y lleva los cambios del tablero a un Pull Request. Los conflictos nunca se resuelven solos."
-            : "«Sincronizar lo seguro» exporta e importa todo lo que cambió de un solo lado. Los conflictos nunca se resuelven solos."}
+          «Sincronizar lo seguro» importa lo que ya se fusionó en la rama principal y lleva los cambios del tablero a un Pull Request. Los conflictos nunca se resuelven solos.
         </p>
         <Button
           tone="primary"
@@ -144,7 +141,6 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
                 key={e.document.id}
                 entry={e}
                 projectKey={projectKey}
-                github={github}
                 pending={pending}
                 onExport={() => exportDoc(e.document.id, false)}
                 onImport={() => act(() => syncImportAction(projectKey, e.document.id), `${e.document.path} importado como versión nueva.`)}
@@ -185,7 +181,6 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
           comparison={comparing}
           pending={pending}
           onClose={() => setComparing(null)}
-          github={github}
           onKeepBoard={() => exportDoc(comparing.document.id, true)}
           onKeepFile={() => act(() => syncImportAction(projectKey, comparing.document.id, true), "Se conservó la versión del repo como versión nueva.")}
         />
@@ -195,14 +190,12 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
 }
 
 function exportedMessage(e: Exported): { ok: true; text: string; url?: string | null } {
-  if (e.direct) return { ok: true, text: `${e.documents} documento(s) escritos en la carpeta.` };
   return { ok: true, text: `${e.documents} documento(s) en el PR #${e.pullRequest}; se sincronizan al fusionarlo en GitHub.`, url: e.pullRequestUrl };
 }
 
 function EntryRow({
   entry,
   projectKey,
-  github,
   pending,
   onExport,
   onImport,
@@ -210,7 +203,6 @@ function EntryRow({
 }: {
   entry: SyncEntry;
   projectKey: string;
-  github: boolean;
   pending: boolean;
   onExport: () => void;
   onImport: () => void;
@@ -254,7 +246,7 @@ function EntryRow({
       <span className="flex gap-1">
         {!inPr && (entry.state === "BOARD_AHEAD" || entry.state === "BOARD_ONLY" || entry.state === "FILE_DELETED") && (
           <Button size="sm" icon={ArrowUpFromLine} disabled={pending} onClick={onExport}>
-            {github ? (olderPr ? `Agregar al PR #${olderPr.number}` : "Exportar en PR") : "Exportar"}
+            {olderPr ? `Agregar al PR #${olderPr.number}` : "Exportar en PR"}
           </Button>
         )}
         {entry.state === "FILE_AHEAD" && (
@@ -337,14 +329,12 @@ function UntrackedRow({
 
 function CompareModal({
   comparison,
-  github,
   pending,
   onClose,
   onKeepBoard,
   onKeepFile,
 }: {
   comparison: SyncComparison;
-  github: boolean;
   pending: boolean;
   onClose: () => void;
   onKeepBoard: () => void;
@@ -365,7 +355,7 @@ function CompareModal({
               Quedarme con el repo
             </Button>
             <Button tone="primary" icon={ArrowUpFromLine} loading={pending} onClick={onKeepBoard}>
-              {github ? "Quedarme con el tablero (PR)" : "Quedarme con el tablero"}
+              Quedarme con el tablero (PR)
             </Button>
           </div>
         ) : undefined
@@ -373,11 +363,9 @@ function CompareModal({
     >
       <div className="flex flex-col gap-4 p-5">
         <p className="text-[13px] leading-relaxed text-fg">
-          <Badge tone="info" className="font-mono">− {github ? "main" : "repo"}</Badge> <Badge tone="ok" className="font-mono">+ tablero v{comparison.document.version}</Badge>{" "}
+          <Badge tone="info" className="font-mono">− main</Badge> <Badge tone="ok" className="font-mono">+ tablero v{comparison.document.version}</Badge>{" "}
           {conflict
-            ? github
-              ? "Cambió en ambos lados. Si te quedas con el repo, la versión del tablero sigue en su historial. Si te quedas con el tablero, se abre un PR que reemplaza el archivo; en GitHub se revisa antes de fusionar."
-              : "Cambió en ambos lados. Si te quedas con el repo, la versión del tablero sigue en su historial. Si te quedas con el tablero, el archivo se sobrescribe (recupéralo con git si lo necesitas)."
+            ? "Cambió en ambos lados. Si te quedas con el repo, la versión del tablero sigue en su historial. Si te quedas con el tablero, se abre un PR que reemplaza el archivo; en GitHub se revisa antes de fusionar."
             : "Diferencias entre el repo y el tablero."}
         </p>
         {diff ? (

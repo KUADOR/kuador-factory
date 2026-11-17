@@ -37,8 +37,8 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.public-url=https://api.tablero.test", "board.web-url=https://tablero.test",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.public-url=https://api.tablero.test", "board.web-url=https://tablero.test",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class OAuthIT {
 

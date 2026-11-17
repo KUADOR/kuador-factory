@@ -41,8 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Sincroniza los documentos de un proyecto con su repositorio. El repositorio se ve desde su rama
- * principal: importar trae lo fusionado; exportar abre un Pull Request (GitHub) o escribe directo
- * (carpeta local). Nunca resuelve un conflicto por su cuenta: exige {@code force} (una persona eligió).
+ * principal: importar trae lo fusionado; exportar abre un Pull Request en GitHub. Nunca resuelve un conflicto por su cuenta: exige {@code force} (una persona eligió).
  */
 @Service
 public class SyncService {
@@ -84,8 +83,8 @@ public class SyncService {
 
     public record Comparison(DocContent document, String fileContent, SyncState state) {}
 
-    /** {@code direct}: quedó escrito en la rama principal; si no, en {@code pullRequestUrl}. */
-    public record Exported(int documents, boolean direct, Integer pullRequest, String pullRequestUrl) {}
+    /** Los documentos quedaron en el Pull Request {@code pullRequestUrl}. */
+    public record Exported(int documents, Integer pullRequest, String pullRequestUrl) {}
 
     public record SafeResult(int imported, int conflicts, Exported exported) {}
 
@@ -199,10 +198,6 @@ public class SyncService {
         Instant now = clock.instant();
         List<ExportPullRequest.Item> items = toExport.stream()
                 .map(d -> new ExportPullRequest.Item(d.id(), d.version(), SyncState.sha256(d.content()))).toList();
-        if (published.direct()) {
-            items.forEach(i -> records.saveRecord(new SyncRecord(i.documentId(), i.version(), i.contentSha256(), now)));
-            return new Exported(toExport.size(), true, null, null);
-        }
         ExportPullRequest pr = published.pullRequest() == null && existing != null
                 ? existing.withItems(items)
                 : new ExportPullRequest(UUID.randomUUID(), projectKey, published.pullRequest(), published.url(), published.branch(),
@@ -211,7 +206,7 @@ public class SyncService {
             records.savePullRequest(existing.withState(PullRequestState.CLOSED)); // su rama ya no existía
         }
         records.savePullRequest(pr);
-        return new Exported(toExport.size(), false, pr.number(), pr.url());
+        return new Exported(toExport.size(), pr.number(), pr.url());
     }
 
     /** Guarda el contenido del archivo (en la rama principal) como versión nueva del documento. */

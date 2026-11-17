@@ -125,7 +125,7 @@ class SecurityConfiguration {
                                 "/api/projects/*/components/**", "/api/projects/*/sync", "/api/projects/*/sync/**", "/api/github", "/api/github/**").access(HUMAN_EDITOR)
                         .requestMatchers("/api/projects/*/repository", "/api/projects/*/repository/**", "/api/projects/*/components", "/api/projects/*/components/**",
                                 "/api/projects/*/sync", "/api/projects/*/sync/**", "/api/github", "/api/github/**").access(HUMAN_ADMIN)
-                        .requestMatchers("/api/members/*/credentials", "/api/auth/accounts", "/api/auth/tokens/**").access(HUMAN_ADMIN)
+                        .requestMatchers("/api/auth/accounts", "/api/auth/tokens/**").access(HUMAN_ADMIN)
                         // La conexión de agentes locales es de cada persona que edita.
                         .requestMatchers("/api/auth/runner-tokens", "/api/auth/runner-tokens/**").access(HUMAN_EDITOR)
                         // Cualquier otra escritura exige acceso de edición (personas o agentes).

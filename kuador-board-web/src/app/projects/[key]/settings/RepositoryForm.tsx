@@ -12,7 +12,7 @@ import { Field, PasswordInput, SelectInput, TextInput } from "@/components/ui/Fi
 import { notify } from "@/components/ui/Toaster";
 import type { GitHubConnection, RepositoryKind, RepositoryLink } from "@/lib/types";
 
-const KIND_LABEL: Record<RepositoryKind, string> = { GITHUB_APP: "GitHub (app)", GITHUB: "GitHub con token", LOCAL: "Carpeta local" };
+const KIND_LABEL: Record<RepositoryKind, string> = { GITHUB_APP: "GitHub (app)", GITHUB: "GitHub con token" };
 
 export function RepositoryForm({ projectKey, link, connections }: { projectKey: string; link: RepositoryLink; connections: GitHubConnection[] }) {
   const [kind, setKind] = useState<RepositoryKind>(link.kind ?? (connections.length > 0 ? "GITHUB_APP" : "GITHUB"));
@@ -25,7 +25,6 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
   const [pending, startTransition] = useTransition();
   const github = kind === "GITHUB";
   const viaApp = kind === "GITHUB_APP";
-  const remote = github || viaApp;
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,7 +45,7 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
       <ChoiceCards
         name="repo-kind"
         label="Tipo de repositorio"
-        columns={connections.length > 0 ? 3 : 2}
+        columns={2}
         value={kind}
         onChange={setKind}
         choices={[
@@ -54,7 +53,6 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
             ? [{ value: "GITHUB_APP" as const, label: KIND_LABEL.GITHUB_APP, hint: "Con la conexión de GitHub del espacio: sin tokens personales." }]
             : []),
           { value: "GITHUB", label: KIND_LABEL.GITHUB, hint: "Con un token tuyo: lee la rama principal y exporta abriendo Pull Requests." },
-          { value: "LOCAL", label: KIND_LABEL.LOCAL, hint: "Solo para pruebas personales: escribe directo en tu disco." },
         ]}
       />
 
@@ -66,7 +64,7 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
             const r = await linkRepositoryAction(projectKey, {
               kind,
               location,
-              branch: remote ? branch.trim() || null : null,
+              branch: branch.trim() || null,
               token: github ? token : null,
               installationId: viaApp ? installationId : null,
             });
@@ -74,7 +72,7 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
               setToken("");
               setBranch(r.data.branch ?? "");
               setError(null);
-              notify.ok(remote ? `Vinculado a ${r.data.location}` : "Carpeta vinculada", remote ? `Rama ${r.data.branch}` : undefined);
+              notify.ok(`Vinculado a ${r.data.location}`, `Rama ${r.data.branch}`);
             } else setError(r.error);
           });
         }}
@@ -92,23 +90,21 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
           </Field>
         )}
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-          <Field label={remote ? "Repositorio" : "Carpeta"} hint={remote ? "owner/repo" : "Ruta absoluta dentro de las carpetas permitidas."}>
+          <Field label="Repositorio" hint="owner/repo">
             {(id) => (
               <TextInput
                 id={id}
                 required
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder={remote ? `${connections.find((c) => c.installationId === installationId)?.account ?? "empresa"}/proyecto-api` : "/Users/…/proyectos/proyecto-api"}
+                placeholder={`${connections.find((c) => c.installationId === installationId)?.account ?? "empresa"}/proyecto-api`}
                 className="font-mono text-xs"
               />
             )}
           </Field>
-          {remote && (
-            <Field label="Rama principal" hint="Vacío = la rama por defecto.">
-              {(id) => <TextInput id={id} value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="main" className="font-mono text-xs" />}
-            </Field>
-          )}
+          <Field label="Rama principal" hint="Vacío = la rama por defecto.">
+            {(id) => <TextInput id={id} value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="main" className="font-mono text-xs" />}
+          </Field>
         </div>
         {github && (
           <Field

@@ -244,8 +244,6 @@ export const boardApi = {
   changePassword: (currentPassword: string, newPassword: string) =>
     request<void>("/api/auth/password", json("PUT", { currentPassword, newPassword })),
   accounts: () => request<Account[]>("/api/auth/accounts"),
-  grantAccess: (memberId: string, email: string, password: string) =>
-    request<Account>(`/api/members/${encodeURIComponent(memberId)}/credentials`, json("PUT", { email, password })),
   agentTokens: () => request<AgentToken[]>("/api/auth/tokens"),
   runnerTokens: () => request<RunnerToken[]>("/api/auth/runner-tokens"),
   createRunnerToken: (name: string) => request<IssuedToken>("/api/auth/runner-tokens", json("POST", { name })),

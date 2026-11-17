@@ -5,15 +5,10 @@ public interface ProductOwnerModel {
 
     record Result(PoProposal proposal, String model, long inputTokens, long outputTokens) {}
 
-    /** Falso si no hay credenciales: los agentes quedan desactivados y se registra por qué. */
-    boolean available();
-
-    String unavailableReason();
-
-    /** Con la clave del servidor. Lanza {@link AgentModelException} si el modelo falla, declina o la respuesta no sirve. */
-    Result propose(PoContext context);
-
-    /** Con la clave de IA de la empresa. */
+    /**
+     * Con la clave de IA de la empresa (no hay clave del servidor). Lanza {@link AgentModelException} si el modelo
+     * falla, declina o la respuesta no sirve.
+     */
     Result propose(String apiKey, PoContext context);
 
     /** Con la clave de la empresa y el modelo elegido para el agente ({@code null} = el configurado). */

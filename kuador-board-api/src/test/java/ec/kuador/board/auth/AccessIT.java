@@ -37,8 +37,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class AccessIT {
 
     @Container
@@ -146,8 +146,9 @@ class AccessIT {
         JsonNode edu = call("POST", "/api/members", Map.of("name", "Edu", "kind", "HUMAN", "role", "DEV", "avatarColor", "#cccccc"), owner).body();
         assertThat(ada.get("access").asText()).isEqualTo("ADMIN");
         assertThat(edu.get("access").asText()).isEqualTo("EDIT");
-        assertThat(call("PUT", "/api/members/" + ada.get("id").asText() + "/credentials", Map.of("email", "ada@niveles.test", "password", "clave-de-ada-123"), owner).status()).isEqualTo(200);
-        assertThat(call("PUT", "/api/members/" + edu.get("id").asText() + "/credentials", Map.of("email", "edu@niveles.test", "password", "clave-de-edu-123"), owner).status()).isEqualTo(200);
+        // Entran como si aceptaran su invitación (nadie pone la contraseña de otro).
+        TenantContext.run(w.id(), () -> auth.grantAccess(java.util.UUID.fromString(ada.get("id").asText()), "ada@niveles.test", "clave-de-ada-123"));
+        TenantContext.run(w.id(), () -> auth.grantAccess(java.util.UUID.fromString(edu.get("id").asText()), "edu@niveles.test", "clave-de-edu-123"));
         String admin = auth.login("ada@niveles.test", "clave-de-ada-123").token();
         String editor = auth.login("edu@niveles.test", "clave-de-edu-123").token();
 
@@ -175,8 +176,8 @@ class AccessIT {
         assertThat(call("PUT", "/api/members/" + ownerId + "/access", Map.of("access", "VIEW"), admin).status()).as("no toca a la dueña").isEqualTo(403);
         assertThat(call("POST", "/api/members", Map.of("name", "Otra", "kind", "HUMAN", "role", "PM", "avatarColor", "#cccccc", "access", "ADMIN"), admin).status()).isEqualTo(403);
         JsonNode newAdmin = call("POST", "/api/members", Map.of("name", "Sin cuenta", "kind", "HUMAN", "role", "PM", "avatarColor", "#cccccc", "access", "ADMIN"), owner).body();
-        assertThat(call("PUT", "/api/members/" + newAdmin.get("id").asText() + "/credentials", Map.of("email", "toma@niveles.test", "password", "clave-de-toma-123"), admin).status())
-                .as("no se queda con la cuenta de un administrador").isEqualTo(403);
+        assertThat(call("PUT", "/api/members/" + newAdmin.get("id").asText() + "/credentials", Map.of("email", "toma@niveles.test", "password", "clave-de-toma-123"), owner).status())
+                .as("nadie pone la contraseña de otro: el acceso es por invitación").isIn(404, 405);
         assertThat(call("DELETE", "/api/projects/NIV?confirm=NIV", null, admin).status()).isEqualTo(204);
 
         // La dueña nombra otra dueña; nunca queda el espacio sin dueño y nadie cambia el suyo.
@@ -191,7 +192,7 @@ class AccessIT {
     @Test
     void peopleWhoEditOrWatchOnlySeeTheBoardsTheyAreIn() throws Exception {
         signup.requestCode("tere@tableros.test");
-        signup.complete(signup.verifyCode("tere@tableros.test", INBOX.get("tere@tableros.test")),
+        Workspace tw = signup.complete(signup.verifyCode("tere@tableros.test", INBOX.get("tere@tableros.test")),
                 new SignupService.Company("Tableros", null, null, null, null, null), "Tere", "clave-de-tere-123", "FACTORY");
         String owner = auth.login("tere@tableros.test", "clave-de-tere-123").token();
         for (String key : new String[] {"ALFA", "BETA"}) {
@@ -202,7 +203,7 @@ class AccessIT {
 
         JsonNode edu = call("POST", "/api/members", Map.of("name", "Edu", "kind", "HUMAN", "role", "DEV", "avatarColor", "#cccccc"), owner).body();
         String eduId = edu.get("id").asText();
-        call("PUT", "/api/members/" + eduId + "/credentials", Map.of("email", "edu@tableros.test", "password", "clave-de-edu-123"), owner);
+        TenantContext.run(tw.id(), () -> auth.grantAccess(java.util.UUID.fromString(eduId), "edu@tableros.test", "clave-de-edu-123"));
         String editor = auth.login("edu@tableros.test", "clave-de-edu-123").token();
 
         // Recién llegado: no ve ningún tablero, ni por su clave, ni sus issues.

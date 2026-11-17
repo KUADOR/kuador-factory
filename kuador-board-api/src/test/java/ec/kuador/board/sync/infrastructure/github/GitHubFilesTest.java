@@ -99,7 +99,6 @@ class GitHubFilesTest {
                         new FileWrite("specs/008-prueba/spec.md", "# Spec nueva")),
                 "docs: actualiza", "Documentos desde el tablero", "cuerpo", null);
 
-        assertThat(p.direct()).isFalse();
         assertThat(p.pullRequest()).isEqualTo(1);
         assertThat(p.url()).isEqualTo("https://github.com/kuador/kuador-api/pull/1");
         assertThat(p.branch()).startsWith("tablero/docs-");

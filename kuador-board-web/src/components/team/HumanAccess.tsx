@@ -2,22 +2,21 @@
 
 import { useState, useTransition } from "react";
 
-import { cancelInvitationAction, grantAccessAction, inviteAction, resendInvitationAction } from "@/app/actions";
+import { cancelInvitationAction, inviteAction, resendInvitationAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
-import { Field, TextInput, PasswordInput } from "@/components/ui/Field";
+import { Field, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
 import type { Invitation } from "@/lib/types";
 
 const date = (iso: string) => new Intl.DateTimeFormat("es-EC", { day: "numeric", month: "short" }).format(new Date(iso));
 
 /**
- * Acceso web de una persona: se la invita por correo (confirma que el correo es suyo y elige su contraseña). La
- * contraseña temporal queda solo para instalaciones propias (BOARD_TEMPORARY_PASSWORDS); en la nube no se ofrece.
+ * Acceso web de una persona: siempre por invitación al correo (confirma que el correo es suyo y elige su contraseña).
+ * Nadie pone la contraseña de otra persona.
  */
 export function HumanAccess({ memberId, email, invitation }: { memberId: string; email: string | null; invitation: Invitation | null }) {
-  const [mode, setMode] = useState<"idle" | "invite" | "password">("idle");
+  const [mode, setMode] = useState<"idle" | "invite">("idle");
   const [newEmail, setNewEmail] = useState(email ?? invitation?.email ?? "");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -30,7 +29,6 @@ export function HumanAccess({ memberId, email, invitation }: { memberId: string;
       }
       setError(null);
       setMode("idle");
-      setPassword("");
       notify.ok(done);
     });
 
@@ -64,9 +62,7 @@ export function HumanAccess({ memberId, email, invitation }: { memberId: string;
               </Button>
             </>
           ) : (
-            <>
-              <Button size="sm" tone="primary" onClick={() => setMode("invite")}>Invitar por correo</Button>
-            </>
+            <Button size="sm" tone="primary" onClick={() => setMode("invite")}>Invitar por correo</Button>
           )}
         </div>
       )}
@@ -89,26 +85,6 @@ export function HumanAccess({ memberId, email, invitation }: { memberId: string;
         </form>
       )}
 
-      {mode === "password" && (
-        <form
-          className="flex flex-col gap-3 rounded-md border border-line bg-sunken p-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            act(() => grantAccessAction(memberId, newEmail, password), "Acceso guardado. Comparte la contraseña temporal por un canal seguro.");
-          }}
-        >
-          <Field label="Correo">{(id) => <TextInput id={id} size="sm" type="email" required value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="persona@empresa.com" />}</Field>
-          <Field label="Contraseña temporal" hint="Mínimo 10 caracteres. Cierra sus otras sesiones." error={error}>
-            {(id) => (
-              <PasswordInput id={id} size="sm" required minLength={10} maxLength={128} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            )}
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button size="sm" tone="ghost" onClick={() => setMode("idle")}>Cancelar</Button>
-            <Button size="sm" tone="primary" type="submit" loading={pending}>Guardar acceso</Button>
-          </div>
-        </form>
-      )}
       {error && mode === "idle" && <p role="alert" className="text-[13px] text-danger">{error}</p>}
     </div>
   );

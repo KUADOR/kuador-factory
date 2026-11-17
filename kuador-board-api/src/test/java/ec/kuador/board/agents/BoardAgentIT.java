@@ -43,8 +43,8 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.platform.admins=flor@flores.test",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.platform.admins=flor@flores.test",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class BoardAgentIT {
 

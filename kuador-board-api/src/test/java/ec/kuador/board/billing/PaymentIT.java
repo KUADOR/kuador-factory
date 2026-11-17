@@ -33,8 +33,8 @@ import tools.jackson.databind.ObjectMapper;
 /** Pagar un plan con una pasarela configurada en la plataforma (PayPal falso), por retorno y por aviso, sin cobrar dos veces. */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.platform.admins=ada@pagos.test", "board.web-url=https://tablero.test",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.platform.admins=ada@pagos.test", "board.web-url=https://tablero.test",
         "board.notifications.dispatch-every=200", "board.billing.reminders-delay=3600000",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class PaymentIT {

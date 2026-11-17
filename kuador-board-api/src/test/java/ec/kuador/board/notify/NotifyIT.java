@@ -37,8 +37,8 @@ import tools.jackson.databind.ObjectMapper;
 /** Avisos por correo y Telegram: vincular el chat, una pregunta de un agente, una puerta, preferencias y prueba. */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.telegram.bot-token=123:abc", "board.telegram.bot-username=tablero_bot",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.telegram.bot-token=123:abc", "board.telegram.bot-username=tablero_bot",
         "board.notifications.dispatch-every=200", "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class NotifyIT {
 

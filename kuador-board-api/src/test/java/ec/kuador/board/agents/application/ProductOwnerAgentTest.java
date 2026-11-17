@@ -49,7 +49,6 @@ class ProductOwnerAgentTest {
     private final List<String> keysUsed = new ArrayList<>();
     private String workspaceKey;
     private InMemoryProjects projects;
-    private boolean available = true;
     private Function<PoContext, ProductOwnerModel.Result> modelBehaviour;
     private ProductOwnerAgent agent;
     private InMemoryCatalog catalog;
@@ -63,6 +62,7 @@ class ProductOwnerAgentTest {
         issueStore.put("KUA-1", issue("KUA-1", "Plataforma de citas", "EPIC", null, null, PERSON, List.of()));
         issueStore.put("KUA-8", issue("KUA-8", "Recordatorio por WhatsApp", "STORY", null, "KUA-1", PO,
                 List.of(new IssueApi.CommentView(PERSON, "Debe salir 24 h antes", NOW))));
+        workspaceKey = "sk-ant-del-espacio"; // siempre la clave del espacio: no hay clave del servidor
         modelBehaviour = c -> new ProductOwnerModel.Result(proposal(PoProposal.Complexity.SUBSTANTIAL, 4, List.of()), "claude-opus-5-5", 1200, 800);
 
         AgentRunRepository runRepo = new AgentRunRepository() {
@@ -74,9 +74,6 @@ class ProductOwnerAgentTest {
             public void deleteByProject(UUID workspaceId, String projectKey) { runs.values().removeIf(r -> r.projectKey().equals(projectKey)); }
         };
         ProductOwnerModel model = new ProductOwnerModel() {
-            public boolean available() { return available; }
-            public String unavailableReason() { return "falta ANTHROPIC_API_KEY"; }
-            public Result propose(PoContext c) { seen.add(c); return modelBehaviour.apply(c); }
             public Result propose(String key, PoContext c) { keysUsed.add(key); seen.add(c); return modelBehaviour.apply(c); }
         };
         IssueApi issues = new ec.kuador.board.testing.IssueApiStub() {
@@ -332,7 +329,7 @@ class ProductOwnerAgentTest {
         assertThat(onlyRun().summary()).contains("«QA / validación» no tiene automatización");
         runs.clear();
 
-        available = false;
+        workspaceKey = null; // el espacio todavía no puso su clave
         agent.onAssigned(assignedBy(PERSON, PO));
         assertThat(onlyRun().summary()).contains("Conexiones → IA");
 
@@ -341,8 +338,7 @@ class ProductOwnerAgentTest {
     }
 
     @Test
-    void usesTheCompanyKeyWhenItHasOne() {
-        available = false; // el servidor no tiene clave propia
+    void alwaysUsesTheCompanyKey() {
         workspaceKey = "sk-ant-de-la-empresa";
         agent.onAssigned(assignedBy(PERSON, PO));
         assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);

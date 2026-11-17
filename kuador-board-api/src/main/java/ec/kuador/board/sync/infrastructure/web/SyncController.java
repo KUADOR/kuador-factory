@@ -190,7 +190,7 @@ class SyncController {
 
     /** {@code token} solo para GitHub; nunca se devuelve. {@code branch} vacío = rama por defecto del repo. */
     record LinkRequest(
-            @NotBlank @Pattern(regexp = "LOCAL|GITHUB|GITHUB_APP") String kind,
+            @NotBlank @Pattern(regexp = "GITHUB|GITHUB_APP") String kind,
             @NotBlank @Size(max = 1000) String location,
             @Size(max = 255) String branch,
             @Size(max = 255) String token,

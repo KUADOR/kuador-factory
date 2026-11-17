@@ -27,7 +27,7 @@ export default async function SyncPage({ params }: Props) {
   } catch (e) {
     return failPage(e);
   }
-  const where = link.linked ? (link.kind === "GITHUB" ? `github.com/${link.location} · rama ${link.branch}` : link.location) : null;
+  const where = link.linked ? `github.com/${link.location} · rama ${link.branch}` : null;
   const notReady = !link.linked ? "Vincula primero el repositorio" : !project.methodology ? "Elige primero la metodología" : null;
   if (notReady) {
     return (
@@ -57,9 +57,7 @@ export default async function SyncPage({ params }: Props) {
     <div className="flex flex-col gap-5 px-6 py-6">
       <p className="text-[13px] text-fg-muted">
         Vinculado a <code className="font-mono text-xs break-all text-fg">{where}</code>.{" "}
-        {link.kind === "GITHUB"
-          ? "Cada dev sigue trabajando con git como siempre: lo que el tablero exporta llega como Pull Request y lo que se fusiona en la rama principal se importa aquí."
-          : "El tablero escribe los archivos pero no hace commits: revisa con git diff en la carpeta y haz commit tú."}
+        Cada dev sigue trabajando con git como siempre: lo que el tablero exporta llega como Pull Request y lo que se fusiona en la rama principal se importa aquí.
       </p>
       <SyncPanel projectKey={project.key} status={status} issues={issues} />
       {kit && <AgentKitPanel projectKey={project.key} repos={kit.repos} error={kit.error} />}

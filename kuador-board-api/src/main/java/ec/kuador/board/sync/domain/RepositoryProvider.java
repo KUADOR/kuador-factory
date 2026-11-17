@@ -1,7 +1,7 @@
 package ec.kuador.board.sync.domain;
 
 /**
- * Puerto: un tipo de repositorio (LOCAL, GITHUB con token, GITHUB_APP con la app de la plataforma).
+ * Puerto: un tipo de repositorio (GITHUB con token, GITHUB_APP con la app de la plataforma).
  * Valida vínculos y abre sus archivos.
  */
 public interface RepositoryProvider {

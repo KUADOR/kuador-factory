@@ -27,8 +27,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 /** Recuperar la contraseña con el enlace o con el código del correo, sin revelar qué correos existen. */
 @Testcontainers
 @SpringBootTest(properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.web-url=https://tablero.test",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.web-url=https://tablero.test",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class PasswordResetIT {
 

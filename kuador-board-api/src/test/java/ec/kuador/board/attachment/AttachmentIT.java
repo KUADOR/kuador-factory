@@ -37,8 +37,8 @@ import tools.jackson.databind.ObjectMapper;
 /** Adjuntos contra un Garage real (el mismo garage.toml de infra/): subir, listar, descargar, leer como agente y borrar. */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.storage.max-file-size=1MB",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.storage.max-file-size=1MB",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class AttachmentIT {
 

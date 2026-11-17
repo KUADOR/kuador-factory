@@ -742,8 +742,8 @@ export interface Activity {
   occurredAt: string;
 }
 
-/** GITHUB_APP: con la app de la plataforma (sin token personal); GITHUB: con un token; LOCAL: carpeta. */
-export type RepositoryKind = "GITHUB_APP" | "GITHUB" | "LOCAL";
+/** GITHUB_APP: con la app de la plataforma (sin token personal); GITHUB: con un token. */
+export type RepositoryKind = "GITHUB_APP" | "GITHUB";
 
 export interface RepositoryLink {
   linked: boolean;
@@ -794,7 +794,6 @@ export interface SyncEntry {
 
 export interface Exported {
   documents: number;
-  direct: boolean;
   pullRequest: number | null;
   pullRequestUrl: string | null;
 }

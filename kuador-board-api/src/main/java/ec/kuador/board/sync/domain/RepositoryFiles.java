@@ -16,11 +16,8 @@ public interface RepositoryFiles {
 
     record FileWrite(String path, String content) {}
 
-    /**
-     * Resultado de publicar: {@code direct} = ya está en la rama principal (carpeta local); si no,
-     * quedó en un Pull Request que una persona debe revisar y fusionar.
-     */
-    record Published(boolean direct, Integer pullRequest, String url, String branch) {}
+    /** Resultado de publicar: el Pull Request que una persona revisa y fusiona (sin número si se actualizó uno abierto). */
+    record Published(Integer pullRequest, String url, String branch) {}
 
     /**
      * Publica los archivos. En GitHub abre un PR, o agrega un commit a {@code existingBranch} si ya

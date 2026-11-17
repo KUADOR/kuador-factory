@@ -35,8 +35,8 @@ import tools.jackson.databind.node.ObjectNode;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.platform.admins=pia@cat.test",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.platform.admins=pia@cat.test",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class PlatformCatalogIT {
 

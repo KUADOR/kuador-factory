@@ -58,8 +58,8 @@ class ClaudeProductOwnerModelTest {
         server.stop(0);
     }
 
-    private ProductOwnerModel model(String key) {
-        return new ClaudeProductOwnerModel(key, "claude-opus-5-5", "medium", true, true, "http://127.0.0.1:" + server.getAddress().getPort());
+    private ProductOwnerModel model() {
+        return new ClaudeProductOwnerModel("claude-opus-5-5", "medium", true, "http://127.0.0.1:" + server.getAddress().getPort());
     }
 
     /** La respuesta como la manda la API en streaming; {@code extra} va en el delta final (p. ej. stop_details). */
@@ -96,7 +96,7 @@ class ClaudeProductOwnerModelTest {
     void sendsAStructuredRequestAndParsesTheProposal() {
         reply = message("end_turn", PROPOSAL, "");
 
-        ProductOwnerModel.Result r = model("sk-ant-prueba").propose(context());
+        ProductOwnerModel.Result r = model().propose("sk-ant-prueba", context());
 
         assertThat(r.proposal().complexity()).isEqualTo(PoProposal.Complexity.SUBSTANTIAL);
         assertThat(r.proposal().acceptanceCriteria()).hasSize(1);
@@ -120,11 +120,11 @@ class ClaudeProductOwnerModelTest {
     @Test
     void refusalAndTruncationBecomeClearErrors() {
         reply = message("refusal", "", ",\"stop_details\":{\"type\":\"refusal\",\"category\":\"cyber\",\"explanation\":\"x\"}");
-        assertThatThrownBy(() -> model("k").propose(context())).isInstanceOf(AgentModelException.class).hasMessageContaining("declinó")
+        assertThatThrownBy(() -> model().propose("k", context())).isInstanceOf(AgentModelException.class).hasMessageContaining("declinó")
                 .hasMessageContaining("cyber");
 
         reply = message("max_tokens", "{\"understanding\":", "");
-        assertThatThrownBy(() -> model("k").propose(context())).hasMessageContaining("se cortó").hasMessageContaining("64000");
+        assertThatThrownBy(() -> model().propose("k", context())).hasMessageContaining("se cortó").hasMessageContaining("64000");
     }
 
     @Test
@@ -132,14 +132,7 @@ class ClaudeProductOwnerModelTest {
         status = 401;
         reply = "{\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"}}";
 
-        assertThatThrownBy(() -> model("sk-ant-secreta").propose(context())).isInstanceOf(AgentModelException.class)
+        assertThatThrownBy(() -> model().propose("sk-ant-secreta", context())).isInstanceOf(AgentModelException.class)
                 .hasMessageContaining("rechazó la clave").hasMessageNotContaining("sk-ant-secreta");
-    }
-
-    @Test
-    void withoutKeyAgentsAreDisabled() {
-        ProductOwnerModel m = model("");
-        assertThat(m.available()).isFalse();
-        assertThat(m.unavailableReason()).contains("Conexiones → IA");
     }
 }

@@ -33,8 +33,8 @@ import tools.jackson.databind.ObjectMapper;
 /** Invitar por correo: la persona queda en el equipo, abre el enlace, elige su contraseña y entra con su acceso. */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=", "board.agents.anthropic-api-key=",
-        "board.sync.allowed-roots=", "board.web-url=https://tablero.test",
+        "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
+        "board.web-url=https://tablero.test",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class InvitationIT {
 

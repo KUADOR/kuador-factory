@@ -154,14 +154,21 @@ function AgentRow({
       }
       onChange(r.data);
     });
+  const showModel = agent.mode === "SERVER" || models.length > 0;
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3">
-      <Avatar member={{ name: agent.name, avatarColor: agent.avatarColor, kind: "AGENT" }} size="md" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-fg-strong">{agent.name}</p>
-        <p className="truncate text-xs text-fg-faint">{agent.roleName}</p>
+    <li className="flex flex-col gap-3 px-4 py-3">
+      {/* Quién es, siempre visible; los ajustes van debajo y se acomodan al ancho. */}
+      <div className="flex items-center gap-3">
+        <Avatar member={{ name: agent.name, avatarColor: agent.avatarColor, kind: "AGENT" }} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium text-fg-strong" title={agent.name}>{agent.name}</p>
+          <p className="truncate text-xs text-fg-faint">{agent.roleName}</p>
+        </div>
+        {canConfigure && <PromptPreview agent={agent} projectKey={projectKey} />}
+        <Button size="sm" tone="ghost" icon={UserMinus} iconOnly label={`Quitar a ${agent.name} del equipo`} disabled={disabled} onClick={onRemove} />
       </div>
-      <div className="w-56">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div>
         <SelectInput<AgentMode>
           ariaLabel={`Dónde trabaja ${agent.name}`}
           size="sm"
@@ -173,8 +180,8 @@ function AgentRow({
         {!agent.serverAllowed && <p className="mt-1 text-xs text-fg-faint">{CODE_ONLY_LOCAL}</p>}
       </div>
       {/* El modelo vale cuando trabaja con la IA de la empresa: en el tablero y en las automatizaciones (p. ej. el Agente PO). */}
-      {(agent.mode === "SERVER" || models.length > 0) && (
-        <div className="w-60">
+      {showModel && (
+        <div>
           <SelectInput
             ariaLabel={`Modelo de ${agent.name}`}
             size="sm"
@@ -186,8 +193,8 @@ function AgentRow({
         </div>
       )}
       {/* Cuánto razona: menos esfuerzo gasta menos tokens. Vale con Claude. */}
-      {(agent.mode === "SERVER" || models.length > 0) && models.some((m) => m.startsWith("claude-")) && (
-        <div className="w-52">
+      {showModel && models.some((m) => m.startsWith("claude-")) && (
+        <div>
           <SelectInput
             ariaLabel={`Esfuerzo de ${agent.name}`}
             size="sm"
@@ -201,8 +208,7 @@ function AgentRow({
           />
         </div>
       )}
-      {canConfigure && <PromptPreview agent={agent} projectKey={projectKey} />}
-      <Button size="sm" tone="ghost" icon={UserMinus} iconOnly label={`Quitar a ${agent.name} del equipo`} disabled={disabled} onClick={onRemove} />
+      </div>
     </li>
   );
 }

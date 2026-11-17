@@ -357,7 +357,7 @@ export function Board({
           setDragFrom(undefined);
         }}
       >
-        <div className="flex min-h-0 flex-1 snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-4 sm:snap-none sm:px-6">
+        <div className="relative flex min-h-0 flex-1 snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-4 sm:snap-none sm:px-6">
           {project.columns.map((column, index) => (
             <Column
               key={column.key + column.name + column.category}

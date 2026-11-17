@@ -70,14 +70,14 @@ export function TeamView({ members, accounts, tokens, status, runs, roles, invit
                 const running = runs.find((r) => r.agentId === m.id && r.status === "RUNNING");
                 return (
                   <li key={m.id}>
-                    <button type="button" onClick={() => setOpenId(m.id)} className="grid w-full grid-cols-[2rem_minmax(0,14rem)_minmax(0,1fr)_auto] items-center gap-3 px-5 py-2.5 text-left hover:bg-hover">
+                    <button type="button" onClick={() => setOpenId(m.id)} className="grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-5 py-2.5 text-left hover:bg-hover sm:grid-cols-[2rem_minmax(0,14rem)_minmax(0,1fr)_auto]">
                       <Avatar member={m} size="md" />
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-medium text-fg-strong">{m.name}</span>
                         <span className="block truncate text-xs text-fg-faint">{roleLabel(m.role, role?.name)}</span>
                       </span>
-                      <span className="truncate text-xs text-fg-muted">{m.description}</span>
-                      <span className="flex items-center gap-2">
+                      <span className="hidden truncate text-xs text-fg-muted sm:block">{m.description}</span>
+                      <span className="flex flex-wrap items-center justify-end gap-2">
                         {running && <Badge tone="sol">Trabajando en {running.issueKey}</Badge>}
                         {m.kind === "HUMAN" && m.access !== "EDIT" && <Badge tone={m.access === "VIEW" ? "neutral" : "sol"}>{ACCESS_LABEL[m.access]}</Badge>}
                         {m.kind === "AGENT" && role && role.automation !== "NONE" && (

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { clsx } from "clsx";
 
 export interface SectionNavGroup {
@@ -17,8 +18,13 @@ export interface SectionNavGroup {
 export function SectionNav({ label, groups }: { label: string; groups: SectionNavGroup[] }) {
   const path = usePathname();
   const active = (href: string, exact?: boolean) => path === href || (!exact && path.startsWith(href + "/"));
+  const nav = useRef<HTMLElement>(null);
+  // En el teléfono la fila se desplaza: la pestaña activa queda a la vista.
+  useEffect(() => {
+    nav.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [path]);
   return (
-    <nav aria-label={label} className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5">
+    <nav ref={nav} aria-label={label} className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5 md:flex-wrap md:overflow-visible">
       {groups.map((g, i) => (
         <div key={g.title ?? i} role="group" aria-label={g.title} className="flex shrink-0 items-center gap-1">
           {i > 0 && <span aria-hidden className="mx-1.5 h-4 w-px shrink-0 bg-line-strong" />}

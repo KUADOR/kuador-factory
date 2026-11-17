@@ -46,6 +46,8 @@ class JpaMemberRepository implements MemberRepository {
 
     @Override
     public Member save(Member member) {
-        return jpa.save(MemberEntity.from(member)).toDomain();
+        // Se escribe ya: quien crea un agente suele sumarlo enseguida al equipo o a su perfil por JDBC, que no ve
+        // lo que JPA aún no envió (la llave foránea fallaría).
+        return jpa.saveAndFlush(MemberEntity.from(member)).toDomain();
     }
 }

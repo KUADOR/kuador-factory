@@ -66,7 +66,7 @@ export function PasswordInput({ className, ...rest }: Omit<TextProps, "type">) {
   );
 }
 
-export function TextArea({ className, ...rest }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }) {
+export function TextArea({ className, ...rest }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean; ref?: React.Ref<HTMLTextAreaElement> }) {
   return <Textarea {...rest} className={clsx("w-full", className)} />;
 }
 

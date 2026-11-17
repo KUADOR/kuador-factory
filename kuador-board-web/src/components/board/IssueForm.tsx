@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Field, SelectInput, TextInput, type SelectOption } from "@/components/ui/Field";
+import { Field, SelectInput, TextArea, TextInput, type SelectOption } from "@/components/ui/Field";
 import { MarkdownEditor } from "@/components/ui/MarkdownEditor";
 
 import { issueTemplates } from "./issueTemplates";
@@ -92,7 +92,7 @@ export function IssueForm({
     setBase(initial);
   }
   // Foco en el título al abrir, solo con mouse o trackpad: en pantallas táctiles abriría el teclado.
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (!readOnly && window.matchMedia("(pointer: fine)").matches) titleRef.current?.focus();
   }, [readOnly]);
@@ -124,15 +124,22 @@ export function IssueForm({
     <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-4">
       <Field label="Título">
         {(id) => (
-          <TextInput
+          <TextArea
             id={id}
             required
+            rows={1}
             maxLength={255}
             ref={titleRef}
             value={values.title}
-            onChange={(e) => set("title", e.target.value)}
+            onChange={(e) => set("title", e.target.value.replace(/\n/g, " "))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
             placeholder={readOnly ? undefined : "¿Qué hay que hacer?"}
-            className="text-[15px] font-medium"
+            className="resize-none text-[15px] font-medium [field-sizing:content]"
           />
         )}
       </Field>

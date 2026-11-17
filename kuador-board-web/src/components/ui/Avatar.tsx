@@ -20,12 +20,13 @@ const SIZE = {
 export function Avatar({ member, size = "sm", className }: { member: AvatarMember | undefined | null; size?: keyof typeof SIZE; className?: string }) {
   if (!member) {
     return (
+      // Sin un texto oculto adentro: un sr-only (absoluto) se escapa de las columnas que se desplazan y ensancha la página.
       <span
+        role="img"
+        aria-label="Sin asignar"
         title="Sin asignar"
         className={clsx(SIZE[size], "inline-grid shrink-0 place-items-center rounded-full border border-dashed border-line-hover text-fg-faint", className)}
-      >
-        <span className="sr-only">Sin asignar</span>
-      </span>
+      />
     );
   }
   const agent = member.kind === "AGENT";

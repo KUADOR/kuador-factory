@@ -1,11 +1,13 @@
 "use client";
 
 import { Drawer } from "@primereact/ui/drawer";
-import { Inbox, Menu, Plus } from "lucide-react";
+import { Activity, Inbox, LayoutGrid, Menu, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
+import { clsx } from "clsx";
 
+import { canEdit } from "@/lib/access";
 import type { Me, Project, Workspace, WorkspacePlan } from "@/lib/types";
 import type { ThemeMode } from "@/theme/theme";
 
@@ -17,8 +19,10 @@ import { RouteProgress } from "./RouteProgress";
 import { SidebarNav } from "./SidebarNav";
 
 /**
- * Armazón de la app: barra lateral fija en escritorio; en pantallas angostas la misma navegación
- * se abre como panel desde la izquierda.
+ * Armazón de la app. En escritorio, barra lateral fija. En el celular (y en la app instalada), barra superior con el
+ * espacio y una barra inferior con íconos, como cualquier app: Proyectos, Decisiones, Capturar, Pulso y Menú (la misma
+ * navegación de escritorio, en un panel). Respeta los bordes del teléfono: la hora y la Dynamic Island arriba, la barra
+ * de inicio abajo y las esquinas en horizontal.
  */
 export function AppShell(props: {
   me: Me;
@@ -38,68 +42,87 @@ export function AppShell(props: {
 
   return (
     <AccessProvider me={props.me}>
-    <div className="flex h-dvh">
-      <aside className="hidden w-60 shrink-0 border-r border-line bg-rail lg:block">
-        <SidebarNav {...nav} />
-      </aside>
+      <div className="flex h-dvh pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
+        <aside className="hidden w-60 shrink-0 border-r border-line bg-rail lg:block">
+          <SidebarNav {...nav} />
+        </aside>
 
-      <Drawer.Root open={open} onOpenChange={(e: { value?: boolean }) => setOpen(!!e.value)} position="left">
-        <Drawer.Portal>
-          <Drawer.Backdrop />
-          <Drawer.Popup className="w-64 bg-rail p-0">
-            <SidebarNav {...nav} />
-          </Drawer.Popup>
-        </Drawer.Portal>
-      </Drawer.Root>
+        <Drawer.Root open={open} onOpenChange={(e: { value?: boolean }) => setOpen(!!e.value)} position="left">
+          <Drawer.Portal>
+            <Drawer.Backdrop />
+            <Drawer.Popup className="w-72 bg-rail p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+              <SidebarNav {...nav} />
+            </Drawer.Popup>
+          </Drawer.Portal>
+        </Drawer.Root>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-3 lg:hidden">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label="Abrir navegación"
-            className="grid size-8 place-items-center rounded-md text-fg-muted hover:bg-hover hover:text-fg-strong"
-          >
-            <Menu className="size-4" aria-hidden />
-          </button>
-          {nav.workspace?.logo ? (
-            <LogoMark src={nav.workspace.logo} name={nav.workspace.name} className="h-7 max-w-[10rem]" />
-          ) : (
-            <>
-              <span aria-hidden className="size-2 rounded-full bg-sol" />
-              <span className="text-[13px] font-semibold text-fg-strong">{nav.workspace?.name ?? "Tablero"}</span>
-            </>
-          )}
-          {/* En el celular, capturar una idea y lo que te espera, siempre a un toque. */}
-          <Link
-            href="/capture"
-            aria-label="Capturar una idea"
-            className="ml-auto grid size-9 place-items-center rounded-md text-fg-muted hover:bg-hover hover:text-fg-strong"
-          >
-            <Plus className="size-5" aria-hidden />
-          </Link>
-          <Link
-            href="/decisions"
-            aria-label={`Mis decisiones${nav.decisions ? ` (${nav.decisions})` : ""}`}
-            className="relative grid size-9 place-items-center rounded-md text-fg-muted hover:bg-hover hover:text-fg-strong"
-          >
-            <Inbox className="size-5" aria-hidden />
-            {nav.decisions > 0 && (
-              <span className="tabular absolute -top-0.5 -right-0.5 grid min-w-4 place-items-center rounded-full bg-sol px-1 text-[10px] font-semibold text-on-sol">
-                {nav.decisions > 99 ? "99+" : nav.decisions}
-              </span>
-            )}
-          </Link>
-        </div>
-        {plan && <PlanBanner plan={plan} />}
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          <Suspense fallback={null}>
-            <RouteProgress />
-          </Suspense>
-          <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Celular: el espacio debajo de la hora y la Dynamic Island. */}
+          <header className="shrink-0 border-b border-line bg-rail pt-[env(safe-area-inset-top)] lg:hidden">
+            <div className="flex h-12 items-center gap-2 px-4">
+              {nav.workspace?.logo ? (
+                <LogoMark src={nav.workspace.logo} name={nav.workspace.name} className="h-7 max-w-[10rem]" />
+              ) : (
+                <>
+                  <span aria-hidden className="size-2 rounded-full bg-sol" />
+                  <span className="truncate text-[15px] font-semibold text-fg-strong">{nav.workspace?.name ?? "Tablero"}</span>
+                </>
+              )}
+            </div>
+          </header>
+          {plan && <PlanBanner plan={plan} />}
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <Suspense fallback={null}>
+              <RouteProgress />
+            </Suspense>
+            <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+          </div>
+          <TabBar path={path} decisions={nav.decisions} canCapture={canEdit(nav.me)} onMenu={() => setOpen(true)} />
         </div>
       </div>
-    </div>
     </AccessProvider>
+  );
+}
+
+/** Barra inferior del celular: lo de todos los días a un toque, con el pulgar. */
+function TabBar({ path, decisions, canCapture, onMenu }: { path: string; decisions: number; canCapture: boolean; onMenu: () => void }) {
+  const inProjects = path === "/" || path.startsWith("/projects");
+  const item = (active: boolean) =>
+    clsx("flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium", active ? "text-sol-text" : "text-fg-muted");
+  return (
+    <nav aria-label="Navegación" className="shrink-0 border-t border-line bg-rail pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <div className="flex h-16 items-stretch">
+        <Link href="/" className={item(inProjects)} aria-current={inProjects ? "page" : undefined}>
+          <LayoutGrid className="size-6" aria-hidden />
+          Proyectos
+        </Link>
+        <Link href="/decisions" className={item(path === "/decisions")} aria-current={path === "/decisions" ? "page" : undefined}>
+          <span className="relative">
+            <Inbox className="size-6" aria-hidden />
+            {decisions > 0 && (
+              <span className="tabular absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-sol px-1 text-[10px] leading-none font-semibold text-on-sol">
+                {decisions > 99 ? "99+" : decisions}
+              </span>
+            )}
+          </span>
+          Decisiones
+        </Link>
+        {canCapture && (
+          <Link href="/capture" aria-label="Capturar una idea" className="flex flex-1 items-center justify-center">
+            <span className="grid size-12 place-items-center rounded-full bg-sol text-on-sol shadow-md">
+              <Plus className="size-6" aria-hidden />
+            </span>
+          </Link>
+        )}
+        <Link href="/pulse" className={item(path === "/pulse")} aria-current={path === "/pulse" ? "page" : undefined}>
+          <Activity className="size-6" aria-hidden />
+          Pulso
+        </Link>
+        <button type="button" onClick={onMenu} className={item(false)}>
+          <Menu className="size-6" aria-hidden />
+          Menú
+        </button>
+      </div>
+    </nav>
   );
 }

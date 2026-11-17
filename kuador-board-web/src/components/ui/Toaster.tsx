@@ -7,7 +7,7 @@ import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from "lucide-react";
 /** Región única de avisos (abajo a la derecha). Se usa con `notify.ok(...)` / `notify.error(...)`. */
 export function Toaster() {
   return (
-    <PrimeToaster.Root position="bottom-right">
+    <PrimeToaster.Root position="top-center">
       <PrimeToaster.Portal>
         <PrimeToaster.Region>
           {({ toaster }: { toaster?: { toasts?: { id: string | number }[] } }) =>

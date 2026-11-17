@@ -48,7 +48,8 @@ export async function generateMetadata(): Promise<Metadata> {
     description: "Tablero de trabajo: personas y agentes de IA en el mismo flujo.",
     robots: { index: false, follow: false },
     // App instalable: en iPhone se abre a pantalla completa con su ícono.
-    appleWebApp: { capable: true, title: "Kuador", statusBarStyle: "black-translucent" },
+    // «black»: en iPhone la app empieza debajo de la hora y la Dynamic Island (con «black-translucent» quedaba debajo).
+    appleWebApp: { capable: true, title: "Kuador", statusBarStyle: "black" },
     icons: { apple: "/icons/apple-touch-icon.png" },
   };
 }

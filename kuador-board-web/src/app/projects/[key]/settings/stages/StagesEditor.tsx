@@ -106,6 +106,7 @@ export function StagesEditor({
                           approvers: gate ? s.approvers : [],
                           rejectTo: gate ? s.rejectTo : null,
                           review: gate ? s.review : null,
+                          autoPlan: gate ? false : s.autoPlan,
                         })
                       }
                       label="Es una puerta"
@@ -165,11 +166,26 @@ export function StagesEditor({
                   </div>
                 </div>
               ) : (
-                <p className="self-center text-xs text-fg-faint">
-                  {s.roles.length > 0
-                    ? "Al llegar aquí el issue queda sin asignar hasta que alguien con ese rol lo tome."
-                    : "Etapa libre: se asigna a mano como siempre."}
-                </p>
+                <div className="flex flex-col gap-2 self-center">
+                  <p className="text-xs text-fg-faint">
+                    {s.roles.length > 0
+                      ? "Al llegar aquí el issue queda sin asignar hasta que alguien con ese rol lo tome."
+                      : "Etapa libre: se asigna a mano como siempre."}
+                  </p>
+                  {s.roles.length > 0 && (
+                    <>
+                      <Switch
+                        checked={!!s.autoPlan}
+                        onChange={(autoPlan) => set(c.key, { autoPlan })}
+                        label="El reparto de una épica arranca solo"
+                      />
+                      <p className="text-xs text-fg-faint">
+                        Las tareas que reparte el arquitecto empiezan al llegar aquí, sin esperar que alguien apruebe el reparto. El
+                        spec ya pasó su puerta; si algo no convence, se devuelve.
+                      </p>
+                    </>
+                  )}
+                </div>
               )}
             </li>
           );

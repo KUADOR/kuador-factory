@@ -19,9 +19,11 @@ import java.util.regex.Pattern;
  *   <li>{@code approvers}: roles de personas que pueden cerrar la puerta. Vacío = cualquier persona.
  *   <li>{@code rejectTo}: columna a la que vuelve un issue rechazado en la puerta.
  *   <li>{@code review}: quién cierra la puerta: una persona (nulo o {@link ReviewMode#PERSON}) o un agente revisor.
+ *   <li>{@code autoPlan}: en una etapa de trabajo, el reparto de tareas de una épica arranca solo al llegar aquí (sin
+ *       esperar que una persona lo apruebe). El spec ya pasó por su puerta; el reparto se puede corregir después.
  * </ul>
  */
-public record StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review) {
+public record StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, boolean autoPlan) {
 
     private static final Pattern ROLE = Pattern.compile("^[A-Z][A-Z0-9_]{1,39}$");
 
@@ -73,6 +75,11 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
         approvers = approvers == null ? List.of() : List.copyOf(new java.util.LinkedHashSet<>(approvers));
         rejectTo = rejectTo == null || rejectTo.isBlank() ? null : rejectTo;
         review = !gate || review == null || review.mode() == ReviewMode.PERSON ? null : review;
+        autoPlan = autoPlan && !gate;
+    }
+
+    public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review) {
+        this(column, roles, gate, approvers, rejectTo, review, false);
     }
 
     public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo) {
@@ -145,7 +152,7 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
     public static List<StageDef> prunedTo(List<StageDef> stages, List<ColumnDef> columns) {
         Set<String> keys = new HashSet<>(columns.stream().map(ColumnDef::key).toList());
         return stages.stream().filter(s -> keys.contains(s.column()))
-                .map(s -> s.rejectTo() != null && !keys.contains(s.rejectTo()) ? new StageDef(s.column(), s.roles(), s.gate(), s.approvers(), null, s.review()) : s)
+                .map(s -> s.rejectTo() != null && !keys.contains(s.rejectTo()) ? new StageDef(s.column(), s.roles(), s.gate(), s.approvers(), null, s.review(), s.autoPlan()) : s)
                 .toList();
     }
 }

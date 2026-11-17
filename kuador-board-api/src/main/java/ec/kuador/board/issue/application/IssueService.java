@@ -317,11 +317,20 @@ public class IssueService implements IssueApi {
         return project.stage(column).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
     }
 
-    /** La épica llegó a una etapa de trabajo con su reparto sin aprobar: lo avisa; nada arranca hasta que una persona lo apruebe. */
+    /**
+     * La épica llegó a una etapa de trabajo con su reparto sin aprobar. Si la etapa tiene «el reparto arranca solo», las
+     * tareas arrancan ya; si no, lo avisa y nada arranca hasta que una persona lo apruebe.
+     */
     private void announcePendingPlan(Issue epic, ProjectView project, UUID actorId) {
         if (!workStage(project, epic.status())) return;
         List<Issue> waiting = waitingTasks(epic, project);
         if (waiting.isEmpty()) return;
+        if (project.stage(epic.status()).map(StageDef::autoPlan).orElse(false)) {
+            saveComment(epic, actorId, "**Reparto en marcha:** " + waiting.size() + " tarea(s) arrancan solas en «" + columnName(project, epic.status())
+                    + "» (el tablero no espera la aprobación del reparto). Si algo no te convence, devuélvelas o pide cambios.", now());
+            releaseTasks(epic, project, actorId);
+            return;
+        }
         saveComment(epic, actorId, "**Reparto por aprobar:** " + waiting.size() + " tarea(s) esperan en «" + columnName(project, project.columns().getFirst().key())
                 + "» (" + String.join(", ", waiting.stream().map(Issue::key).toList()) + "). Revísalas y aprueba el reparto, o pide cambios al arquitecto.", now());
     }
@@ -444,11 +453,27 @@ public class IssueService implements IssueApi {
         return issues.findByKey(issue.parentKey()).map(p -> p.status().equals(issue.status())).orElse(false);
     }
 
-    /** Dependencias que todavía no terminaron. */
+    /** Dependencias que todavía no están listas para que otras tareas sigan. */
     private List<String> pendingDependencies(Issue issue, ProjectView project) {
         return issue.dependsOn().stream()
-                .filter(k -> issues.findByKey(k).map(d -> !isDone(project, d.status())).orElse(false))
+                .filter(k -> issues.findByKey(k).map(d -> !readyForDependents(project, d.status())).orElse(false))
                 .toList();
+    }
+
+    /**
+     * Una dependencia libera a las demás cuando llega a la última puerta del flujo (en software, Release: su PR ya pasó QA
+     * y la revisión) o a una columna terminada. Esperar a «Hecho» encadenaba cada tarea al despliegue de la anterior.
+     * Sin puertas, vale «Hecho».
+     */
+    static boolean readyForDependents(ProjectView project, String column) {
+        if (isDone(project, column)) return true;
+        List<String> order = project.columns().stream().map(ColumnDef::key).toList();
+        int lastGate = -1;
+        for (int i = 0; i < order.size(); i++) {
+            if (project.stage(order.get(i)).map(StageDef::gate).orElse(false)) lastGate = i;
+        }
+        int at = order.indexOf(column);
+        return lastGate >= 0 && at >= lastGate;
     }
 
     /**
@@ -475,7 +500,7 @@ public class IssueService implements IssueApi {
         }
         List<String> pending = pendingDependencies(issue, project);
         if (!pending.isEmpty()) {
-            throw new ConflictException(issue.key() + " depende de " + String.join(", ", pending) + ", que todavía no terminó.");
+            throw new ConflictException(issue.key() + " depende de " + String.join(", ", pending) + ", que todavía no pasó su revisión (llega a la última puerta del flujo).");
         }
         Optional<StageDef> stage = project.stage(issue.status());
         if (inWorkColumn(issue)) {

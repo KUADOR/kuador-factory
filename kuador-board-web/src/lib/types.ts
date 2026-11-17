@@ -43,6 +43,8 @@ export interface StageDef {
   rejectTo: string | null;
   /** Quién cierra la puerta: null = una persona. */
   review?: AgentReview | null;
+  /** En una etapa de trabajo: el reparto de tareas de una épica arranca solo al llegar aquí. */
+  autoPlan?: boolean;
 }
 
 /** Quién cierra una puerta: una persona, un agente revisor, o el agente con escalamiento a una persona. */

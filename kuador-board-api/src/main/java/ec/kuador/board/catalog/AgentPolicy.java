@@ -66,7 +66,20 @@ public record AgentPolicy(
             /** PO/Arquitecto: repartir una épica en tareas. */
             String taskSplit,
             /** PO/Arquitecto: cómo llenar cada parte de la propuesta (resumen, historia, criterios, preguntas, estimación). */
-            String proposalFields) {}
+            String proposalFields,
+            /** Agente revisor de una puerta. Variables: {puerta}, {avanza}, {devolver}, {decidir}. */
+            String gateReview,
+            /** Puerta con escalamiento: cuándo dejarla a una persona. Variables: {aprobadores}, {sensibles}. */
+            String gateEscalate,
+            /** Puerta sin escalamiento: decide el agente. Variables: {aprobadores}. */
+            String gateDecide) {
+
+        /** Sin las reglas de las puertas que revisa un agente (copias anteriores): las pone la de fábrica. */
+        public Rules(List<String> common, List<String> board, List<String> questions, String epicPlan, String bigCard, String codeReview,
+                String sendBack, String web, String document, String taskSplit, String proposalFields) {
+            this(common, board, questions, epicPlan, bigCard, codeReview, sendBack, web, document, taskSplit, proposalFields, null, null, null);
+        }
+    }
 
     /** Perillas de costo y alcance. */
     public record Limits(
@@ -133,7 +146,8 @@ public record AgentPolicy(
         Rules mergedRules = new Rules(list(r.common(), fr.common()), list(r.board(), fr.board()), list(r.questions(), fr.questions()),
                 text(r.epicPlan(), fr.epicPlan()), text(r.bigCard(), fr.bigCard()), text(r.codeReview(), fr.codeReview()),
                 text(r.sendBack(), fr.sendBack()), text(r.web(), fr.web()), text(r.document(), fr.document()), text(r.taskSplit(), fr.taskSplit()),
-                text(r.proposalFields(), fr.proposalFields()));
+                text(r.proposalFields(), fr.proposalFields()), text(r.gateReview(), fr.gateReview()), text(r.gateEscalate(), fr.gateEscalate()),
+                text(r.gateDecide(), fr.gateDecide()));
         Limits l = limits == null ? fallback.limits : limits;
         Limits fl = fallback.limits;
         Limits mergedLimits = new Limits(num(l.questionRounds(), fl.questionRounds()), num(l.commentsRead(), fl.commentsRead()),

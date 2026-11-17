@@ -136,7 +136,10 @@ public class BoardAgent {
             String usedModel = key.get().modelFor(choice.model());
             log.info("{} trabajando en {} en el tablero con {} (ejecución {})", agent.get().name(), event.issueKey(), key.get().provider().code(), run.id());
             BoardAgentModel.Result result = providers.adapter(key.get().provider()).work(key.get().endpoint(), usedModel, task);
-            String summary = tx.execute(s -> deliver(agent.get(), requester.get(), event.issueKey(), result));
+            Optional<IssueApi.GateReview> gate = tx.execute(s -> issues.gateReview(event.issueKey(), agent.get().id()));
+            String summary = gate.isPresent()
+                    ? closeGate(agent.get(), event.issueKey(), gate.get(), result)
+                    : tx.execute(s -> deliver(agent.get(), requester.get(), event.issueKey(), result));
             finish(run.succeeded(result.model(), result.inputTokens(), result.outputTokens(), result.cacheReadTokens(), result.cacheWriteTokens(), summary,
                     clock.instant()));
         } catch (AgentModelException e) {
@@ -181,10 +184,22 @@ public class BoardAgent {
         else if (board.software()) all.add(rules.bigCard());
         StringBuilder user = new StringBuilder();
         String column = board.column(card.status()).map(c -> c.name()).orElse(card.status());
+        Optional<IssueApi.GateReview> gate = issues.gateReview(issueKey, agent.id());
         user.append("Tarjeta ").append(card.key()).append(" · columna «").append(column).append("»\n");
-        user.append(handoff.next(agent, issueKey)
-                .map(n -> "Al entregar, la tarjeta pasa a «" + n.columnName() + "»" + (n.gate() ? ", donde una persona la revisa y aprueba" : "") + ".\n")
-                .orElse("Al entregar, la tarjeta vuelve a la persona que te la pidió.\n"));
+        if (gate.isPresent()) {
+            IssueApi.GateReview g = gate.get();
+            user.append("La revisas tú: al aprobar pasa a «").append(nz(g.nextName(), "la siguiente columna")).append("»; al devolver vuelve a «")
+                    .append(nz(g.backName(), "la etapa anterior")).append("».\n");
+            all.add(AgentRules.fill(rules.gateReview(), Map.of("puerta", g.gateName(), "avanza", nz(g.nextName(), "la siguiente columna"),
+                    "devolver", nz(g.backName(), "la etapa anterior"), "decidir", g.escalates()
+                            ? AgentRules.fill(rules.gateEscalate(), Map.of("aprobadores", g.approvers(),
+                                    "sensibles", g.sensitive().isEmpty() ? "ninguna configurada" : String.join(", ", g.sensitive())))
+                            : AgentRules.fill(rules.gateDecide(), Map.of("aprobadores", g.approvers())))));
+        } else {
+            user.append(handoff.next(agent, issueKey)
+                    .map(n -> "Al entregar, la tarjeta pasa a «" + n.columnName() + "»" + (n.gate() ? ", donde una persona la revisa y aprueba" : "") + ".\n")
+                    .orElse("Al entregar, la tarjeta vuelve a la persona que te la pidió.\n"));
+        }
         user.append("Título: ").append(card.title()).append("\n");
         if (board.software()) user.append(Pieces.markdown(pieces, card.projectKey()));
         if (card.description() != null && !card.description().isBlank()) user.append("\nPedido:\n").append(card.description().strip()).append("\n");
@@ -226,7 +241,7 @@ public class BoardAgent {
             tools.addAll(codeTools(card.projectKey()));
             all.add(AgentRules.fill(rules.codeReview(), Map.of("repos", String.join(", ", repos), "clave", card.key())));
         }
-        Optional<StageHandoff.Back> back = handoff.back(agent, issueKey);
+        Optional<StageHandoff.Back> back = gate.isPresent() ? Optional.empty() : handoff.back(agent, issueKey);
         back.ifPresent(b -> all.add(AgentRules.fill(rules.sendBack(), Map.of("columna", b.columnName()))));
         boolean web = role.map(r -> r.tools() != null && r.tools().contains("WebSearch")).orElse(false);
         if (web) all.add(rules.web());
@@ -235,8 +250,107 @@ public class BoardAgent {
         system.append("Reglas:\n").append(AgentRules.bullets(all)).append("\n");
         AgentPolicy.Limits l = policy.limits();
         return new BoardAgentModel.Task(system.toString(), user.toString(), files, tools, epic ? () -> epicNeedsTasks(card.key()) : () -> null, web,
-                back.map(StageHandoff.Back::columnName).orElse(null), new BoardAgentModel.Limits(l.turnsClaude(), l.turnsOther(), l.webSearches()),
+                gate.isPresent() ? nz(gate.get().backName(), "la etapa anterior") : back.map(StageHandoff.Back::columnName).orElse(null),
+                new BoardAgentModel.Limits(l.turnsClaude(), l.turnsOther(), l.webSearches()),
                 codeExecution, effort);
+    }
+
+    private static String nz(String s, String fallback) {
+        return s == null || s.isBlank() ? fallback : s;
+    }
+
+    // ---- Puertas que revisa un agente ----
+
+    /**
+     * El agente revisor terminó: aprueba (si el tablero lo confirma), devuelve o deja la decisión a una persona. Antes de
+     * aprobar, el tablero comprueba lo que no depende del criterio del modelo: el CI del PR y, con escalamiento, las rutas
+     * sensibles y el tamaño del cambio.
+     */
+    private String closeGate(MemberView agent, String issueKey, IssueApi.GateReview gate, BoardAgentModel.Result result) {
+        String text = result.text() == null || result.text().isBlank() ? "Sin detalle." : result.text().strip();
+        String projectKey = tx.execute(s -> issues.context(issueKey).map(IssueApi.IssueContext::projectKey).orElse(null));
+        return switch (result.outcome()) {
+            case SENT_BACK -> {
+                tx.executeWithoutResult(s -> issues.reviewAs(issueKey, false, text, agent.id()));
+                yield "devolvió a " + nz(gate.backName(), "la etapa anterior");
+            }
+            case QUESTION -> {
+                tx.executeWithoutResult(s -> issues.escalate(issueKey, text, agent.id()));
+                yield "dejó la puerta a una persona";
+            }
+            case DELIVERED -> {
+                ReviewCheck check = projectKey == null ? ReviewCheck.ok() : checkPulls(projectKey, issueKey, gate);
+                if (check.reject() != null) {
+                    tx.executeWithoutResult(s -> issues.reviewAs(issueKey, false, check.reject() + "\n\nMi revisión:\n" + text, agent.id()));
+                    yield "devolvió a " + nz(gate.backName(), "la etapa anterior") + " (CI)";
+                }
+                if (check.escalate() != null && (gate.escalates() || check.always())) {
+                    tx.executeWithoutResult(s -> issues.escalate(issueKey, "La aprobaría, pero " + check.escalate() + "\n\nMi revisión:\n" + text, agent.id()));
+                    yield "dejó la puerta a una persona (" + check.escalate() + ")";
+                }
+                tx.executeWithoutResult(s -> issues.reviewAs(issueKey, true, "🔎 Revisión del agente:\n" + text + check.note(), agent.id()));
+                yield "aprobó · pasó a " + nz(gate.nextName(), "la siguiente columna");
+            }
+        };
+    }
+
+    /** Lo que el tablero comprueba antes de aprobar: {@code reject} devuelve, {@code escalate} deja a una persona, {@code note} se suma al comentario. */
+    record ReviewCheck(String reject, String escalate, String note, boolean always) {
+        ReviewCheck(String reject, String escalate, String note) {
+            this(reject, escalate, note, false);
+        }
+
+        static ReviewCheck ok() {
+            return new ReviewCheck(null, null, "");
+        }
+    }
+
+    private static final java.util.Set<String> FAILED = java.util.Set.of("failure", "timed_out", "cancelled", "action_required", "startup_failure", "error");
+    private static final java.util.Set<String> PASSED = java.util.Set.of("success", "neutral", "skipped");
+
+    /** El CI de los PRs de la tarjeta y, con escalamiento, rutas sensibles y tamaño. En tableros sin repos no hay nada que comprobar. */
+    ReviewCheck checkPulls(String projectKey, String issueKey, IssueApi.GateReview gate) {
+        List<String> repos = repositories(projectKey);
+        if (repos.isEmpty()) return ReviewCheck.ok();
+        List<CodeReviewApi.PullDetail> pulls = new ArrayList<>();
+        try {
+            for (CodeReviewApi.PullSummary p : code.pullRequests(projectKey, issueKey)) {
+                if (p.merged() || !"open".equalsIgnoreCase(p.state())) continue;
+                pulls.add(code.pullRequest(projectKey, p.repository(), p.number()));
+            }
+        } catch (RuntimeException e) {
+            return new ReviewCheck(null, "no pude leer el Pull Request en GitHub (" + e.getMessage() + ").", "", true);
+        }
+        if (pulls.isEmpty()) return new ReviewCheck(null, "no encontré un Pull Request abierto que mencione " + issueKey + ".", "", true);
+        List<String> failed = new ArrayList<>();
+        List<String> unknown = new ArrayList<>();
+        List<String> sensitive = new ArrayList<>();
+        int lines = 0;
+        for (CodeReviewApi.PullDetail d : pulls) {
+            String pr = d.pull().repository() + " #" + d.pull().number();
+            if (d.checks().isEmpty()) unknown.add(pr + (d.checksNote() != null ? " (" + d.checksNote() + ")" : " (sin CI)"));
+            for (CodeReviewApi.Check c : d.checks()) {
+                String result = c.conclusion() == null ? null : c.conclusion().toLowerCase(java.util.Locale.ROOT);
+                if (result != null && FAILED.contains(result)) failed.add(pr + ": " + c.name());
+                else if (result == null || !PASSED.contains(result)) unknown.add(pr + ": " + c.name() + " (" + (c.status() == null ? "sin resultado" : c.status()) + ")");
+            }
+            for (CodeReviewApi.ChangedFile f : d.files()) {
+                lines += f.additions() + f.deletions();
+                if (gate.sensitive().stream().anyMatch(g -> new ec.kuador.board.catalog.StageDef.AgentReview(null, null, List.of(g), null).sensitive(f.path()))) {
+                    sensitive.add(f.path());
+                }
+            }
+        }
+        if (!failed.isEmpty()) return new ReviewCheck("El CI no está en verde: " + String.join(", ", failed) + ".", null, "");
+        String note = "\n\n✅ CI en verde · " + lines + " líneas cambiadas en " + pulls.size() + " PR.";
+        if (!unknown.isEmpty()) return new ReviewCheck(null, "el CI no tiene resultado en verde: " + String.join(", ", unknown) + ".", "");
+        if (!sensitive.isEmpty()) {
+            return new ReviewCheck(null, "toca rutas sensibles: " + String.join(", ", sensitive.stream().limit(10).toList()) + ".", "");
+        }
+        if (gate.maxChangedLines() != null && lines > gate.maxChangedLines()) {
+            return new ReviewCheck(null, "cambia " + lines + " líneas (el límite para aprobar solo es " + gate.maxChangedLines() + ").", "");
+        }
+        return new ReviewCheck(null, null, note);
     }
 
     private List<String> repositories(String projectKey) {

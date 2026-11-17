@@ -99,6 +99,14 @@ class IssueController {
         return IssueResponse.from(service.supervise(key, who.memberId()));
     }
 
+    record ReviewByRequest(@Size(max = 10) String reviewBy) {}
+
+    /** Quién revisa esta tarjeta en las puertas: «PERSON», «AGENT» o vacío para lo del tablero. */
+    @PutMapping("/api/issues/{key}/review-by")
+    IssueResponse reviewBy(@PathVariable String key, @Valid @RequestBody ReviewByRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        return IssueResponse.from(service.setReviewBy(key, r.reviewBy(), who.memberId()));
+    }
+
     @PostMapping("/api/issues/{key}/review")
     IssueResponse review(@PathVariable String key, @Valid @RequestBody ReviewRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
         return IssueResponse.from(service.review(key, r.approve(), r.comment(), who.memberId()));
@@ -193,12 +201,12 @@ class IssueController {
             UUID id, String key, String projectKey, String title, String description, IssueType type,
             String status, Priority priority, Integer storyPoints, UUID assigneeId, UUID reporterId,
             String parentKey, List<String> labels, int position, int reworkCount, UUID supervisorId, String workRole, List<String> dependsOn,
-            Instant createdAt, Instant updatedAt) {
+            String reviewBy, Instant createdAt, Instant updatedAt) {
 
         static IssueResponse from(Issue i) {
             return new IssueResponse(i.id(), i.key(), i.projectKey(), i.title(), i.description(), i.type(), i.status(),
                     i.priority(), i.storyPoints(), i.assigneeId(), i.reporterId(), i.parentKey(), i.labels(),
-                    i.position(), i.reworkCount(), i.supervisorId(), i.workRole(), i.dependsOn(), i.createdAt(), i.updatedAt());
+                    i.position(), i.reworkCount(), i.supervisorId(), i.workRole(), i.dependsOn(), i.reviewBy(), i.createdAt(), i.updatedAt());
         }
     }
 

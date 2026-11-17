@@ -98,6 +98,11 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
             <Text label="Repartir una épica en tareas" value={value.rules.taskSplit} onChange={(taskSplit) => rules({ taskSplit })} />
             <Text label="Cómo llenar la propuesta" value={value.rules.proposalFields} onChange={(proposalFields) => rules({ proposalFields })} rows={9} />
           </Group>
+          <Group title="Puertas que revisa un agente" description="Para el agente revisor cuando una etapa la cierra él (Configuración → Etapas).">
+            <Text label="Cómo revisar la puerta" vars="{puerta}, {avanza}, {devolver}, {decidir}" value={value.rules.gateReview ?? ""} onChange={(gateReview) => rules({ gateReview })} rows={7} />
+            <Text label="Con escalamiento: cuándo dejarla a una persona" vars="{aprobadores}, {sensibles}" value={value.rules.gateEscalate ?? ""} onChange={(gateEscalate) => rules({ gateEscalate })} />
+            <Text label="Sin escalamiento: decide el agente" vars="{aprobadores}" value={value.rules.gateDecide ?? ""} onChange={(gateDecide) => rules({ gateDecide })} rows={2} />
+          </Group>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import type { BoardColumn, Project, StageDef } from "@/lib/types";
+import type { BoardColumn, Issue, Project, ReviewMode, StageDef } from "@/lib/types";
 
 /** Configuración de etapa de una columna (o nada: columna libre). */
 export function stageOf(project: Project, column: string): StageDef | undefined {
@@ -29,3 +29,18 @@ export function waitingToBeTaken(project: Project, column: string, assigneeId: s
   const s = stageOf(project, column);
   return !assigneeId && !!s && (s.gate || s.roles.length > 0);
 }
+
+/** Quién cierra una puerta para esta tarjeta: lo del tablero, salvo que la tarjeta pida una persona o el agente. */
+export function reviewFor(stage: StageDef | undefined, reviewBy: Issue["reviewBy"]): ReviewMode {
+  if (!stage?.gate) return "PERSON";
+  const board = stage.review?.mode ?? "PERSON";
+  if (reviewBy === "PERSON") return "PERSON";
+  if (reviewBy === "AGENT" && board === "PERSON") return "AGENT_ESCALATE";
+  return board;
+}
+
+/** El rol del agente revisor de una puerta. */
+export function reviewerRole(stage: StageDef | undefined): string {
+  return stage?.review?.reviewerRole || "PR_REVIEWER";
+}
+

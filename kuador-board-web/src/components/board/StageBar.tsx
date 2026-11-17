@@ -9,6 +9,7 @@ import {
   moveIssueAction,
   retryAgentRunAction,
   reviewIssueAction,
+  setReviewByAction,
   superviseIssueAction,
   takeIssueAction,
 } from "@/app/actions";
@@ -114,6 +115,9 @@ export function StageBar({
           {assignee ? <>Lo tiene <span className="font-medium text-fg-strong">{assignee.name}</span></> : stage ? "Sin tomar" : null}
         </span>
       </div>
+      {canEdit && isHuman && project.stages.some((s) => s.gate) && (
+        <ReviewByPicker issue={issue} project={project} disabled={pending} onPick={(v, msg) => act(() => setReviewByAction(project.key, issue.key, v), msg)} />
+      )}
 
       {stage && !rejecting && (
         <div className="flex flex-wrap items-center gap-2">
@@ -199,3 +203,37 @@ function NextStepCallout({ step, pending, onAction }: { step: NextStep; pending:
     </div>
   );
 }
+
+/** Quién revisa esta tarjeta en las puertas: lo del tablero, siempre una persona, o el agente revisor. */
+function ReviewByPicker({
+  issue,
+  project,
+  disabled,
+  onPick,
+}: {
+  issue: Issue;
+  project: Project;
+  disabled: boolean;
+  onPick: (v: "PERSON" | "AGENT" | null, msg: string) => void;
+}) {
+  const anyAgent = project.stages.some((s) => s.gate && s.review && s.review.mode !== "PERSON");
+  return (
+    <label className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
+      Revisión en las puertas
+      <select
+        className="rounded-md border border-line bg-surface px-2 py-1 text-xs text-fg"
+        value={issue.reviewBy ?? "BOARD"}
+        disabled={disabled}
+        onChange={(e) => {
+          const v = e.target.value === "BOARD" ? null : (e.target.value as "PERSON" | "AGENT");
+          onPick(v, v === "PERSON" ? "Esta tarjeta la revisa siempre una persona" : v === "AGENT" ? "Esta tarjeta la revisa el agente" : "Revisión según el tablero");
+        }}
+      >
+        <option value="BOARD">{anyAgent ? "Según el tablero (agente revisor)" : "Según el tablero (una persona)"}</option>
+        <option value="PERSON">👤 Siempre una persona</option>
+        <option value="AGENT">🤖 Que la revise el agente</option>
+      </select>
+    </label>
+  );
+}
+

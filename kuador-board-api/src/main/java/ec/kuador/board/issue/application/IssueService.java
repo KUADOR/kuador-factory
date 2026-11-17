@@ -195,7 +195,7 @@ public class IssueService implements IssueApi {
         }
         Optional<StageDef> fromStage = from.equals(target) ? Optional.empty() : project.stage(from);
         if (fromStage.isPresent() && fromStage.get().gate()) {
-            requireApprover(project, fromStage.get(), actorId);
+            requireApprover(project, fromStage.get(), actorId, issue);
         }
         List<Issue> column = new ArrayList<>(issues.findColumn(issue.projectKey(), target));
         column.removeIf(i -> i.id().equals(issue.id()));
@@ -483,7 +483,7 @@ public class IssueService implements IssueApi {
             // En una puerta trabajan sus roles (p. ej. Release prepara) y la toman sus aprobadores.
             boolean preparesGate = stage.get().gate() && !stage.get().roles().isEmpty() && stage.get().roles().contains(actor.role());
             if (stage.get().gate() && !preparesGate) {
-                requireApprover(project, stage.get(), actorId);
+                requireApprover(project, stage.get(), actorId, issue);
             } else if (!stage.get().coveredBy(actor.role())) {
                 throw new ForbiddenException("«" + columnName(project, issue.status()) + "» la cubren: " + roleNames(stage.get().roles()) + ".");
             }
@@ -539,7 +539,7 @@ public class IssueService implements IssueApi {
         ProjectView project = project(issue.projectKey());
         StageDef gate = project.stage(issue.status()).filter(StageDef::gate)
                 .orElseThrow(() -> new DomainException("«" + columnName(project, issue.status()) + "» no es una puerta de aprobación."));
-        MemberView person = requireApprover(project, gate, actorId);
+        MemberView person = requireApprover(project, gate, actorId, issue);
         String target;
         if (approve) {
             target = project.nextAfter(issue.status()).map(ColumnDef::key)
@@ -552,6 +552,96 @@ public class IssueService implements IssueApi {
             saveComment(issue, actorId, "**Rechazado** por " + person.name() + ": " + comment.strip(), now());
         }
         return move(key, target, Integer.MAX_VALUE, actorId);
+    }
+
+    // ---- Puertas que revisa un agente ----
+
+    /** La tarjeta está en una puerta que, para ella, revisa un agente, y hay un agente con ese rol en el espacio. */
+    private boolean agentReviewed(Issue i, ProjectView project) {
+        Optional<StageDef> stage = project.stage(i.status());
+        if (stage.isEmpty() || !stage.get().gate() || stage.get().reviewFor(i.reviewBy()) == StageDef.ReviewMode.PERSON) return false;
+        String role = stage.get().reviewerRole();
+        return members.agents().stream().anyMatch(a -> a.role().equals(role));
+    }
+
+    /** Quién revisa esta tarjeta en las puertas: PERSON, AGENT o nulo (lo del tablero). Personas con permiso de edición. */
+    @Transactional
+    public Issue setReviewBy(String key, String reviewBy, UUID actorId) {
+        Issue issue = load(key);
+        if (requireMember(actorId).agent()) throw new ForbiddenException("Quién revisa una tarjeta lo decide una persona.");
+        String before = issue.reviewBy();
+        issue.reviewBy(reviewBy);
+        if (java.util.Objects.equals(before, issue.reviewBy())) return issue;
+        Instant now = now();
+        // Ya en una puerta y ahora la revisa una persona: el agente revisor la suelta.
+        ProjectView project = project(issue.projectKey());
+        UUID previousAssignee = issue.assigneeId();
+        project.stage(issue.status()).filter(StageDef::gate).ifPresent(gate -> {
+            boolean byAgent = gate.reviewFor(issue.reviewBy()) != StageDef.ReviewMode.PERSON;
+            if (!byAgent && Optional.ofNullable(issue.assigneeId()).flatMap(members::find).map(MemberView::agent).orElse(false)) issue.assign(null, now);
+        });
+        Issue saved = issues.save(issue);
+        // La cadena de agentes lo oye: si ahora la revisa el agente y está libre en la puerta, se la asigna.
+        events.publishEvent(new IssueUpdated(UUID.randomUUID(), TenantContext.require(), key, saved.projectKey(), actorId, now,
+                List.of(new IssueUpdated.Change("reviewBy", before, saved.reviewBy()))));
+        publishAssignmentIfChanged(saved, previousAssignee, actorId, now);
+        return saved;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<GateReview> gateReview(String issueKey, UUID agentId) {
+        Optional<Issue> found = issues.findByKey(issueKey);
+        Optional<MemberView> agent = members.find(agentId).filter(MemberView::agent);
+        if (found.isEmpty() || agent.isEmpty()) return Optional.empty();
+        Issue issue = found.get();
+        ProjectView project = project(issue.projectKey());
+        Optional<StageDef> stage = project.stage(issue.status()).filter(StageDef::gate);
+        if (stage.isEmpty()) return Optional.empty();
+        StageDef.ReviewMode mode = stage.get().reviewFor(issue.reviewBy());
+        if (mode == StageDef.ReviewMode.PERSON || !agent.get().role().equals(stage.get().reviewerRole())) return Optional.empty();
+        String back = stage.get().rejectTo() != null ? stage.get().rejectTo() : previousColumn(project, issue.status()).orElse(null);
+        String next = project.nextAfter(issue.status()).map(ColumnDef::key).orElse(null);
+        return Optional.of(new GateReview(mode.name(), columnName(project, issue.status()), back == null ? null : columnName(project, back),
+                next == null ? null : columnName(project, next), stage.get().agentReview().sensitive(), stage.get().agentReview().maxChangedLines(),
+                approverNames(project, stage.get())));
+    }
+
+    @Override
+    @Transactional
+    public Progress reviewAs(String issueKey, boolean approve, String comment, UUID agentId) {
+        return progress(review(issueKey, approve, comment, agentId));
+    }
+
+    /** El agente revisor no puede decidir: comenta su análisis y deja la tarjeta a una persona que aprueba la puerta. */
+    @Override
+    @Transactional
+    public Progress escalate(String issueKey, String analysis, UUID agentId) {
+        Issue issue = load(issueKey);
+        ProjectView project = project(issue.projectKey());
+        StageDef gate = project.stage(issue.status()).filter(StageDef::gate)
+                .orElseThrow(() -> new DomainException("«" + columnName(project, issue.status()) + "» no es una puerta de aprobación."));
+        Instant now = now();
+        MemberView person = approverFor(issue, gate);
+        saveComment(issue, agentId, "🔎 **Revisión para una persona** — " + person.name() + ", esta la decides tú:\n\n" + analysis.strip(), now);
+        UUID before = issue.assigneeId();
+        issue.assign(person.id(), now);
+        Issue saved = issues.save(issue);
+        publishAssignmentIfChanged(saved, before, agentId, now);
+        return progress(saved);
+    }
+
+    /** Quien decide una puerta escalada: quien supervisa la tarjeta si puede aprobarla; si no, una persona aprobadora. */
+    private MemberView approverFor(Issue issue, StageDef gate) {
+        return Optional.ofNullable(issue.supervisorId()).flatMap(members::find).filter(m -> !m.agent() && gate.approvableBy(m.role()))
+                .or(() -> members.humans().stream().filter(m -> gate.approvableBy(m.role()) && "OWNER".equals(m.role())).findFirst())
+                .or(() -> members.humans().stream().filter(m -> gate.approvableBy(m.role())).findFirst())
+                .or(() -> responsibleHuman(issue))
+                .orElseThrow(() -> new DomainException("No hay una persona que pueda aprobar esta puerta."));
+    }
+
+    private String approverNames(ProjectView project, StageDef gate) {
+        return gate.approvers().isEmpty() ? "cualquier persona del equipo" : roleNames(gate.approvers());
     }
 
     // ---- Supervisión: qué persona pone a trabajar a los agentes ----
@@ -618,8 +708,7 @@ public class IssueService implements IssueApi {
         if (project == null) return List.of();
         return issues.findByProject(projectKey, IssueFilter.none()).stream()
                 .filter(i -> i.assigneeId() == null)
-                .flatMap(i -> queueItem(i, project).stream())
-                .filter(q -> !q.gate())
+                .flatMap(i -> queueItem(i, project).filter(q -> !q.gate() || agentReviewed(i, project)).stream())
                 .toList();
     }
 
@@ -638,6 +727,9 @@ public class IssueService implements IssueApi {
         } else if (inWorkColumn(i)) {
             if (members.agents().stream().noneMatch(a -> a.role().equals(i.workRole()))) return Optional.empty(); // la hace una persona
             roles = List.of(i.workRole());
+        } else if (agentReviewed(i, project)) {
+            // Puerta que revisa un agente: la toma su agente revisor.
+            roles = List.of(stage.get().reviewerRole());
         } else {
             // Una tarea del plan que aún no arranca (sigue en la primera columna) no es de nadie todavía.
             if (i.workRole() != null && i.status().equals(project.columns().getFirst().key())) return Optional.empty();
@@ -691,11 +783,15 @@ public class IssueService implements IssueApi {
         return new Progress(issue.key(), issue.status(), name, issue.assigneeId());
     }
 
-    /** Solo una persona cierra una puerta, y si la puerta pide roles, con uno de ellos. */
-    private MemberView requireApprover(ProjectView project, StageDef gate, UUID actorId) {
+    /**
+     * Cierra una puerta una persona (con uno de sus roles aprobadores, si los pide) o, si la puerta está en revisión por
+     * agente para esta tarjeta, su agente revisor.
+     */
+    private MemberView requireApprover(ProjectView project, StageDef gate, UUID actorId, Issue issue) {
         MemberView actor = requireMember(actorId);
         String gateName = columnName(project, gate.column());
         if (actor.agent()) {
+            if (gate.reviewFor(issue.reviewBy()) != StageDef.ReviewMode.PERSON && actor.role().equals(gate.reviewerRole())) return actor;
             throw new ForbiddenException("«" + gateName + "» es una puerta: la cierra una persona, no un agente.");
         }
         if (!gate.approvableBy(actor.role())) {

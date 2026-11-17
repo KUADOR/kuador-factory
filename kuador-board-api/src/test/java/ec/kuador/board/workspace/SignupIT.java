@@ -83,7 +83,7 @@ class SignupIT {
         assertThat(auth.authenticate(session)).get().extracting(a -> a.workspaceId()).isEqualTo(w.id());
         // Listo para usar: catálogo de fábrica y un agente por rol, además de la persona dueña.
         assertThat(TenantContext.call(w.id(), () -> catalog.methodologies())).hasSize(3);
-        assertThat(TenantContext.call(w.id(), () -> members.list())).hasSize(10);
+        assertThat(TenantContext.call(w.id(), () -> members.list())).hasSize(11);
 
         assertThatThrownBy(() -> signup.complete(token, new SignupService.Company("Otra", null, null, null, null, null), "Ana", "clave-de-ana-123", "FACTORY"))
                 .as("el token de alta se usa una sola vez").hasMessageContaining("venció");

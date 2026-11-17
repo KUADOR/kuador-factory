@@ -41,6 +41,21 @@ export interface StageDef {
   gate: boolean;
   approvers: string[];
   rejectTo: string | null;
+  /** Quién cierra la puerta: null = una persona. */
+  review?: AgentReview | null;
+}
+
+/** Quién cierra una puerta: una persona, un agente revisor, o el agente con escalamiento a una persona. */
+export type ReviewMode = "PERSON" | "AGENT" | "AGENT_ESCALATE";
+
+export interface AgentReview {
+  mode: ReviewMode;
+  /** Rol del agente revisor (por defecto PR_REVIEWER). */
+  reviewerRole: string | null;
+  /** Rutas que siempre decide una persona (patrones glob). */
+  sensitive: string[];
+  /** Más líneas cambiadas que esto pasa a una persona; null = sin límite. */
+  maxChangedLines: number | null;
 }
 
 export interface WorkflowTemplate extends CatalogEntry {
@@ -193,6 +208,10 @@ export interface AgentPolicy extends CatalogEntry {
     document: string;
     taskSplit: string;
     proposalFields: string;
+    /** Agente revisor de una puerta (y con o sin escalamiento). */
+    gateReview?: string;
+    gateEscalate?: string;
+    gateDecide?: string;
   };
   limits: { questionRounds: number; commentsRead: number; filesRead: number; webSearches: number; turnsClaude: number; turnsOther: number };
   messages: {
@@ -363,6 +382,8 @@ export interface Issue {
   workRole: string | null;
   /** Tarea del plan de una épica: claves de las tareas que deben terminar antes. */
   dependsOn: string[];
+  /** Quién revisa esta tarjeta en las puertas: null = lo del tablero. */
+  reviewBy: "PERSON" | "AGENT" | null;
   createdAt: string;
   updatedAt: string;
 }

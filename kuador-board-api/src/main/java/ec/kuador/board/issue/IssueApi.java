@@ -85,4 +85,30 @@ public interface IssueApi {
 
     /** Devuelve el issue a una columna anterior con el motivo. */
     Progress sendBack(String issueKey, String column, String reason, UUID actorId);
+
+    /**
+     * La tarjeta está en una puerta que revisa {@code agentId} (su agente revisor): el modo (AGENT o AGENT_ESCALATE),
+     * los nombres de la puerta, de a dónde se devuelve y a dónde avanza, las rutas sensibles, el límite de líneas y quién
+     * aprueba si se escala. Vacío si no le toca.
+     */
+    record GateReview(String mode, String gateName, String backName, String nextName, List<String> sensitive, Integer maxChangedLines, String approvers) {
+
+        public boolean escalates() {
+            return "AGENT_ESCALATE".equals(mode);
+        }
+    }
+
+    default Optional<GateReview> gateReview(String issueKey, UUID agentId) {
+        return Optional.empty();
+    }
+
+    /** El agente revisor cierra la puerta: aprueba (avanza) o rechaza con el motivo (vuelve). */
+    default Progress reviewAs(String issueKey, boolean approve, String comment, UUID agentId) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** El agente revisor deja la decisión a una persona aprobadora, con su análisis. */
+    default Progress escalate(String issueKey, String analysis, UUID agentId) {
+        throw new UnsupportedOperationException();
+    }
 }

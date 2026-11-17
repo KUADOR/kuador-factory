@@ -149,7 +149,7 @@ public final class CatalogRules {
         var m = p.messages();
         var t = p.repo();
         for (String text : java.util.Arrays.asList(r.epicPlan(), r.bigCard(), r.codeReview(), r.sendBack(), r.web(), r.document(), r.taskSplit(),
-                r.proposalFields(), m.returnForReview(), m.returnWithQuestions(), m.toGate(), m.toAgent(), m.toPerson(), m.questionsTitle(),
+                r.proposalFields(), r.gateReview(), r.gateEscalate(), r.gateDecide(), m.returnForReview(), m.returnWithQuestions(), m.toGate(), m.toAgent(), m.toPerson(), m.questionsTitle(),
                 m.pendingTitle(), m.readDocument(), m.askFooter(), m.failedStart(), m.failedFinish(), t.agentsMd(), t.workSteps(), t.subagent(),
                 t.mcpInstructions(), t.readme(), t.pieceReadme(), t.ci(), t.gitignore())) {
             if (text != null && text.length() > MAX_TEXT) throw new DomainException("Un texto de las reglas de agentes pasa de " + MAX_TEXT + " caracteres.");

@@ -137,6 +137,10 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         List<ColumnDef> columns = projects.findColumns(key);
         Project updated = project.withStages(StageDef.validate(stages, columns), maxRework); // valida el límite
         projects.updateStages(key, updated.stages(), updated.maxRework());
+        List<String> reviewers = updated.stages().stream().filter(s -> s.review() != null).map(StageDef::reviewerRole).distinct().toList();
+        if (!reviewers.isEmpty()) {
+            events.publishEvent(new ec.kuador.board.project.ReviewersNeeded(UUID.randomUUID(), TenantContext.require(), key, reviewers, clock.instant()));
+        }
         return new ProjectWithColumns(updated, columns);
     }
 

@@ -150,6 +150,10 @@ export async function agentKitAction(client: AgentClient, mcp: string[]): Promis
   return run(() => boardApi.agentKit(client, mcp));
 }
 
+export async function setReviewByAction(projectKey: string, key: string, reviewBy: "PERSON" | "AGENT" | null): Promise<ActionResult<Issue>> {
+  return run(() => boardApi.setReviewBy(key, reviewBy), `/projects/${projectKey}`);
+}
+
 export async function superviseIssueAction(projectKey: string, key: string): Promise<ActionResult<Issue>> {
   return run(() => boardApi.supervise(key), `/projects/${projectKey}`);
 }

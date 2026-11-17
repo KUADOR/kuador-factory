@@ -37,6 +37,8 @@ public final class Issue {
     private String workRole;
     /** Tarea de una épica: claves de las tareas que deben terminar antes de empezar esta. */
     private List<String> dependsOn = List.of();
+    /** Quién revisa esta tarjeta en las puertas: nulo = lo del tablero; PERSON = siempre una persona; AGENT = el agente revisor. */
+    private String reviewBy;
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -214,6 +216,17 @@ public final class Issue {
         if (parentKey == null) throw new DomainException("Una tarea del plan pertenece a una épica.");
         this.workRole = role == null || role.isBlank() ? null : role.strip().toUpperCase(java.util.Locale.ROOT);
         this.dependsOn = dependencies == null ? List.of() : dependencies.stream().filter(d -> !d.equals(key)).distinct().toList();
+    }
+
+    public String reviewBy() {
+        return reviewBy;
+    }
+
+    /** Pide que las puertas de esta tarjeta las revise una persona ({@code PERSON}), el agente ({@code AGENT}) o lo del tablero (nulo). */
+    public void reviewBy(String who) {
+        String v = who == null || who.isBlank() ? null : who.strip().toUpperCase(java.util.Locale.ROOT);
+        if (v != null && !v.equals("PERSON") && !v.equals("AGENT")) throw new DomainException("La revisión es PERSON, AGENT o vacía (lo del tablero).");
+        this.reviewBy = v;
     }
 
     /** Quién supervisa el trabajo de los agentes en este issue (nulo = nadie). */

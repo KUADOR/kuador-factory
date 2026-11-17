@@ -31,7 +31,7 @@ class AgentRulesTest {
     @Test
     void anEmptyTextFallsBackToTheFactoryOneButAnEmptyListStaysEmpty() {
         AgentPolicy edited = new AgentPolicy(null, AgentPolicy.KEY, "Mías", null,
-                new AgentPolicy.Rules(List.of(), factory.rules().board(), List.of("Pregunta una sola vez."), "", null, "", "", "", "", "", ""),
+                new AgentPolicy.Rules(List.of(), factory.rules().board(), List.of("Pregunta una sola vez."), "", null, "", "", "", "", "", "", "", "", ""),
                 new AgentPolicy.Limits(3, 0, 5, 0, 0, 0),
                 new AgentPolicy.Messages("Revisa, {persona}.", "", "", "", "", "", "", "", "", "", ""),
                 new AgentPolicy.RepoTemplates("", "", "", "", "", "", "", ""), false, 1);

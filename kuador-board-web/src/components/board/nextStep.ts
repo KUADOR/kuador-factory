@@ -1,6 +1,6 @@
 import type { AgentMode, AgentRun, BoardColumn, Issue, Me, Member, Project } from "@/lib/types";
 
-import { canMove, roleList, stageOf } from "./stages";
+import { canMove, reviewFor, reviewerRole, roleList, stageOf } from "./stages";
 
 /** Una acción que el «Siguiente paso» ofrece con un botón. */
 export type StepAction =
@@ -80,6 +80,30 @@ export function nextStep(c: StepContext): NextStep {
   if (stage?.gate) {
     const approvers = roleList(stage.approvers, roleName, "cualquier persona del equipo");
     const canApprove = me.kind === "HUMAN" && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
+    const mode = reviewFor(stage, issue.reviewBy);
+    if (mode !== "PERSON" && assignee?.kind !== "HUMAN") {
+      const reviewer = agents.find((a) => a.role === reviewerRole(stage));
+      if (!reviewer) {
+        return {
+          tone: "warn",
+          title: "Esta puerta la revisa un agente, pero no hay Agente Revisor en el equipo.",
+          detail: "Guarda de nuevo las etapas (Configuración → Etapas) para sumarlo, o apruébala tú.",
+          actions: [],
+        };
+      }
+      return {
+        tone: "working",
+        title: assignee ? `${reviewer.name} la está revisando.` : `${reviewer.name} la revisa en cuanto la tome.`,
+        detail:
+          mode === "AGENT_ESCALATE"
+            ? `Aprueba lo claro, devuelve lo que falla y te deja lo dudoso con su análisis.${canApprove ? " Igual puedes aprobarla o devolverla tú." : ""}`
+            : `Aprueba o devuelve; solo pasa a una persona si no puede decidir.${canApprove ? " Igual puedes decidir tú." : ""}`,
+        actions: !assignee && canEdit ? [{ kind: "assign", memberId: reviewer.id, label: `Que la revise ${reviewer.name}` }] : [],
+      };
+    }
+    if (mode !== "PERSON" && assignee?.kind === "HUMAN" && canApprove) {
+      return { tone: "action", title: "El agente revisor te la dejó: decides tú.", detail: "Lee su análisis en los comentarios y apruébala o devuélvela.", actions: [] };
+    }
     return canApprove
       ? { tone: "action", title: "Te toca revisar y aprobar.", detail: "Aprueba para que pase a la etapa siguiente o recházala con lo que hay que corregir.", actions: [] }
       : { tone: "wait", title: `Espera la aprobación de ${approvers}.`, detail: assignee ? `Avisado: ${assignee.name}.` : undefined, actions: [] };

@@ -60,6 +60,13 @@ class AgentChain {
         chain(event.workspaceId(), event.projectKey(), event.issueKey(), event.actorId());
     }
 
+    /** Una persona pidió que una tarjeta la revise el agente (o una persona): si está en una puerta, se reasigna. */
+    @Async
+    @TransactionalEventListener
+    void on(ec.kuador.board.issue.IssueUpdated event) {
+        if (event.changes().stream().anyMatch(c -> c.field().equals("reviewBy"))) chain(event.workspaceId(), event.projectKey(), event.issueKey(), event.actorId());
+    }
+
     private void chain(UUID workspaceId, String projectKey, String issueKey, UUID actorId) {
         TenantContext.run(workspaceId, () -> {
             try {

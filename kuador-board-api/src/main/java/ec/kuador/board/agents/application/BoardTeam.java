@@ -182,6 +182,28 @@ public class BoardTeam extends TenantAwareListener {
         });
     }
 
+    /**
+     * Un tablero puso una puerta en revisión por agente: si el espacio no tiene un agente con ese rol, se crea; se suma
+     * al equipo del tablero y trabaja en el tablero (revisa los PRs en GitHub, no necesita una PC).
+     */
+    @TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.BEFORE_COMMIT)
+    void on(ec.kuador.board.project.ReviewersNeeded event) {
+        for (String roleKey : event.roles()) {
+            Optional<AgentRole> role = catalog.role(roleKey);
+            if (role.isEmpty() || role.get().worksOnCode()) continue;
+            MemberView agent = members.agents().stream().filter(m -> m.role().equals(roleKey)).findFirst().orElseGet(() -> {
+                CatalogApi.AgentSeed seed = catalog.agentSeed(roleKey).orElse(new CatalogApi.AgentSeed(roleKey, "Agente " + role.get().name(), COLORS[0]));
+                return members.createAgent(roleKey, seed.memberName(), role.get().description(), seed.color());
+            });
+            store.addToTeam(event.workspaceId(), event.projectKey(), agent.id());
+            AgentTeamStore.Profile p = store.profile(agent.id()).orElse(null);
+            if (p == null || p.mode() != AgentMode.SERVER) {
+                store.saveProfile(event.workspaceId(), new AgentTeamStore.Profile(agent.id(), AgentMode.SERVER, p == null ? null : p.model(),
+                        p == null ? null : p.effort()), clock.instant());
+            }
+        }
+    }
+
     private TeamAgent view(MemberView m, AgentTeamStore.Profile p, boolean inTeam, AgentPolicy policy) {
         AgentPolicy.Tuning t = policy.tuning(m.role());
         Optional<AgentRole> role = catalog.role(m.role());

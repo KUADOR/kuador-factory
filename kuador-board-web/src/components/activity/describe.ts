@@ -9,6 +9,7 @@ function fieldLabel(field: string | null, project: Project): string {
     storyPoints: project.kind === "SOFTWARE" ? "los story points" : "los puntos",
     parent: `la ${parentLabel(project).toLowerCase()}`,
     labels: "las etiquetas",
+    reviewBy: "quién la revisa en las puertas",
   };
   return labels[field ?? ""] ?? field ?? "";
 }
@@ -25,6 +26,8 @@ function value(field: string | null, raw: string | null, members: Map<string, Me
       return PRIORITY_LABEL[raw as Priority] ?? raw;
     case "assignee":
       return members.get(raw)?.name ?? "un miembro eliminado";
+    case "reviewBy":
+      return raw === "PERSON" ? "siempre una persona" : raw === "AGENT" ? "el agente revisor" : raw;
     default:
       return raw;
   }

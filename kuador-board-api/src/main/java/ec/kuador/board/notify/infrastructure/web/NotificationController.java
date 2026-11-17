@@ -61,6 +61,23 @@ class NotificationController {
         return service.unlinkTelegram(who);
     }
 
+    record PushRequest(String endpoint, PushKeys keys) {}
+
+    record PushKeys(String p256dh, String auth) {}
+
+    /** Este dispositivo recibe notificaciones push (el navegador manda su suscripción). */
+    @PostMapping("/api/notifications/push")
+    NotificationService.View subscribePush(@AuthenticationPrincipal AuthenticatedMember who, @RequestBody PushRequest r,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
+        return service.subscribePush(who, r.endpoint(), r.keys() == null ? null : r.keys().p256dh(), r.keys() == null ? null : r.keys().auth(), userAgent);
+    }
+
+    /** Este dispositivo deja de recibirlas. */
+    @DeleteMapping("/api/notifications/push")
+    NotificationService.View unsubscribePush(@AuthenticationPrincipal AuthenticatedMember who, @RequestBody PushRequest r) {
+        return service.unsubscribePush(who, r.endpoint());
+    }
+
     @PostMapping("/api/notifications/test")
     Map<String, List<Channel.Kind>> test(@AuthenticationPrincipal AuthenticatedMember who) {
         return Map.of("channels", service.test(who));

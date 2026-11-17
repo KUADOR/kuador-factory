@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cache } from "react";
 import { Archivo, Martian_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 
 import { AppShell } from "@/components/shell/AppShell";
+import { ServiceWorker } from "@/components/shell/ServiceWorker";
 import { Toaster } from "@/components/ui/Toaster";
 import { boardApi } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
@@ -21,17 +22,19 @@ const martian = Martian_Mono({ subsets: ["latin"], variable: "--font-martian", d
 
 
 /** Datos del armazón (una sola vez por petición). Sin sesión o con la API caída no hay armazón: cada página decide. */
-const shellData = cache(async function shellData(): Promise<{ me: Me; workspace: Workspace | null; projects: Project[]; plan: WorkspacePlan | null } | null> {
+const shellData = cache(async function shellData(): Promise<{ me: Me; workspace: Workspace | null; projects: Project[]; plan: WorkspacePlan | null; decisions: number } | null> {
   if (!(await getSessionToken())) return null;
   try {
-    const [me, workspace, projects, plan] = await Promise.all([
+    const [me, workspace, projects, plan, decisions] = await Promise.all([
       boardApi.me(),
       boardApi.workspace().catch(() => null),
       boardApi.projects().catch(() => [] as Project[]),
       // Para la franja de vencimiento; sin planes (instalación propia) o sin permiso, no hay franja.
       boardApi.workspacePlan().catch(() => undefined),
+      // Cuántas decisiones esperan a quien mira (el número junto a «Mis decisiones»).
+      boardApi.decisions().then((d) => d.length).catch(() => 0),
     ]);
-    return { me, workspace, projects, plan: plan ?? null };
+    return { me, workspace, projects, plan: plan ?? null, decisions };
   } catch {
     return null;
   }
@@ -44,8 +47,13 @@ export async function generateMetadata(): Promise<Metadata> {
     title: name ? { default: name, template: `%s · ${name}` } : { default: "Kuador Go", template: "%s · Kuador Go" },
     description: "Tablero de trabajo: personas y agentes de IA en el mismo flujo.",
     robots: { index: false, follow: false },
+    // App instalable: en iPhone se abre a pantalla completa con su ícono.
+    appleWebApp: { capable: true, title: "Kuador", statusBarStyle: "black-translucent" },
+    icons: { apple: "/icons/apple-touch-icon.png" },
   };
 }
+
+export const viewport: Viewport = { themeColor: "#0a0e14", viewportFit: "cover" };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
@@ -64,6 +72,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             children
           )}
           <Toaster />
+          <ServiceWorker />
         </PrimeProvider>
       </body>
     </html>

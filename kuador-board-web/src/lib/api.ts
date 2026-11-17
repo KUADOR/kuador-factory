@@ -79,8 +79,7 @@ import type {
   AiModelPrice,
   AuditPage,
   AiProvider,
-  AiUsageReport,
-} from "./types";
+  AiUsageReport, CardPull, Decision, Merged, PushSubscriptionInput } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
 
@@ -270,6 +269,8 @@ export const boardApi = {
   telegramLink: () => request<{ url: string }>("/api/notifications/telegram/link", { method: "POST" }),
   unlinkTelegram: () => request<NotificationView>("/api/notifications/telegram", { method: "DELETE" }),
   testNotifications: () => request<{ channels: string[] }>("/api/notifications/test", { method: "POST" }),
+  subscribePush: (s: PushSubscriptionInput) => request<NotificationView>("/api/notifications/push", json("POST", s)),
+  unsubscribePush: (endpoint: string) => request<NotificationView>("/api/notifications/push", json("DELETE", { endpoint })),
   updateLanguages: (team: Language, code: Language) => request<Workspace>("/api/workspace/languages", json("PUT", { team, code })),
   oauthClient: (clientId: string, redirectUri: string | null) =>
     request<OAuthClientInfo>(`/api/oauth/client?${new URLSearchParams([["client_id", clientId], ...(redirectUri ? [["redirect_uri", redirectUri]] : [])])}`),
@@ -384,6 +385,10 @@ export const boardApi = {
 
   members: () => request<Member[]>("/api/members"),
   agentsStatus: () => request<AgentsStatus>("/api/agents/status"),
+  decisions: () => request<Decision[]>("/api/me/decisions"),
+  cardPulls: (key: string) => request<CardPull[]>(`/api/issues/${encodeURIComponent(key)}/pulls`),
+  mergePull: (key: string, repository: string, number: number, approve: boolean) =>
+    request<Merged>(`/api/issues/${encodeURIComponent(key)}/merge`, json("POST", { repository, number, approve })),
   agentRuns: (filter: { agentId?: string; issueKey?: string; limit?: number }) => {
     const q = new URLSearchParams();
     if (filter.agentId) q.set("agentId", filter.agentId);

@@ -73,6 +73,11 @@ public class InMemoryProjects implements ProjectApi {
     }
 
     @Override
+    public java.util.List<String> visibleKeys() {
+        return java.util.List.copyOf(all.keySet());
+    }
+
+    @Override
     public java.util.Set<String> agentBoardsOf(java.util.UUID agentId) {
         return all.keySet();
     }

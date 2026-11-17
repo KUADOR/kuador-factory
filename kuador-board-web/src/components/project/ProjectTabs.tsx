@@ -8,7 +8,7 @@ import { useAccess } from "@/components/shell/AccessContext";
 import type { ProjectKind } from "@/lib/types";
 
 /** Pestañas del proyecto (navegación entre páginas). Documentos y sincronización solo en software. */
-export function ProjectTabs({ projectKey, kind }: { projectKey: string; kind: ProjectKind }) {
+export function ProjectTabs({ projectKey, kind, templateKey }: { projectKey: string; kind: ProjectKind; templateKey?: string | null }) {
   const path = usePathname();
   const { canEdit, canAdminister } = useAccess();
   const base = `/projects/${projectKey}`;
@@ -20,6 +20,8 @@ export function ProjectTabs({ projectKey, kind }: { projectKey: string; kind: Pr
           ...(canAdminister ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
         ]
       : []),
+    // Tableros de ventas: los prospectos con su próxima acción, para el celular.
+    ...(templateKey === "SALES" ? [{ href: `${base}/sales`, label: "En movimiento" }] : []),
     { href: `${base}/office`, label: "Oficina" },
     { href: `${base}/activity`, label: "Actividad" },
     ...(canEdit ? [{ href: `${base}/settings`, label: "Configuración" }] : []),

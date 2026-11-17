@@ -59,6 +59,7 @@ class CodeReviewServiceTest {
                 return Optional.of(new PullDetail(pulls(a).getFirst(), "sha", List.of(), false, List.of(), null));
             }
             public Optional<String> file(Access a, String ref, String path) { return Optional.of("contenido"); }
+            public String merge(Access a, int n, String headSha, String title) { return "abc1234def"; }
         };
         return new CodeReviewService(records, components, List.of(host));
     }

@@ -60,7 +60,18 @@ const nextConfig: NextConfig = {
     return OLD_ROUTES.map(([source, destination]) => ({ source, destination, permanent: true }));
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // El service worker siempre fresco (si no, una versión vieja seguiría mostrando avisos con la lógica anterior).
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+    ];
   },
 };
 

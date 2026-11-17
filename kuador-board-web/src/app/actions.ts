@@ -44,6 +44,9 @@ import type {
   Language,
   NotificationSettings,
   NotificationView,
+  PushSubscriptionInput,
+  CardPull,
+  Merged,
   Member,
   MemberAccess,
   MemberKind,
@@ -264,6 +267,22 @@ export async function listMethodologiesAction(): Promise<ActionResult<Methodolog
 }
 
 // ---- Espacio de trabajo y catálogo (solo personas) ----
+
+export async function cardPullsAction(key: string): Promise<ActionResult<CardPull[]>> {
+  return run(() => boardApi.cardPulls(key));
+}
+
+export async function mergePullAction(projectKey: string, key: string, repository: string, number: number): Promise<ActionResult<Merged>> {
+  return run(() => boardApi.mergePull(key, repository, number, true), `/projects/${projectKey}`);
+}
+
+export async function subscribePushAction(s: PushSubscriptionInput): Promise<ActionResult<NotificationView>> {
+  return run(() => boardApi.subscribePush(s), "/account");
+}
+
+export async function unsubscribePushAction(endpoint: string): Promise<ActionResult<NotificationView>> {
+  return run(() => boardApi.unsubscribePush(endpoint), "/account");
+}
 
 export async function updateNotificationsAction(input: Omit<NotificationSettings, "telegramChatId">): Promise<ActionResult<NotificationView>> {
   return run(() => boardApi.updateNotifications(input), "/account");

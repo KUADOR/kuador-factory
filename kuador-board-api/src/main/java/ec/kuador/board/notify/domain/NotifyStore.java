@@ -25,6 +25,22 @@ public interface NotifyStore {
 
     void enqueue(Notice notice, Instant now);
 
+    // ---- Notificaciones push: una suscripción por dispositivo de la persona ----
+
+    record PushSubscription(UUID id, UUID workspaceId, UUID memberId, String endpoint, String p256dh, String auth) {}
+
+    /** Guarda o renueva la suscripción de un dispositivo (el endpoint la identifica). */
+    void savePush(PushSubscription subscription, String userAgent, Instant now);
+
+    List<PushSubscription> pushSubscriptions(UUID memberId);
+
+    Optional<PushSubscription> pushSubscription(UUID id);
+
+    void deletePush(UUID id);
+
+    /** Quita la suscripción de ese dispositivo de la persona. */
+    void deletePush(UUID memberId, String endpoint);
+
     /** Avisos listos para enviar, bloqueados para este proceso (otras réplicas los saltan). Llamar dentro de una transacción. */
     List<Notice> lockDue(Instant now, int limit);
 

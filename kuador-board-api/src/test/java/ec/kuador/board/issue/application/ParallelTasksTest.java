@@ -28,6 +28,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 class ParallelTasksTest {
 
     private static final UUID OWNER = UUID.randomUUID();
+    private static final UUID DEV = UUID.randomUUID();
+    private static final UUID PO = UUID.randomUUID();
 
     private IssueService service(boolean autoPlan) {
         InMemoryProjects projects = new InMemoryProjects();
@@ -36,7 +38,9 @@ class ParallelTasksTest {
                 new StageDef("IN_PROGRESS", List.of("BACKEND", "FRONTEND"), false, List.of(), null, null, autoPlan),
                 new StageDef("IN_REVIEW", List.of(), true, List.of("OWNER"), "IN_PROGRESS"));
         InMemoryMembers members = new InMemoryMembers();
-        members.add(new MemberView(OWNER, TestTenant.WORKSPACE, "Diana", false, "OWNER", "#fff", null));
+        members.add(new MemberView(OWNER, TestTenant.WORKSPACE, "Diana", false, "OWNER", "#fff", null, ec.kuador.board.member.MemberAccess.OWNER));
+        members.add(new MemberView(DEV, TestTenant.WORKSPACE, "Dani", false, "DEV", "#fff", null));
+        members.add(new MemberView(PO, TestTenant.WORKSPACE, "Agente PO", true, "PRODUCT_OWNER", "#fff", null));
         return new IssueService(new IssueServiceTest.InMemoryIssues(), projects, members, new InMemoryCatalog(), e -> {},
                 Clock.fixed(Instant.parse("2026-11-17T12:00:00Z"), ZoneOffset.UTC));
     }
@@ -96,5 +100,26 @@ class ParallelTasksTest {
 
         assertThat(service.taskInfo(backend).orElseThrow().pendingDependencies()).as("backend y frontend arrancan a la vez").isEmpty();
         assertThat(service.taskInfo(frontend).orElseThrow().pendingDependencies()).isEmpty();
+    }
+
+    @Test
+    void myDecisionsListGatesSplitsAndCardsAnAgentLeftMe() {
+        IssueService service = service(false);
+        Issue epic = epic(service);
+        planPatients(service, epic);
+        service.move(epic.key(), "IN_PROGRESS", 0, OWNER); // reparto por aprobar
+        Issue pr = service.create("KUA", new IssueDetails("Corrige IVA", null, IssueType.STORY, null, null, null, null, null), OWNER, "IN_PROGRESS");
+        service.move(pr.key(), "IN_REVIEW", 0, OWNER); // en la puerta que aprueba OWNER
+        Issue asked = service.create("KUA", new IssueDetails("Historia clínica", null, IssueType.STORY, null, null, null, null, null), OWNER, "TODO");
+        service.assign(asked.key(), OWNER, PO);
+        service.addComment(asked.key(), PO, "**Necesito una decisión:** ¿guardamos alergias como texto o catálogo?");
+
+        List<IssueService.Decision> mine = service.decisionsFor(OWNER);
+        assertThat(mine).extracting(IssueService.Decision::kind, IssueService.Decision::issueKey)
+                .contains(org.assertj.core.groups.Tuple.tuple("GATE", pr.key()), org.assertj.core.groups.Tuple.tuple("PLAN", epic.key()),
+                        org.assertj.core.groups.Tuple.tuple("HANDED", asked.key()));
+        assertThat(mine.stream().filter(d -> d.kind().equals("HANDED")).findFirst().orElseThrow().detail()).contains("alergias");
+        assertThat(service.decisionsFor(DEV)).as("no aprueba esa puerta ni supervisa nada").isEmpty();
+        assertThat(service.decisionsFor(PO)).as("un agente no tiene decisiones").isEmpty();
     }
 }

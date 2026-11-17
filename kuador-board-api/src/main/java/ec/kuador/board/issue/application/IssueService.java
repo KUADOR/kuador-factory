@@ -583,6 +583,70 @@ public class IssueService implements IssueApi {
         return move(key, target, Integer.MAX_VALUE, actorId);
     }
 
+    // ---- Mis decisiones ----
+
+    /**
+     * Algo que espera la decisión de una persona. {@code kind}: GATE (una puerta que aprueba), PLAN (el reparto de una
+     * épica) o HANDED (un agente le dejó la tarjeta: una pregunta, un escalamiento o un trabajo devuelto).
+     */
+    public record Decision(String kind, String issueKey, String projectKey, String projectName, String title, String column,
+            String columnName, String detail, String from, Instant since) {}
+
+    /** Lo que espera a esta persona en los tableros que ve, lo más antiguo primero. */
+    @Transactional(readOnly = true)
+    public List<Decision> decisionsFor(UUID memberId) {
+        MemberView me = requireMember(memberId);
+        if (me.agent()) return List.of();
+        List<Decision> out = new ArrayList<>();
+        for (String key : projects.visibleKeys()) {
+            ProjectView project = project(key);
+            String projectName = project.name();
+            // Puertas que aprueba: sin un agente revisándolas y sin otra persona que ya la tenga.
+            for (StageDef gate : project.stages()) {
+                if (!gate.gate() || !gate.approvableBy(me.role())) continue;
+                for (Issue i : issues.findColumn(key, gate.column())) {
+                    UUID assignee = i.assigneeId();
+                    if (assignee != null && !assignee.equals(memberId)) continue;
+                    if (assignee == null && agentReviewed(i, project)) continue;
+                    out.add(decision("GATE", i, project, projectName, lastComment(i).orElse(null)));
+                }
+            }
+            // Repartos de épicas por aprobar: los ve quien la supervisa (o quien administra, si nadie la supervisa).
+            for (Issue epic : issues.findByProject(key, IssueFilter.none())) {
+                if (epic.type() != IssueType.EPIC || !workStage(project, epic.status()) || waitingTasks(epic, project).isEmpty()) continue;
+                boolean mine = memberId.equals(epic.supervisorId()) || (epic.supervisorId() == null && me.administers());
+                if (mine) out.add(decision("PLAN", epic, project, projectName, lastComment(epic).orElse(null)));
+            }
+            // Tarjetas que un agente le dejó: la tiene asignada y lo último lo escribió un agente.
+            for (Issue i : issues.findByProject(key, new IssueFilter(null, memberId, null))) {
+                if (!memberId.equals(i.assigneeId()) || isDone(project, i.status()) || project.stage(i.status()).map(StageDef::gate).orElse(false)) continue;
+                Optional<Comment> last = lastComment(i);
+                if (last.isPresent() && members.find(last.get().authorId()).map(MemberView::agent).orElse(false)) {
+                    out.add(decision("HANDED", i, project, projectName, last.get()));
+                }
+            }
+        }
+        out.sort(java.util.Comparator.comparing(Decision::since, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
+        return out;
+    }
+
+    private Optional<Comment> lastComment(Issue issue) {
+        List<Comment> all = issues.findComments(issue);
+        return all.isEmpty() ? Optional.empty() : Optional.of(all.getLast());
+    }
+
+    private Decision decision(String kind, Issue i, ProjectView project, String projectName, Comment last) {
+        String from = last == null ? null : members.find(last.authorId()).map(MemberView::name).orElse(null);
+        String detail = last == null ? null : excerpt(last.body());
+        return new Decision(kind, i.key(), project.key(), projectName, i.title(), i.status(), columnName(project, i.status()), detail, from,
+                last == null ? i.updatedAt() : last.createdAt());
+    }
+
+    private static String excerpt(String text) {
+        String flat = text.replaceAll("\\s+", " ").strip();
+        return flat.length() <= 280 ? flat : flat.substring(0, 277) + "…";
+    }
+
     // ---- Puertas que revisa un agente ----
 
     /** La tarjeta está en una puerta que, para ella, revisa un agente, y hay un agente con ese rol en el espacio. */
@@ -626,6 +690,22 @@ public class IssueService implements IssueApi {
                 List.of(new IssueUpdated.Change("reviewBy", before, saved.reviewBy()))));
         publishAssignmentIfChanged(saved, previousAssignee, actorId, now);
         return saved;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canApproveGate(String issueKey, UUID actorId) {
+        Optional<Issue> found = issues.findByKey(issueKey);
+        Optional<MemberView> actor = members.find(actorId);
+        if (found.isEmpty() || actor.isEmpty() || actor.get().agent()) return false;
+        return project(found.get().projectKey()).stage(found.get().status()).filter(StageDef::gate)
+                .map(g -> g.approvableBy(actor.get().role())).orElse(false);
+    }
+
+    @Override
+    @Transactional
+    public Progress approveGate(String issueKey, String comment, UUID actorId) {
+        return progress(review(issueKey, true, comment, actorId));
     }
 
     @Override

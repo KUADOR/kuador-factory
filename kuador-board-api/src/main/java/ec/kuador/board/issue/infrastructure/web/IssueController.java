@@ -38,6 +38,12 @@ class IssueController {
         this.service = service;
     }
 
+    /** «Mis decisiones»: lo que espera a quien pide en los tableros que ve (puertas, repartos y tarjetas que un agente le dejó). */
+    @GetMapping("/api/me/decisions")
+    List<IssueService.Decision> decisions(@AuthenticationPrincipal AuthenticatedMember who) {
+        return who.runner() ? List.of() : service.decisionsFor(who.memberId());
+    }
+
     @GetMapping("/api/projects/{projectKey}/issues")
     List<IssueResponse> board(
             @PathVariable String projectKey,

@@ -66,6 +66,14 @@ class GitHubCodeHost implements CodeHost {
     }
 
     @Override
+    public String merge(Access access, int number, String headSha, String title) {
+        JsonNode r = client(access).put("/repos/" + access.repository() + "/pulls/" + number + "/merge",
+                java.util.Map.of("merge_method", "squash", "sha", headSha, "commit_title", title));
+        if (!r.path("merged").asBoolean(false)) throw new ec.kuador.board.shared.error.ConflictException("GitHub no fusionó el PR: " + r.path("message").asString("sin motivo"));
+        return r.path("sha").asString("");
+    }
+
+    @Override
     public Optional<PullDetail> pull(Access access, int number) {
         GitHubClient client = client(access);
         String repo = access.repository();

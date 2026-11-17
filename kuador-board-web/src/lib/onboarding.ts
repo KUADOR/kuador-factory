@@ -25,7 +25,7 @@ export function setupDone(
     repository: !!link?.linked,
     client: connections.length > 0,
     ai: aiConfigured,
-    notifications: !!s && ((s.email && !!notifications?.emailAvailable) || (s.telegram && s.telegramChatId != null)),
+    notifications: (notifications?.pushDevices ?? 0) > 0 || (!!s && ((s.email && !!notifications?.emailAvailable) || (s.telegram && s.telegramChatId != null))),
     firstWork: issues > 0,
   };
 }

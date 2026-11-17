@@ -55,9 +55,13 @@ public class NotificationService {
     private final WorkspaceApi workspace;
     private final Clock clock;
     private final TransactionTemplate tx;
+    /** Clave pública VAPID: el navegador la necesita para suscribirse a las notificaciones push. */
+    private final String pushPublicKey;
 
     NotificationService(NotifyStore store, List<Channel> channels, TelegramGateway telegram, TelegramBots bots, AuthApi auth, MemberApi members,
-            WorkspaceApi workspace, Clock clock, PlatformTransactionManager txManager) {
+            WorkspaceApi workspace, Clock clock, PlatformTransactionManager txManager,
+            @org.springframework.beans.factory.annotation.Value("${board.push.vapid-public-key:}") String pushPublicKey) {
+        this.pushPublicKey = pushPublicKey.isBlank() ? null : pushPublicKey.strip();
         this.store = store;
         this.channels = channels.stream().collect(Collectors.toMap(Channel::kind, Function.identity()));
         this.telegram = telegram;
@@ -69,14 +73,44 @@ public class NotificationService {
         this.tx = new TransactionTemplate(txManager);
     }
 
-    /** Lo que ve la persona en Mi cuenta. */
-    public record View(NotificationSettings settings, String email, boolean emailAvailable, boolean telegramAvailable, String telegramBot) {}
+    /**
+     * Lo que ve la persona en Mi cuenta. {@code pushPublicKey}: con ella el navegador se suscribe (nulo = push no
+     * configurado); {@code pushDevices}: cuántos dispositivos suyos reciben notificaciones.
+     */
+    public record View(NotificationSettings settings, String email, boolean emailAvailable, boolean telegramAvailable, String telegramBot,
+            String pushPublicKey, int pushDevices) {}
 
     public View view(AuthenticatedMember who) {
         requirePerson(who);
         Optional<TelegramBotConfig> bot = bots.forWorkspace(who.workspaceId());
+        boolean push = pushAvailable();
         return new View(settings(who.memberId()), auth.emailOf(who.memberId()).orElse(null), channels.get(Channel.Kind.EMAIL).available(),
-                bot.isPresent(), bot.map(TelegramBotConfig::username).orElse(null));
+                bot.isPresent(), bot.map(TelegramBotConfig::username).orElse(null), push ? pushPublicKey : null,
+                push ? store.pushSubscriptions(who.memberId()).size() : 0);
+    }
+
+    /** Este dispositivo recibe notificaciones push (activarlas en el dispositivo es el consentimiento). */
+    public View subscribePush(AuthenticatedMember who, String endpoint, String p256dh, String auth, String userAgent) {
+        requirePerson(who);
+        if (!pushAvailable()) throw new DomainException("Las notificaciones push no están configuradas en este servidor.");
+        if (endpoint == null || !endpoint.startsWith("https://") || endpoint.length() > 1000 || p256dh == null || auth == null) {
+            throw new DomainException("La suscripción del navegador no es válida.");
+        }
+        store.savePush(new NotifyStore.PushSubscription(UUID.randomUUID(), who.workspaceId(), who.memberId(), endpoint.strip(), p256dh.strip(), auth.strip()),
+                userAgent, clock.instant());
+        return view(who);
+    }
+
+    /** Este dispositivo deja de recibir notificaciones push. */
+    public View unsubscribePush(AuthenticatedMember who, String endpoint) {
+        requirePerson(who);
+        if (endpoint != null) store.deletePush(who.memberId(), endpoint.strip());
+        return view(who);
+    }
+
+    private boolean pushAvailable() {
+        Channel push = channels.get(Channel.Kind.PUSH);
+        return pushPublicKey != null && push != null && push.available();
     }
 
     /** Guarda canales y avisos; el chat de Telegram no se toca aquí (se vincula con el bot). */
@@ -109,7 +143,7 @@ public class NotificationService {
         requirePerson(who);
         List<Channel.Kind> used = enqueue(who.workspaceId(), who.memberId(), NoticeKind.TEST, "Prueba de avisos del tablero",
                 "Si lees esto, este canal funciona. Te avisaremos cuando algo te necesite.", null);
-        if (used.isEmpty()) throw new DomainException("No tienes ningún canal encendido y disponible: activa el correo o vincula Telegram.");
+        if (used.isEmpty()) throw new DomainException("No tienes ningún canal encendido y disponible: activa el correo, vincula Telegram o activa las notificaciones en este dispositivo.");
         return used;
     }
 
@@ -128,6 +162,14 @@ public class NotificationService {
                 store.enqueue(new Notice(UUID.randomUUID(), workspaceId, memberId, Channel.Kind.EMAIL, address, subject, body + footer, link, 0, now), now);
                 used.add(Channel.Kind.EMAIL);
             });
+        }
+        // Push: cada dispositivo donde la persona activó las notificaciones.
+        if (pushAvailable()) {
+            List<NotifyStore.PushSubscription> devices = store.pushSubscriptions(memberId);
+            for (NotifyStore.PushSubscription d : devices) {
+                store.enqueue(new Notice(UUID.randomUUID(), workspaceId, memberId, Channel.Kind.PUSH, d.id().toString(), subject, body, link, 0, now), now);
+            }
+            if (!devices.isEmpty()) used.add(Channel.Kind.PUSH);
         }
         if (s.telegram() && s.telegramChatId() != null && bots.forWorkspace(workspaceId).isPresent()) {
             store.enqueue(new Notice(UUID.randomUUID(), workspaceId, memberId, Channel.Kind.TELEGRAM, String.valueOf(s.telegramChatId()), subject, body + footer,

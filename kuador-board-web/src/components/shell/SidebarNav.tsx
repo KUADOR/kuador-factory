@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Plus, Settings, ShieldCheck, Users } from "lucide-react";
+import { Activity, Inbox, Lightbulb, LogOut, Plus, Settings, ShieldCheck, Users } from "lucide-react";
 import { clsx } from "clsx";
 
 import { logoutAction } from "@/app/actions";
@@ -31,7 +31,19 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
 }
 
 /** Navegación principal: los proyectos arriba; abajo, configuración del espacio y plataforma; al pie, la persona y el tema. */
-export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspace: Workspace | null; projects: Project[]; theme: ThemeMode }) {
+export function SidebarNav({
+  me,
+  workspace,
+  projects,
+  decisions,
+  theme,
+}: {
+  me: Me;
+  workspace: Workspace | null;
+  projects: Project[];
+  decisions: number;
+  theme: ThemeMode;
+}) {
   const path = usePathname();
   const inProject = (key: string) => path === `/projects/${key}` || path.startsWith(`/projects/${key}/`);
   const editor = canEdit(me);
@@ -53,6 +65,25 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
       )}
 
       <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-2 py-4">
+        <div className="flex flex-col gap-0.5">
+        <NavLink href="/decisions" active={path === "/decisions"}>
+          <Inbox className="size-4 shrink-0" aria-hidden />
+          <span className="flex-1">Mis decisiones</span>
+          {decisions > 0 && (
+            <span className="tabular rounded-full bg-sol px-1.5 text-[11px] font-semibold text-on-sol">{decisions > 99 ? "99+" : decisions}</span>
+          )}
+        </NavLink>
+        <NavLink href="/pulse" active={path === "/pulse"}>
+          <Activity className="size-4 shrink-0" aria-hidden />
+          Pulso del día
+        </NavLink>
+        {editor && (
+          <NavLink href="/capture" active={path === "/capture"}>
+            <Lightbulb className="size-4 shrink-0" aria-hidden />
+            Capturar una idea
+          </NavLink>
+        )}
+        </div>
         <div className="flex flex-col gap-0.5">
           <div className="flex h-7 items-center justify-between pr-1 pl-2.5">
             <Link href="/" className={clsx("text-[11px] font-medium", path === "/" ? "text-fg-strong" : "text-fg-faint hover:text-fg-strong")}>

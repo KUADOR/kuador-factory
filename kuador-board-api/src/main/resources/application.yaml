@@ -80,6 +80,11 @@ board:
   # dominio público protegido, abrir el resto de la API solo a la web.
   web:
     secret: ${BOARD_WEB_SECRET:}
+  push:
+    # Notificaciones push de la app instalada: claves VAPID (P-256, base64url). Sin ellas, el canal no está disponible.
+    vapid-public-key: ${BOARD_PUSH_VAPID_PUBLIC_KEY:}
+    vapid-private-key: ${BOARD_PUSH_VAPID_PRIVATE_KEY:}
+    subject: ${BOARD_PUSH_SUBJECT:mailto:no-reply@kuador.com}
   agents:
     # Los agentes del tablero usan la clave de IA de cada espacio (Conexiones → IA); sin ella, cada asignación queda SKIPPED.
     model: ${BOARD_AGENTS_MODEL:claude-opus-5-5}

@@ -9,6 +9,9 @@ public interface ProjectApi {
 
     Optional<ProjectView> find(String projectKey);
 
+    /** Las claves de los tableros que puede ver quien pide (su alcance de tableros). */
+    java.util.List<String> visibleKeys();
+
     /** Nombre visible del proyecto (o su clave si no existe). */
     String name(String projectKey);
 

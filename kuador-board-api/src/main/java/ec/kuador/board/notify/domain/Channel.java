@@ -2,12 +2,14 @@ package ec.kuador.board.notify.domain;
 
 import java.util.UUID;
 
-/** Puerto: un canal de avisos (correo, Telegram). */
+/** Puerto: un canal de avisos (correo, Telegram, notificaciones push de la app instalada). */
 public interface Channel {
 
     enum Kind {
         EMAIL,
-        TELEGRAM
+        TELEGRAM,
+        /** Notificación del navegador o de la app instalada; {@code address} es el id de la suscripción del dispositivo. */
+        PUSH
     }
 
     Kind kind();

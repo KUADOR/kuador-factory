@@ -6,6 +6,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { notificationsAction, telegramLinkAction, testNotificationsAction, unlinkTelegramAction, updateNotificationsAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Field";
+
+import { PushDeviceRow } from "./PushDeviceRow";
 import { QrCode } from "@/components/ui/QrCode";
 import { notify } from "@/components/ui/Toaster";
 import type { NotificationSettings, NotificationView } from "@/lib/types";
@@ -73,6 +75,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
   return (
     <div className="flex flex-col gap-5">
       <ul className="flex flex-col divide-y divide-line rounded-md border border-line">
+        <PushDeviceRow view={view} onChange={setView} />
         <li className="flex items-start gap-3 px-3.5 py-3">
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-fg-strong">Correo</p>

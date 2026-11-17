@@ -22,4 +22,10 @@ public interface CodeHost {
     Optional<PullDetail> pull(Access access, int number);
 
     Optional<String> file(Access access, String ref, String path);
+
+    /**
+     * Fusiona el PR (squash) solo si su último commit sigue siendo {@code headSha}: si llegó otro después de revisarlo,
+     * GitHub lo rechaza. Devuelve el commit resultante en la rama principal.
+     */
+    String merge(Access access, int number, String headSha, String title);
 }

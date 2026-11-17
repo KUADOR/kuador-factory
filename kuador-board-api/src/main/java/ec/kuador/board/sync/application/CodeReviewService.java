@@ -66,6 +66,13 @@ public class CodeReviewService implements CodeReviewApi {
 
     @Override
     @Transactional(readOnly = true)
+    public String merge(String projectKey, String repository, int number, String headSha, String title) {
+        CodeHost.Access a = require(projectKey, repository);
+        return host(a).merge(a, number, headSha, title);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PullDetail pullRequest(String projectKey, String repository, int number) {
         CodeHost.Access a = require(projectKey, repository);
         return host(a).pull(a, number).orElseThrow(() -> new DomainException("No existe el PR #" + number + " en " + a.repository() + "."));

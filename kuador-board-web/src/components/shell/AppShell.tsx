@@ -1,7 +1,8 @@
 "use client";
 
 import { Drawer } from "@primereact/ui/drawer";
-import { Menu } from "lucide-react";
+import { Inbox, Menu, Plus } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
 
@@ -19,7 +20,15 @@ import { SidebarNav } from "./SidebarNav";
  * Armazón de la app: barra lateral fija en escritorio; en pantallas angostas la misma navegación
  * se abre como panel desde la izquierda.
  */
-export function AppShell(props: { me: Me; workspace: Workspace | null; projects: Project[]; plan: WorkspacePlan | null; theme: ThemeMode; children: React.ReactNode }) {
+export function AppShell(props: {
+  me: Me;
+  workspace: Workspace | null;
+  projects: Project[];
+  plan: WorkspacePlan | null;
+  decisions: number;
+  theme: ThemeMode;
+  children: React.ReactNode;
+}) {
   const { children, plan, ...nav } = props;
   // El panel recuerda en qué ruta se abrió: al navegar a otra, queda cerrado sin efectos extra.
   const path = usePathname();
@@ -61,6 +70,26 @@ export function AppShell(props: { me: Me; workspace: Workspace | null; projects:
               <span className="text-[13px] font-semibold text-fg-strong">{nav.workspace?.name ?? "Tablero"}</span>
             </>
           )}
+          {/* En el celular, capturar una idea y lo que te espera, siempre a un toque. */}
+          <Link
+            href="/capture"
+            aria-label="Capturar una idea"
+            className="ml-auto grid size-9 place-items-center rounded-md text-fg-muted hover:bg-hover hover:text-fg-strong"
+          >
+            <Plus className="size-5" aria-hidden />
+          </Link>
+          <Link
+            href="/decisions"
+            aria-label={`Mis decisiones${nav.decisions ? ` (${nav.decisions})` : ""}`}
+            className="relative grid size-9 place-items-center rounded-md text-fg-muted hover:bg-hover hover:text-fg-strong"
+          >
+            <Inbox className="size-5" aria-hidden />
+            {nav.decisions > 0 && (
+              <span className="tabular absolute -top-0.5 -right-0.5 grid min-w-4 place-items-center rounded-full bg-sol px-1 text-[10px] font-semibold text-on-sol">
+                {nav.decisions > 99 ? "99+" : nav.decisions}
+              </span>
+            )}
+          </Link>
         </div>
         {plan && <PlanBanner plan={plan} />}
         <div className="relative flex min-h-0 flex-1 flex-col">

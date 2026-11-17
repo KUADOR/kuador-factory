@@ -20,5 +20,5 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // /attachments queda fuera: el proxy almacenaría el cuerpo de la subida; esas rutas ya exigen la sesión ante la API.
-  matcher: ["/((?!login|signup|reset-password|invitation|attachments/|_next/|icon.svg|favicon.ico).*)"],
+  matcher: ["/((?!login|signup|reset-password|invitation|attachments/|_next/|icon.svg|favicon.ico|manifest.webmanifest|sw.js|icons/).*)"],
 };

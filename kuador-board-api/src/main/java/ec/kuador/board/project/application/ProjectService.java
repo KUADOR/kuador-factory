@@ -187,6 +187,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
 
     @Override
     @Transactional(readOnly = true)
+    public List<String> visibleKeys() {
+        return projects.findAll().stream().map(Project::key).filter(BoardScope::allows).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<ProjectView> find(String projectKey) {
         return projects.findByKey(projectKey).map(p -> new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(),
                 projects.findColumns(p.key()), p.issueTypes(), p.transitions(), p.stages(), p.maxRework()));

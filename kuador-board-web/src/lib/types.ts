@@ -930,4 +930,48 @@ export interface NotificationView {
   emailAvailable: boolean;
   telegramAvailable: boolean;
   telegramBot: string | null;
+  /** Clave pública VAPID para suscribirse a las notificaciones push (null = no configuradas en el servidor). */
+  pushPublicKey: string | null;
+  /** Dispositivos de la persona que reciben notificaciones push. */
+  pushDevices: number;
+}
+
+/** La suscripción push de este navegador, como la da PushSubscription.toJSON(). */
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/** Algo que espera una decisión de quien mira: una puerta, un reparto o una tarjeta que un agente le dejó. */
+export interface Decision {
+  kind: "GATE" | "PLAN" | "HANDED";
+  issueKey: string;
+  projectKey: string;
+  projectName: string;
+  title: string;
+  column: string;
+  columnName: string;
+  /** Lo último que se dijo (la pregunta del agente, su análisis o el comentario más reciente). */
+  detail: string | null;
+  /** Quién lo dijo. */
+  from: string | null;
+  since: string | null;
+}
+
+/** Un PR que menciona la tarjeta, con su CI resumido. */
+export interface CardPull {
+  repository: string;
+  number: number;
+  title: string;
+  url: string;
+  state: string;
+  merged: boolean;
+  ci: "GREEN" | "RED" | "PENDING" | "NONE";
+}
+
+export interface Merged {
+  repository: string;
+  number: number;
+  commit: string;
+  status: string;
 }

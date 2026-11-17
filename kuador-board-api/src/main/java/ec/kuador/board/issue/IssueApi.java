@@ -102,6 +102,16 @@ public interface IssueApi {
         return Optional.empty();
     }
 
+    /** Si esta persona puede aprobar la puerta en la que está la tarjeta ahora. */
+    default boolean canApproveGate(String issueKey, UUID actorId) {
+        return false;
+    }
+
+    /** Una persona aprueba la puerta en la que está la tarjeta (avanza), con un comentario opcional. */
+    default Progress approveGate(String issueKey, String comment, UUID actorId) {
+        throw new UnsupportedOperationException();
+    }
+
     /** El agente revisor cierra la puerta: aprueba (avanza) o rechaza con el motivo (vuelve). */
     default Progress reviewAs(String issueKey, boolean approve, String comment, UUID agentId) {
         throw new UnsupportedOperationException();

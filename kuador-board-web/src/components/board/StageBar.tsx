@@ -14,6 +14,7 @@ import {
   takeIssueAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
+import { PullMerge } from "./PullMerge";
 import { SelectInput, TextArea } from "@/components/ui/Field";
 import { useAccess } from "@/components/shell/AccessContext";
 import { Badge } from "@/components/ui/Section";
@@ -144,6 +145,7 @@ export function StageBar({
           {stage.gate && !isHuman && <p className="text-xs text-fg-muted">Esta puerta la cierra una persona.</p>}
         </div>
       )}
+      {stage?.gate && canApprove && canEdit && project.kind === "SOFTWARE" && !rejecting && <PullMerge projectKey={project.key} issueKey={issue.key} />}
 
       {rejecting && (
         <form

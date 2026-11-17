@@ -167,4 +167,45 @@ class JdbcNotifyStore implements NotifyStore {
     private static String truncate(String s) {
         return s == null ? null : s.length() > 500 ? s.substring(0, 500) : s;
     }
+
+    // ---- Push ----
+
+    @Override
+    public void savePush(PushSubscription p, String userAgent, Instant now) {
+        jdbc.sql("""
+                insert into push_subscription (id, workspace_id, member_id, endpoint, p256dh, auth, user_agent, created_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict (endpoint) do update set workspace_id = excluded.workspace_id, member_id = excluded.member_id,
+                    p256dh = excluded.p256dh, auth = excluded.auth, user_agent = excluded.user_agent""")
+                .params(p.id(), p.workspaceId(), p.memberId(), p.endpoint(), p.p256dh(), p.auth(),
+                        userAgent == null ? null : userAgent.substring(0, Math.min(200, userAgent.length())), java.sql.Timestamp.from(now))
+                .update();
+    }
+
+    @Override
+    public List<PushSubscription> pushSubscriptions(UUID memberId) {
+        return jdbc.sql("select id, workspace_id, member_id, endpoint, p256dh, auth from push_subscription where member_id = ? order by created_at")
+                .param(memberId).query(JdbcNotifyStore::push).list();
+    }
+
+    @Override
+    public Optional<PushSubscription> pushSubscription(UUID id) {
+        return jdbc.sql("select id, workspace_id, member_id, endpoint, p256dh, auth from push_subscription where id = ?")
+                .param(id).query(JdbcNotifyStore::push).optional();
+    }
+
+    @Override
+    public void deletePush(UUID id) {
+        jdbc.sql("delete from push_subscription where id = ?").param(id).update();
+    }
+
+    @Override
+    public void deletePush(UUID memberId, String endpoint) {
+        jdbc.sql("delete from push_subscription where member_id = ? and endpoint = ?").params(memberId, endpoint).update();
+    }
+
+    private static PushSubscription push(java.sql.ResultSet rs, int n) throws java.sql.SQLException {
+        return new PushSubscription(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getObject(3, UUID.class), rs.getString(4),
+                rs.getString(5), rs.getString(6));
+    }
 }

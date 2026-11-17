@@ -88,6 +88,13 @@ BOARD_PLATFORM_ADMINS=
 BOARD_TELEGRAM_BOT_TOKEN=
 BOARD_TELEGRAM_BOT_USERNAME=
 
+# Notificaciones push de la app instalada (Mis decisiones, aprobaciones, preguntas de agentes). Genera el par una
+# sola vez con `npx web-push generate-vapid-keys` (base64url) y no lo cambies: los dispositivos suscritos dependen
+# de la clave pública. Sin estas variables, la app se instala igual pero sin notificaciones push.
+BOARD_PUSH_VAPID_PUBLIC_KEY=
+BOARD_PUSH_VAPID_PRIVATE_KEY=
+BOARD_PUSH_SUBJECT=mailto:soporte@kuador.com
+
 # Documentación de la API apagada en producción.
 SPRINGDOC_API_DOCS_ENABLED=false
 SPRINGDOC_SWAGGER_UI_ENABLED=false

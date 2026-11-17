@@ -16,6 +16,11 @@ public interface AiKeyProvider {
         return Optional.empty();
     }
 
+    /** Cuánto razona el agente (low…max) con la clave de la empresa, si se eligió o lo sugiere su rol. */
+    default Optional<String> effortForAgent(java.util.UUID agentId) {
+        return Optional.empty();
+    }
+
     /** Si el espacio llegó a su tope mensual de IA. */
     default boolean overBudget() {
         return false;

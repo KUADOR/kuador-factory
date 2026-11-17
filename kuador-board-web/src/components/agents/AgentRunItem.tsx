@@ -43,11 +43,28 @@ export function AgentRunItem({ run, agentName, showIssue = false }: { run: Agent
         <p className="font-mono text-[11px] text-fg-faint">Trabajado en {clientName(run.model)}, en el equipo de quien lo supervisa</p>
       ) : run.inputTokens != null && (
         <p className="tabular font-mono text-[11px] text-fg-faint">
-          {run.model} · {run.inputTokens.toLocaleString("es-EC")} tokens de entrada · {(run.outputTokens ?? 0).toLocaleString("es-EC")} de salida
+          {run.model} · {inputOf(run).toLocaleString("es-EC")} tokens de entrada
+          {cachedShare(run) > 0 ? ` (${cachedShare(run)}% del caché)` : ""} · {(run.outputTokens ?? 0).toLocaleString("es-EC")} de salida
+          {run.costUsd != null && <span className="text-fg-muted"> · {usd(run.costUsd)}</span>}
         </p>
       )}
     </li>
   );
+}
+
+/** Toda la entrada: la que no salió del caché, la leída y la guardada. */
+function inputOf(run: AgentRun): number {
+  return (run.inputTokens ?? 0) + (run.cacheReadTokens ?? 0) + (run.cacheWriteTokens ?? 0);
+}
+
+function cachedShare(run: AgentRun): number {
+  const total = inputOf(run);
+  return total > 0 ? Math.round(((run.cacheReadTokens ?? 0) * 100) / total) : 0;
+}
+
+/** Montos chicos (centavos) con más decimales para que no se vean como $0,00. */
+export function usd(n: number): string {
+  return new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: n < 1 ? 3 : 2 }).format(n);
 }
 
 const CLIENT_NAMES: Record<string, string> = { "claude-code": "Claude Code", codex: "Codex", mcp: "un cliente MCP" };

@@ -209,6 +209,13 @@ export interface AgentPolicy extends CatalogEntry {
     failedFinish: string;
   };
   repo: { agentsMd: string; workSteps: string; subagent: string; mcpInstructions: string; readme: string; pieceReadme: string; ci: string; gitignore: string };
+  /** Modelo y esfuerzo sugeridos por rol (clave del rol); null = los del espacio y del proveedor. */
+  roles: Record<string, RoleTuning> | null;
+}
+
+export interface RoleTuning {
+  model: string | null;
+  effort: string | null;
 }
 
 /** «Ver qué recibe»: el pedido que recibiría un agente para una tarjeta, sin llamar al modelo. */
@@ -490,8 +497,13 @@ export interface TeamAgent {
   description: string | null;
   avatarColor: string;
   mode: AgentMode;
-  /** null = el modelo por defecto del espacio. */
+  /** null = el sugerido para su rol o, si no hay, el del espacio. */
   model: string | null;
+  /** Cuánto razona (low…max); null = el sugerido para su rol o el del proveedor. */
+  effort: string | null;
+  /** Lo sugerido para su rol en Catálogo → Reglas de agentes. */
+  suggestedModel: string | null;
+  suggestedEffort: string | null;
   inTeam: boolean;
   /** false = el rol trabaja sobre el código del repo: solo trabaja en la PC de una persona. */
   serverAllowed: boolean;
@@ -503,8 +515,10 @@ export interface AiUsageReport {
   runs: number;
   inputTokens: number;
   outputTokens: number;
+  /** De la entrada, los que salieron del caché de prompts (cuestan ~10%). */
+  cachedTokens: number;
   costUsd: number | null;
-  byAgent: { agentId: string; name: string; runs: number; inputTokens: number; outputTokens: number; costUsd: number | null }[];
+  byAgent: { agentId: string; name: string; runs: number; inputTokens: number; outputTokens: number; cachedTokens: number; costUsd: number | null }[];
   budgetUsd: number | null;
   unpricedModels: string[];
 }
@@ -795,12 +809,18 @@ export interface AgentRun {
   requestedBy: string | null;
   status: AgentRunStatus;
   model: string | null;
+  /** Tokens de entrada que no salieron del caché. */
   inputTokens: number | null;
   outputTokens: number | null;
+  /** Leídos del caché de prompts (cuestan ~10%) y guardados en él. */
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
   summary: string | null;
   error: string | null;
   createdAt: string;
   finishedAt: string | null;
+  /** Lo que costó en USD; null si fue local o su modelo no tiene precio. */
+  costUsd: number | null;
 }
 
 export interface AgentsStatus {

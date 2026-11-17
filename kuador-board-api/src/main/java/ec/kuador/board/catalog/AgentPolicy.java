@@ -15,9 +15,33 @@ import java.util.UUID;
  */
 public record AgentPolicy(
         UUID id, String key, String name, String description, Rules rules, Limits limits, Messages messages, RepoTemplates repo,
-        boolean builtIn, long version) {
+        Map<String, Tuning> roles, boolean builtIn, long version) {
 
     public static final String KEY = "DEFAULT";
+
+    /** Esfuerzos que se pueden elegir, de menos a más razonamiento (y tokens). */
+    public static final List<String> EFFORTS = List.of("low", "medium", "high", "xhigh", "max");
+
+    /** Sin la sugerencia por rol (copias anteriores). */
+    public AgentPolicy(UUID id, String key, String name, String description, Rules rules, Limits limits, Messages messages, RepoTemplates repo,
+            boolean builtIn, long version) {
+        this(id, key, name, description, rules, limits, messages, repo, null, builtIn, version);
+    }
+
+    /**
+     * Modelo y esfuerzo sugeridos para un rol (perillas de costo): los usa el agente si en su equipo nadie eligió otros.
+     * {@code model} vacío = el del espacio; {@code effort} vacío = el del proveedor. Un modelo que el proveedor del espacio
+     * no ofrece se ignora.
+     */
+    public record Tuning(String model, String effort) {
+        public static final Tuning NONE = new Tuning(null, null);
+    }
+
+    /** Lo sugerido para un rol, o {@link Tuning#NONE}. */
+    public Tuning tuning(String roleKey) {
+        Tuning t = roles == null || roleKey == null ? null : roles.get(roleKey);
+        return t == null ? Tuning.NONE : new Tuning(blankToNull(t.model()), blankToNull(t.effort()));
+    }
 
     /** Lo que se le dice al modelo. Las listas van una regla por línea. */
     public record Rules(
@@ -126,12 +150,29 @@ public record AgentPolicy(
         RepoTemplates mergedRepo = new RepoTemplates(text(t.agentsMd(), ft.agentsMd()), text(t.workSteps(), ft.workSteps()),
                 text(t.subagent(), ft.subagent()), text(t.mcpInstructions(), ft.mcpInstructions()), text(t.readme(), ft.readme()),
                 text(t.pieceReadme(), ft.pieceReadme()), text(t.ci(), ft.ci()), text(t.gitignore(), ft.gitignore()));
-        return new AgentPolicy(id, key, text(name, fallback.name), description, mergedRules, mergedLimits, mergedMessages, mergedRepo, builtIn, version);
+        // Por rol: lo del espacio manda; lo que no dice, de fábrica.
+        Map<String, Tuning> mergedRoles = new java.util.TreeMap<>();
+        if (fallback.roles != null) mergedRoles.putAll(fallback.roles);
+        if (roles != null) {
+            roles.forEach((role, own) -> {
+                if (own == null) return;
+                Tuning f = mergedRoles.getOrDefault(role, Tuning.NONE);
+                // Vacío = a propósito el del espacio (o del proveedor); se guarda así para que no vuelva el de fábrica.
+                mergedRoles.put(role, new Tuning(own.model() == null ? f.model() : own.model().strip(),
+                        own.effort() == null ? f.effort() : own.effort().strip()));
+            });
+        }
+        return new AgentPolicy(id, key, text(name, fallback.name), description, mergedRules, mergedLimits, mergedMessages, mergedRepo,
+                Map.copyOf(mergedRoles), builtIn, version);
     }
 
     /** Rellena un texto de esta política con sus variables. */
     public static String fill(String template, Map<String, ?> vars) {
         return AgentRules.fill(template, vars);
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.strip();
     }
 
     private static String text(String own, String fallback) {

@@ -138,7 +138,8 @@ public class ProductOwnerAgent {
             log.info("{} trabajando en {} (ejecución {})", agent.get().name(), event.issueKey(), run.id());
             // Con la clave de la empresa, el modelo elegido para este agente (Configuración → Equipo de agentes).
             String chosen = key.isPresent() ? tx.execute(s -> keys.modelForAgent(agent.get().id())).orElse(null) : null;
-            ProductOwnerModel.Result result = key.isPresent() ? model.propose(key.get(), chosen, context) : model.propose(context);
+            String effort = key.isPresent() ? tx.execute(s -> keys.effortForAgent(agent.get().id())).orElse(null) : null;
+            ProductOwnerModel.Result result = key.isPresent() ? model.propose(key.get(), chosen, effort, context) : model.propose(context);
             PoProposal proposal = validate(result.proposal());
             if (context.splitsIntoTasks() && proposal.tasks().isEmpty()) {
                 throw new AgentModelException("El plan de la épica llegó sin tareas; reintenta para que reparta el trabajo.");

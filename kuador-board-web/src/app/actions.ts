@@ -411,7 +411,7 @@ export async function removeFromTeamAction(key: string, memberId: string): Promi
   return run(() => boardApi.removeFromTeam(key, memberId), `/projects/${key}`);
 }
 
-export async function setAgentProfileAction(memberId: string, input: { mode: AgentMode; model: string | null }): Promise<ActionResult<TeamAgent>> {
+export async function setAgentProfileAction(memberId: string, input: { mode: AgentMode; model: string | null; effort?: string | null }): Promise<ActionResult<TeamAgent>> {
   return run(() => boardApi.setAgentProfile(memberId, input));
 }
 

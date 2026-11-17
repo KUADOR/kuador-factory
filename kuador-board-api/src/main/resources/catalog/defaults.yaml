@@ -794,7 +794,7 @@ roles:
   - key: MARKETING
     name: "Marketing"
     description: "Convierte lo entregado en ventas: notas de lanzamiento, contenido para redes, SEO, casos de éxito y campañas."
-    tools: ["Read", "WebSearch"]
+    tools: ["Read", "WebSearch", "CodeExecution"]
     automation: NONE
     memberName: "Agente Marketing"
     color: "#f472b6"
@@ -805,7 +805,7 @@ roles:
   - key: ANALYST
     name: "Analista de datos e informes"
     description: "Convierte planillas y archivos del negocio (ventas, inventario, gastos) en informes claros: cifras exactas, gráficos y conclusiones, en PDF."
-    tools: ["WebSearch"]
+    tools: ["WebSearch", "CodeExecution"]
     automation: NONE
     memberName: "Agente Analista"
     color: "#22d3ee"
@@ -1091,6 +1091,15 @@ agentPolicies:
       webSearches: 8
       turnsClaude: 12
       turnsOther: 30
+    # Modelo y esfuerzo sugeridos por rol, para gastar menos donde no hace falta el modelo más caro. Valen cuando en el
+    # equipo nadie eligió otros para el agente; un modelo que el proveedor del espacio no ofrece se ignora.
+    roles:
+      PRODUCT_OWNER: { model: claude-sonnet-5-5, effort: medium }
+      ARCHITECT: { model: claude-opus-5-5, effort: high }
+      QA: { model: claude-sonnet-5-5, effort: medium }
+      RELEASE: { model: claude-sonnet-5-5, effort: low }
+      MARKETING: { model: claude-sonnet-5-5, effort: medium }
+      ANALYST: { model: claude-sonnet-5-5, effort: medium }
     messages:
       returnForReview: "Te lo devuelvo, {persona}: revísalo y, si estás de acuerdo, muévelo a la siguiente columna."
       returnWithQuestions: "Te lo devuelvo, {persona}: responde las preguntas en un comentario y vuelve a asignármelo."

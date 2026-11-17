@@ -2,6 +2,7 @@ package ec.kuador.board.agents.application;
 
 import ec.kuador.board.agents.domain.AgentMode;
 import ec.kuador.board.agents.domain.AgentTeamStore;
+import ec.kuador.board.catalog.AgentPolicy;
 import ec.kuador.board.catalog.AgentRole;
 import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.member.MemberApi;
@@ -50,8 +51,24 @@ public class BoardTeam extends TenantAwareListener {
         this.clock = clock;
     }
 
+    /**
+     * {@code model} y {@code effort}: los elegidos para el agente ({@code null} = los sugeridos); {@code suggestedModel} y
+     * {@code suggestedEffort}: los de su rol en Catálogo → Reglas de agentes ({@code null} = los del espacio y del proveedor).
+     */
     public record TeamAgent(UUID id, String name, String role, String roleName, String description, String avatarColor, AgentMode mode,
-            String model, boolean inTeam, boolean serverAllowed) {}
+            String model, String effort, String suggestedModel, String suggestedEffort, boolean inTeam, boolean serverAllowed) {}
+
+    /** Con qué modelo y esfuerzo trabaja un agente: lo elegido para él o lo sugerido para su rol ({@code null} = por defecto). */
+    public record Choice(String model, String effort) {}
+
+    @Transactional(readOnly = true)
+    public Choice choice(UUID memberId) {
+        AgentTeamStore.Profile p = store.profile(memberId).orElse(null);
+        AgentPolicy.Tuning t = members.find(memberId).map(m -> catalog.agentPolicy().tuning(m.role())).orElse(AgentPolicy.Tuning.NONE);
+        String model = p != null && p.model() != null ? p.model() : t.model();
+        String effort = p != null && p.effort() != null ? p.effort() : t.effort();
+        return new Choice(model, effort != null && AgentPolicy.EFFORTS.contains(effort) ? effort : null);
+    }
 
     /** Agentes del tablero primero; después los del espacio que se pueden sumar. */
     @Transactional(readOnly = true)
@@ -60,8 +77,9 @@ public class BoardTeam extends TenantAwareListener {
         requireBoard(projectKey);
         List<UUID> team = store.team(ws, projectKey);
         Map<UUID, AgentTeamStore.Profile> profiles = store.profiles(ws);
+        AgentPolicy policy = catalog.agentPolicy();
         return members.agents().stream()
-                .map(m -> view(m, profiles.get(m.id()), team.contains(m.id())))
+                .map(m -> view(m, profiles.get(m.id()), team.contains(m.id()), policy))
                 .sorted(java.util.Comparator.comparing((TeamAgent a) -> !a.inTeam()).thenComparing(a -> team.indexOf(a.id())))
                 .toList();
     }
@@ -98,10 +116,24 @@ public class BoardTeam extends TenantAwareListener {
     /** Dónde trabaja el agente y con qué modelo ({@code null} = el del espacio). */
     @Transactional
     public TeamAgent setProfile(UUID memberId, AgentMode mode, String model) {
+        return setProfile(memberId, mode, model, store.profile(memberId).map(AgentTeamStore.Profile::effort).orElse(null));
+    }
+
+    /** Dónde trabaja, con qué modelo y cuánto razona ({@code null} = lo sugerido para su rol). */
+    @Transactional
+    public TeamAgent setProfile(UUID memberId, AgentMode mode, String model, String effort) {
         MemberView agent = agent(memberId);
-        AgentTeamStore.Profile profile = new AgentTeamStore.Profile(memberId, allowedMode(catalog.role(agent.role()).orElse(null), mode), cleanModel(model));
+        AgentTeamStore.Profile profile = new AgentTeamStore.Profile(memberId, allowedMode(catalog.role(agent.role()).orElse(null), mode), cleanModel(model),
+                cleanEffort(effort));
         store.saveProfile(TenantContext.require(), profile, clock.instant());
-        return view(agent, profile, false);
+        return view(agent, profile, false, catalog.agentPolicy());
+    }
+
+    private static String cleanEffort(String effort) {
+        if (effort == null || effort.isBlank()) return null;
+        String e = effort.strip().toLowerCase(java.util.Locale.ROOT);
+        if (!AgentPolicy.EFFORTS.contains(e)) throw new DomainException("El esfuerzo es uno de: " + String.join(", ", AgentPolicy.EFFORTS) + ".");
+        return e;
     }
 
     /** Dónde trabaja de verdad: un rol que trabaja sobre el código trabaja local aunque esté guardado «en el tablero». */
@@ -109,7 +141,7 @@ public class BoardTeam extends TenantAwareListener {
     public AgentTeamStore.Profile profile(UUID memberId) {
         AgentTeamStore.Profile p = store.profile(memberId).orElse(new AgentTeamStore.Profile(memberId, AgentMode.LOCAL, null));
         boolean code = members.find(memberId).map(m -> worksOnCode(m.role())).orElse(false);
-        return code && p.mode() == AgentMode.SERVER ? new AgentTeamStore.Profile(memberId, AgentMode.LOCAL, p.model()) : p;
+        return code && p.mode() == AgentMode.SERVER ? new AgentTeamStore.Profile(memberId, AgentMode.LOCAL, p.model(), p.effort()) : p;
     }
 
     /** El rol escribe el código del repo: no puede trabajar en el tablero. */
@@ -150,12 +182,13 @@ public class BoardTeam extends TenantAwareListener {
         });
     }
 
-    private TeamAgent view(MemberView m, AgentTeamStore.Profile p, boolean inTeam) {
+    private TeamAgent view(MemberView m, AgentTeamStore.Profile p, boolean inTeam, AgentPolicy policy) {
+        AgentPolicy.Tuning t = policy.tuning(m.role());
         Optional<AgentRole> role = catalog.role(m.role());
         boolean serverAllowed = role.map(r -> !r.worksOnCode()).orElse(true);
         AgentMode mode = p == null || !serverAllowed ? AgentMode.LOCAL : p.mode();
         return new TeamAgent(m.id(), m.name(), m.role(), role.map(AgentRole::name).orElse(m.role()), m.description(), m.avatarColor(), mode,
-                p == null ? null : p.model(), inTeam, serverAllowed);
+                p == null ? null : p.model(), p == null ? null : p.effort(), t.model(), t.effort(), inTeam, serverAllowed);
     }
 
     private MemberView agent(UUID memberId) {

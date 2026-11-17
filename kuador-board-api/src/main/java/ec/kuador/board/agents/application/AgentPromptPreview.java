@@ -59,7 +59,9 @@ public class AgentPromptPreview {
         tools.add("ask_human");
         if (task.sendBackTo() != null) tools.add("send_back");
         if (task.webSearch()) tools.add("web_search / web_fetch");
-        String note = "Además, cada proveedor suma cómo es su entorno (ejecución de código en Claude; lectura de archivos y consultas en los demás). "
+        if (task.codeExecution()) tools.add("ejecución de código (Claude)");
+        String note = "Además, cada proveedor suma cómo es su entorno (lectura de archivos y consultas fuera de Claude). "
+                + "Ejecuta código solo si su rol tiene CodeExecution o la tarjeta trae archivos. "
                 + "Archivos de la tarjeta que recibe: " + (task.files().isEmpty() ? "ninguno" : String.join(", ", task.files().stream().map(BoardAgentModel.InputFile::name).toList())) + ".";
         return new Preview(agent.name(), "BOARD", task.system(), task.user(), tools, AgentRules.CORE, note);
     }

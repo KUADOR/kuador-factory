@@ -32,6 +32,11 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
         <Stat label="Tokens de entrada" value={num(usage.inputTokens)} />
         <Stat label="Tokens de salida" value={num(usage.outputTokens)} />
       </dl>
+      {usage.cachedTokens > 0 && usage.inputTokens > 0 && (
+        <p className="text-xs text-fg-muted">
+          {Math.round((usage.cachedTokens * 100) / usage.inputTokens)}% de la entrada salió del caché de prompts, que cuesta cerca del 10%.
+        </p>
+      )}
       {ratio != null && (
         <div className="flex flex-col gap-1">
           <div className="h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.round(ratio * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Consumo frente al tope">

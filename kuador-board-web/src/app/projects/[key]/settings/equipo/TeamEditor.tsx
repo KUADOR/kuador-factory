@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
-import { MODEL_LABEL } from "@/lib/labels";
+import { EFFORT_LABEL, MODEL_LABEL } from "@/lib/labels";
 import { SidePanel } from "@/components/ui/SidePanel";
 import type { AgentMode, AgentPromptPreview, TeamAgent, WorkspaceAiStatus } from "@/lib/types";
 
@@ -145,9 +145,9 @@ function AgentRow({
   onRemove: () => void;
 }) {
   const [saving, start] = useTransition();
-  const save = (mode: AgentMode, model: string | null) =>
+  const save = (mode: AgentMode, model: string | null, effort: string | null = agent.effort) =>
     start(async () => {
-      const r = await setAgentProfileAction(agent.id, { mode, model });
+      const r = await setAgentProfileAction(agent.id, { mode, model, effort });
       if (!r.ok) {
         notify.error("No se pudo guardar", r.error);
         return;
@@ -181,7 +181,23 @@ function AgentRow({
             value={agent.model ?? "DEFAULT"}
             disabled={disabled || saving || !canConfigure}
             onChange={(v) => v && save(agent.mode, v === "DEFAULT" ? null : v)}
-            options={[{ value: "DEFAULT", label: `El del espacio (${MODEL_LABEL[defaultModel]?.split(" (")[0] ?? defaultModel})` }, ...models.map((m) => ({ value: m, label: MODEL_LABEL[m] ?? m }))]}
+            options={[{ value: "DEFAULT", label: defaultModelLabel(agent, models, defaultModel) }, ...models.map((m) => ({ value: m, label: MODEL_LABEL[m] ?? m }))]}
+          />
+        </div>
+      )}
+      {/* Cuánto razona: menos esfuerzo gasta menos tokens. Vale con Claude. */}
+      {(agent.mode === "SERVER" || models.length > 0) && models.some((m) => m.startsWith("claude-")) && (
+        <div className="w-52">
+          <SelectInput
+            ariaLabel={`Esfuerzo de ${agent.name}`}
+            size="sm"
+            value={agent.effort ?? "DEFAULT"}
+            disabled={disabled || saving || !canConfigure}
+            onChange={(v) => v && save(agent.mode, agent.model, v === "DEFAULT" ? null : v)}
+            options={[
+              { value: "DEFAULT", label: agent.suggestedEffort ? `Sugerido: ${EFFORT_LABEL[agent.suggestedEffort]?.split(" (")[0] ?? agent.suggestedEffort}` : "Esfuerzo del modelo" },
+              ...Object.entries(EFFORT_LABEL).map(([value, label]) => ({ value, label })),
+            ]}
           />
         </div>
       )}
@@ -331,4 +347,11 @@ function PromptBlock({ title, text }: { title: string; text: string }) {
       </pre>
     </section>
   );
+}
+
+/** «Sugerido para el rol: Sonnet» si el rol trae uno que el espacio ofrece; si no, el del espacio. */
+function defaultModelLabel(agent: TeamAgent, models: string[], defaultModel: string): string {
+  const short = (m: string) => MODEL_LABEL[m]?.split(" (")[0] ?? m;
+  if (agent.suggestedModel && models.includes(agent.suggestedModel)) return `Sugerido para el rol (${short(agent.suggestedModel)})`;
+  return `El del espacio (${short(defaultModel)})`;
 }

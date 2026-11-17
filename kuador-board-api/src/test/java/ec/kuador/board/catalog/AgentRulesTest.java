@@ -47,4 +47,19 @@ class AgentRulesTest {
         assertThat(p.messages().toGate()).isEqualTo(factory.messages().toGate());
         assertThat(p.repo().agentsMd()).isEqualTo(factory.repo().agentsMd());
     }
+
+    @Test
+    void theSpaceCanTuneARoleOrPickTheSpaceDefaultOnPurpose() {
+        assertThat(factory.tuning("PRODUCT_OWNER").model()).as("de fábrica").isEqualTo("claude-sonnet-5-5");
+        AgentPolicy edited = new AgentPolicy(null, AgentPolicy.KEY, "Mías", null, factory.rules(), factory.limits(), factory.messages(), factory.repo(),
+                java.util.Map.of("PRODUCT_OWNER", new AgentPolicy.Tuning("", "low"), "SUPPORT", new AgentPolicy.Tuning("claude-haiku-5-5", null)), false, 1);
+
+        AgentPolicy p = edited.orElse(factory);
+
+        assertThat(p.tuning("PRODUCT_OWNER")).as("vacío = el del espacio, no el de fábrica").isEqualTo(new AgentPolicy.Tuning(null, "low"));
+        assertThat(p.roles().get("PRODUCT_OWNER").model()).as("se guarda vacío para que no vuelva el de fábrica").isEmpty();
+        assertThat(p.tuning("SUPPORT").model()).isEqualTo("claude-haiku-5-5");
+        assertThat(p.tuning("ARCHITECT")).isEqualTo(factory.tuning("ARCHITECT"));
+        assertThat(p.tuning("NADIE")).isEqualTo(AgentPolicy.Tuning.NONE);
+    }
 }

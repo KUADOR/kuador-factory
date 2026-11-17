@@ -31,8 +31,10 @@ public class WorkspaceAi implements AiKeyProvider {
     private final SecretBox secrets;
     private final Clock clock;
     private final AiUsage usage;
+    private final BoardTeam team;
 
-    WorkspaceAi(AgentTeamStore store, AiProviders providers, SecretBox secrets, Clock clock, AiUsage usage) {
+    WorkspaceAi(AgentTeamStore store, AiProviders providers, SecretBox secrets, Clock clock, AiUsage usage, BoardTeam team) {
+        this.team = team;
         this.store = store;
         this.providers = providers;
         this.secrets = secrets;
@@ -137,7 +139,13 @@ public class WorkspaceAi implements AiKeyProvider {
     @Override
     @Transactional(readOnly = true)
     public Optional<String> modelForAgent(java.util.UUID agentId) {
-        String chosen = store.profile(agentId).map(AgentTeamStore.Profile::model).orElse(null);
+        String chosen = team.choice(agentId).model();
         return key().filter(k -> k.provider().protocol() == AiProvider.Protocol.ANTHROPIC).map(k -> k.modelFor(chosen));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> effortForAgent(java.util.UUID agentId) {
+        return key().filter(k -> k.provider().protocol() == AiProvider.Protocol.ANTHROPIC).flatMap(k -> Optional.ofNullable(team.choice(agentId).effort()));
     }
 }

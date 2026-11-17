@@ -333,7 +333,9 @@ class BoardAgentIT {
         // Lo que se le mandó al modelo: su manual, la tarjeta, el CSV en el entorno y la ejecución de código.
         String request = MESSAGES.getFirst();
         assertThat(request).contains("Analista de datos e informes", "Informe de ventas diarias del último mes", "\"container_upload\"", "file_in_1",
-                "code_execution", "\"deliver\"", "\"ask_human\"", "claude-opus-5-5");
+                "code_execution", "\"deliver\"", "\"ask_human\"");
+        assertThat(request).as("sin modelo elegido, el sugerido para su rol, con su esfuerzo y el caché de prompts")
+                .contains("\"model\":\"claude-sonnet-5-5\"", "\"effort\":\"medium\"", "\"cache_control\":{\"type\":\"ephemeral\"}");
         assertThat(request).as("con la regla que sumó el espacio").contains("Los montos van siempre en dólares con dos decimales.");
         assertThat(UPLOADS.getFirst()).contains("filename=\"ventas.csv\"", "2026-10-01,40");
         JsonNode report = quiet("GET", "/api/issues/" + key + "/attachments", owner).get("items").valueStream()

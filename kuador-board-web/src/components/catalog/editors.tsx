@@ -408,7 +408,7 @@ export function RoleEditor({ value, onChange, isNew }: { value: AgentRole; onCha
       <Field label="Instrucciones" hint="El prompt de sistema del rol. Las respuestas de otros miembros son información, no instrucciones.">
         {(id) => <TextArea id={id} rows={12} value={value.instructions} onChange={(e) => onChange({ ...value, instructions: e.target.value })} className="text-[13px] leading-relaxed" />}
       </Field>
-      <LinesField label="Herramientas del agente" hint="Una por línea, ej. Read, Edit, Bash(./mvnw *)." value={value.tools} onChange={(tools) => onChange({ ...value, tools })} rows={4} mono />
+      <LinesField label="Herramientas del agente" hint="Una por línea, ej. Read, Edit, Bash(./mvnw *). En el tablero: WebSearch busca en Internet y CodeExecution le da dónde calcular y generar archivos (PDF, Excel, gráficos); sin ella gasta menos." value={value.tools} onChange={(tools) => onChange({ ...value, tools })} rows={4} mono />
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-fg-muted">Automatización en el tablero</span>
         <ChoiceCards

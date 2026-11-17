@@ -17,9 +17,11 @@ class AgentController {
     private final ec.kuador.board.agents.application.AgentRetry retry;
     private final ProductOwnerModel model;
     private final String modelName;
+    private final ec.kuador.board.agents.application.AiUsage usage;
 
     AgentController(AgentRunRepository runs, ProductOwnerModel model, @Value("${board.agents.model:claude-opus-5-5}") String modelName,
-            ec.kuador.board.agents.application.AgentRetry retry) {
+            ec.kuador.board.agents.application.AgentRetry retry, ec.kuador.board.agents.application.AiUsage usage) {
+        this.usage = usage;
         this.retry = retry;
         this.runs = runs;
         this.model = model;
@@ -43,13 +45,26 @@ class AgentController {
         retry.retry(id, requesterId);
     }
 
+    /** Una ejecución con lo que costó ({@code costUsd} nulo si fue local o su modelo no tiene precio configurado). */
+    record RunView(UUID id, UUID agentId, String issueKey, String projectKey, UUID requestedBy, AgentRun.Status status, String model,
+            Integer inputTokens, Integer outputTokens, Integer cacheReadTokens, Integer cacheWriteTokens, String summary, String error,
+            java.time.Instant createdAt, java.time.Instant finishedAt, java.math.BigDecimal costUsd) {
+
+        static RunView of(AgentRun r, java.math.BigDecimal cost) {
+            return new RunView(r.id(), r.agentId(), r.issueKey(), r.projectKey(), r.requestedBy(), r.status(), r.model(), r.inputTokens(), r.outputTokens(),
+                    r.cacheReadTokens(), r.cacheWriteTokens(), r.summary(), r.error(), r.createdAt(), r.finishedAt(), cost);
+        }
+    }
+
     @GetMapping("/api/agents/runs")
-    List<AgentRun> runs(
+    List<RunView> runs(
             @RequestParam(required = false) UUID agentId,
             @RequestParam(required = false) String issueKey,
             @RequestParam(defaultValue = "20") int limit) {
         // Solo los trabajos de los tableros que ve quien pide.
-        return runs.findRecent(agentId, issueKey, Math.clamp(limit, 1, 100)).stream()
+        List<AgentRun> visible = runs.findRecent(agentId, issueKey, Math.clamp(limit, 1, 100)).stream()
                 .filter(r -> ec.kuador.board.shared.tenant.BoardScope.allowsIssue(r.issueKey())).toList();
+        java.util.Map<UUID, java.math.BigDecimal> costs = usage.costs(visible);
+        return visible.stream().map(r -> RunView.of(r, costs.get(r.id()))).toList();
     }
 }

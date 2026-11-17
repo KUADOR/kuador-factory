@@ -71,7 +71,7 @@ class BoardTeamController {
     record CreateRequest(@Size(max = 120) String name, @NotBlank @Size(max = 40) String role, @Size(max = 4000) String description, AgentMode mode,
             @Size(max = 60) String model) {}
 
-    record ProfileRequest(@NotNull AgentMode mode, @Size(max = 60) String model) {}
+    record ProfileRequest(@NotNull AgentMode mode, @Size(max = 60) String model, @Size(max = 10) String effort) {}
 
     record AiRequest(@Size(max = 30) String provider, @Size(max = 300) String apiKey, @Size(max = 80) String defaultModel) {}
 
@@ -110,7 +110,7 @@ class BoardTeamController {
 
     @PutMapping("/api/agents/{memberId}/profile")
     BoardTeam.TeamAgent profile(@PathVariable UUID memberId, @Valid @RequestBody ProfileRequest r) {
-        return team.setProfile(memberId, r.mode(), r.model());
+        return team.setProfile(memberId, r.mode(), r.model(), r.effort());
     }
 
     /** Lo que recibiría el agente para esa tarjeta, sin llamar al modelo. */

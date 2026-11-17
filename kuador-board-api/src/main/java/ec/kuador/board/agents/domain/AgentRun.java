@@ -6,7 +6,8 @@ import java.util.UUID;
 /** Una ejecución de un agente sobre un issue. */
 public record AgentRun(
         UUID id, UUID agentId, String issueKey, String projectKey, UUID triggerEventId, UUID requestedBy, Status status,
-        String model, Integer inputTokens, Integer outputTokens, String summary, String error, Instant createdAt, Instant finishedAt) {
+        String model, Integer inputTokens, Integer outputTokens, Integer cacheReadTokens, Integer cacheWriteTokens, String summary, String error,
+        Instant createdAt, Instant finishedAt) {
 
     public enum Status {
         RUNNING,
@@ -28,26 +29,34 @@ public record AgentRun(
         String label = LOCAL_PREFIX + (client == null || client.isBlank() ? "mcp" : client);
         // Sin evento que la dispare: su propio identificador ocupa el lugar (la columna es única y obligatoria).
         return new AgentRun(UUID.randomUUID(), agentId, issueKey, projectKey, UUID.randomUUID(), supervisorId, Status.RUNNING, label.length() > 60 ? label.substring(0, 60) : label, null, null,
-                null, null, now, null);
+                null, null, null, null, now, null);
     }
 
     public static AgentRun start(UUID agentId, String issueKey, String projectKey, UUID eventId, UUID requestedBy, Instant now) {
         return new AgentRun(UUID.randomUUID(), agentId, issueKey, projectKey, eventId, requestedBy, Status.RUNNING, null, null, null,
-                null, null, now, null);
+                null, null, null, null, now, null);
     }
 
     public AgentRun succeeded(String model, long input, long output, String summary, Instant now) {
+        return succeeded(model, input, output, 0, 0, summary, now);
+    }
+
+    /**
+     * {@code input}: tokens de entrada que no salieron del caché; {@code cacheRead} y {@code cacheWrite}: los que se leyeron
+     * del caché de prompts (cuestan ~10%) y los que se guardaron en él (cuestan ~125%).
+     */
+    public AgentRun succeeded(String model, long input, long output, long cacheRead, long cacheWrite, String summary, Instant now) {
         return new AgentRun(id, agentId, issueKey, projectKey, triggerEventId, requestedBy, Status.SUCCEEDED, model, (int) input,
-                (int) output, summary, null, createdAt, now);
+                (int) output, (int) cacheRead, (int) cacheWrite, summary, null, createdAt, now);
     }
 
     public AgentRun failed(String error, Instant now) {
         return new AgentRun(id, agentId, issueKey, projectKey, triggerEventId, requestedBy, Status.FAILED, model, inputTokens,
-                outputTokens, summary, error, createdAt, now);
+                outputTokens, cacheReadTokens, cacheWriteTokens, summary, error, createdAt, now);
     }
 
     public AgentRun skipped(String reason, Instant now) {
-        return new AgentRun(id, agentId, issueKey, projectKey, triggerEventId, requestedBy, Status.SKIPPED, null, null, null, reason,
+        return new AgentRun(id, agentId, issueKey, projectKey, triggerEventId, requestedBy, Status.SKIPPED, null, null, null, null, null, reason,
                 null, createdAt, now);
     }
 }

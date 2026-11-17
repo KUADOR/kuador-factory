@@ -46,6 +46,8 @@ public class BoardAgent {
 
     private static final Logger log = LoggerFactory.getLogger(BoardAgent.class);
     private static final long MAX_INPUT_BYTES = 40L * 1024 * 1024;
+    /** Herramienta del rol (Catálogo → Roles) para ejecutar código en el tablero: cálculos, gráficos, PDF, Excel. */
+    public static final String CODE_EXECUTION = "CodeExecution";
 
     private final AgentRunRepository runs;
     private final AiProviders providers;
@@ -125,16 +127,18 @@ public class BoardAgent {
             return;
         }
         try {
-            BoardAgentModel.Task task = tx.execute(s -> task(agent.get(), event.issueKey()));
+            BoardTeam.Choice choice = tx.execute(s -> team.choice(agent.get().id()));
+            BoardAgentModel.Task task = tx.execute(s -> task(agent.get(), event.issueKey(), choice.effort()));
             if (task == null) {
                 finish(run.skipped("La tarjeta " + event.issueKey() + " ya no existe.", clock.instant()));
                 return;
             }
-            String usedModel = key.get().modelFor(profile.model());
+            String usedModel = key.get().modelFor(choice.model());
             log.info("{} trabajando en {} en el tablero con {} (ejecución {})", agent.get().name(), event.issueKey(), key.get().provider().code(), run.id());
             BoardAgentModel.Result result = providers.adapter(key.get().provider()).work(key.get().endpoint(), usedModel, task);
             String summary = tx.execute(s -> deliver(agent.get(), requester.get(), event.issueKey(), result));
-            finish(run.succeeded(result.model(), result.inputTokens(), result.outputTokens(), summary, clock.instant()));
+            finish(run.succeeded(result.model(), result.inputTokens(), result.outputTokens(), result.cacheReadTokens(), result.cacheWriteTokens(), summary,
+                    clock.instant()));
         } catch (AgentModelException e) {
             log.warn("{} no pudo trabajar {}: {}", agent.get().name(), event.issueKey(), e.getMessage());
             tx.executeWithoutResult(s -> returnCard(agent.get(), requester.get(), event.issueKey(), failed(false, e.getMessage())));
@@ -148,6 +152,10 @@ public class BoardAgent {
 
     /** El pedido: manual del rol y reglas del tablero (sistema), la tarjeta con sus comentarios y sus archivos. */
     BoardAgentModel.Task task(MemberView agent, String issueKey) {
+        return task(agent, issueKey, null);
+    }
+
+    BoardAgentModel.Task task(MemberView agent, String issueKey, String effort) {
         Optional<IssueApi.IssueContext> found = issues.context(issueKey);
         if (found.isEmpty()) return null;
         IssueApi.IssueContext card = found.get();
@@ -222,10 +230,13 @@ public class BoardAgent {
         back.ifPresent(b -> all.add(AgentRules.fill(rules.sendBack(), Map.of("columna", b.columnName()))));
         boolean web = role.map(r -> r.tools() != null && r.tools().contains("WebSearch")).orElse(false);
         if (web) all.add(rules.web());
+        // Ejecutar código (calcular, leer y generar archivos) solo si el rol lo usa; con archivos en la tarjeta va siempre.
+        boolean codeExecution = role.map(r -> r.tools() != null && r.tools().contains(CODE_EXECUTION)).orElse(false);
         system.append("Reglas:\n").append(AgentRules.bullets(all)).append("\n");
         AgentPolicy.Limits l = policy.limits();
         return new BoardAgentModel.Task(system.toString(), user.toString(), files, tools, epic ? () -> epicNeedsTasks(card.key()) : () -> null, web,
-                back.map(StageHandoff.Back::columnName).orElse(null), new BoardAgentModel.Limits(l.turnsClaude(), l.turnsOther(), l.webSearches()));
+                back.map(StageHandoff.Back::columnName).orElse(null), new BoardAgentModel.Limits(l.turnsClaude(), l.turnsOther(), l.webSearches()),
+                codeExecution, effort);
     }
 
     private List<String> repositories(String projectKey) {

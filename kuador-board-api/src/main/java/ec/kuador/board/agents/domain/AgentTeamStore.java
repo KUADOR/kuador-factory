@@ -9,7 +9,13 @@ import java.util.UUID;
 /** Perfil de cada agente (modo y modelo), equipo de cada tablero y clave de IA del espacio. */
 public interface AgentTeamStore {
 
-    record Profile(UUID memberId, AgentMode mode, String model) {}
+    /** {@code model} y {@code effort}: los elegidos para este agente, o {@code null} para los sugeridos por su rol. */
+    record Profile(UUID memberId, AgentMode mode, String model, String effort) {
+
+        public Profile(UUID memberId, AgentMode mode, String model) {
+            this(memberId, mode, model, null);
+        }
+    }
 
     /** Perfiles guardados del espacio (sin fila = LOCAL y modelo por defecto). */
     Map<UUID, Profile> profiles(UUID workspaceId);

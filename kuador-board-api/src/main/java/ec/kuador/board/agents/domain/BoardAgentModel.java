@@ -29,12 +29,21 @@ public interface BoardAgentModel {
      * la entrega; devuelve el motivo para no aceptarla (vuelve al modelo como error) o {@code null} si puede entregar.
      * {@code webSearch}: puede buscar y leer páginas en Internet (si su proveedor lo ofrece). {@code sendBackTo}: el nombre
      * de la columna a la que puede devolver el trabajo con {@code send_back} (p. ej. QA a «En desarrollo»), o {@code null}.
+     * {@code codeExecution}: le da un entorno para ejecutar código (Claude); sin él ahorra tokens y tiempo de contenedor.
+     * Con archivos en la tarjeta va siempre, porque se leen ahí. {@code effort}: cuánto razona (low, medium, high, xhigh,
+     * max) o {@code null} para el del proveedor.
      */
     record Task(String system, String user, List<InputFile> files, List<BoardTool> tools, Supplier<String> deliverCheck, boolean webSearch,
-            String sendBackTo, Limits limits) {
+            String sendBackTo, Limits limits, boolean codeExecution, String effort) {
 
         public Task {
             limits = limits == null ? Limits.DEFAULT : limits;
+            codeExecution = codeExecution || (files != null && !files.isEmpty());
+        }
+
+        public Task(String system, String user, List<InputFile> files, List<BoardTool> tools, Supplier<String> deliverCheck, boolean webSearch,
+                String sendBackTo, Limits limits) {
+            this(system, user, files, tools, deliverCheck, webSearch, sendBackTo, limits, true, null);
         }
 
         public Task(String system, String user, List<InputFile> files) {
@@ -77,7 +86,14 @@ public interface BoardAgentModel {
     }
 
     /** {@code text}: el resumen de la entrega, la pregunta para la persona o qué hay que corregir. */
-    record Result(Outcome outcome, String text, List<OutputFile> files, String model, long inputTokens, long outputTokens) {}
+    record Result(Outcome outcome, String text, List<OutputFile> files, String model, long inputTokens, long outputTokens, long cacheReadTokens,
+            long cacheWriteTokens) {
+
+        /** Sin caché de prompts (proveedores que no lo informan). */
+        public Result(Outcome outcome, String text, List<OutputFile> files, String model, long inputTokens, long outputTokens) {
+            this(outcome, text, files, model, inputTokens, outputTokens, 0, 0);
+        }
+    }
 
     /** El protocolo que habla este adaptador. */
     AiProvider.Protocol protocol();

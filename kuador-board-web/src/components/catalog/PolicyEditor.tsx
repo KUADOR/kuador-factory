@@ -3,8 +3,9 @@
 import { Lock } from "lucide-react";
 import { useState } from "react";
 
-import { Field, TextArea, TextInput } from "@/components/ui/Field";
-import type { AgentPolicy } from "@/lib/types";
+import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
+import { EFFORT_LABEL, MODEL_LABEL } from "@/lib/labels";
+import type { AgentPolicy, RoleTuning } from "@/lib/types";
 
 import { Group, LinesField } from "./editors";
 
@@ -30,6 +31,10 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
   const limits = (patch: Partial<Limits>) => onChange({ ...value, limits: { ...value.limits, ...patch } });
   const messages = (patch: Partial<Messages>) => onChange({ ...value, messages: { ...value.messages, ...patch } });
   const repo = (patch: Partial<Repo>) => onChange({ ...value, repo: { ...value.repo, ...patch } });
+  const tuning = (role: string, patch: Partial<RoleTuning>) => {
+    const current = value.roles?.[role] ?? { model: null, effort: null };
+    onChange({ ...value, roles: { ...(value.roles ?? {}), [role]: { ...current, ...patch } } });
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -111,6 +116,9 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
           <NumberField label="Búsquedas web por trabajo" hint="Búsquedas y páginas leídas, en los roles con WebSearch." value={value.limits.webSearches} min={1} max={30} onChange={(webSearches) => limits({ webSearches })} />
           <NumberField label="Vueltas del modelo con Claude" hint="Más vueltas = trabajos más largos y más costo." value={value.limits.turnsClaude} min={1} max={40} onChange={(turnsClaude) => limits({ turnsClaude })} />
           <NumberField label="Vueltas con otros proveedores" hint="OpenAI, DeepSeek y compatibles." value={value.limits.turnsOther} min={1} max={80} onChange={(turnsOther) => limits({ turnsOther })} />
+          <div className="sm:col-span-2">
+            <RoleTunings roles={value.roles ?? {}} onChange={tuning} />
+          </div>
         </div>
       )}
 
@@ -170,3 +178,43 @@ function NumberField({ label, hint, value, min, max, onChange }: { label: string
     </Field>
   );
 }
+
+/**
+ * Modelo y esfuerzo sugeridos por rol: el agente los usa si en su equipo nadie eligió otros. Es la perilla de costo más
+ * grande: un modelo equilibrado con esfuerzo medio cuesta una fracción del más capaz al máximo.
+ */
+// Un vacío ("") elige a propósito el del espacio o del modelo; null toma lo de fábrica.
+function RoleTunings({ roles, onChange }: { roles: Record<string, RoleTuning>; onChange: (role: string, patch: Partial<RoleTuning>) => void }) {
+  const [adding, setAdding] = useState("");
+  const keys = Object.keys(roles).sort();
+  const modelOptions = [{ value: "DEFAULT", label: "El del espacio" }, ...Object.entries(MODEL_LABEL).map(([value, label]) => ({ value, label }))];
+  const effortOptions = [{ value: "DEFAULT", label: "El del modelo" }, ...Object.entries(EFFORT_LABEL).map(([value, label]) => ({ value, label }))];
+  return (
+    <Group title="Modelo y esfuerzo por rol" description="Lo que usa cada rol si en el equipo nadie eligió otro modelo para su agente. Menos esfuerzo y modelos equilibrados gastan menos tokens; deja el más capaz para el diseño y lo difícil. Con un proveedor que no ofrece el modelo, se usa el del espacio.">
+      <ul className="flex flex-col divide-y divide-line rounded-md border border-line">
+        {keys.map((role) => (
+          <li key={role} className="grid gap-2 px-3 py-2 sm:grid-cols-[9rem_minmax(0,1fr)_minmax(0,14rem)] sm:items-center">
+            <code className="font-mono text-xs text-fg-strong">{role}</code>
+            <SelectInput ariaLabel={`Modelo de ${role}`} size="sm" value={roles[role].model || "DEFAULT"} onChange={(v) => onChange(role, { model: v && v !== "DEFAULT" ? v : "" })} options={modelOptions} />
+            <SelectInput ariaLabel={`Esfuerzo de ${role}`} size="sm" value={roles[role].effort || "DEFAULT"} onChange={(v) => onChange(role, { effort: v && v !== "DEFAULT" ? v : "" })} options={effortOptions} />
+          </li>
+        ))}
+      </ul>
+      <div className="mt-2 flex items-center gap-2">
+        <TextInput aria-label="Clave del rol" placeholder="Clave de otro rol, ej. SUPPORT" value={adding} maxLength={40} onChange={(e) => setAdding(e.target.value)} className="font-mono text-xs" />
+        <button
+          type="button"
+          className="k-link shrink-0 text-xs"
+          onClick={() => {
+            const key = adding.trim().toUpperCase();
+            if (key) onChange(key, {});
+            setAdding("");
+          }}
+        >
+          Agregar
+        </button>
+      </div>
+    </Group>
+  );
+}
+

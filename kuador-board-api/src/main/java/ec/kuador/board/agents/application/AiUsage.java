@@ -43,10 +43,11 @@ public class AiUsage {
         this.zone = ZoneId.of(zone);
     }
 
-    public record AgentUsage(UUID agentId, String name, long runs, long inputTokens, long outputTokens, BigDecimal costUsd) {}
+    /** {@code cachedTokens}: tokens de entrada que salieron del caché de prompts (cuestan ~10%). */
+    public record AgentUsage(UUID agentId, String name, long runs, long inputTokens, long outputTokens, long cachedTokens, BigDecimal costUsd) {}
 
     /** {@code costUsd} nulo si algún modelo usado no tiene precio configurado ({@code unpricedModels}). */
-    public record Report(String month, long runs, long inputTokens, long outputTokens, BigDecimal costUsd, List<AgentUsage> byAgent,
+    public record Report(String month, long runs, long inputTokens, long outputTokens, long cachedTokens, BigDecimal costUsd, List<AgentUsage> byAgent,
             BigDecimal budgetUsd, List<String> unpricedModels) {}
 
     @Transactional(readOnly = true)
@@ -61,34 +62,60 @@ public class AiUsage {
         Map<UUID, BigDecimal> costs = new LinkedHashMap<>();
         List<String> unpriced = new ArrayList<>();
         for (AiUsageStore.Usage u : store.usage(ws, from, to)) {
-            long[] t = tokens.computeIfAbsent(u.agentId(), k -> new long[3]);
+            long[] t = tokens.computeIfAbsent(u.agentId(), k -> new long[4]);
             t[0] += u.runs();
-            t[1] += u.inputTokens();
+            t[1] += u.inputTokens() + u.cacheReadTokens() + u.cacheWriteTokens();
             t[2] += u.outputTokens();
+            t[3] += u.cacheReadTokens();
             AiUsageStore.Price price = prices.get(u.model());
             if (price == null) {
                 if (!unpriced.contains(u.model())) unpriced.add(u.model());
                 costs.put(u.agentId(), null);
             } else if (!costs.containsKey(u.agentId()) || costs.get(u.agentId()) != null) {
-                costs.merge(u.agentId(), cost(price, u.inputTokens(), u.outputTokens()), BigDecimal::add);
+                costs.merge(u.agentId(), cost(price, u), BigDecimal::add);
             }
         }
         List<AgentUsage> byAgent = new ArrayList<>();
         long runs = 0;
         long in = 0;
         long out = 0;
+        long cached = 0;
         BigDecimal total = BigDecimal.ZERO;
         for (var e : tokens.entrySet()) {
             String name = members.find(e.getKey()).map(MemberView::name).orElse("Agente eliminado");
             BigDecimal c = costs.get(e.getKey());
-            byAgent.add(new AgentUsage(e.getKey(), name, e.getValue()[0], e.getValue()[1], e.getValue()[2], c == null ? null : c.setScale(2, RoundingMode.HALF_UP)));
+            byAgent.add(new AgentUsage(e.getKey(), name, e.getValue()[0], e.getValue()[1], e.getValue()[2], e.getValue()[3], c == null ? null : c.setScale(2, RoundingMode.HALF_UP)));
             runs += e.getValue()[0];
             in += e.getValue()[1];
             out += e.getValue()[2];
+            cached += e.getValue()[3];
             if (total != null) total = c == null ? null : total.add(c);
         }
-        return new Report(month.toString(), runs, in, out, total == null ? null : total.setScale(2, RoundingMode.HALF_UP), byAgent,
+        return new Report(month.toString(), runs, in, out, cached, total == null ? null : total.setScale(2, RoundingMode.HALF_UP), byAgent,
                 store.budget(ws).orElse(null), unpriced);
+    }
+
+    /**
+     * Lo que costó cada ejecución en el servidor, en USD, por id; sin entrada si es local, no gastó o su modelo no tiene
+     * precio configurado.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, BigDecimal> costs(List<ec.kuador.board.agents.domain.AgentRun> runs) {
+        Map<String, AiUsageStore.Price> prices = new LinkedHashMap<>();
+        store.prices().forEach(p -> prices.put(p.model(), p));
+        Map<UUID, BigDecimal> out = new LinkedHashMap<>();
+        for (var r : runs) {
+            if (r.isLocal() || r.model() == null || r.inputTokens() == null) continue;
+            AiUsageStore.Price price = prices.get(r.model());
+            if (price == null) continue;
+            out.put(r.id(), cost(price, new AiUsageStore.Usage(r.agentId(), r.model(), 1, r.inputTokens(), nz(r.outputTokens()), nz(r.cacheReadTokens()),
+                    nz(r.cacheWriteTokens()))).setScale(4, RoundingMode.HALF_UP));
+        }
+        return out;
+    }
+
+    private static long nz(Integer n) {
+        return n == null ? 0 : n;
     }
 
     /** Si el espacio llegó a su tope mensual (solo se sabe con precios para todo lo usado). */
@@ -130,7 +157,14 @@ public class AiUsage {
         return store.prices();
     }
 
-    private static BigDecimal cost(AiUsageStore.Price p, long input, long output) {
-        return p.inputPerMTok().multiply(BigDecimal.valueOf(input)).add(p.outputPerMTok().multiply(BigDecimal.valueOf(output))).divide(MILLION, 6, RoundingMode.HALF_UP);
+    /** Leer del caché de prompts cuesta ~10% de la entrada; guardar en él (5 minutos), ~125%. */
+    static final BigDecimal CACHE_READ = new BigDecimal("0.10");
+    static final BigDecimal CACHE_WRITE = new BigDecimal("1.25");
+
+    static BigDecimal cost(AiUsageStore.Price p, AiUsageStore.Usage u) {
+        BigDecimal input = BigDecimal.valueOf(u.inputTokens())
+                .add(BigDecimal.valueOf(u.cacheReadTokens()).multiply(CACHE_READ))
+                .add(BigDecimal.valueOf(u.cacheWriteTokens()).multiply(CACHE_WRITE));
+        return p.inputPerMTok().multiply(input).add(p.outputPerMTok().multiply(BigDecimal.valueOf(u.outputTokens()))).divide(MILLION, 6, RoundingMode.HALF_UP);
     }
 }

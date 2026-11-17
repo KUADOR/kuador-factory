@@ -109,6 +109,46 @@ class ClaudeBoardAgentModelTest {
     }
 
     @Test
+    void cachesThePromptAndCountsTheCachedTokens() {
+        reply = """
+                {"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-5-5","stop_reason":"tool_use","stop_sequence":null,
+                 "usage":{"input_tokens":50,"output_tokens":300,"cache_read_input_tokens":4000,"cache_creation_input_tokens":900},
+                 "content":[{"type":"tool_use","id":"toolu_1","name":"deliver","input":{"summary":"Listo"}}]}""";
+
+        BoardAgentModel.Result r = work();
+
+        assertThat(lastBody.get().path("cache_control").path("type").asString()).as("caché automático en el último bloque").isEqualTo("ephemeral");
+        assertThat(r.inputTokens()).isEqualTo(50);
+        assertThat(r.cacheReadTokens()).isEqualTo(4000);
+        assertThat(r.cacheWriteTokens()).isEqualTo(900);
+    }
+
+    @Test
+    void withoutFilesOrTheToolItDoesNotGetCodeExecutionAndUsesTheChosenEffort() {
+        reply = message("tool_use", """
+                {"type":"tool_use","id":"toolu_1","name":"deliver","input":{"summary":"Listo"}}""");
+        var task = new BoardAgentModel.Task("Reglas", "Redacta la propuesta", List.of(), List.of(), () -> null, false, null, null, false, "low");
+
+        work(task);
+
+        JsonNode body = lastBody.get();
+        assertThat(body.path("tools").findValues("type").stream().map(JsonNode::asString)).noneMatch(t -> t.startsWith("code_execution"));
+        assertThat(body.path("system").toString()).doesNotContain("Puedes ejecutar código");
+        assertThat(body.path("output_config").path("effort").asString()).isEqualTo("low");
+
+        var withFile = new BoardAgentModel.Task("Reglas", "Resume", List.of(new BoardAgentModel.InputFile("a.csv", "text/csv", "x".getBytes())), List.of(),
+                () -> null, false, null, null, false, null);
+        assertThat(withFile.codeExecution()).as("los archivos se leen ejecutando código").isTrue();
+    }
+
+    @Test
+    void aHugeToolResultIsClipped() {
+        assertThat(ClaudeBoardAgentModel.clip("x".repeat(ClaudeBoardAgentModel.MAX_TOOL_RESULT + 10))).hasSizeLessThan(ClaudeBoardAgentModel.MAX_TOOL_RESULT + 100)
+                .endsWith("un PR a la vez.)");
+        assertThat(ClaudeBoardAgentModel.clip("corto")).isEqualTo("corto");
+    }
+
+    @Test
     void aCutAnswerSaysWhy() {
         reply = message("max_tokens", """
                 {"type":"text","text":"Empiezo a calcular"}""");

@@ -187,7 +187,7 @@ export const boardApi = {
     request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team/agents`, json("POST", input)),
   removeFromTeam: (key: string, memberId: string) =>
     request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team/${encodeURIComponent(memberId)}`, { method: "DELETE" }),
-  setAgentProfile: (memberId: string, input: { mode: AgentMode; model: string | null }) =>
+  setAgentProfile: (memberId: string, input: { mode: AgentMode; model: string | null; effort?: string | null }) =>
     request<TeamAgent>(`/api/agents/${encodeURIComponent(memberId)}/profile`, json("PUT", input)),
   aiUsage: () => request<AiUsageReport>("/api/workspace/ai/usage"),
   setAiBudget: (budgetUsd: number | null) => request<AiUsageReport>("/api/workspace/ai/budget", json("PUT", { budgetUsd })),

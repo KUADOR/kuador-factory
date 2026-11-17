@@ -84,11 +84,17 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
 
     @Override
     public Result propose(String apiKey, String chosenModel, PoContext context) {
+        return propose(apiKey, chosenModel, null, context);
+    }
+
+    @Override
+    public Result propose(String apiKey, String chosenModel, String chosenEffort, PoContext context) {
         AnthropicOkHttpClient.Builder b = AnthropicOkHttpClient.builder().apiKey(apiKey.strip()).timeout(Duration.ofMinutes(10)).maxRetries(2);
         if (!baseUrl.isEmpty()) b.baseUrl(baseUrl);
         AnthropicClient own = b.build();
         try {
-            return propose(own, chosenModel == null || chosenModel.isBlank() ? model : chosenModel, context);
+            OutputConfig.Effort e = chosenEffort == null || chosenEffort.isBlank() ? effort : OutputConfig.Effort.of(chosenEffort.strip());
+            return propose(own, chosenModel == null || chosenModel.isBlank() ? model : chosenModel, e, context);
         } finally {
             own.close();
         }
@@ -97,10 +103,10 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
     @Override
     public Result propose(PoContext context) {
         if (client == null) throw new AgentModelException(unavailableReason());
-        return propose(client, model, context);
+        return propose(client, model, effort, context);
     }
 
-    private Result propose(AnthropicClient client, String model, PoContext context) {
+    private Result propose(AnthropicClient client, String model, OutputConfig.Effort effort, PoContext context) {
         StructuredMessageCreateParams.Builder<PoProposal> builder = MessageCreateParams.builder()
                 .model(model)
                 .maxTokens(MAX_TOKENS)

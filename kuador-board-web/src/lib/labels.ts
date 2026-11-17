@@ -72,6 +72,15 @@ export function stageRoleOptions(catalogRoles: { key: string; name: string }[], 
  * Los modelos de Claude con una pista de para qué sirve cada uno: el más capaz para lógica y arquitectura, el
  * equilibrado para análisis y redacción (PO, marketing), el económico para tareas simples y de mucho volumen.
  */
+/** Cuánto razona el modelo: más esfuerzo = mejores respuestas en lo difícil, más tokens y más tiempo. */
+export const EFFORT_LABEL: Record<string, string> = {
+  low: "Bajo (tareas simples, el más barato)",
+  medium: "Medio (la mayoría del trabajo)",
+  high: "Alto (diseño y problemas difíciles)",
+  xhigh: "Muy alto",
+  max: "Máximo (el más caro)",
+};
+
 export const MODEL_LABEL: Record<string, string> = {
   "claude-opus-5-5": "Claude Opus 5.5 (el más capaz: lógica, arquitectura)",
   "claude-sonnet-5-5": "Claude Sonnet 5.5 (equilibrado: análisis, redacción)",

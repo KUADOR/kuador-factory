@@ -48,6 +48,12 @@ class AgentRunEntity {
     @Column(name = "output_tokens")
     Integer outputTokens;
 
+    @Column(name = "cache_read_tokens")
+    Integer cacheReadTokens;
+
+    @Column(name = "cache_write_tokens")
+    Integer cacheWriteTokens;
+
     String summary;
 
     String error;
@@ -72,6 +78,8 @@ class AgentRunEntity {
         e.model = r.model();
         e.inputTokens = r.inputTokens();
         e.outputTokens = r.outputTokens();
+        e.cacheReadTokens = r.cacheReadTokens();
+        e.cacheWriteTokens = r.cacheWriteTokens();
         e.summary = r.summary();
         e.error = r.error();
         e.createdAt = r.createdAt();
@@ -81,6 +89,6 @@ class AgentRunEntity {
 
     AgentRun toDomain() {
         return new AgentRun(id, agentId, issueKey, projectKey, triggerEventId, requestedBy, status, model, inputTokens, outputTokens,
-                summary, error, createdAt, finishedAt);
+                cacheReadTokens, cacheWriteTokens, summary, error, createdAt, finishedAt);
     }
 }

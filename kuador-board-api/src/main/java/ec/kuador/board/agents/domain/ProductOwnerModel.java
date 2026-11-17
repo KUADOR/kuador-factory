@@ -20,4 +20,9 @@ public interface ProductOwnerModel {
     default Result propose(String apiKey, String model, PoContext context) {
         return propose(apiKey, context);
     }
+
+    /** Además, cuánto razona ({@code null} = el configurado). */
+    default Result propose(String apiKey, String model, String effort, PoContext context) {
+        return propose(apiKey, model, context);
+    }
 }

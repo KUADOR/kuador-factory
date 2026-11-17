@@ -135,6 +135,16 @@ public final class CatalogRules {
         range("Búsquedas web", l.webSearches(), 1, 30);
         range("Vueltas con Claude", l.turnsClaude(), 1, 40);
         range("Vueltas con otros proveedores", l.turnsOther(), 1, 80);
+        if (p.roles() != null) {
+            p.roles().forEach((role, t) -> {
+                if (role == null || role.isBlank() || role.length() > 40) throw new DomainException("Cada sugerencia por rol lleva la clave del rol.");
+                if (t == null) return;
+                if (t.model() != null && t.model().length() > 60) throw new DomainException("El modelo sugerido para " + role + " es demasiado largo.");
+                if (t.effort() != null && !t.effort().isBlank() && !ec.kuador.board.catalog.AgentPolicy.EFFORTS.contains(t.effort().strip())) {
+                    throw new DomainException("El esfuerzo de " + role + " es uno de: " + String.join(", ", ec.kuador.board.catalog.AgentPolicy.EFFORTS) + ".");
+                }
+            });
+        }
         var r = p.rules();
         var m = p.messages();
         var t = p.repo();

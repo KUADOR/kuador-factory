@@ -14,11 +14,13 @@ import com.anthropic.errors.UnauthorizedException;
 import com.anthropic.helpers.MessageAccumulator;
 import com.anthropic.models.files.FileMetadata;
 import com.anthropic.models.files.FileUploadParams;
+import com.anthropic.models.messages.CacheControlEphemeral;
 import com.anthropic.models.messages.CodeExecutionTool20260120;
 import com.anthropic.models.messages.ContentBlock;
 import com.anthropic.models.messages.ContentBlockParam;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
+import com.anthropic.models.messages.OutputConfig;
 import com.anthropic.models.messages.RawMessageStreamEvent;
 import com.anthropic.models.messages.StopReason;
 import com.anthropic.models.messages.ThinkingConfigAdaptive;
@@ -62,6 +64,8 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
      */
     static final long MAX_TOKENS = 64_000L;
     private static final long MAX_OUTPUT_BYTES = 30L * 1024 * 1024;
+    /** Lo que devuelve una herramienta del tablero al modelo (un diff o un archivo enorme se pagan en cada vuelta). */
+    static final int MAX_TOOL_RESULT = 60_000;
 
     /** Cómo es su entorno: se suma a las reglas del tablero. */
     private static final String ENVIRONMENT = """
@@ -131,14 +135,18 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
             MessageCreateParams.Builder params = MessageCreateParams.builder()
                     .model(model)
                     .maxTokens(MAX_TOKENS)
-                    .system(task.system() + ENVIRONMENT + (task.webSearch() ? WEB : ""))
+                    .system(task.system() + (task.codeExecution() ? ENVIRONMENT : "") + (task.webSearch() ? WEB : ""))
                     .thinking(ThinkingConfigAdaptive.builder().build())
-                    .addTool(CodeExecutionTool20260120.builder().build())
+                    // Caché de prompts: cada vuelta reenvía las reglas, las herramientas y lo ya conversado; así esa parte
+                    // se cobra a ~10% en vez de completa. El marcador va solo al último bloque, que avanza con la conversación.
+                    .cacheControl(CacheControlEphemeral.builder().build())
                     .addTool(tool("deliver", "Entrega el trabajo terminado. Los archivos para la persona deben estar ya copiados en $OUTPUT_DIR.",
                             Map.of("summary", "Resumen breve para la persona (máximo 5 líneas): qué hiciste, lo más importante y qué archivos adjuntaste. No pegues el documento ni el trabajo completo: van en los archivos."), "summary"))
                     .addTool(tool("ask_human", "Pregunta a una persona algo que falta y sin lo cual no puedes hacer bien el trabajo. Detiene el trabajo hasta que responda.",
                             Map.of("question", "La pregunta, concreta y con las opciones si las hay."), "question"))
                     .addUserMessageOfContentBlockParams(first);
+            if (task.codeExecution()) params.addTool(CodeExecutionTool20260120.builder().build());
+            if (task.effort() != null) params.outputConfig(OutputConfig.builder().effort(OutputConfig.Effort.of(task.effort())).build());
             for (BoardTool t : task.tools()) params.addTool(tool(t));
             if (task.sendBackTo() != null) {
                 params.addTool(tool("send_back", task.sendBackDescription(),
@@ -151,12 +159,16 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
             String usedModel = model;
             long input = 0;
             long output = 0;
+            long cacheRead = 0;
+            long cacheWrite = 0;
             int maxTurns = task.limits().turnsClaude();
             for (int turn = 0; turn < maxTurns; turn++) {
                 Message response = call(client, params.build());
                 usedModel = response.model().asString();
                 input += response.usage().inputTokens();
                 output += response.usage().outputTokens();
+                cacheRead += response.usage().cacheReadInputTokens().orElse(0L);
+                cacheWrite += response.usage().cacheCreationInputTokens().orElse(0L);
                 collectFiles(response, produced);
                 response.container().ifPresent(c -> params.container(c.id()));
                 StopReason stop = response.stopReason().orElse(null);
@@ -171,15 +183,15 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
                 for (ToolUseBlock use : uses) {
                     Map<String, Object> args = arguments(use);
                     if (use.name().equals("ask_human")) {
-                        return new Result(Outcome.QUESTION, text(args.get("question")), download(client, produced), usedModel, input, output);
+                        return new Result(Outcome.QUESTION, text(args.get("question")), download(client, produced), usedModel, input, output, cacheRead, cacheWrite);
                     }
                     if (use.name().equals("send_back") && task.sendBackTo() != null) {
-                        return new Result(Outcome.SENT_BACK, text(args.get("reason")), download(client, produced), usedModel, input, output);
+                        return new Result(Outcome.SENT_BACK, text(args.get("reason")), download(client, produced), usedModel, input, output, cacheRead, cacheWrite);
                     }
                     if (use.name().equals("deliver")) {
                         String blocked = task.blocksDelivery();
                         if (blocked == null) {
-                            return new Result(Outcome.DELIVERED, text(args.get("summary")), download(client, produced), usedModel, input, output);
+                            return new Result(Outcome.DELIVERED, text(args.get("summary")), download(client, produced), usedModel, input, output, cacheRead, cacheWrite);
                         }
                         results.add(toolResult(use.id(), blocked, true));
                     }
@@ -201,7 +213,7 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
                 // Terminó sin llamar a deliver: se toma su último texto como entrega.
                 String last = response.content().stream().flatMap(b -> b.text().stream()).map(t -> t.text()).reduce((a, b) -> b).orElse("").strip();
                 if (last.isEmpty()) throw new AgentModelException("El modelo terminó sin entregar nada.");
-                return new Result(Outcome.DELIVERED, last, download(client, produced), usedModel, input, output);
+                return new Result(Outcome.DELIVERED, last, download(client, produced), usedModel, input, output, cacheRead, cacheWrite);
             }
             throw new AgentModelException("El agente no terminó en " + maxTurns + " vueltas; divide el pedido o acláralo (o sube el límite en Catálogo → Reglas de agentes).");
         } finally {
@@ -276,10 +288,16 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
         BoardTool tool = task.tool(use.name()).orElse(null);
         if (tool == null) return toolResult(use.id(), "No existe la herramienta " + use.name() + ".", true);
         try {
-            return toolResult(use.id(), tool.run().apply(arguments(use)), false);
+            return toolResult(use.id(), clip(tool.run().apply(arguments(use))), false);
         } catch (RuntimeException e) {
             return toolResult(use.id(), e.getMessage() == null ? "No se pudo: " + e.getClass().getSimpleName() : e.getMessage(), true);
         }
+    }
+
+    /** Recorta lo que devuelve una herramienta: se reenvía en cada vuelta y se cobra cada vez. */
+    static String clip(String result) {
+        if (result == null || result.length() <= MAX_TOOL_RESULT) return result;
+        return result.substring(0, MAX_TOOL_RESULT) + "\n(Recortado: pide menos, p. ej. un archivo o un PR a la vez.)";
     }
 
     private static ContentBlockParam toolResult(String id, String content, boolean error) {

@@ -25,23 +25,24 @@ class JdbcAgentTeamStore implements AgentTeamStore {
 
     @Override
     public Map<UUID, Profile> profiles(UUID workspaceId) {
-        return jdbc.sql("select member_id, mode, model from agent_profile where workspace_id = ?").param(workspaceId)
-                .query((rs, n) -> new Profile(rs.getObject(1, UUID.class), AgentMode.valueOf(rs.getString(2)), rs.getString(3))).list().stream()
+        return jdbc.sql("select member_id, mode, model, effort from agent_profile where workspace_id = ?").param(workspaceId)
+                .query((rs, n) -> new Profile(rs.getObject(1, UUID.class), AgentMode.valueOf(rs.getString(2)), rs.getString(3), rs.getString(4))).list().stream()
                 .collect(Collectors.toMap(Profile::memberId, Function.identity()));
     }
 
     @Override
     public Optional<Profile> profile(UUID memberId) {
-        return jdbc.sql("select member_id, mode, model from agent_profile where member_id = ?").param(memberId)
-                .query((rs, n) -> new Profile(rs.getObject(1, UUID.class), AgentMode.valueOf(rs.getString(2)), rs.getString(3))).optional();
+        return jdbc.sql("select member_id, mode, model, effort from agent_profile where member_id = ?").param(memberId)
+                .query((rs, n) -> new Profile(rs.getObject(1, UUID.class), AgentMode.valueOf(rs.getString(2)), rs.getString(3), rs.getString(4))).optional();
     }
 
     @Override
     public void saveProfile(UUID workspaceId, Profile p, Instant now) {
         jdbc.sql("""
-                insert into agent_profile (member_id, workspace_id, mode, model, updated_at) values (?, ?, ?, ?, ?)
-                on conflict (member_id) do update set mode = excluded.mode, model = excluded.model, updated_at = excluded.updated_at""")
-                .params(p.memberId(), workspaceId, p.mode().name(), p.model(), Timestamp.from(now)).update();
+                insert into agent_profile (member_id, workspace_id, mode, model, effort, updated_at) values (?, ?, ?, ?, ?, ?)
+                on conflict (member_id) do update set mode = excluded.mode, model = excluded.model, effort = excluded.effort,
+                    updated_at = excluded.updated_at""")
+                .params(p.memberId(), workspaceId, p.mode().name(), p.model(), p.effort(), Timestamp.from(now)).update();
     }
 
     @Override

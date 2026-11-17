@@ -18,7 +18,7 @@ import {
 } from "@/app/actions";
 import { ActivityItem } from "@/components/activity/ActivityItem";
 import { WorkingLine } from "@/components/agents/WorkingLine";
-import { AgentRunItem } from "@/components/agents/AgentRunItem";
+import { AgentRunItem, usd } from "@/components/agents/AgentRunItem";
 import { CreateDocButton } from "@/components/docs/CreateDocButton";
 import { Markdown } from "@/components/docs/Markdown";
 import { Avatar } from "@/components/ui/Avatar";
@@ -306,7 +306,14 @@ function IssueHistory({ issueKey, members, project }: { issueKey: string; member
     <div className="flex flex-col gap-4">
       {runs.length > 0 && (
         <section aria-label="Ejecuciones de agentes" className="flex flex-col gap-1.5">
-          <h4 className="text-xs font-medium text-fg-muted">Ejecuciones de agentes</h4>
+          <h4 className="flex flex-wrap items-baseline justify-between gap-2 text-xs font-medium text-fg-muted">
+            Ejecuciones de agentes
+            {runs.some((r) => r.costUsd != null) && (
+              <span className="tabular font-normal text-fg-faint" title="Lo que costó la IA del servidor en esta tarjeta (las últimas ejecuciones).">
+                IA en esta tarjeta: {usd(runs.reduce((t, r) => t + (r.costUsd ?? 0), 0))}
+              </span>
+            )}
+          </h4>
           <ul className="flex flex-col gap-1.5">
             {runs.map((r) => (
               <AgentRunItem key={r.id} run={r} agentName={byId.get(r.agentId)?.name} />

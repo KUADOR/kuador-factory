@@ -22,12 +22,14 @@ class JdbcAiUsageStore implements AiUsageStore {
     @Override
     public List<Usage> usage(UUID workspaceId, Instant from, Instant to) {
         return jdbc.sql("""
-                select agent_id, model, count(*), coalesce(sum(input_tokens), 0), coalesce(sum(output_tokens), 0) from agent_run
+                select agent_id, model, count(*), coalesce(sum(input_tokens), 0), coalesce(sum(output_tokens), 0),
+                    coalesce(sum(cache_read_tokens), 0), coalesce(sum(cache_write_tokens), 0) from agent_run
                 where workspace_id = ? and created_at >= ? and created_at < ? and input_tokens is not null and model is not null
                   and model not like 'local:%' and model <> 'claude-code'
                 group by agent_id, model""")
                 .params(workspaceId, Timestamp.from(from), Timestamp.from(to))
-                .query((rs, n) -> new Usage(rs.getObject(1, UUID.class), rs.getString(2), rs.getLong(3), rs.getLong(4), rs.getLong(5))).list();
+                .query((rs, n) -> new Usage(rs.getObject(1, UUID.class), rs.getString(2), rs.getLong(3), rs.getLong(4), rs.getLong(5), rs.getLong(6),
+                        rs.getLong(7))).list();
     }
 
     @Override

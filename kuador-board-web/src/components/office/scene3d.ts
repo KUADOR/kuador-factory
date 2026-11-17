@@ -508,6 +508,10 @@ export class OfficeScene {
     const signObj = new CSS2DObject(sign);
     signObj.position.set(0, 2.9, 0);
     g.add(signObj);
+    sign.classList.add("office3d-sign-action");
+    sign.addEventListener("click", () => this.opts.onSelect("zone:review"));
+    // La mesa abre lo que espera aprobación; cada papel sobre ella abre su tarjeta (el vidrio no tapa los clics).
+    table.userData.seatId = foot.userData.seatId = "zone:review";
     this.reviewGroup = new THREE.Group();
     this.reviewGroup.position.y = 0.82;
     g.add(this.reviewGroup);
@@ -552,6 +556,7 @@ export class OfficeScene {
       p.rotation.x = -Math.PI / 2;
       p.rotation.z = a;
       p.position.set(Math.cos(a) * 0.55, 0.005 + i * 0.002, Math.sin(a) * 0.55);
+      p.userData.seatId = `card:${key}`;
       this.reviewGroup.add(p);
     });
     // Bandeja (papeles apilados) y archivo (libros).
@@ -559,29 +564,34 @@ export class OfficeScene {
     const tray = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.7), new THREE.MeshStandardMaterial({ color: "#7a5233", roughness: 0.8 }));
     tray.position.set(-0.4, 0.35, 0);
     tray.castShadow = true;
+    tray.userData.seatId = "zone:inbox";
     this.stackGroup.add(tray);
     for (let i = 0; i < Math.min(z.inbox, 14); i++) {
       const sheet = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.02, 0.42), new THREE.MeshStandardMaterial({ color: "#fffdf5" }));
       sheet.position.set(-0.4 + (Math.random() - 0.5) * 0.05, 0.72 + i * 0.025, (Math.random() - 0.5) * 0.05);
       sheet.rotation.y = (Math.random() - 0.5) * 0.3;
+      sheet.userData.seatId = "zone:inbox";
       this.stackGroup.add(sheet);
     }
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.4, 0.5), new THREE.MeshStandardMaterial({ color: "#8a5f3b", roughness: 0.8 }));
     shelf.position.set(1.6, 0.7, 0);
     shelf.castShadow = true;
+    shelf.userData.seatId = "zone:done";
     this.stackGroup.add(shelf);
     const colors = ["#8fb4ff", "#c4a7ff", "#34d399", "#ff8a4c", "#ff6b78", "#ffd66b"];
     for (let i = 0; i < Math.min(z.archived, 24); i++) {
       const book = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.36 + (i % 3) * 0.04, 0.32), new THREE.MeshStandardMaterial({ color: colors[i % colors.length] }));
       const row = Math.floor(i / 12);
       book.position.set(0.85 + (i % 12) * 0.125, 1.6 + row * -0.6 - 0.62, 0.05);
+      book.userData.seatId = "zone:done";
       this.stackGroup.add(book);
     }
-    const tags: [string, number, number][] = [[`📥 Bandeja · ${z.inbox}`, -0.6, 1.25], [`🗄️ Archivo · ${z.archived}`, 1.9, 2.0]];
-    for (const [text, x, y] of tags) {
+    const tags: [string, number, number, string][] = [[`📥 Bandeja · ${z.inbox}`, -0.6, 1.25, "zone:inbox"], [`🗄️ Archivo · ${z.archived}`, 1.9, 2.0, "zone:done"]];
+    for (const [text, x, y, zone] of tags) {
       const el = document.createElement("div");
-      el.className = "office3d-sign";
+      el.className = "office3d-sign office3d-sign-action";
       el.textContent = text;
+      el.addEventListener("click", () => this.opts.onSelect(zone));
       const o = new CSS2DObject(el);
       o.position.set(x, y, 0);
       this.stackGroup.add(o);

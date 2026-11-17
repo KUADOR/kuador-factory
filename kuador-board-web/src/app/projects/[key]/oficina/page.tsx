@@ -39,6 +39,7 @@ export default async function OfficePage({ params }: { params: Promise<{ key: st
       project={project}
       issues={issues}
       members={members}
+      everyone={everyone}
       runs={runs.filter((r) => r.projectKey === project.key)}
       me={me}
       roleNames={Object.fromEntries(roles.map((r) => [r.key, r.name]))}

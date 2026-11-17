@@ -181,7 +181,8 @@ function NextStepCallout({ step, pending, onAction }: { step: NextStep; pending:
   return (
     <div role="status" className={`flex flex-wrap items-start gap-x-3 gap-y-2 rounded-lg border px-3 py-2.5 ${style.box}`}>
       <Icon className={`mt-0.5 size-4 shrink-0 ${style.icon_}`} aria-hidden />
-      <div className="min-w-0 flex-1">
+      {/* Con poco ancho (p. ej. el panel de la oficina) los botones bajan en vez de apretar el texto. */}
+      <div className="min-w-0 flex-1 basis-56">
         <p className="text-[11px] font-medium tracking-wide text-fg-muted uppercase">{style.label}</p>
         <p className="text-[13px] font-medium text-fg-strong">{step.title}</p>
         {step.detail && <p className="mt-0.5 text-xs leading-relaxed text-fg-muted">{step.detail}</p>}

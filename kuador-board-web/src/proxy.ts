@@ -7,11 +7,11 @@ export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (request.cookies.has(SESSION_COOKIE)) {
     // Con sesión, la presentación del producto lleva al tablero.
-    return path === "/producto" ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next();
+    return path === "/product" ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next();
   }
   // Sin sesión, la portada es la presentación del producto (la URL sigue siendo la raíz).
-  if (path === "/") return NextResponse.rewrite(new URL("/producto", request.url));
-  if (path === "/producto") return NextResponse.next();
+  if (path === "/") return NextResponse.rewrite(new URL("/product", request.url));
+  if (path === "/product") return NextResponse.next();
   const login = new URL("/login", request.url);
   const next = request.nextUrl.pathname + request.nextUrl.search;
   if (next !== "/") login.searchParams.set("next", next);
@@ -19,6 +19,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // /adjuntos queda fuera: el proxy almacenaría el cuerpo de la subida; esas rutas ya exigen la sesión ante la API.
-  matcher: ["/((?!login|signup|recuperar|invitacion|adjuntos/|_next/|icon.svg|favicon.ico).*)"],
+  // /attachments queda fuera: el proxy almacenaría el cuerpo de la subida; esas rutas ya exigen la sesión ante la API.
+  matcher: ["/((?!login|signup|reset-password|invitation|attachments/|_next/|icon.svg|favicon.ico).*)"],
 };

@@ -59,7 +59,7 @@ class ClaudeProductOwnerModelTest {
     }
 
     private ProductOwnerModel model(String key) {
-        return new ClaudeProductOwnerModel(key, "claude-opus-5-5", "medium", true, "http://127.0.0.1:" + server.getAddress().getPort());
+        return new ClaudeProductOwnerModel(key, "claude-opus-5-5", "medium", true, true, "http://127.0.0.1:" + server.getAddress().getPort());
     }
 
     /** La respuesta como la manda la API en streaming; {@code extra} va en el delta final (p. ej. stop_details). */
@@ -140,6 +140,6 @@ class ClaudeProductOwnerModelTest {
     void withoutKeyAgentsAreDisabled() {
         ProductOwnerModel m = model("");
         assertThat(m.available()).isFalse();
-        assertThat(m.unavailableReason()).contains("ANTHROPIC_API_KEY");
+        assertThat(m.unavailableReason()).contains("Conexiones → IA");
     }
 }

@@ -32,6 +32,8 @@ public record Workspace(
             throw new DomainException("El nombre del espacio es obligatorio (hasta 120 caracteres).");
         }
         name = name.strip();
+        // Va en asuntos de correo y encabezados: sin saltos de línea ni caracteres de control.
+        if (name.chars().anyMatch(Character::isISOControl)) throw new DomainException("El nombre del espacio no puede tener saltos de línea ni caracteres de control.");
         description = description == null || description.isBlank() ? null : description.strip();
         if (description != null && description.length() > 500) {
             throw new DomainException("La descripción de la empresa puede tener hasta 500 caracteres.");

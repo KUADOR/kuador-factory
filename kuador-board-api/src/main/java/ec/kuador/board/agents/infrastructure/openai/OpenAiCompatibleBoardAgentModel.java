@@ -133,7 +133,7 @@ class OpenAiCompatibleBoardAgentModel implements BoardAgentModel {
                     if (finish.equals("length")) throw new AgentModelException("La respuesta se cortó por longitud antes de terminar.");
                     String text = message.path("content").asString("").strip();
                     if (text.isEmpty()) throw new AgentModelException("El modelo terminó sin entregar nada.");
-                    return new Result(Outcome.DELIVERED, text, room.outputs(), usedModel, input, output);
+                    return new Result(Outcome.ANSWERED, text, room.outputs(), usedModel, input, output);
                 }
                 echo.set("tool_calls", calls);
                 // Primero las herramientas de trabajo (p. ej. crear el PDF) y al final la entrega, aunque vengan en otro orden.

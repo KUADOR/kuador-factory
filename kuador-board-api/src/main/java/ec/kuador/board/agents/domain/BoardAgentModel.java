@@ -76,13 +76,24 @@ public interface BoardAgentModel {
     }
 
     /** A dónde y con qué clave se habla. */
-    record Endpoint(String baseUrl, String apiKey) {}
+    record Endpoint(String baseUrl, String apiKey) {
+        /** Nunca la clave en un log. */
+        @Override
+        public String toString() {
+            return "Endpoint[" + baseUrl + "]";
+        }
+    }
 
     enum Outcome {
         DELIVERED,
         QUESTION,
         /** Devolvió el trabajo a la etapa anterior ({@link Task#sendBackTo()}). */
-        SENT_BACK
+        SENT_BACK,
+        /**
+         * Terminó con texto, sin llamar a deliver, send_back ni ask_human. En una etapa cuenta como entrega; en una
+         * puerta nunca aprueba (el texto puede decir «la rechazo» o venir de una inyección): pasa a una persona.
+         */
+        ANSWERED
     }
 
     /** {@code text}: el resumen de la entrega, la pregunta para la persona o qué hay que corregir. */

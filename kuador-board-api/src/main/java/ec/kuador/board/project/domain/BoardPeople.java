@@ -10,6 +10,9 @@ public interface BoardPeople {
 
     List<String> boardsOf(UUID memberId);
 
+    /** Tableros en cuyo equipo de agentes está este agente (project_agent). */
+    List<String> agentBoardsOf(UUID agentId);
+
     boolean contains(String projectKey, UUID memberId);
 
     void add(String projectKey, UUID memberId);

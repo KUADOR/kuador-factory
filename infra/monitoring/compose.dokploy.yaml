@@ -70,20 +70,42 @@ services:
     volumes:
       - ./config.alloy:/etc/alloy/config.alloy:ro
       - alloy-data:/var/lib/alloy/data
-      # Los logs y los nombres de los contenedores. Ojo: el socket de Docker da control total del servidor.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       # Uso de CPU, memoria y disco del servidor (solo lectura).
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-    depends_on: [prometheus, loki]
-    networks: [dokploy-network, monitoreo]
+    depends_on: [prometheus, loki, docker-proxy]
+    networks: [dokploy-network, monitoreo, docker-api]
+
+  # El socket de Docker da control total del servidor: Alloy no lo monta. Este proxy solo deja listar contenedores y
+  # leer sus logs (GET); crear, borrar o ejecutar en contenedores queda negado. Solo Alloy lo alcanza (red docker-api).
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:3.4@sha256:027f9fa5ee70be5836eeaa10ce889d7a83f34a8db16a7f412818b92997e0beab
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      CONTAINERS: 1
+      EVENTS: 1
+      PING: 1
+      VERSION: 1
+      INFO: 0
+      IMAGES: 0
+      NETWORKS: 1
+      VOLUMES: 0
+      EXEC: 0
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [docker-api]
 
 networks:
   dokploy-network:
     external: true
   # Prometheus y Loki solo se ven entre ellos, Grafana y Alloy: ningún otro servicio del servidor los alcanza.
   monitoreo:
+  # Solo Alloy y el proxy de Docker.
+  docker-api:
+    internal: true
 
 volumes:
   grafana-data:

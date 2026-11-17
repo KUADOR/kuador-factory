@@ -178,7 +178,7 @@ class PaymentIT {
         assertThat(call("GET", "/api/workspace/plan/payment-options", null, owner).body().findValuesAsString("code")).containsExactly("PAYPAL");
         JsonNode checkout = call("POST", "/api/workspace/plan/checkout", Map.of("plan", "TEAM", "provider", "PAYPAL", "months", 12), owner).body();
         assertThat(checkout.get("payUrl").asString()).isEqualTo("https://paypal.test/pay?token=ORDER-1");
-        assertThat(ORDERS.getFirst()).contains("\"value\":\"348.00\"", "\"currency_code\":\"USD\"", "https://tablero.test/workspace/plan/pago?id=");
+        assertThat(ORDERS.getFirst()).contains("\"value\":\"348.00\"", "\"currency_code\":\"USD\"", "https://tablero.test/workspace/plan/payment?id=");
 
         JsonNode paid = call("POST", "/api/workspace/plan/payments/" + checkout.get("paymentId").asString() + "/confirm", null, owner).body();
         assertThat(paid.get("status").asString()).isEqualTo("PAID");

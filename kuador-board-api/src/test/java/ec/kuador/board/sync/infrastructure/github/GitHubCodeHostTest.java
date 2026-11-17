@@ -51,10 +51,10 @@ class GitHubCodeHostTest {
                  "updated_at":"2026-11-16T10:00:00Z","changed_files":2}""";
         routes.put("/repos/acme/med/pulls?state=all&sort=updated&direction=desc&per_page=30", "[" + pr + "]");
         routes.put("/repos/acme/med/pulls/6", pr);
-        routes.put("/repos/acme/med/pulls/6/files?per_page=100", """
+        routes.put("/repos/acme/med/pulls/6/files?per_page=100&page=1", """
                 [{"filename":"src/Paciente.java","status":"added","additions":40,"deletions":0,"patch":"@@ -0,0 +1 @@\\n+class Paciente {}"},
                  {"filename":"logo.png","status":"added","additions":0,"deletions":0}]""");
-        routes.put("/repos/acme/med/commits/abc123/check-runs?per_page=50", """
+        routes.put("/repos/acme/med/commits/abc123/check-runs?per_page=100", """
                 {"check_runs":[{"name":"api","status":"completed","conclusion":"failure","output":{"title":"2 pruebas fallan","summary":"PacienteTest"}}]}""");
         routes.put("/repos/acme/med/commits/abc123/status", """
                 {"statuses":[{"context":"sonar","state":"success","description":"Calidad OK"}]}""");
@@ -92,8 +92,8 @@ class GitHubCodeHostTest {
 
     @Test
     void withoutPermissionToReadTheCiItSaysHowToFixIt() {
-        status.put("/repos/acme/med/commits/abc123/check-runs?per_page=50", 403);
-        routes.put("/repos/acme/med/commits/abc123/check-runs?per_page=50", "{\"message\":\"Resource not accessible by integration\"}");
+        status.put("/repos/acme/med/commits/abc123/check-runs?per_page=100", 403);
+        routes.put("/repos/acme/med/commits/abc123/check-runs?per_page=100", "{\"message\":\"Resource not accessible by integration\"}");
 
         CodeReviewApi.PullDetail d = host.pull(access, 6).orElseThrow();
         assertThat(d.files()).hasSize(2);

@@ -36,7 +36,12 @@ public class AiUsage {
     private final Clock clock;
     private final ZoneId zone;
 
-    AiUsage(AiUsageStore store, MemberApi members, Clock clock, @Value("${board.billing.zone:America/Guayaquil}") String zone) {
+    /** Corridas de agentes por espacio en una hora: frena un bucle o a alguien que dispara corridas sin parar. */
+    private final int maxRunsPerHour;
+
+    AiUsage(AiUsageStore store, MemberApi members, Clock clock, @Value("${board.billing.zone:America/Guayaquil}") String zone,
+            @Value("${board.agents.max-runs-per-hour:60}") int maxRunsPerHour) {
+        this.maxRunsPerHour = maxRunsPerHour;
         this.store = store;
         this.members = members;
         this.clock = clock;
@@ -124,7 +129,21 @@ public class AiUsage {
         Optional<BigDecimal> budget = store.budget(TenantContext.require());
         if (budget.isEmpty()) return false;
         Report r = report();
-        return r.costUsd() != null && r.costUsd().compareTo(budget.get()) >= 0;
+        // Con tope y un modelo usado sin precio no se puede saber el gasto: se frena por precaución (antes el tope dejaba de aplicar).
+        return r.costUsd() == null || r.costUsd().compareTo(budget.get()) >= 0;
+    }
+
+    /** Si el espacio ya hizo el máximo de corridas de la última hora. */
+    @Transactional(readOnly = true)
+    public boolean overRate() {
+        if (maxRunsPerHour <= 0) return false;
+        Instant now = clock.instant();
+        long runs = store.usage(TenantContext.require(), now.minus(java.time.Duration.ofHours(1)), now).stream().mapToLong(AiUsageStore.Usage::runs).sum();
+        return runs >= maxRunsPerHour;
+    }
+
+    public int maxRunsPerHour() {
+        return maxRunsPerHour;
     }
 
     /** Tope mensual en USD ({@code null} = sin tope). Necesita la clave de IA configurada. */

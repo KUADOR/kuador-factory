@@ -80,7 +80,7 @@ export function SidebarNav({ me, workspace, projects, theme }: { me: Me; workspa
             {admin ? "Configuración" : "Equipo"}
           </NavLink>
           {me.platformAdmin && (
-            <NavLink href="/plataforma" active={path.startsWith("/plataforma")}>
+            <NavLink href="/platform" active={path.startsWith("/platform")}>
               <ShieldCheck className="size-4 shrink-0" aria-hidden /> Plataforma
             </NavLink>
           )}

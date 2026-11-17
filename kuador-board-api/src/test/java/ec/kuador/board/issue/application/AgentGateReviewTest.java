@@ -33,6 +33,7 @@ class AgentGateReviewTest {
     private static final UUID OWNER = UUID.randomUUID();
     private static final UUID REVIEWER = UUID.randomUUID();
     private static final UUID QA = UUID.randomUUID();
+    private static final UUID DEV = UUID.randomUUID();
 
     private IssueService service;
 
@@ -48,6 +49,7 @@ class AgentGateReviewTest {
         members.add(new MemberView(OWNER, TestTenant.WORKSPACE, "Diana", false, "OWNER", "#fff", null));
         members.add(new MemberView(REVIEWER, TestTenant.WORKSPACE, "Agente Revisor de PR", true, StageDef.DEFAULT_REVIEWER, "#fff", null));
         members.add(new MemberView(QA, TestTenant.WORKSPACE, "Agente QA", true, "QA", "#fff", null));
+        members.add(new MemberView(DEV, TestTenant.WORKSPACE, "Dani", false, "DEV", "#fff", null));
         service = new IssueService(new IssueServiceTest.InMemoryIssues(), projects, members, new InMemoryCatalog(), e -> {},
                 Clock.fixed(Instant.parse("2026-11-16T12:00:00Z"), ZoneOffset.UTC));
     }
@@ -110,6 +112,31 @@ class AgentGateReviewTest {
         service.setReviewBy(plan.key(), "AGENT", OWNER);
         assertThat(service.gateReview(plan.key(), REVIEWER).orElseThrow().escalates()).as("pedida por la tarjeta: siempre con escalamiento").isTrue();
         assertThatThrownBy(() -> service.setReviewBy(plan.key(), "PERSON", REVIEWER)).isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void nobodySkipsAGateByMovingOrCreatingPastIt() {
+        Issue idea = service.create("KUA", new IssueDetails("Idea", null, IssueType.STORY, null, null, null, null, null), DEV, "BACKLOG");
+        assertThatThrownBy(() -> service.move(idea.key(), "IN_PROGRESS", 0, DEV)).as("de Backlog a En curso salta la puerta TODO")
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> service.move(idea.key(), "DONE", 0, QA)).as("un agente tampoco").isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> service.create("KUA", new IssueDetails("Atajo", null, IssueType.STORY, null, null, null, null, null), DEV, "IN_PROGRESS"))
+                .as("ni creándola ya pasada la puerta").isInstanceOf(ForbiddenException.class);
+
+        service.move(idea.key(), "TODO", 0, DEV);
+        assertThat(service.get(idea.key()).status()).as("llegar a la puerta sí").isEqualTo("TODO");
+        Issue approved = service.create("KUA", new IssueDetails("Aprobada", null, IssueType.STORY, null, null, null, null, null), OWNER, "IN_PROGRESS");
+        assertThat(approved.status()).as("quien aprueba puede").isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
+    void onlyWhoApprovesAPersonGateCanHandItToTheAgent() {
+        Issue plan = issueIn("TODO");
+        assertThatThrownBy(() -> service.setReviewBy(plan.key(), "AGENT", DEV)).as("saltaría a quien aprueba")
+                .isInstanceOf(ForbiddenException.class).hasMessageContaining("Solo quien aprueba");
+        assertThat(service.gateReview(plan.key(), REVIEWER)).isEmpty();
+        service.setReviewBy(plan.key(), "PERSON", DEV);
+        assertThat(service.get(plan.key()).reviewBy()).as("pedir una persona siempre se puede").isEqualTo("PERSON");
     }
 
     @Test

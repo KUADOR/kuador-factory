@@ -48,7 +48,7 @@ export function IssueAttachments({ issueKey, members }: { issueKey: string; memb
       const form = new FormData();
       form.append("file", file);
       try {
-        const res = await fetch(`/adjuntos/${encodeURIComponent(issueKey)}`, { method: "POST", body: form });
+        const res = await fetch(`/attachments/${encodeURIComponent(issueKey)}`, { method: "POST", body: form });
         if (!res.ok) {
           const problem = (await res.json().catch(() => null)) as { detail?: string } | null;
           notify.error(`No se pudo subir ${file.name}`, problem?.detail ?? (res.status === 413 ? "El archivo es muy grande." : `La API respondió ${res.status}.`));
@@ -142,7 +142,7 @@ export function IssueAttachments({ issueKey, members }: { issueKey: string; memb
 }
 
 function AttachmentRow({ attachment: a, author, canDelete, pending, onDelete }: { attachment: Attachment; author: string; canDelete: boolean; pending: boolean; onDelete: () => void }) {
-  const url = `/adjuntos/archivo/${a.id}`;
+  const url = `/attachments/file/${a.id}`;
   return (
     <li className="flex items-center gap-3 px-3 py-2.5">
       {IMAGE.test(a.contentType) ? (

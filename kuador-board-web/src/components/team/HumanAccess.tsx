@@ -11,8 +11,8 @@ import type { Invitation } from "@/lib/types";
 const date = (iso: string) => new Intl.DateTimeFormat("es-EC", { day: "numeric", month: "short" }).format(new Date(iso));
 
 /**
- * Acceso web de una persona. Lo habitual es invitarla por correo (elige su contraseña); como alternativa, se le
- * pone una contraseña temporal que se comparte por un canal seguro.
+ * Acceso web de una persona: se la invita por correo (confirma que el correo es suyo y elige su contraseña). La
+ * contraseña temporal queda solo para instalaciones propias (BOARD_TEMPORARY_PASSWORDS); en la nube no se ofrece.
  */
 export function HumanAccess({ memberId, email, invitation }: { memberId: string; email: string | null; invitation: Invitation | null }) {
   const [mode, setMode] = useState<"idle" | "invite" | "password">("idle");
@@ -66,7 +66,6 @@ export function HumanAccess({ memberId, email, invitation }: { memberId: string;
           ) : (
             <>
               <Button size="sm" tone="primary" onClick={() => setMode("invite")}>Invitar por correo</Button>
-              <Button size="sm" tone="ghost" onClick={() => setMode("password")}>Poner contraseña temporal</Button>
             </>
           )}
         </div>

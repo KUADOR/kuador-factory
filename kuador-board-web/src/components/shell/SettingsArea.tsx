@@ -13,7 +13,7 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
   const editor = canEdit(me);
   const admin = canAdminister(me);
   const software = projects.some((p) => p.kind === "SOFTWARE");
-  const localAgents = editor && software ? [{ href: "/agentes-locales", label: "Agentes locales" }] : [];
+  const localAgents = editor && software ? [{ href: "/local-agents", label: "Agentes locales" }] : [];
   const groups: SectionNavGroup[] = admin
     ? [
         {
@@ -24,8 +24,8 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
             ...(isOwner(me) ? [{ href: "/workspace/plan", label: "Plan" }] : []),
           ],
         },
-        { title: "Integraciones", items: [{ href: "/conexiones", label: "Conexiones" }, ...localAgents] },
-        { title: "Seguridad", items: [{ href: "/auditoria", label: "Auditoría" }] },
+        { title: "Integraciones", items: [{ href: "/connections", label: "Conexiones" }, ...localAgents] },
+        { title: "Seguridad", items: [{ href: "/audit", label: "Auditoría" }] },
         { title: "Avanzado", items: [{ href: "/catalog", label: "Catálogo" }] },
       ]
     : [

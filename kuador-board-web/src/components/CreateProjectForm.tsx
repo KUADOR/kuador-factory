@@ -31,7 +31,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
         e.preventDefault();
         startTransition(async () => {
           const result = await createProjectAction({ key, name, description: description.trim() || null, templateKey });
-          if (result.ok) router.push(`/projects/${result.data.key}/inicio`);
+          if (result.ok) router.push(`/projects/${result.data.key}/setup`);
           else setError(result.error);
         });
       }}

@@ -73,6 +73,11 @@ public class InMemoryProjects implements ProjectApi {
     }
 
     @Override
+    public java.util.Set<String> agentBoardsOf(java.util.UUID agentId) {
+        return all.keySet();
+    }
+
+    @Override
     public void addPerson(String projectKey, java.util.UUID memberId) {
     }
 }

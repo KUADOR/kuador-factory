@@ -112,8 +112,8 @@ public class GitHubAppService implements GitHubApi {
         manifest.put("url", webUrl);
         // Sin URL pública todavía: el webhook queda creado pero apagado hasta el despliegue.
         manifest.put("hook_attributes", Map.of("url", apiPublicUrl + "/api/github/webhook", "active", false));
-        manifest.put("redirect_url", webUrl + "/conexiones/github/app-creada");
-        manifest.put("callback_urls", List.of(webUrl + "/conexiones/github/instalada"));
+        manifest.put("redirect_url", webUrl + "/connections/github/app-created");
+        manifest.put("callback_urls", List.of(webUrl + "/connections/github/installed"));
         manifest.put("request_oauth_on_install", true);
         manifest.put("public", true);
         manifest.put("default_permissions", Map.of(

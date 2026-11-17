@@ -16,4 +16,7 @@ public interface AttachmentStore {
     Optional<Attachment> find(UUID workspaceId, UUID id);
 
     void delete(UUID workspaceId, UUID id);
+
+    /** Bytes guardados por el espacio (todos sus adjuntos). */
+    long totalBytes(UUID workspaceId);
 }

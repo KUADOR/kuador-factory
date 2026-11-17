@@ -130,7 +130,7 @@ public class PaymentService {
         String description = "Kuador Go · Plan " + plan.name() + " · " + months + (months == 1 ? " mes" : " meses");
         PaymentGateway.Checkout checkout;
         try {
-            checkout = gateway(provider.type()).start(provider, payment, description, webUrl + "/workspace/plan/pago?id=" + payment.id(),
+            checkout = gateway(provider.type()).start(provider, payment, description, webUrl + "/workspace/plan/payment?id=" + payment.id(),
                     webUrl + "/workspace/plan?pago=cancelado");
         } catch (RuntimeException e) {
             tx.executeWithoutResult(s -> store.markFailed(payment.id()));

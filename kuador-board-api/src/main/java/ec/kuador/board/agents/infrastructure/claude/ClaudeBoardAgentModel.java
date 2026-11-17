@@ -213,7 +213,7 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
                 // Terminó sin llamar a deliver: se toma su último texto como entrega.
                 String last = response.content().stream().flatMap(b -> b.text().stream()).map(t -> t.text()).reduce((a, b) -> b).orElse("").strip();
                 if (last.isEmpty()) throw new AgentModelException("El modelo terminó sin entregar nada.");
-                return new Result(Outcome.DELIVERED, last, download(client, produced), usedModel, input, output, cacheRead, cacheWrite);
+                return new Result(Outcome.ANSWERED, last, download(client, produced), usedModel, input, output, cacheRead, cacheWrite);
             }
             throw new AgentModelException("El agente no terminó en " + maxTurns + " vueltas; divide el pedido o acláralo (o sube el límite en Catálogo → Reglas de agentes).");
         } finally {

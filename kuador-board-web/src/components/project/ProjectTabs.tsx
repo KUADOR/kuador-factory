@@ -20,7 +20,7 @@ export function ProjectTabs({ projectKey, kind }: { projectKey: string; kind: Pr
           ...(canAdminister ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
         ]
       : []),
-    { href: `${base}/oficina`, label: "Oficina" },
+    { href: `${base}/office`, label: "Oficina" },
     { href: `${base}/activity`, label: "Actividad" },
     ...(canEdit ? [{ href: `${base}/settings`, label: "Configuración" }] : []),
   ];

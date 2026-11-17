@@ -85,14 +85,15 @@ class SupervisionTest {
 
     @Test
     void assigningToAnAgentOrCreatingInAnAgentStageAlsoSupervises() {
-        Issue created = issueIn("IN_PROGRESS", LUIS);
-        assertThat(service.supervisorOf(created.key())).contains(LUIS);
+        // Ya pasada la puerta «Por hacer»: la crea quien la aprueba.
+        Issue created = issueIn("IN_PROGRESS", DIANA);
+        assertThat(service.supervisorOf(created.key())).contains(DIANA);
 
         Issue backlog = issueIn("BACKLOG", DIANA);
         service.assign(backlog.key(), QA, DIANA);
-        assertThat(queue(DIANA)).containsExactly(backlog.key());
+        assertThat(queue(DIANA)).containsExactlyInAnyOrder(created.key(), backlog.key());
         service.assign(backlog.key(), LUIS, DIANA);
-        assertThat(queue(DIANA)).as("asignado a una persona ya no espera a un agente").isEmpty();
+        assertThat(queue(DIANA)).as("asignado a una persona ya no espera a un agente").containsExactly(created.key());
     }
 
     @Test

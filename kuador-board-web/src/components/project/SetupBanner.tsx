@@ -33,7 +33,7 @@ export function SetupBanner({ projectKey, pending }: { projectKey: string; pendi
       <span className="text-fg">
         Faltan {pending} paso{pending === 1 ? "" : "s"} para dejar el proyecto listo.
       </span>
-      <Link href={`/projects/${projectKey}/inicio`} className="k-link">
+      <Link href={`/projects/${projectKey}/setup`} className="k-link">
         Terminar de configurar
       </Link>
       <span className="ml-auto">

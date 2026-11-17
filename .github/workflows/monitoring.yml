@@ -10,6 +10,9 @@ on:
     paths: ['infra/monitoring/**', '.github/workflows/monitoring.yml']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   stack:
     runs-on: ubuntu-latest
@@ -27,7 +30,7 @@ jobs:
       # Sin API en CI: apunta a Prometheus para probar el raspado (responde 404 en esa ruta, up=0).
       API_METRICS: prometheus:9090
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Levantar el stack
         run: |
           docker network create dokploy-network

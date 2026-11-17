@@ -251,6 +251,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public java.util.Set<String> agentBoardsOf(UUID agentId) {
+        return java.util.Set.copyOf(people.agentBoardsOf(agentId));
+    }
+
+    @Override
     @Transactional
     public int allocateIssueNumber(String projectKey) {
         return projects.nextIssueNumber(projectKey)

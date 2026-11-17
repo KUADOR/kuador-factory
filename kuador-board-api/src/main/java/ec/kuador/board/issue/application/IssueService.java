@@ -136,6 +136,8 @@ public class IssueService implements IssueApi {
         int number = projects.allocateIssueNumber(projectKey);
         Instant now = now();
         Issue created = Issue.create(projectKey, number, details, actorId, column, issues.nextPosition(projectKey, column), now);
+        // Crear la tarjeta ya pasada una puerta sería saltársela: lo hace solo quien la aprueba.
+        if (actorId != null) requireGatesCrossed(project, null, column, actorId, created);
         superviseIfPersonHandsToAgents(created, project, actorId);
         Issue issue = issues.save(created);
         events.publishEvent(new IssueCreated(UUID.randomUUID(), TenantContext.require(), issue.key(), projectKey, actorId, now,
@@ -197,6 +199,8 @@ public class IssueService implements IssueApi {
         if (fromStage.isPresent() && fromStage.get().gate()) {
             requireApprover(project, fromStage.get(), actorId, issue);
         }
+        // Tampoco se salta una puerta llevando la tarjeta de antes a después de ella.
+        requireGatesCrossed(project, from, target, actorId, issue);
         List<Issue> column = new ArrayList<>(issues.findColumn(issue.projectKey(), target));
         column.removeIf(i -> i.id().equals(issue.id()));
         column.add(Math.clamp(index, 0, column.size()), issue);
@@ -568,7 +572,18 @@ public class IssueService implements IssueApi {
     @Transactional
     public Issue setReviewBy(String key, String reviewBy, UUID actorId) {
         Issue issue = load(key);
-        if (requireMember(actorId).agent()) throw new ForbiddenException("Quién revisa una tarjeta lo decide una persona.");
+        MemberView actor = requireMember(actorId);
+        if (actor.agent()) throw new ForbiddenException("Quién revisa una tarjeta lo decide una persona.");
+        if ("AGENT".equals(reviewBy)) {
+            // Dejarla al agente salta a quienes aprueban: solo lo decide alguien que podría aprobar esas puertas.
+            ProjectView board = project(issue.projectKey());
+            for (StageDef gate : board.stages()) {
+                if (gate.gate() && gate.reviewFor(null) == StageDef.ReviewMode.PERSON && !gate.approvableBy(actor.role())) {
+                    throw new ForbiddenException("Solo quien aprueba «" + columnName(board, gate.column()) + "» puede dejar esta tarjeta al agente revisor ("
+                            + roleNames(gate.approvers()) + ").");
+                }
+            }
+        }
         String before = issue.reviewBy();
         issue.reviewBy(reviewBy);
         if (java.util.Objects.equals(before, issue.reviewBy())) return issue;
@@ -787,6 +802,21 @@ public class IssueService implements IssueApi {
      * Cierra una puerta una persona (con uno de sus roles aprobadores, si los pide) o, si la puerta está en revisión por
      * agente para esta tarjeta, su agente revisor.
      */
+    /**
+     * Las puertas que quedan entre {@code from} (exclusivo; {@code null} = antes de la primera columna) y {@code target}
+     * (exclusivo), hacia adelante: pasar por encima de una exige poder aprobarla.
+     */
+    private void requireGatesCrossed(ProjectView project, String from, String target, UUID actorId, Issue issue) {
+        List<String> order = project.columns().stream().map(ColumnDef::key).toList();
+        int fromIndex = from == null ? -1 : order.indexOf(from);
+        int toIndex = order.indexOf(target);
+        if (toIndex <= fromIndex + 1) return;
+        for (int i = fromIndex + 1; i < toIndex; i++) {
+            Optional<StageDef> gate = project.stage(order.get(i)).filter(StageDef::gate);
+            if (gate.isPresent()) requireApprover(project, gate.get(), actorId, issue);
+        }
+    }
+
     private MemberView requireApprover(ProjectView project, StageDef gate, UUID actorId, Issue issue) {
         MemberView actor = requireMember(actorId);
         String gateName = columnName(project, gate.column());

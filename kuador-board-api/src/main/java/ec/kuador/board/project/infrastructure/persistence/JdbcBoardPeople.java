@@ -30,6 +30,12 @@ class JdbcBoardPeople implements BoardPeople {
     }
 
     @Override
+    public List<String> agentBoardsOf(UUID agentId) {
+        return jdbc.sql("select project_key from project_agent where workspace_id = ? and member_id = ? order by project_key")
+                .params(TenantContext.require(), agentId).query(String.class).list();
+    }
+
+    @Override
     public boolean contains(String projectKey, UUID memberId) {
         return jdbc.sql("select count(*) from project_member where workspace_id = ? and project_key = ? and member_id = ?")
                 .params(TenantContext.require(), projectKey, memberId).query(Long.class).single() > 0;

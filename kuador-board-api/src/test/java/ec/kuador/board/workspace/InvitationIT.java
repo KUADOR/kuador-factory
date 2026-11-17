@@ -78,7 +78,7 @@ class InvitationIT {
     }
 
     private static String token(String mail) {
-        Matcher m = Pattern.compile("https://tablero\\.test/invitacion\\?token=([A-Za-z0-9_-]+)").matcher(mail);
+        Matcher m = Pattern.compile("https://tablero\\.test/invitation\\?token=([A-Za-z0-9_-]+)").matcher(mail);
         assertThat(m.find()).isTrue();
         return m.group(1);
     }

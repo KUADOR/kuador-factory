@@ -82,7 +82,7 @@ public class PasswordResetService {
                 Pediste cambiar tu contraseña de Kuador Go.
 
                 Abre este enlace para elegir una nueva:
-                %s/recuperar?token=%s
+                %s/reset-password?token=%s
 
                 O escribe este código en la página de recuperación: %s
 

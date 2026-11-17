@@ -70,7 +70,8 @@ prometheus.remote_write "local" {
 
 // ---- Logs de todos los contenedores, con el nombre del servicio y el nivel ----
 discovery.docker "contenedores" {
-  host = "unix:///var/run/docker.sock"
+  // Por el proxy de solo lectura (docker-proxy), no el socket directo: Alloy no puede crear ni tocar contenedores.
+  host = "tcp://docker-proxy:2375"
 }
 
 discovery.relabel "logs" {
@@ -94,7 +95,7 @@ discovery.relabel "logs" {
 }
 
 loki.source.docker "contenedores" {
-  host          = "unix:///var/run/docker.sock"
+  host          = "tcp://docker-proxy:2375"
   targets       = discovery.relabel.logs.output
   relabel_rules = discovery.relabel.logs.rules
   forward_to    = [loki.process.nivel.receiver]
@@ -115,6 +116,19 @@ loki.process "nivel" {
   }
   stage.labels {
     values = {level = ""}
+  }
+  // Antes de guardar: correos y tokens enmascarados (Grafana es la única puerta y los logs duran 14 días).
+  stage.replace {
+    expression = "([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})"
+    replace    = "<correo>"
+  }
+  stage.replace {
+    expression = "((?:kf[sarp]_|sk-ant-|sk-|ghp_|gho_|ghs_|github_pat_|xox[bp]-)[A-Za-z0-9_-]{8,})"
+    replace    = "<secreto>"
+  }
+  stage.replace {
+    expression = "(?i)(bearer\\s+[A-Za-z0-9._~+/=-]{8,})"
+    replace    = "Bearer <secreto>"
   }
   forward_to = [loki.write.local.receiver]
 }

@@ -103,7 +103,7 @@ export function ProjectsView({
 function FirstSteps({ onCreate }: { onCreate: () => void }) {
   const steps = [
     { title: "Crea tu primer tablero", text: "Desde una plantilla: ventas, marketing, tareas o software.", action: <Button tone="primary" size="sm" icon={Plus} onClick={onCreate}>Nuevo proyecto</Button> },
-    { title: "Conecta la IA de la empresa", text: "Para que tus agentes trabajen en el tablero.", action: <Button size="sm" href="/conexiones">Ir a Conexiones</Button> },
+    { title: "Conecta la IA de la empresa", text: "Para que tus agentes trabajen en el tablero.", action: <Button size="sm" href="/connections">Ir a Conexiones</Button> },
     { title: "Invita a tu equipo", text: "Cada persona con su acceso.", action: <Button size="sm" href="/team">Ir a Equipo</Button> },
   ];
   return (

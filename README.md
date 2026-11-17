@@ -67,7 +67,7 @@ Monitoreo con Grafana, Prometheus, Loki y Alloy (tablero y alertas por correo): 
   API de órdenes v2) y el formulario muestra las credenciales que ese adaptador declara: sumar un
   proveedor es escribir un adaptador, sin tocar el resto. Se paga 1 o 12 meses de un plan desde
   *Espacio de trabajo → Plan* (y al terminar el alta con un plan de pago); la persona aprueba en la
-  pasarela, vuelve a `/workspace/plan/pago` y el cobro se confirma. Los avisos de la pasarela
+  pasarela, vuelve a `/workspace/plan/payment` y el cobro se confirma. Los avisos de la pasarela
   (`/api/payments/webhook/{código}`, verificados con la pasarela) activan el plan aunque la persona no
   vuelva; un mismo pago nunca extiende la licencia dos veces.
 - **Avisos de vencimiento y recibos**: cada hora (`board.billing.reminders-every`) se revisan las pruebas
@@ -114,7 +114,7 @@ no se tocan. Libera el cupo de tableros del plan.
   abren en otra pestaña. Suben y borran quienes editan; ven y descargan todos.
 - El archivo vive en un almacenamiento compatible con S3, **Garage** (`infra/garage`), en la red
   interna; la tabla `attachment` guarda nombre, tipo, tamaño y la clave del objeto
-  (`espacio/tarjeta/id`, nunca el nombre). Las descargas pasan por la web (`/adjuntos/archivo/{id}`) y
+  (`espacio/tarjeta/id`, nunca el nombre). Las descargas pasan por la web (`/attachments/file/{id}`) y
   la API con la sesión; solo imágenes y PDF se muestran en línea, el resto se descarga
   (`nosniff`). Al borrar una tarjeta se borran sus archivos.
 - Los agentes ven los adjuntos en `get_issue` y leen los de texto (Markdown, TXT, CSV, JSON, YAML,
@@ -141,14 +141,14 @@ no se tocan. Libera el cupo de tableros del plan.
 - Todo va en `Authorization: Bearer <token>`. La base solo guarda el SHA-256 del token.
 - La primera cuenta se crea al arrancar si no existe ninguna, con `BOARD_BOOTSTRAP_ADMIN_EMAIL` y
   `BOARD_BOOTSTRAP_ADMIN_PASSWORD`. A partir de ahí, se da acceso a otras personas desde **Equipo**.
-- **Recuperar la contraseña** (`/recuperar`, enlace en el login): llega un correo con un enlace y un
+- **Recuperar la contraseña** (`/reset-password`, enlace en el login): llega un correo con un enlace y un
   código de 6 dígitos; con cualquiera de los dos se elige la nueva y se cierran todas las sesiones.
   Vale 30 minutos, una vez, con 5 intentos de código; un correo por minuto y 5 por hora por
   dirección. La respuesta es la misma exista o no la cuenta. El correo sale por `Mailer`
   (`shared/mail`), el mismo SMTP del alta.
 - **Invitar por correo** (*Equipo → Agregar miembro → Persona* con correo, o *Invitar por correo* en
   una persona sin acceso): la persona queda en el equipo (cuenta para el límite del plan) y recibe un
-  enlace a `/invitacion` para elegir su contraseña y entrar. Vale 7 días y una vez; reenviar anula el
+  enlace a `/invitation` para elegir su contraseña y entrar. Vale 7 días y una vez; reenviar anula el
   anterior. La alternativa sigue siendo poner una contraseña temporal.
 - El autor de issues y comentarios es quien está autenticado; el body no puede suplantarlo.
 - Solo las personas crean proyectos y miembros, dan accesos y emiten o revocan tokens. Un agente
@@ -479,9 +479,9 @@ Cada inicio de sesión queda como una conexión de esa persona en **Agentes loca
 
 **En paralelo:** `/pendientes --paralelo` lanza a la vez (hasta 3) los subagentes de las tareas libres; cada uno trabaja en su propio `git worktree`. Consume más rápido los límites de tu suscripción.
 
-**Presentación del producto** (`/producto`): quien entra a la raíz sin sesión ve la landing de Kuador Go (marca de kuador.com: emblema, paleta noche + sol ecuatorial, Archivo semiexpandido y Martian Mono); con sesión, la raíz sigue siendo el tablero. Sin clientes ni cifras inventadas: la vista del tablero usa datos de ejemplo.
+**Presentación del producto** (`/product`): quien entra a la raíz sin sesión ve la landing de Kuador Go (marca de kuador.com: emblema, paleta noche + sol ecuatorial, Archivo semiexpandido y Martian Mono); con sesión, la raíz sigue siendo el tablero. Sin clientes ni cifras inventadas: la vista del tablero usa datos de ejemplo.
 
-**Asistente de inicio** (`/projects/<clave>/inicio`): al crear un proyecto se abre solo y lo deja listo en pasos que se pueden saltar: metodología, repositorio y piezas (con la GitHub App o vinculando uno existente), cliente de IA, notificaciones y primer trabajo (una épica «Esqueleto del sistema» que entra a la etapa del PO). El tablero muestra «Faltan N pasos» hasta terminar (se puede ocultar) y Configuración tiene el acceso para volver.
+**Asistente de inicio** (`/projects/<clave>/setup`): al crear un proyecto se abre solo y lo deja listo en pasos que se pueden saltar: metodología, repositorio y piezas (con la GitHub App o vinculando uno existente), cliente de IA, notificaciones y primer trabajo (una épica «Esqueleto del sistema» que entra a la etapa del PO). El tablero muestra «Faltan N pasos» hasta terminar (se puede ocultar) y Configuración tiene el acceso para volver.
 
 **Notificaciones** (Mi cuenta → Notificaciones): avisos por correo (el mismo SMTP del alta) y por Telegram solo cuando algo necesita a la persona: le asignan un issue (p. ej. un agente le pide una decisión, con la pregunta en el aviso), un issue espera su aprobación en una puerta o un reparto de tareas espera que lo apruebe. Cada persona vincula su Telegram con un enlace de un solo uso, elige canales y avisos, y puede enviarse una prueba. Los envíos van por una cola con reintentos. En local, el bot recibe mensajes con `getUpdates` (en producción, por webhook).
 

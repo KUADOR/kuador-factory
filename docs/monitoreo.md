@@ -89,11 +89,16 @@ haga falta, se suma un chequeo externo gratuito (UptimeRobot, Better Stack…) c
   desde Internet ni desde los demás servicios del servidor (red `monitoreo` propia).
 - Las métricas de la API van por un puerto aparte que Traefik no publica; desde el puerto público
   `/actuator/prometheus` pide sesión.
-- Alloy monta el socket de Docker (para leer los logs y los nombres de los contenedores) y `/proc`, `/sys` y `/`
-  en solo lectura. El socket da control total del servidor: no cambies la imagen de Alloy por una que no sea
-  la oficial.
-- Las métricas no llevan datos de los espacios (ni nombres, ni tarjetas, ni correos). Los logs pueden llevar
-  correos de personas (p. ej. «no se pudo enviar el correo a …») y se guardan 14 días.
+- Alloy **no** monta el socket de Docker: lee los contenedores y sus logs por `docker-proxy`
+  (tecnativa/docker-socket-proxy, fijado por digest), que solo permite consultas GET de contenedores, eventos y
+  redes; crear, borrar o ejecutar en contenedores queda negado. Solo Alloy alcanza el proxy (red interna
+  `docker-api`). Alloy sí monta `/proc`, `/sys` y `/` en solo lectura para las métricas del servidor.
+- Las métricas no llevan datos de los espacios (ni nombres, ni tarjetas, ni correos). Antes de guardar, Alloy
+  enmascara correos (`<correo>`) y tokens (`kfs_`, `sk-ant-`, `ghp_`, `Bearer …` → `<secreto>`); los logs se
+  guardan 14 días.
+- **Grafana es público** (monitoreo.kuador.com) con un solo usuario `admin`. Agrega una segunda barrera en Dokploy:
+  en el dominio de Grafana, un middleware de Traefik con lista de IP (`ipAllowList`) o autenticación básica, o
+  pon Grafana detrás de un acceso con 2FA (Cloudflare Access, por ejemplo). Usa una contraseña larga y única.
 
 ## Cuando crezca
 

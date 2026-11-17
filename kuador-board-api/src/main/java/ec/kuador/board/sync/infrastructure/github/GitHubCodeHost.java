@@ -33,6 +33,8 @@ import tools.jackson.databind.JsonNode;
 class GitHubCodeHost implements CodeHost {
 
     static final int MAX_PATCH = 6_000;
+    /** Páginas de 100 archivos que se leen de un PR (GitHub lista hasta 3.000). */
+    static final int MAX_FILE_PAGES = 10;
     static final int MAX_PATCHES_TOTAL = 60_000;
     static final int MAX_FILE = 60_000;
     private static final int MAX_BODY = 3_000;
@@ -75,7 +77,14 @@ class GitHubCodeHost implements CodeHost {
         List<ChangedFile> files = new ArrayList<>();
         int budget = MAX_PATCHES_TOTAL;
         boolean truncated = false;
-        for (JsonNode f : client.get("/repos/" + repo + "/pulls/" + number + "/files?per_page=100")) {
+        // La lista completa (GitHub da 100 por página): un archivo sensible no se esconde después del número 100.
+        List<JsonNode> listed = new ArrayList<>();
+        for (int page = 1; page <= MAX_FILE_PAGES; page++) {
+            JsonNode batch = client.get("/repos/" + repo + "/pulls/" + number + "/files?per_page=100&page=" + page);
+            batch.forEach(listed::add);
+            if (batch.size() < 100) break;
+        }
+        for (JsonNode f : listed) {
             String patch = f.path("patch").isMissingNode() || f.path("patch").isNull() ? null : f.path("patch").asString();
             if (patch != null && patch.length() > MAX_PATCH) {
                 patch = patch.substring(0, MAX_PATCH) + "\n… (diff recortado; lee el archivo completo con read_repo_file)";
@@ -89,13 +98,18 @@ class GitHubCodeHost implements CodeHost {
             files.add(new ChangedFile(f.path("filename").asString(), f.path("status").asString(""), f.path("additions").asInt(),
                     f.path("deletions").asInt(), patch));
         }
-        if (pr.path("changed_files").asInt(files.size()) > files.size()) truncated = true;
+        boolean incomplete = pr.path("changed_files").asInt(files.size()) > files.size();
+        if (incomplete) truncated = true;
 
         List<Check> checks = new ArrayList<>();
         String note = null;
         if (!sha.isEmpty()) {
             try {
-                for (JsonNode run : client.get("/repos/" + repo + "/commits/" + sha + "/check-runs?per_page=50").path("check_runs")) {
+                JsonNode runs = client.get("/repos/" + repo + "/commits/" + sha + "/check-runs?per_page=100");
+                int unread = runs.path("total_count").asInt(0) - runs.path("check_runs").size();
+                // Checks que no se alcanzaron a leer: cuentan como sin resultado (no se aprueba a ciegas).
+                if (unread > 0) checks.add(new Check(unread + " checks más sin leer", "incomplete", null, ""));
+                for (JsonNode run : runs.path("check_runs")) {
                     String summary = Stream.of(run.path("output").path("title").asString(""), run.path("output").path("summary").asString(""))
                             .filter(s -> !s.isBlank()).collect(Collectors.joining(" — "));
                     checks.add(new Check(run.path("name").asString(), run.path("status").asString(""), text(run.path("conclusion")), cut(summary, MAX_SUMMARY)));
@@ -109,7 +123,7 @@ class GitHubCodeHost implements CodeHost {
                         + "«Checks» y «Commit statuses» en GitHub (configuración de la app → Permissions) y aceptar el cambio en la instalación.";
             }
         }
-        return Optional.of(new PullDetail(summary(repo, pr), sha, files, truncated, checks, note));
+        return Optional.of(new PullDetail(summary(repo, pr), sha, files, truncated, checks, note, incomplete));
     }
 
     @Override

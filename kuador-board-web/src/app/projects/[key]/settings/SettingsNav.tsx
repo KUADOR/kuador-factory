@@ -13,7 +13,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
       title: "Proyecto",
       items: [
         { slug: "general", label: "General" },
-        { slug: "personas", label: "Personas" },
+        { slug: "people", label: "Personas" },
       ],
     },
     ...(kind === "SOFTWARE"
@@ -21,10 +21,10 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
           {
             title: "Flujo de trabajo",
             items: [
-              { slug: "columnas", label: "Columnas" },
-              { slug: "etapas", label: "Etapas y responsables" },
-              { slug: "equipo", label: "Equipo de agentes" },
-              { slug: "transiciones", label: "Reglas de transición" },
+              { slug: "columns", label: "Columnas" },
+              { slug: "stages", label: "Etapas y responsables" },
+              { slug: "agents", label: "Equipo de agentes" },
+              { slug: "transitions", label: "Reglas de transición" },
             ],
           },
         ]
@@ -33,15 +33,15 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
           {
             title: "Tablero",
             items: [
-              { slug: "columnas", label: "Columnas" },
-              { slug: "equipo", label: "Equipo de agentes" },
+              { slug: "columns", label: "Columnas" },
+              { slug: "agents", label: "Equipo de agentes" },
             ],
           },
           {
             title: "Avanzado",
             items: [
-              { slug: "etapas", label: "Etapas y aprobaciones" },
-              { slug: "transiciones", label: "Reglas de transición" },
+              { slug: "stages", label: "Etapas y aprobaciones" },
+              { slug: "transitions", label: "Reglas de transición" },
             ],
           },
         ]),
@@ -50,8 +50,8 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
           {
             title: "Software",
             items: [
-              { slug: "metodologia", label: "Metodología" },
-              { slug: "repositorio", label: "Piezas y repositorio" },
+              { slug: "methodology", label: "Metodología" },
+              { slug: "repository", label: "Piezas y repositorio" },
             ],
           },
         ]
@@ -66,7 +66,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
         />
       </div>
       <Link
-        href={`/projects/${projectKey}/inicio`}
+        href={`/projects/${projectKey}/setup`}
         className="hidden shrink-0 rounded-md border border-dashed border-line-strong px-2.5 py-1.5 text-[13px] whitespace-nowrap text-fg-muted hover:bg-hover hover:text-fg-strong md:block"
       >
         Asistente de inicio

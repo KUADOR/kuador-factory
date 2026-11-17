@@ -35,7 +35,15 @@ class AuthController {
 
     private final ec.kuador.board.shared.web.WebSecret web;
 
-    AuthController(AuthService auth, MemberApi members, ec.kuador.board.auth.application.PlatformAdmins platform, ec.kuador.board.shared.web.WebSecret web) {
+    /**
+     * Poner una contraseña temporal a otra persona asigna un correo sin que su dueño lo confirme (alguien podría quedarse
+     * con un correo ajeno). En la nube va apagado: se invita por correo. Para instalaciones propias, {@code true}.
+     */
+    private final boolean temporaryPasswords;
+
+    AuthController(AuthService auth, MemberApi members, ec.kuador.board.auth.application.PlatformAdmins platform, ec.kuador.board.shared.web.WebSecret web,
+            @org.springframework.beans.factory.annotation.Value("${board.auth.temporary-passwords:false}") boolean temporaryPasswords) {
+        this.temporaryPasswords = temporaryPasswords;
         this.web = web;
         this.auth = auth;
         this.members = members;
@@ -78,6 +86,9 @@ class AuthController {
 
     @PutMapping("/api/members/{memberId}/credentials")
     AccountResponse grantAccess(@PathVariable UUID memberId, @Valid @RequestBody GrantAccessRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        if (!temporaryPasswords) {
+            throw new ec.kuador.board.shared.error.ForbiddenException("Invita a la persona por correo: así confirma que el correo es suyo y elige su contraseña.");
+        }
         // Dar la cuenta de un administrador o dueño es entregar ese nivel: solo un dueño puede hacerlo.
         members.find(memberId).ifPresent(m -> members.requireCanManage(who.memberId(), m.access()));
         // Un correo de quien administra la plataforma solo entra con su propio registro (correo verificado), nunca asignado por otro.

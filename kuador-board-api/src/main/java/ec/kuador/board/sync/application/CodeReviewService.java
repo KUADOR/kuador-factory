@@ -75,9 +75,26 @@ public class CodeReviewService implements CodeReviewApi {
     @Transactional(readOnly = true)
     public String file(String projectKey, String repository, String ref, String path) {
         if (path == null || path.isBlank() || path.contains("..") || path.startsWith("/")) throw new DomainException("Ruta no permitida: " + path);
+        if (secretLooking(path)) throw new DomainException("Por seguridad los agentes no leen archivos de secretos o credenciales: " + path);
         CodeHost.Access a = require(projectKey, repository);
         return host(a).file(a, ref, path.strip())
                 .orElseThrow(() -> new DomainException("No existe " + path + (ref == null || ref.isBlank() ? "" : " en " + ref) + " en " + a.repository() + "."));
+    }
+
+    private static final java.util.regex.Pattern SECRET_FILE = java.util.regex.Pattern.compile(
+            "(?i)^(\\.env(\\..*)?|.*\\.(pem|key|p12|pfx|jks|keystore|tfvars|tfstate)|id_(rsa|dsa|ecdsa|ed25519)(\\.pub)?|\\.npmrc|\\.pypirc|\\.netrc"
+                    + "|\\.git-credentials|credentials(\\.(json|ya?ml|txt|csv|properties))?|.*secrets?\\.(ya?ml|json|env|txt|properties|toml)|application-prod.*\\.(ya?ml|properties)|service-account.*\\.json)$");
+
+    /**
+     * Archivos que suelen guardar secretos: un agente no los lee aunque un comentario se lo pida (prompt injection). Las
+     * plantillas ({@code .env.example}, {@code *.sample}, {@code *.template}) sí.
+     */
+    static boolean secretLooking(String path) {
+        String p = path.strip().replace('\\', '/');
+        if (p.startsWith(".git/") || p.contains("/.git/")) return true;
+        String name = p.substring(p.lastIndexOf('/') + 1);
+        if (name.matches("(?i).*\\.(example|sample|template|dist)$")) return false;
+        return SECRET_FILE.matcher(name).matches();
     }
 
     /** Repos del proyecto y cómo llegar a cada uno, sin repetir (el nombre en minúsculas es la clave). */
@@ -110,7 +127,10 @@ public class CodeReviewService implements CodeReviewApi {
                 .orElseThrow(() -> new DomainException("No se puede leer " + a.repository() + " desde el tablero."));
     }
 
-    private static boolean contains(String text, String needle) {
-        return text != null && text.toLowerCase(Locale.ROOT).contains(needle);
+    /** {@code needle} como palabra: «med-1» no coincide con «med-12» ni con «xmed-1». */
+    static boolean contains(String text, String needle) {
+        if (text == null) return false;
+        return java.util.regex.Pattern.compile("(?<![\\p{Alnum}])" + java.util.regex.Pattern.quote(needle) + "(?![\\p{Alnum}])")
+                .matcher(text.toLowerCase(Locale.ROOT)).find();
     }
 }

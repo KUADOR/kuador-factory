@@ -139,11 +139,11 @@ export async function createAgentTokenAction(memberId: string, name: string): Pr
 }
 
 export async function createRunnerTokenAction(name: string): Promise<ActionResult<IssuedToken>> {
-  return run(() => boardApi.createRunnerToken(name), "/agentes-locales");
+  return run(() => boardApi.createRunnerToken(name), "/local-agents");
 }
 
 export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.revokeRunnerToken(tokenId), "/agentes-locales");
+  return run(() => boardApi.revokeRunnerToken(tokenId), "/local-agents");
 }
 
 export async function agentKitAction(client: AgentClient, mcp: string[]): Promise<ActionResult<AgentKit>> {
@@ -364,7 +364,7 @@ export async function signupCompleteAction(input: {
   if (!session.ok) return session;
   await setSessionToken(session.data.token, session.data.expiresAt);
   // Solo destinos internos conocidos: el asistente del tablero inicial o el pago del plan.
-  redirect(next === "/workspace/plan?bienvenida=1" || (next && /^\/projects\/[A-Z0-9]{2,10}\/inicio$/.test(next)) ? next : "/");
+  redirect(next === "/workspace/plan?bienvenida=1" || (next && /^\/projects\/[A-Z0-9]{2,10}\/setup$/.test(next)) ? next : "/");
 }
 
 export async function savePlatformCatalogEntryAction(
@@ -373,23 +373,23 @@ export async function savePlatformCatalogEntryAction(
   entry: unknown,
   extra: { memberName?: string | null; color?: string | null },
 ): Promise<ActionResult<PlatformCatalogEntry>> {
-  return run(() => boardApi.savePlatformCatalogEntry(type, key, entry, extra), "/plataforma");
+  return run(() => boardApi.savePlatformCatalogEntry(type, key, entry, extra), "/platform");
 }
 
 export async function discardPlatformCatalogEntryAction(type: CatalogType, key: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.discardPlatformCatalogEntry(type, key), "/plataforma");
+  return run(() => boardApi.discardPlatformCatalogEntry(type, key), "/platform");
 }
 
 export async function removePlatformCatalogEntryAction(type: CatalogType, key: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.removePlatformCatalogEntry(type, key), "/plataforma");
+  return run(() => boardApi.removePlatformCatalogEntry(type, key), "/platform");
 }
 
 export async function publishPlatformCatalogAction(): Promise<ActionResult<PlatformCatalogSummary>> {
-  return run(() => boardApi.publishPlatformCatalog(), "/plataforma");
+  return run(() => boardApi.publishPlatformCatalog(), "/platform");
 }
 
 export async function savePlatformPackageAction(p: CatalogPackage): Promise<ActionResult<CatalogPackage>> {
-  return run(() => boardApi.savePlatformPackage(p), "/plataforma");
+  return run(() => boardApi.savePlatformPackage(p), "/platform");
 }
 
 export async function addBoardPersonAction(key: string, memberId: string): Promise<ActionResult<BoardPerson[]>> {
@@ -420,15 +420,15 @@ export async function setAgentProfileAction(memberId: string, input: { mode: Age
 }
 
 export async function setAiBudgetAction(budgetUsd: number | null): Promise<ActionResult<AiUsageReport>> {
-  return run(() => boardApi.setAiBudget(budgetUsd), "/conexiones");
+  return run(() => boardApi.setAiBudget(budgetUsd), "/connections");
 }
 
 export async function saveAiPriceAction(model: string, inputPerMTok: number, outputPerMTok: number): Promise<ActionResult<AiModelPrice[]>> {
-  return run(() => boardApi.saveAiPrice(model, inputPerMTok, outputPerMTok), "/plataforma");
+  return run(() => boardApi.saveAiPrice(model, inputPerMTok, outputPerMTok), "/platform");
 }
 
 export async function deleteAiPriceAction(model: string): Promise<ActionResult<AiModelPrice[]>> {
-  return run(() => boardApi.deleteAiPrice(model), "/plataforma");
+  return run(() => boardApi.deleteAiPrice(model), "/platform");
 }
 
 /** Más líneas de auditoría (paginación hacia atrás). {@code scope}: el espacio o toda la plataforma. */
@@ -441,26 +441,26 @@ export async function auditPageAction(scope: "workspace" | "platform", query: st
 }
 
 export async function saveAiProviderAction(code: string, input: Omit<AiProvider, "code">): Promise<ActionResult<AiProvider[]>> {
-  return run(() => boardApi.saveAiProvider(code, input), "/plataforma");
+  return run(() => boardApi.saveAiProvider(code, input), "/platform");
 }
 
 export async function saveWorkspaceAiAction(input: { provider: string; apiKey: string | null; defaultModel: string }): Promise<ActionResult<WorkspaceAiStatus>> {
-  return run(() => boardApi.saveWorkspaceAi(input), "/conexiones");
+  return run(() => boardApi.saveWorkspaceAi(input), "/connections");
 }
 
 export async function removeWorkspaceAiAction(): Promise<ActionResult<WorkspaceAiStatus>> {
-  return run(() => boardApi.removeWorkspaceAi(), "/conexiones");
+  return run(() => boardApi.removeWorkspaceAi(), "/connections");
 }
 
 export async function saveBillingSettingsAction(reminderDays: number[]): Promise<ActionResult<{ reminderDays: number[] }>> {
-  return run(() => boardApi.saveBillingSettings(reminderDays), "/plataforma");
+  return run(() => boardApi.saveBillingSettings(reminderDays), "/platform");
 }
 
 export async function savePaymentProviderAction(
   code: string,
   input: { type: string; name: string; mode: PaymentMode; credentials: Record<string, string>; active: boolean; sortOrder: number },
 ): Promise<ActionResult<PaymentProviderView>> {
-  return run(() => boardApi.savePaymentProvider(code, input), "/plataforma");
+  return run(() => boardApi.savePaymentProvider(code, input), "/platform");
 }
 
 /** Inicia el pago; devuelve la URL de la pasarela, a donde el navegador va a pagar. */
@@ -473,11 +473,11 @@ export async function telegramSetupAction(): Promise<ActionResult<TelegramSetup>
 }
 
 export async function connectTelegramBotAction(token: string): Promise<ActionResult<TelegramSetup>> {
-  return run(() => boardApi.connectTelegramBot(token), "/conexiones");
+  return run(() => boardApi.connectTelegramBot(token), "/connections");
 }
 
 export async function disconnectTelegramBotAction(): Promise<ActionResult<TelegramSetup>> {
-  return run(() => boardApi.disconnectTelegramBot(), "/conexiones");
+  return run(() => boardApi.disconnectTelegramBot(), "/connections");
 }
 
 export async function telegramGroupCodeAction(): Promise<ActionResult<{ command: string; bot: string; url: string }>> {
@@ -485,11 +485,11 @@ export async function telegramGroupCodeAction(): Promise<ActionResult<{ command:
 }
 
 export async function updateTelegramGroupAction(id: string, input: { onAssigned: boolean; onGates: boolean; onPlans: boolean }): Promise<ActionResult<TelegramGroup>> {
-  return run(() => boardApi.updateTelegramGroup(id, input), "/conexiones");
+  return run(() => boardApi.updateTelegramGroup(id, input), "/connections");
 }
 
 export async function removeTelegramGroupAction(id: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.removeTelegramGroup(id), "/conexiones");
+  return run(() => boardApi.removeTelegramGroup(id), "/connections");
 }
 
 export async function inviteAction(input: {
@@ -540,14 +540,14 @@ export async function changePlanAction(plan: string): Promise<ActionResult<Works
 }
 
 export async function savePlanAction(code: string, input: PlanInput): Promise<ActionResult<Plan>> {
-  return run(() => boardApi.savePlan(code, input), "/plataforma");
+  return run(() => boardApi.savePlan(code, input), "/platform");
 }
 
 export async function setLicenseAction(
   workspaceId: string,
   input: { plan: string; status: LicenseStatus; trialEndsAt: string | null; paidUntil: string | null },
 ): Promise<ActionResult<WorkspaceLicense>> {
-  return run(() => boardApi.setLicense(workspaceId, input), "/plataforma");
+  return run(() => boardApi.setLicense(workspaceId, input), "/platform");
 }
 
 /** Borra el tablero con todo su contenido y vuelve a la lista de proyectos. */
@@ -626,7 +626,7 @@ export async function setupPiecesAction(projectKey: string, input: PiecesSetup):
 }
 
 export async function updatePieceAction(projectKey: string, name: string, input: PieceUpdate): Promise<ActionResult<ProjectPiece>> {
-  return run(() => boardApi.updatePiece(projectKey, name, input), `/projects/${projectKey}/settings/repositorio`);
+  return run(() => boardApi.updatePiece(projectKey, name, input), `/projects/${projectKey}/settings/repository`);
 }
 
 export async function addPieceAction(projectKey: string, piece: PieceInput, privateRepo: boolean): Promise<ActionResult<SetupResult>> {
@@ -644,7 +644,7 @@ export async function githubStartInstallAction(): Promise<ActionResult<{ url: st
 }
 
 export async function githubDisconnectAction(installationId: number): Promise<ActionResult<void>> {
-  return run(() => boardApi.githubDisconnect(installationId), "/conexiones");
+  return run(() => boardApi.githubDisconnect(installationId), "/connections");
 }
 
 export async function unlinkRepositoryAction(projectKey: string): Promise<ActionResult<void>> {

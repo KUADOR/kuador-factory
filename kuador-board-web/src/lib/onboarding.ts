@@ -1,13 +1,13 @@
 import type { NotificationView, Project, RepositoryLink, RunnerToken } from "./types";
 
-export type StepId = "metodologia" | "repositorio" | "agentes" | "ia" | "avisos" | "trabajo";
+export type StepId = "methodology" | "repository" | "client" | "ai" | "notifications" | "firstWork";
 
 /**
  * Pasos del asistente de inicio según el tipo de proyecto. En software los agentes trabajan en la PC de cada persona
  * (su cliente de IA); en los demás, en el tablero con la clave de IA de la empresa.
  */
 export function setupSteps(project: Pick<Project, "kind">): StepId[] {
-  return project.kind === "SOFTWARE" ? ["metodologia", "repositorio", "agentes", "avisos", "trabajo"] : ["ia", "avisos", "trabajo"];
+  return project.kind === "SOFTWARE" ? ["methodology", "repository", "client", "notifications", "firstWork"] : ["ai", "notifications", "firstWork"];
 }
 
 /** Qué pasos ya están hechos: lo mide igual el asistente y el aviso del tablero. */
@@ -21,11 +21,11 @@ export function setupDone(
 ): Record<StepId, boolean> {
   const s = notifications?.settings;
   return {
-    metodologia: project.methodology != null,
-    repositorio: !!link?.linked,
-    agentes: connections.length > 0,
-    ia: aiConfigured,
-    avisos: !!s && ((s.email && !!notifications?.emailAvailable) || (s.telegram && s.telegramChatId != null)),
-    trabajo: issues > 0,
+    methodology: project.methodology != null,
+    repository: !!link?.linked,
+    client: connections.length > 0,
+    ai: aiConfigured,
+    notifications: !!s && ((s.email && !!notifications?.emailAvailable) || (s.telegram && s.telegramChatId != null)),
+    firstWork: issues > 0,
   };
 }

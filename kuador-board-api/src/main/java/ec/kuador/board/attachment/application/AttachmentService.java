@@ -36,8 +36,12 @@ public class AttachmentService implements AttachmentApi {
     private final Clock clock;
     private final long maxBytes;
 
+    private final long maxWorkspaceBytes;
+
     AttachmentService(AttachmentStore store, ObjectStorage storage, IssueApi issues, Clock clock,
-            @Value("${board.storage.max-file-size:25MB}") DataSize maxFileSize) {
+            @Value("${board.storage.max-file-size:25MB}") DataSize maxFileSize,
+            @Value("${board.storage.max-workspace-size:2GB}") DataSize maxWorkspaceSize) {
+        this.maxWorkspaceBytes = maxWorkspaceSize.toBytes();
         this.store = store;
         this.storage = storage;
         this.issues = issues;
@@ -62,6 +66,11 @@ public class AttachmentService implements AttachmentApi {
         requireStorage();
         issues.find(issueKey).orElseThrow(() -> new NotFoundException("No existe el issue " + issueKey + "."));
         Attachment.checkSize(size, maxBytes);
+        // El almacenamiento es compartido entre espacios: cada uno tiene su cupo.
+        if (maxWorkspaceBytes > 0 && store.totalBytes(TenantContext.require()) + size > maxWorkspaceBytes) {
+            throw new ec.kuador.board.shared.error.DomainException("El espacio llegó a su límite de archivos adjuntos ("
+                    + (maxWorkspaceBytes / (1024 * 1024)) + " MB). Borra adjuntos que ya no necesites.");
+        }
         Attachment a = Attachment.create(TenantContext.require(), issueKey, fileName, contentType, size, actorId, clock.instant());
         storage.put(a.storageKey(), a.contentType(), content, size);
         try {

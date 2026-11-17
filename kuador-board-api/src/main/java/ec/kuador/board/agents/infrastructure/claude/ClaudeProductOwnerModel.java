@@ -53,6 +53,8 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
             @Value("${board.agents.model:claude-opus-5-5}") String model,
             @Value("${board.agents.effort:medium}") String effort,
             @Value("${board.agents.refusal-fallback:true}") boolean refusalFallback,
+            // La clave del servidor como respaldo de los espacios sin clave propia: apagado, cada cliente usa la suya y su tope.
+            @Value("${board.agents.platform-key-fallback:false}") boolean platformKeyFallback,
             // Solo para pruebas contra una API falsa; en producción queda vacío (api.anthropic.com).
             @Value("${board.agents.anthropic-base-url:}") String baseUrl) {
         AnthropicOkHttpClient.Builder client = AnthropicOkHttpClient.builder()
@@ -60,7 +62,7 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
                 .timeout(Duration.ofMinutes(10))
                 .maxRetries(2);
         if (!baseUrl.isBlank()) client.baseUrl(baseUrl.strip());
-        this.client = apiKey.isBlank() ? null : client.build();
+        this.client = apiKey.isBlank() || !platformKeyFallback ? null : client.build();
         this.baseUrl = baseUrl.strip();
         this.model = model;
         this.effort = OutputConfig.Effort.of(effort.strip().toLowerCase());
@@ -74,7 +76,7 @@ class ClaudeProductOwnerModel implements ProductOwnerModel {
 
     @Override
     public String unavailableReason() {
-        return "Los agentes están desactivados: falta ANTHROPIC_API_KEY en la configuración de la API.";
+        return "Falta la clave de IA del espacio: ponla en Conexiones → IA.";
     }
 
     @Override

@@ -25,4 +25,9 @@ public interface AiKeyProvider {
     default boolean overBudget() {
         return false;
     }
+
+    /** Si el espacio ya hizo el máximo de corridas de agentes de la última hora. */
+    default boolean overRate() {
+        return false;
+    }
 }

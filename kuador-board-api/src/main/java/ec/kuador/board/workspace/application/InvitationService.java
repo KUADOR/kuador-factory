@@ -150,17 +150,24 @@ public class InvitationService {
                 .orElseThrow(() -> new DomainException("La invitación venció o ya se usó. Pide a tu equipo que te invite de nuevo."));
     }
 
+    /** Invitaciones por espacio y día: los correos salen con el dominio de Kuador, no se usan para enviar en masa. */
+    private final ec.kuador.board.shared.web.RateLimiter perWorkspace = new ec.kuador.board.shared.web.RateLimiter(30, java.time.Duration.ofDays(1));
+
     private Pending send(MemberView person, String email, UUID inviterId) {
         UUID ws = TenantContext.require();
         Instant now = clock.instant();
+        if (perWorkspace.hit(ws.toString(), now)) {
+            throw new DomainException("El espacio ya envió muchas invitaciones hoy. Vuelve a intentarlo mañana.");
+        }
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         invitations.deletePending(ws, person.id());
         Invitation invitation = Invitation.create(ws, person.id(), email, SignupService.hash(token), inviterId, now);
         invitations.save(invitation);
-        String workspace = workspaces.findById(ws).map(Workspace::name).orElse("tu equipo");
-        String inviter = inviterId == null ? "Tu equipo" : members.find(inviterId).map(MemberView::name).orElse("Tu equipo");
+        // Los nombres los elige quien crea el espacio: sin saltos de línea ni enlaces que parezcan de Kuador.
+        String workspace = mailSafe(workspaces.findById(ws).map(Workspace::name).orElse("tu equipo"));
+        String inviter = mailSafe(inviterId == null ? "Tu equipo" : members.find(inviterId).map(MemberView::name).orElse("Tu equipo"));
         // Dentro de la transacción: si el correo no sale, no queda ni la persona ni la invitación.
         mailer.send(email, inviter + " te invitó a " + workspace + " en Kuador Go", """
                 Hola %s:
@@ -168,11 +175,20 @@ public class InvitationService {
                 %s te invitó a trabajar con %s en Kuador Go, el tablero donde el equipo y sus agentes de IA avanzan el mismo flujo.
 
                 Acepta la invitación y elige tu contraseña aquí:
-                %s/invitacion?token=%s
+                %s/invitation?token=%s
 
                 El enlace vence en 7 días y sirve una sola vez.
-                """.formatted(person.name(), inviter, workspace, webUrl, token));
+                """.formatted(mailSafe(person.name()), inviter, workspace, webUrl, token));
         return pending(invitation, person.name(), now);
+    }
+
+    private static final java.util.regex.Pattern LINKISH = java.util.regex.Pattern.compile(
+            "(?i)\\b(https?://|www\\.)\\S*|\\b[a-z0-9-]+(\\.[a-z0-9-]+)*\\.(com|net|org|io|co|ec|app|xyz|info|biz|me|ly|link|site|online|top|click)\\b\\S*");
+
+    /** Texto de quien crea el espacio dentro de un correo nuestro: sin caracteres de control y con los enlaces desactivados. */
+    static String mailSafe(String text) {
+        String clean = text == null ? "" : text.replaceAll("\\p{Cntrl}", " ").strip();
+        return LINKISH.matcher(clean).replaceAll(m -> java.util.regex.Matcher.quoteReplacement(m.group().replace(".", "[.]").replace("://", "[://]")));
     }
 
     private static Pending pending(Invitation i, String name, Instant now) {

@@ -153,5 +153,16 @@ GitHub (**Settings → Secrets and variables → Actions**), pide a Dokploy que 
 | `DOKPLOY_API_APPLICATION_ID` | ID del servicio de la API (en la URL del servicio) |
 | `DOKPLOY_WEB_APPLICATION_ID` | ID del servicio de la web |
 
+**Protege la clave de Dokploy** (da control de todo el servidor): el trabajo `deploy` corre en el entorno
+`production`. En GitHub → **Settings → Environments → production** (se crea solo en el primer despliegue):
+
+1. **Deployment branches and tags** → *Selected branches* → `main`. Así una rama con el workflow cambiado
+   no puede leer los secretos.
+2. Mueve `DOKPLOY_URL`, `DOKPLOY_API_KEY` y los dos IDs de *Repository secrets* a los secretos de ese entorno.
+3. Opcional: *Required reviewers* para aprobar cada despliegue.
+
+Las acciones del CI están fijadas por commit (`@<sha> # vN`): para actualizarlas, cambia el sha por el del
+nuevo tag (Dependabot puede hacerlo).
+
 **Volver atrás**: cambia la imagen a `:sha-<commit>` y despliega. Flyway solo avanza: revisa que la
 versión anterior siga siendo compatible con la base.

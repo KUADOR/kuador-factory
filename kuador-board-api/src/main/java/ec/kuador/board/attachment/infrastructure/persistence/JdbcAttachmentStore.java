@@ -32,6 +32,11 @@ class JdbcAttachmentStore implements AttachmentStore {
     }
 
     @Override
+    public long totalBytes(UUID workspaceId) {
+        return jdbc.sql("select coalesce(sum(size_bytes), 0) from attachment where workspace_id = ?").params(workspaceId).query(Long.class).single();
+    }
+
+    @Override
     public List<Attachment> byIssue(UUID workspaceId, String issueKey) {
         return jdbc.sql("select " + COLUMNS + " from attachment where workspace_id = ? and issue_key = ? order by created_at")
                 .params(workspaceId, issueKey).query((rs, n) -> map(rs)).list();

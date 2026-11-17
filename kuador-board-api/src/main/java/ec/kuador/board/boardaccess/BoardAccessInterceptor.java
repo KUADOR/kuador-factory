@@ -28,6 +28,8 @@ class BoardAccessInterceptor implements HandlerInterceptor {
     private static final Pattern PROJECT = Pattern.compile("^/api/projects/([^/]+)(?:/.*)?$");
     private static final Pattern ISSUE = Pattern.compile("^/api/issues/([^/]+)(?:/.*)?$");
     private static final Pattern DOC = Pattern.compile("^/api/docs/([0-9a-fA-F-]{36})(?:/.*)?$");
+    /** Un tablero que nadie tiene: la ruta apunta a algo que no se pudo ubicar. */
+    private static final String UNKNOWN = "\u0000";
     private static final Pattern ATTACHMENT = Pattern.compile("^/api/attachments/([0-9a-fA-F-]{36})(?:/.*)?$");
 
     private final ProjectApi projects;
@@ -45,9 +47,9 @@ class BoardAccessInterceptor implements HandlerInterceptor {
         BoardScope.clear();
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof AuthenticatedMember who)) return true;
-        // Los agentes trabajan donde los suman (project_agent); quien administra ve todo.
-        if (who.agent() || who.access().administers()) return true;
-        BoardScope.set(projects.boardsOf(who.memberId()));
+        // Quien administra ve todo; un agente con su token, solo los tableros de su equipo (project_agent); el resto, los suyos.
+        if (!who.agent() && who.access().administers()) return true;
+        BoardScope.set(who.agent() ? projects.agentBoardsOf(who.memberId()) : projects.boardsOf(who.memberId()));
         String path = request.getRequestURI().substring(request.getContextPath().length());
         target(path).ifPresent(key -> {
             if (!BoardScope.allows(key)) throw new NotFoundException("No existe el proyecto " + key + ".");
@@ -70,6 +72,9 @@ class BoardAccessInterceptor implements HandlerInterceptor {
         if (m.matches()) return uuid(m.group(1)).flatMap(docs::projectOf);
         m = ATTACHMENT.matcher(path);
         if (m.matches()) return uuid(m.group(1)).flatMap(attachments::issueOf).map(BoardScope::projectOf);
+        // Todo lo que cuelga de /api/docs/ y /api/attachments/ lleva un id: si no se reconoce (p. ej. «<id>%20», que Spring
+        // igual convierte al mismo UUID), se niega en vez de dejarlo pasar sin revisar el tablero.
+        if (path.startsWith("/api/docs/") || path.startsWith("/api/attachments/")) return Optional.of(UNKNOWN);
         return Optional.empty();
     }
 

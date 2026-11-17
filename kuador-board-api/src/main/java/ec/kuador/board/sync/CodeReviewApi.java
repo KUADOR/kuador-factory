@@ -19,7 +19,16 @@ public interface CodeReviewApi {
     record Check(String name, String status, String conclusion, String summary) {}
 
     /** {@code checksNote}: por qué no se pudo leer el CI (p. ej. falta el permiso de la app), o nula. */
-    record PullDetail(PullSummary pull, String headSha, List<ChangedFile> files, boolean filesTruncated, List<Check> checks, String checksNote) {}
+    /**
+     * {@code filesTruncated}: algún diff se recortó o se omitió por tamaño. {@code filesIncomplete}: la lista de archivos
+     * no está completa (el PR tiene más de los que se leyeron).
+     */
+    record PullDetail(PullSummary pull, String headSha, List<ChangedFile> files, boolean filesTruncated, List<Check> checks, String checksNote,
+            boolean filesIncomplete) {
+        public PullDetail(PullSummary pull, String headSha, List<ChangedFile> files, boolean filesTruncated, List<Check> checks, String checksNote) {
+            this(pull, headSha, files, filesTruncated, checks, checksNote, false);
+        }
+    }
 
     /** Repositorios de GitHub del proyecto que se pueden leer ("owner/repo"). */
     List<String> repositories(String projectKey);

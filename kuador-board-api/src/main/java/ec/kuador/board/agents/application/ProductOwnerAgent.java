@@ -124,6 +124,10 @@ public class ProductOwnerAgent {
             finish(run.skipped("El espacio llegó a su tope mensual de IA (Conexiones → IA).", now()));
             return;
         }
+        if (Boolean.TRUE.equals(tx.execute(s -> keys.overRate()))) {
+            finish(run.skipped("Los agentes de este espacio ya trabajaron muchas tarjetas en la última hora: vuelve a asignarla en un rato.", now()));
+            return;
+        }
         if (key.isEmpty() && !model.available()) {
             finish(run.skipped("El Agente PO trabaja con Claude por ahora: falta una clave de Anthropic en Conexiones → IA. Ponla y vuelve a asignar el issue.", now()));
             return;

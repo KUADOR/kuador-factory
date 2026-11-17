@@ -133,7 +133,7 @@ class GitHubAppIT {
         JsonNode form = call("POST", "/api/github/app/manifest", Map.of("appName", "Tablero Acme", "organization", "acme"), owner).body();
         assertThat(form.get("postUrl").asString()).startsWith(GITHUB.url() + "/organizations/acme/settings/apps/new?state=");
         JsonNode manifest = json.readTree(form.get("manifest").asString());
-        assertThat(manifest.get("redirect_url").asString()).isEqualTo("http://web.test/conexiones/github/app-creada");
+        assertThat(manifest.get("redirect_url").asString()).isEqualTo("http://web.test/connections/github/app-created");
         assertThat(manifest.get("request_oauth_on_install").asBoolean()).isTrue();
         assertThat(manifest.get("hook_attributes").get("active").asBoolean()).isFalse();
         assertThat(manifest.get("default_permissions").get("administration").asString()).isEqualTo("write");

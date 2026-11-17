@@ -132,7 +132,7 @@ export function SignupFlow({ plans, initialPlan, packages = [] }: { plans: Plan[
                 </p>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button href="/login" tone="primary" className="flex-1">Entrar</Button>
-                  <Button href="/recuperar" className="flex-1">Recuperar contraseña</Button>
+                  <Button href="/reset-password" className="flex-1">Recuperar contraseña</Button>
                 </div>
                 <button type="button" className="k-link self-start text-xs" onClick={() => { setExists(false); setStep(1); setCode(""); }}>
                   Usar otro correo
@@ -248,7 +248,7 @@ export function SignupFlow({ plans, initialPlan, packages = [] }: { plans: Plan[
                       plan: planCode,
                       packageCode,
                       // Al terminar: el asistente del tablero inicial del paquete; si no hay, a pagar el plan (o seguir con la prueba).
-                      next: starterKey ? `/projects/${starterKey}/inicio` : plan && plan.priceMonthly > 0 ? "/workspace/plan?bienvenida=1" : undefined,
+                      next: starterKey ? `/projects/${starterKey}/setup` : plan && plan.priceMonthly > 0 ? "/workspace/plan?bienvenida=1" : undefined,
                     });
                     if (r && !r.ok) fail(r.error);
                   });

@@ -51,6 +51,12 @@ public class WorkspaceAi implements AiKeyProvider {
     /** Clave lista para usar (descifrada), su proveedor y el modelo por defecto del espacio. */
     public record Key(AiProvider provider, String apiKey, String defaultModel) {
 
+        /** Nunca la clave en un log. */
+        @Override
+        public String toString() {
+            return "Key[" + provider + ", " + defaultModel + "]";
+        }
+
         public BoardAgentModel.Endpoint endpoint() {
             return new BoardAgentModel.Endpoint(provider.baseUrl(), apiKey);
         }
@@ -120,6 +126,11 @@ public class WorkspaceAi implements AiKeyProvider {
     @Override
     public boolean overBudget() {
         return usage.overBudget();
+    }
+
+    @Override
+    public boolean overRate() {
+        return usage.overRate();
     }
 
     /** Para el Agente PO, que por ahora solo trabaja con Claude: la clave del espacio si es de Anthropic. */

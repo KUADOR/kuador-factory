@@ -255,6 +255,11 @@ public class AuthService implements AuthApi {
     /** Emite la conexión de agentes locales de quien pide; el secreto se muestra una sola vez. */
     @Transactional
     public IssuedToken createRunnerToken(AuthenticatedMember who, String name) {
+        return createRunnerToken(who, name, null);
+    }
+
+    /** {@code ttl}: cuánto vale ({@code null} = hasta que se revoque). */
+    private IssuedToken createRunnerToken(AuthenticatedMember who, String name, java.time.Duration ttl) {
         if (who.agent() || who.runner()) throw new ForbiddenException("Solo una persona puede conectar sus agentes locales.");
         if (who.viewOnly()) throw new ForbiddenException("Con acceso de solo lectura no se pueden poner agentes a trabajar.");
         if (name == null || name.isBlank() || name.length() > 80) {
@@ -263,7 +268,7 @@ public class AuthService implements AuthApi {
         Instant now = clock.instant();
         String secret = Tokens.newSecret(TokenKind.RUNNER);
         AccessToken saved = tokens.save(new AccessToken(UUID.randomUUID(), who.workspaceId(), who.memberId(), TokenKind.RUNNER, name.strip(),
-                Tokens.hash(secret), now, null, null, null));
+                Tokens.hash(secret), now, ttl == null ? null : now.plus(ttl), null, null));
         return new IssuedToken(secret, saved);
     }
 
@@ -271,12 +276,15 @@ public class AuthService implements AuthApi {
      * Conexión emitida por un inicio de sesión OAuth: el canje llega sin sesión, así que se resuelve la persona
      * en su espacio y se aplican las mismas reglas que al crearla a mano.
      */
+    static final java.time.Duration OAUTH_RUNNER_TTL = java.time.Duration.ofDays(90);
+
     public IssuedToken issueRunnerToken(UUID workspaceId, UUID memberId, String name) {
         return TenantContext.call(workspaceId, () -> tx.execute(s -> {
             MemberView m = members.find(memberId).filter(x -> x.workspaceId().equals(workspaceId))
                     .orElseThrow(() -> new ForbiddenException("La persona que aprobó ya no está en el espacio."));
             AuthenticatedMember who = new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), null, m.access(), false);
-            return createRunnerToken(who, name.length() > 80 ? name.substring(0, 80) : name);
+            // Por inicio de sesión vence: si alguien engañó a la persona para aprobar, el acceso no queda para siempre.
+            return createRunnerToken(who, name.length() > 80 ? name.substring(0, 80) : name, OAUTH_RUNNER_TTL);
         }));
     }
 

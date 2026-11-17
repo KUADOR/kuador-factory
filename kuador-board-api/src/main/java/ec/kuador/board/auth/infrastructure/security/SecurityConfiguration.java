@@ -112,8 +112,9 @@ class SecurityConfiguration {
                         // La auditoría del espacio: solo quien administra.
                         .requestMatchers("/api/workspace/audit", "/api/workspace/audit/**").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/workspace", "/api/workspace/languages", "/api/members/*/access").access(HUMAN_ADMIN)
-                        .requestMatchers(HttpMethod.PUT, "/api/projects/*", "/api/projects/*/columns", "/api/projects/*/methodology",
-                                "/api/projects/*/transitions", "/api/projects/*/stages").access(HUMAN_EDITOR)
+                        // Columnas, etapas (puertas y aprobadores) y transiciones definen quién aprueba: solo quien administra.
+                        .requestMatchers(HttpMethod.PUT, "/api/projects/*/columns", "/api/projects/*/transitions", "/api/projects/*/stages").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.PUT, "/api/projects/*", "/api/projects/*/methodology").access(HUMAN_EDITOR)
                         // El catálogo lo lee cualquiera del espacio; solo quien administra lo cambia.
                         .requestMatchers(HttpMethod.PUT, "/api/catalog/**").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.POST, "/api/catalog/**").access(HUMAN_ADMIN)

@@ -24,6 +24,9 @@ public interface ProjectApi {
     /** Los tableros donde está una persona (sin contar los que ve por su nivel). */
     java.util.Set<String> boardsOf(java.util.UUID memberId);
 
+    /** Los tableros de un agente por la API (con su token): los de su equipo, no todo el espacio. */
+    java.util.Set<String> agentBoardsOf(java.util.UUID agentId);
+
     /** Suma una persona del espacio al tablero. */
     void addPerson(String projectKey, java.util.UUID memberId);
 

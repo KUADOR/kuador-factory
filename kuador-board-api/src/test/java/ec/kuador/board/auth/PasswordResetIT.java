@@ -76,7 +76,7 @@ class PasswordResetIT {
         String oldSession = auth.login("rita@reset.test", "clave-original-123").token();
 
         resets.request("Rita@Reset.test");
-        String token = find(MAIL.get("rita@reset.test"), "https://tablero\\.test/recuperar\\?token=([A-Za-z0-9_-]+)");
+        String token = find(MAIL.get("rita@reset.test"), "https://tablero\\.test/reset-password\\?token=([A-Za-z0-9_-]+)");
         resets.reset(token, null, null, "clave-nueva-de-rita");
 
         assertThat(auth.authenticate(oldSession)).as("las sesiones abiertas se cierran").isEmpty();

@@ -20,7 +20,8 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
           title: "Espacio",
           items: [
             { href: "/workspace", label: "Empresa e idiomas", exact: true },
-            { href: "/team", label: "Equipo" },
+            { href: "/team", label: "Equipo", exact: true },
+            { href: "/team/org", label: "Organigrama" },
             ...(isOwner(me) ? [{ href: "/workspace/plan", label: "Plan" }] : []),
           ],
         },
@@ -29,7 +30,7 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
         { title: "Avanzado", items: [{ href: "/catalog", label: "Catálogo" }] },
       ]
     : [
-        { title: "Espacio", items: [{ href: "/team", label: "Equipo" }] },
+        { title: "Espacio", items: [{ href: "/team", label: "Equipo", exact: true }, { href: "/team/org", label: "Organigrama" }] },
         ...(localAgents.length ? [{ title: "Integraciones", items: localAgents }] : []),
       ];
   return (

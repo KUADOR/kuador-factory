@@ -1111,3 +1111,38 @@ export interface CatalogRevision {
   savedBy: string | null;
   savedAt: string;
 }
+
+// ---- Redactar con IA ----
+
+export interface DraftPlan {
+  projectKind: ProjectKind;
+  methodology: string | null;
+  documents: { kind: string; label: string; purpose: string | null; suggested: boolean }[];
+  /** Hay clave de IA de la empresa: puede trabajar en el servidor. */
+  serverReady: boolean;
+  goal: string | null;
+}
+
+export type DraftStep = "questions" | "draft" | "refine";
+
+export interface DraftInput {
+  idea: string;
+  answers?: Record<string, string>;
+  kinds?: string[];
+  kind?: string;
+  content?: string;
+  instruction?: string;
+}
+
+/** DONE con `result`; PENDING o RUNNING mientras la máquina trabaja; FAILED con `error`. */
+export interface DraftJob {
+  id: string | null;
+  status: "DONE" | "PENDING" | "RUNNING" | "FAILED";
+  result: {
+    questions?: { id: string; text: string; options: string[] }[];
+    documents?: { kind: string; label: string; content: string }[];
+    goal?: string;
+    content?: string;
+  } | null;
+  error: string | null;
+}

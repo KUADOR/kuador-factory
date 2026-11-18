@@ -216,6 +216,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         return goals.find(projectKey);
     }
 
+    @Override
+    @Transactional
+    public void saveGoal(String projectKey, String goal) {
+        setGoal(projectKey, goal);
+    }
+
     @Transactional
     public java.util.Optional<String> setGoal(String projectKey, String goal) {
         if (!exists(projectKey)) throw new ec.kuador.board.shared.error.NotFoundException("No existe el proyecto " + projectKey + ".");

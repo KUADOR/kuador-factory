@@ -1,6 +1,7 @@
 "use client";
 
 import { Target } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { saveProjectGoalAction } from "@/app/actions";
@@ -34,7 +35,10 @@ export function GoalForm({ projectKey, initial }: { projectKey: string; initial:
         <Target className="size-4 text-sol-text" aria-hidden /> Objetivo del tablero
       </label>
       <p className="-mt-1 text-xs leading-relaxed text-fg-muted">
-        Una o dos frases: para qué existe y qué es lo más importante para el negocio. Los agentes lo leen con cada tarjeta.
+        Una o dos frases: para qué existe y qué es lo más importante para el negocio. Los agentes lo leen con cada tarjeta.{" "}
+        <Link href={`/projects/${projectKey}/docs/draft`} className="k-link">
+          Proponerlo con IA
+        </Link>
       </p>
       <TextArea
         id="board-goal"

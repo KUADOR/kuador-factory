@@ -51,6 +51,13 @@ public class RunnerHub {
         signal(event.workspaceId());
     }
 
+    /** Un trabajo de IA para la máquina de alguien (p. ej. redactar «en mi computador»): que los runners pidan ya. */
+    @Async
+    @TransactionalEventListener(fallbackExecution = true)
+    void on(ec.kuador.board.agents.AiJobQueued event) {
+        signal(event.workspaceId());
+    }
+
     /** Un comentario cada 25 s mantiene viva la conexión a través de proxies que cortan las inactivas. */
     @Scheduled(fixedRate = 25_000, initialDelay = 25_000)
     void heartbeat() {

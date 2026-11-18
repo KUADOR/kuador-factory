@@ -1,11 +1,11 @@
-import { appendFileSync, createWriteStream, existsSync, rmSync } from "node:fs";
+import { appendFileSync, createWriteStream, existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 import { api, VERSION } from "./api.js";
-import { ensureDirs, LOGS, PAUSE, requireConfig, save, SECRETS, writeState } from "./config.js";
+import { ensureDirs, LOGS, PAUSE, requireConfig, save, SECRETS, WORK, writeState } from "./config.js";
 import { keepAwake, osName } from "./service.js";
 import { forget, remember, resumable } from "./sessions.js";
-import { launch, outcome } from "./tools.js";
+import { ask, launch, outcome } from "./tools.js";
 import { cleanup, prepare } from "./workdir.js";
 
 const HEARTBEAT_MS = 30_000;
@@ -82,10 +82,26 @@ export async function start() {
     timer = setTimeout(pump, 2000 + jobs.size * 3000);
   };
 
+  /** Los trabajos de texto de la persona (redactar «en mi computador»): rápidos y primero, la web los está esperando. */
+  const jobsLoop = async () => {
+    for (;;) {
+      if (stopping || machine.paused || existsSync(PAUSE) || Date.now() < pausedUntil) return;
+      const job = await client.claimJob(config.machineId);
+      if (!job) return;
+      const dir = join(WORK, "_textos");
+      mkdirSync(dir, { recursive: true });
+      log(`Trabajo de texto (${job.step}) para el tablero…`);
+      const r = await ask(job.system, job.user, dir);
+      await client.completeJob(config.machineId, job.id, r.text, r.error).catch((e) => log(`No se pudo entregar el trabajo de texto: ${e.message}`));
+      log(r.error ? `Trabajo de texto: falló · ${r.error.slice(0, 160)}` : "Trabajo de texto: listo");
+    }
+  };
+
   const pump = async () => {
     if (pumping) return;
     pumping = true;
     try {
+      await jobsLoop().catch((e) => log(`No se pudo pedir un trabajo de texto: ${e.message}`));
       while (canTake()) {
         const claim = await client.claim(config.machineId);
         if (!claim) break;

@@ -88,6 +88,12 @@ public class RunnerService {
     private final CatalogApi catalog;
     private final AgentKit kit;
     private final ec.kuador.board.auth.RunTokens runTokens;
+    private ec.kuador.board.agents.AiJobsApi jobs;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setJobs(ec.kuador.board.agents.AiJobsApi jobs) {
+        this.jobs = jobs;
+    }
     private final TransactionTemplate tx;
     private final Clock clock;
     private java.time.ZoneId zone = java.time.ZoneId.of("America/Guayaquil");
@@ -278,6 +284,21 @@ public class RunnerService {
         return new Claim(item.key(), item.projectKey(), project.kind().name(), item.title(), r.key(), r.name(), r.worksOnCode(), agent.id(), agent.name(),
                 profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds(), runToken,
                 item.reworkCount(), resume);
+    }
+
+    // ---- Trabajos de IA de la persona (sin tarjeta) ----
+
+    public Optional<ec.kuador.board.agents.AiJobsApi.JobTask> claimJob(AuthenticatedMember who, UUID machineId) {
+        requireRunner(who);
+        Machine m = ownMachine(who, machineId);
+        if (m.paused()) return Optional.empty();
+        return jobs.claim(who.workspaceId(), who.memberId(), machineId);
+    }
+
+    public void completeJob(AuthenticatedMember who, UUID machineId, UUID jobId, String text, String error) {
+        requireRunner(who);
+        ownMachine(who, machineId);
+        jobs.complete(who.workspaceId(), who.memberId(), jobId, text, error);
     }
 
     // ---- Préstamos ----

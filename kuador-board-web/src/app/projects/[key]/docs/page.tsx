@@ -77,7 +77,16 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
         </Link>
       </p>
 
-      <Section title="Del proyecto" description="Contexto que leen todas las personas y agentes antes de trabajar." flush>
+      <Section
+        title="Del proyecto"
+        description="Contexto que leen todas las personas y agentes antes de trabajar."
+        actions={
+          <Button href={`/projects/${project.key}/docs/draft`} tone={projectRules.some((r) => !projectDocs.some((d) => d.kind === r.kind)) ? "primary" : "secondary"} size="sm">
+            ✨ Redactar con IA
+          </Button>
+        }
+        flush
+      >
         <ul className="divide-y divide-line">
           {projectRules.map((rule) => {
             const doc = projectDocs.find((d) => d.kind === rule.kind);

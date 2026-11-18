@@ -55,6 +55,10 @@ import type {
   Routine,
   RoutineInput,
   CatalogRevision,
+  DraftInput,
+  DraftJob,
+  DraftPlan,
+  DraftStep,
   RunnerMachine,
   RunnerToken,
   MemberKind,
@@ -187,6 +191,12 @@ export const boardApi = {
   deleteRoutine: (id: string) => request<void>(`/api/routines/${encodeURIComponent(id)}`, { method: "DELETE" }),
   runRoutine: (id: string) => request<{ issueKey: string | null; skipped: string | null }>(`/api/routines/${encodeURIComponent(id)}/run`, { method: "POST" }),
   routineWebhook: (id: string) => request<{ secret: string }>(`/api/routines/${encodeURIComponent(id)}/webhook`, { method: "POST" }),
+  draftPlan: (key: string) => request<DraftPlan>(`/api/projects/${encodeURIComponent(key)}/drafting`),
+  draftAsk: (key: string, step: DraftStep, input: DraftInput, local: boolean) =>
+    request<DraftJob>(`/api/projects/${encodeURIComponent(key)}/drafting/${step}?local=${local}`, json("POST", input)),
+  draftJob: (id: string) => request<DraftJob>(`/api/drafting/jobs/${encodeURIComponent(id)}`),
+  draftApprove: (key: string, documents: { kind: string; content: string }[], goal: string | null) =>
+    request<{ saved: string[]; goal: string }>(`/api/projects/${encodeURIComponent(key)}/drafting/approve`, json("POST", { documents, goal })),
   projectGoal: (key: string) => request<{ goal: string | null }>(`/api/projects/${encodeURIComponent(key)}/goal`),
   saveProjectGoal: (key: string, goal: string) => request<{ goal: string | null }>(`/api/projects/${encodeURIComponent(key)}/goal`, json("PUT", { goal })),
   boardTeam: (key: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`),

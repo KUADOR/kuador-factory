@@ -74,6 +74,20 @@ class RunnerController {
         runners.release(who, r.machineId(), issueKey, r.outcome(), r.message());
     }
 
+    /** El siguiente trabajo de IA de su persona (p. ej. redactar documentos «en mi computador»); 204 si no hay. */
+    @PostMapping("/api/runner/jobs/claim")
+    ResponseEntity<ec.kuador.board.agents.AiJobsApi.JobTask> claimJob(@AuthenticationPrincipal AuthenticatedMember who, @RequestBody MachineRequest r) {
+        return runners.claimJob(who, r.machineId()).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @PostMapping("/api/runner/jobs/{id}/complete")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void completeJob(@AuthenticationPrincipal AuthenticatedMember who, @PathVariable UUID id, @RequestBody JobResult r) {
+        runners.completeJob(who, r.machineId(), id, r.text(), r.error());
+    }
+
+    record JobResult(@NotNull UUID machineId, String text, String error) {}
+
     record MachineRequest(@NotNull UUID machineId) {}
 
     record ReleaseRequest(@NotNull UUID machineId, String outcome, String message) {}

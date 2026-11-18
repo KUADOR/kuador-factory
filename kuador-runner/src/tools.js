@@ -72,6 +72,32 @@ export function launch(config, claim, cwd, logStream, resumeId = null) {
   return { child, done };
 }
 
+/**
+ * Un pedido de texto del tablero (p. ej. redactar los documentos base «en mi computador»): sin herramientas ni servidores
+ * MCP, en una carpeta vacía. Devuelve el texto de la respuesta.
+ */
+export function ask(system, user, cwd) {
+  const args = ["-p", user, "--append-system-prompt", system, "--output-format", "json", "--strict-mcp-config", "--disallowedTools", "Bash,Edit,Write,WebFetch,WebSearch"];
+  const child = spawn(TOOLS.claude.command, args, { cwd, shell: WINDOWS, windowsHide: true });
+  let out = "";
+  let err = "";
+  child.stdout.on("data", (d) => (out += d));
+  child.stderr.on("data", (d) => (err += d));
+  return new Promise((resolve) => {
+    child.on("error", (e) => resolve({ text: null, error: String(e) }));
+    child.on("close", (code) => {
+      let result = null;
+      try {
+        result = JSON.parse(out.trim().split("\n").filter(Boolean).pop() ?? "");
+      } catch {
+        // Sin JSON: se informa el error.
+      }
+      if (code === 0 && result && !result.is_error) resolve({ text: String(result.result ?? ""), error: null });
+      else resolve({ text: null, error: `Claude Code: ${(result?.result || err || out || `salió con código ${code}`).toString().trim().slice(-400)}` });
+    });
+  });
+}
+
 /** Interpreta lo que devolvió Claude Code: terminó bien, falló o llegó al límite de la suscripción. */
 export function outcome({ code, out, err }) {
   const text = `${out}\n${err}`;

@@ -119,6 +119,8 @@ class SecurityConfiguration {
                         // El estado de la IA (sin la clave) lo ven quienes configuran tableros; cambiarla, solo quien administra.
                         .requestMatchers(HttpMethod.GET, "/api/workspace/ai").access(HUMAN_EDITOR)
                         .requestMatchers("/api/agents/*/profile", "/api/agents/*/prompt-preview", "/api/workspace/ai", "/api/workspace/ai/**").access(HUMAN_ADMIN)
+                        // Redactar documentos base con IA: personas que editan (el paso «approve» incluido).
+                        .requestMatchers("/api/projects/*/drafting", "/api/projects/*/drafting/**", "/api/drafting/**").access(HUMAN_EDITOR)
                         // Rutinas: el webhook es público (lleva su secreto); configurarlas, personas que editan.
                         .requestMatchers(HttpMethod.POST, "/api/routines/*/hook").permitAll()
                         .requestMatchers("/api/routines/**", "/api/projects/*/routines").access(HUMAN_EDITOR)

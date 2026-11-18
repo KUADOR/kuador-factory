@@ -20,6 +20,11 @@ public interface ProjectApi {
         return java.util.Optional.empty();
     }
 
+    /** Guarda el objetivo del tablero (vacío lo borra). */
+    default void saveGoal(String projectKey, String goal) {
+        throw new UnsupportedOperationException("saveGoal");
+    }
+
     /** Crea un tablero desde una plantilla del catálogo del espacio (p. ej. el tablero inicial de un paquete). */
     void createBoard(String key, String name, String templateKey);
 

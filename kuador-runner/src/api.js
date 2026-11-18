@@ -1,5 +1,5 @@
 /** Cliente de la API del tablero (rutas del runner). */
-export const VERSION = "0.1.3";
+export const VERSION = "0.1.4";
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -43,6 +43,9 @@ export function api(server, token) {
     setup: () => call("GET", "/api/runner/setup").then((r) => r.body),
     heartbeat: (body) => call("PUT", "/api/runner/heartbeat", body).then((r) => r.body),
     claim: (machineId) => call("POST", "/api/runner/claim", { machineId }).then((r) => (r.status === 204 ? null : r.body)),
+    claimJob: (machineId) => call("POST", "/api/runner/jobs/claim", { machineId }).then((r) => (r.status === 204 ? null : r.body)),
+    completeJob: (machineId, id, text, error) =>
+      call("POST", `/api/runner/jobs/${encodeURIComponent(id)}/complete`, { machineId, text: text?.slice(0, 200_000), error: error?.slice(0, 480) }),
     renew: (machineId, key) => call("POST", `/api/runner/leases/${encodeURIComponent(key)}/renew`, { machineId }, { allow: [409] }).then((r) => r.status === 200),
     release: (machineId, key, outcome, message) =>
       call("POST", `/api/runner/leases/${encodeURIComponent(key)}/release`, { machineId, outcome, message: message?.slice(0, 480) }),

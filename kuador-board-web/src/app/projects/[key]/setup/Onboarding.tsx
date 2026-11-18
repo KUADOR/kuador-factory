@@ -125,7 +125,28 @@ export function Onboarding({
               <p className="mt-0.5 text-[13px] text-fg-muted">{stepDescription(current, project)}</p>
             </header>
             <div className="rounded-lg border border-line bg-surface p-5">
-              {current === "methodology" && <MethodologyPicker project={project} methodologies={methodologies} />}
+              {current === "methodology" && (
+                <>
+                  <MethodologyPicker project={project} methodologies={methodologies} />
+                  {project.methodology && (
+                    <Link
+                      href={`/projects/${project.key}/docs/draft`}
+                      className="mt-4 flex items-center gap-3 rounded-lg border border-sol/50 bg-sol/10 px-4 py-3 text-[13px] hover:bg-sol/15"
+                    >
+                      <span className="text-lg" aria-hidden>
+                        ✨
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium text-fg-strong">Redacta los documentos base con IA</span>
+                        <span className="block text-xs text-fg-muted">
+                          {project.methodology === "ODD" ? "Lo mínimo de ODD: Producto y Reglas para agentes." : "Constitución, Producto y los demás de tu metodología."} Escribes la idea y la
+                          pules conversando.
+                        </span>
+                      </span>
+                    </Link>
+                  )}
+                </>
+              )}
               {current === "repository" && link && <RepositoryStep project={project} link={link} github={github} templates={templates} />}
               {current === "client" && <AgentsStep connections={connections} kit={kit} onCheck={() => router.refresh()} />}
               {current === "notifications" &&

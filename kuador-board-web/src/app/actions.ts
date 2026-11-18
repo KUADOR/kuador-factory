@@ -11,6 +11,9 @@ import type {
   Routine,
   RoutineInput,
   CatalogRevision,
+  DraftInput,
+  DraftJob,
+  DraftStep,
   RunnerMachine,
   PieceUpdate,
   ProjectPiece,
@@ -165,6 +168,22 @@ export async function runRoutineAction(projectKey: string, id: string): Promise<
 
 export async function routineWebhookAction(projectKey: string, id: string): Promise<ActionResult<{ secret: string }>> {
   return run(() => boardApi.routineWebhook(id), `/projects/${projectKey}/settings/routines`);
+}
+
+export async function draftAskAction(projectKey: string, step: DraftStep, input: DraftInput, local: boolean): Promise<ActionResult<DraftJob>> {
+  return run(() => boardApi.draftAsk(projectKey, step, input, local));
+}
+
+export async function draftJobAction(id: string): Promise<ActionResult<DraftJob>> {
+  return run(() => boardApi.draftJob(id));
+}
+
+export async function draftApproveAction(
+  projectKey: string,
+  documents: { kind: string; content: string }[],
+  goal: string | null,
+): Promise<ActionResult<{ saved: string[]; goal: string }>> {
+  return run(() => boardApi.draftApprove(projectKey, documents, goal), `/projects/${projectKey}/docs`, true);
 }
 
 export async function saveProjectGoalAction(projectKey: string, goal: string): Promise<ActionResult<{ goal: string | null }>> {

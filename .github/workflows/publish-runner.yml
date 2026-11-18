@@ -1,0 +1,32 @@
+name: Publicar runner
+
+# Publica @kuador/runner en npm al empujar una etiqueta runner-vX.Y.Z (la versión debe coincidir con package.json).
+# Sin tokens guardados: npm confía en este workflow (Trusted Publishing por OIDC) y firma el paquete con su procedencia.
+on:
+  push:
+    tags: ['runner-v*']
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kuador-runner
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      # Trusted Publishing necesita npm 11.5.1 o más.
+      - run: npm install -g npm@11.6.2
+      - name: La etiqueta coincide con la versión
+        run: |
+          expected="runner-v$(node -p "require('./package.json').version")"
+          [ "$GITHUB_REF_NAME" = "$expected" ] || { echo "La etiqueta $GITHUB_REF_NAME no coincide con $expected"; exit 1; }
+      - run: npm test
+      - run: npm publish --access public

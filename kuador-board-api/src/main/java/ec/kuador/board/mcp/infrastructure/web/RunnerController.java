@@ -87,7 +87,7 @@ class RunnerController {
 
     @PatchMapping("/api/runner/machines/{id}")
     RunnerService.MachineView update(@AuthenticationPrincipal AuthenticatedMember who, @PathVariable UUID id, @RequestBody UpdateRequest r) {
-        return runners.update(who, id, r.paused(), r.roles(), r.capacity());
+        return runners.update(who, id, r.paused(), r.roles(), r.capacity(), r.dailyMinutes(), Boolean.TRUE.equals(r.noDailyLimit()));
     }
 
     @DeleteMapping("/api/runner/machines/{id}")
@@ -96,5 +96,6 @@ class RunnerController {
         runners.delete(who, id);
     }
 
-    record UpdateRequest(Boolean paused, List<String> roles, Integer capacity) {}
+    /** {@code noDailyLimit}: quita el tope de tiempo por día. */
+    record UpdateRequest(Boolean paused, List<String> roles, Integer capacity, Integer dailyMinutes, Boolean noDailyLimit) {}
 }

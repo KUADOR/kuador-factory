@@ -120,8 +120,9 @@ public class BoardAgent {
             finish(run.skipped(why, clock.instant()));
             return;
         }
-        if (Boolean.TRUE.equals(tx.execute(s -> ai.overBudget()))) {
-            String why = "El espacio llegó a su tope mensual de IA. Quien administra puede subirlo en Conexiones → IA.";
+        Optional<String> blocked = tx.execute(s -> ai.budgetBlock(agent.get().id(), event.issueKey()));
+        if (blocked != null && blocked.isPresent()) {
+            String why = blocked.get();
             tx.executeWithoutResult(s -> returnCard(agent.get(), requester.get(), event.issueKey(), failed(true, why)));
             finish(run.skipped(why, clock.instant()));
             return;

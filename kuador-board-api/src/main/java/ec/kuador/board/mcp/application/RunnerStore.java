@@ -8,8 +8,15 @@ import java.util.UUID;
 /** Máquinas con runner y préstamos de tarjetas (ver RunnerService). */
 public interface RunnerStore {
 
+    /** {@code dailyMinutes}: cuánto puede trabajar al día (nulo = sin tope). */
     record Machine(UUID id, UUID workspaceId, UUID memberId, String name, String os, String tool, List<String> roles, int capacity,
-            boolean paused, String version, Instant lastSeen, Instant createdAt) {}
+            boolean paused, String version, Instant lastSeen, Instant createdAt, Integer dailyMinutes) {
+
+        public Machine(UUID id, UUID workspaceId, UUID memberId, String name, String os, String tool, List<String> roles, int capacity,
+                boolean paused, String version, Instant lastSeen, Instant createdAt) {
+            this(id, workspaceId, memberId, name, os, tool, roles, capacity, paused, version, lastSeen, createdAt, null);
+        }
+    }
 
     /** {@code runTokenId}: la credencial de esta ejecución (se revoca al cerrar el préstamo). */
     record Lease(UUID id, UUID workspaceId, String issueKey, String epicKey, String status, UUID machineId, UUID memberId, UUID agentId,
@@ -24,6 +31,11 @@ public interface RunnerStore {
     List<Machine> machines(UUID workspaceId);
 
     void deleteMachine(UUID id);
+
+    void setDailyMinutes(UUID id, Integer minutes);
+
+    /** Minutos que trabajó la máquina desde {@code since} (préstamos cerrados y los que siguen abiertos). */
+    long minutesSince(UUID machineId, Instant since, Instant now);
 
     // ---- Préstamos ----
 

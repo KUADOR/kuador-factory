@@ -120,8 +120,9 @@ public class ProductOwnerAgent {
         }
         // Siempre la clave de la empresa (Conexiones → IA): no hay clave del servidor.
         Optional<String> key = tx.execute(s -> keys.currentKey());
-        if (Boolean.TRUE.equals(tx.execute(s -> keys.overBudget()))) {
-            finish(run.skipped("El espacio llegó a su tope mensual de IA (Conexiones → IA).", now()));
+        Optional<String> blocked = tx.execute(s -> keys.budgetBlock(agent.get().id(), event.issueKey()));
+        if (blocked != null && blocked.isPresent()) {
+            finish(run.skipped(blocked.get(), now()));
             return;
         }
         if (Boolean.TRUE.equals(tx.execute(s -> keys.overRate()))) {

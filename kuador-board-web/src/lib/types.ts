@@ -541,9 +541,21 @@ export interface AiUsageReport {
   /** De la entrada, los que salieron del caché de prompts (cuestan ~10%). */
   cachedTokens: number;
   costUsd: number | null;
-  byAgent: { agentId: string; name: string; runs: number; inputTokens: number; outputTokens: number; cachedTokens: number; costUsd: number | null }[];
+  byAgent: {
+    agentId: string;
+    name: string;
+    runs: number;
+    inputTokens: number;
+    outputTokens: number;
+    cachedTokens: number;
+    costUsd: number | null;
+    /** Tope mensual propio del agente; null = sin tope. */
+    budgetUsd: number | null;
+  }[];
   budgetUsd: number | null;
   unpricedModels: string[];
+  /** Ninguna tarjeta puede gastar más que esto (corta los bucles); null = sin tope. */
+  cardCapUsd: number | null;
 }
 
 export interface AiModelPrice {
@@ -883,6 +895,9 @@ export interface RunnerMachine {
   person: string;
   /** Tarjetas que está trabajando ahora. */
   working: string[];
+  /** Cuánto puede trabajar al día (minutos); null = sin tope. */
+  dailyMinutes: number | null;
+  minutesToday: number;
 }
 
 export interface AgentKit {

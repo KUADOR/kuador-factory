@@ -26,6 +26,11 @@ public interface AiKeyProvider {
         return false;
     }
 
+    /** Por qué ese agente no puede trabajar esa tarjeta por presupuesto (el espacio, su tope o el de la tarjeta); vacío = puede. */
+    default Optional<String> budgetBlock(java.util.UUID agentId, String issueKey) {
+        return overBudget() ? Optional.of("El espacio llegó a su tope mensual de IA (Conexiones → IA).") : Optional.empty();
+    }
+
     /** Si el espacio ya hizo el máximo de corridas de agentes de la última hora. */
     default boolean overRate() {
         return false;

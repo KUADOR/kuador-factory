@@ -223,6 +223,17 @@ class RunnerIT {
         assertThat(claim(luisRunner, luisMachine).status()).isEqualTo(204);
         assertThat(call("GET", "/api/issues/" + story + "/comments", null, ana).body().toString()).contains("no logré terminarlo");
 
+        // Con la suscripción de una persona el freno es de tiempo: llegado su tope del día, la máquina no toma más.
+        JsonNode capped = call("PATCH", "/api/runner/machines/" + luisMachine, Map.of("dailyMinutes", 15), luis).body();
+        assertThat(capped.get("dailyMinutes").asInt()).isEqualTo(15);
+        assertThat(call("PATCH", "/api/runner/machines/" + luisMachine, Map.of("dailyMinutes", 5), luis).status()).isEqualTo(422);
+        jdbc.sql("update runner_lease set started_at = now() - interval '30 minutes' where machine_id = ?").param(luisMachine).update();
+        String another = call("POST", "/api/projects/RUN/issues", Map.of("title", "Recordatorios", "type", "STORY", "status", "REFINEMENT"), luis)
+                .body().get("key").asString();
+        assertThat(claim(luisRunner, luisMachine).status()).as("ya trabajó más que su tope de hoy").isEqualTo(204);
+        assertThat(call("PATCH", "/api/runner/machines/" + luisMachine, Map.of("noDailyLimit", true), luis).body().get("dailyMinutes").isNull()).isTrue();
+        assertThat(claim(luisRunner, luisMachine).body().get("issueKey").asString()).isEqualTo(another);
+
         // Las máquinas se pueden quitar desde el tablero.
         assertThat(call("DELETE", "/api/runner/machines/" + anaMachine, null, ana).status()).isEqualTo(204);
         JsonNode left = call("GET", "/api/runner/machines", null, ana).body();

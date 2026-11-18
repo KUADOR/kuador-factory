@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { setAiBudgetAction } from "@/app/actions";
+import { setAgentBudgetAction, setAiBudgetAction, setCardCapAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
@@ -12,7 +12,21 @@ const usd = (n: number) => new Intl.NumberFormat("es-EC", { style: "currency", c
 const num = (n: number) => new Intl.NumberFormat("es-EC").format(n);
 const MONTH = (m: string) => new Intl.DateTimeFormat("es-EC", { month: "long", year: "numeric" }).format(new Date(`${m}-15T12:00:00Z`));
 
-/** Consumo de IA del mes de los agentes que trabajan en el tablero, su costo estimado y el tope mensual. */
+/** Monto escrito por la persona: vacío = sin tope; un número mayor que cero; si no, null y avisa. */
+function parseUsd(text: string): number | null | undefined {
+  if (text.trim() === "") return null;
+  const v = Number(text.replace(",", "."));
+  if (!Number.isFinite(v) || v <= 0) {
+    notify.error("Escribe un monto mayor que cero, o déjalo vacío para no tener tope.");
+    return undefined;
+  }
+  return v;
+}
+
+/**
+ * Consumo de IA del mes de los agentes que trabajan en el tablero, su costo estimado y sus frenos: el tope del espacio,
+ * el de cada agente y el de cada tarjeta. Al 80 % y al llegar al tope se avisa a quien administra.
+ */
 export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
   const [usage, setUsage] = useState(initial);
   const [budget, setBudget] = useState(initial.budgetUsd?.toString() ?? "");
@@ -49,7 +63,10 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
         </div>
       )}
       {usage.unpricedModels.length > 0 && (
-        <p className="text-xs text-fg-faint">No hay precio configurado para {usage.unpricedModels.join(", ")}: el costo no se puede estimar y el tope no aplica.</p>
+        <p className="text-xs text-warn">
+          Falta el precio de {usage.unpricedModels.join(", ")}: el gasto no se puede calcular y, con un tope, los agentes del tablero se frenan por
+          precaución. Cárgalo en Plataforma → IA.
+        </p>
       )}
       {usage.byAgent.length > 0 && (
         <ul className="divide-y divide-line rounded-md border border-line text-[13px]">
@@ -58,6 +75,7 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
               <span className="min-w-0 flex-1 truncate font-medium text-fg-strong">{a.name}</span>
               <span className="text-xs text-fg-muted">{num(a.runs)} trabajo{a.runs === 1 ? "" : "s"}</span>
               <span className="tabular w-20 text-right text-fg">{a.costUsd != null ? usd(a.costUsd) : "—"}</span>
+              <AgentCap agentId={a.agentId} name={a.name} value={a.budgetUsd} onSaved={setUsage} />
             </li>
           ))}
         </ul>
@@ -89,7 +107,93 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
         </div>
         <Button type="submit" loading={pending}>Guardar tope</Button>
       </form>
+      <CardCap value={usage.cardCapUsd} onSaved={setUsage} />
+      <p className="text-xs text-fg-faint">
+        Te avisamos al 80 % y al llegar a cada tope (correo, Telegram o el celular). Llegado un tope, esos agentes no toman trabajo nuevo hasta que lo
+        subas o empiece el mes.
+      </p>
     </div>
+  );
+}
+
+/** Tope por tarjeta: corta los bucles (rehacer, que la devuelvan, rehacer) antes de que gasten el mes. */
+function CardCap({ value, onSaved }: { value: number | null; onSaved: (r: AiUsageReport) => void }) {
+  const [text, setText] = useState(value?.toString() ?? "");
+  const [pending, start] = useTransition();
+  return (
+    <form
+      className="flex flex-wrap items-end gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const v = parseUsd(text);
+        if (v === undefined) return;
+        start(async () => {
+          const r = await setCardCapAction(v);
+          if (!r.ok) {
+            notify.error("No se pudo guardar", r.error);
+            return;
+          }
+          onSaved(r.data);
+          notify.ok(v == null ? "Sin tope por tarjeta" : `Ninguna tarjeta gasta más de ${usd(v)}`);
+        });
+      }}
+    >
+      <div className="w-48">
+        <Field label="Tope por tarjeta (USD)" hint="Ninguna tarjeta gasta más que esto.">
+          {(id) => <TextInput id={id} inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} placeholder="3" />}
+        </Field>
+      </div>
+      <Button type="submit" loading={pending}>
+        Guardar
+      </Button>
+    </form>
+  );
+}
+
+/** El tope del mes de un agente, editable en su fila. */
+function AgentCap({ agentId, name, value, onSaved }: { agentId: string; name: string; value: number | null; onSaved: (r: AiUsageReport) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value?.toString() ?? "");
+  const [pending, start] = useTransition();
+  if (!editing) {
+    return (
+      <button type="button" onClick={() => setEditing(true)} className="text-xs text-fg-faint hover:text-fg-strong" aria-label={`Tope de ${name}`}>
+        {value != null ? `tope ${usd(value)}` : "sin tope"}
+      </button>
+    );
+  }
+  return (
+    <form
+      className="flex items-center gap-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const v = parseUsd(text);
+        if (v === undefined) return;
+        start(async () => {
+          const r = await setAgentBudgetAction(agentId, v);
+          if (!r.ok) {
+            notify.error("No se pudo guardar", r.error);
+            return;
+          }
+          onSaved(r.data);
+          setEditing(false);
+          notify.ok(v == null ? `${name} sin tope propio` : `Tope de ${name}: ${usd(v)} al mes`);
+        });
+      }}
+    >
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        inputMode="decimal"
+        autoFocus
+        placeholder="vacío = sin tope"
+        aria-label={`Tope mensual de ${name} (USD)`}
+        className="h-7 w-24 rounded-md border border-line bg-surface px-2 text-xs text-fg-strong"
+      />
+      <Button size="sm" type="submit" loading={pending}>
+        OK
+      </Button>
+    </form>
   );
 }
 

@@ -39,6 +39,13 @@ public class AiUsage {
     /** Corridas de agentes por espacio en una hora: frena un bucle o a alguien que dispara corridas sin parar. */
     private final int maxRunsPerHour;
 
+    private org.springframework.context.ApplicationEventPublisher events;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setEvents(org.springframework.context.ApplicationEventPublisher events) {
+        this.events = events;
+    }
+
     AiUsage(AiUsageStore store, MemberApi members, Clock clock, @Value("${board.billing.zone:America/Guayaquil}") String zone,
             @Value("${board.agents.max-runs-per-hour:60}") int maxRunsPerHour) {
         this.maxRunsPerHour = maxRunsPerHour;
@@ -49,11 +56,13 @@ public class AiUsage {
     }
 
     /** {@code cachedTokens}: tokens de entrada que salieron del caché de prompts (cuestan ~10%). */
-    public record AgentUsage(UUID agentId, String name, long runs, long inputTokens, long outputTokens, long cachedTokens, BigDecimal costUsd) {}
+    /** {@code budgetUsd}: el tope mensual de ese agente (nulo = sin tope propio). */
+    public record AgentUsage(UUID agentId, String name, long runs, long inputTokens, long outputTokens, long cachedTokens, BigDecimal costUsd,
+            BigDecimal budgetUsd) {}
 
     /** {@code costUsd} nulo si algún modelo usado no tiene precio configurado ({@code unpricedModels}). */
     public record Report(String month, long runs, long inputTokens, long outputTokens, long cachedTokens, BigDecimal costUsd, List<AgentUsage> byAgent,
-            BigDecimal budgetUsd, List<String> unpricedModels) {}
+            BigDecimal budgetUsd, List<String> unpricedModels, BigDecimal cardCapUsd) {}
 
     @Transactional(readOnly = true)
     public Report report() {
@@ -80,6 +89,9 @@ public class AiUsage {
                 costs.merge(u.agentId(), cost(price, u), BigDecimal::add);
             }
         }
+        Map<UUID, BigDecimal> agentBudgets = store.agentBudgets(ws);
+        // Los agentes con tope propio aparecen aunque no hayan gastado este mes (para poder verlo y cambiarlo).
+        agentBudgets.keySet().forEach(id -> tokens.computeIfAbsent(id, k -> new long[4]));
         List<AgentUsage> byAgent = new ArrayList<>();
         long runs = 0;
         long in = 0;
@@ -89,7 +101,8 @@ public class AiUsage {
         for (var e : tokens.entrySet()) {
             String name = members.find(e.getKey()).map(MemberView::name).orElse("Agente eliminado");
             BigDecimal c = costs.get(e.getKey());
-            byAgent.add(new AgentUsage(e.getKey(), name, e.getValue()[0], e.getValue()[1], e.getValue()[2], e.getValue()[3], c == null ? null : c.setScale(2, RoundingMode.HALF_UP)));
+            byAgent.add(new AgentUsage(e.getKey(), name, e.getValue()[0], e.getValue()[1], e.getValue()[2], e.getValue()[3], c == null ? null : c.setScale(2, RoundingMode.HALF_UP),
+                    agentBudgets.get(e.getKey())));
             runs += e.getValue()[0];
             in += e.getValue()[1];
             out += e.getValue()[2];
@@ -97,7 +110,89 @@ public class AiUsage {
             if (total != null) total = c == null ? null : total.add(c);
         }
         return new Report(month.toString(), runs, in, out, cached, total == null ? null : total.setScale(2, RoundingMode.HALF_UP), byAgent,
-                store.budget(ws).orElse(null), unpriced);
+                store.budget(ws).orElse(null), unpriced, store.cardCap(ws).orElse(null));
+    }
+
+    // ---- Freno: el espacio, cada agente y cada tarjeta ----
+
+    /**
+     * Por qué un agente no puede trabajar esta tarjeta ahora (vacío = puede): el espacio llegó a su tope, el agente al
+     * suyo, o la tarjeta ya gastó su tope (corta los bucles: rehacer, que la devuelvan, rehacer).
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> blockReason(UUID agentId, String issueKey) {
+        if (overBudget()) return Optional.of("El espacio llegó a su tope mensual de IA. Quien administra puede subirlo en Conexiones → IA.");
+        UUID ws = TenantContext.require();
+        Report r = report();
+        BigDecimal limit = store.agentBudgets(ws).get(agentId);
+        if (limit != null) {
+            BigDecimal spent = r.byAgent().stream().filter(a -> a.agentId().equals(agentId)).map(AgentUsage::costUsd).filter(java.util.Objects::nonNull)
+                    .findFirst().orElse(BigDecimal.ZERO);
+            if (spent.compareTo(limit) >= 0) {
+                String name = members.find(agentId).map(MemberView::name).orElse("El agente");
+                return Optional.of(name + " llegó a su tope mensual de IA (USD " + spent.setScale(2, RoundingMode.HALF_UP) + " de " + limit
+                        + "). Quien administra puede subirlo en Conexiones → IA.");
+            }
+        }
+        Optional<BigDecimal> cap = store.cardCap(ws);
+        if (cap.isPresent() && issueKey != null) {
+            BigDecimal spent = issueCost(ws, issueKey);
+            if (spent.compareTo(cap.get()) >= 0) {
+                return Optional.of(issueKey + " ya gastó USD " + spent.setScale(2, RoundingMode.HALF_UP) + " de IA, su tope por tarjeta es USD " + cap.get()
+                        + ". Revísala tú: si hace falta seguir, sube el tope en Conexiones → IA.");
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Lo que lleva gastado una tarjeta (los modelos sin precio no suman: no se sabe). */
+    BigDecimal issueCost(UUID ws, String issueKey) {
+        Map<String, AiUsageStore.Price> prices = new LinkedHashMap<>();
+        store.prices().forEach(p -> prices.put(p.model(), p));
+        BigDecimal total = BigDecimal.ZERO;
+        for (AiUsageStore.Usage u : store.issueUsage(ws, issueKey)) {
+            AiUsageStore.Price p = prices.get(u.model());
+            if (p != null) total = total.add(cost(p, u));
+        }
+        return total;
+    }
+
+    /** Después de cada trabajo: si el gasto cruzó el 80 % o el 100 % de un tope del mes, se avisa (una vez). */
+    @Transactional
+    public void checkAlerts() {
+        UUID ws = TenantContext.require();
+        Report r = report();
+        java.time.Instant now = clock.instant();
+        if (r.budgetUsd() != null && r.costUsd() != null) alert(ws, r.month(), "WORKSPACE", null, r.costUsd(), r.budgetUsd(), now);
+        for (AgentUsage a : r.byAgent()) {
+            if (a.budgetUsd() != null && a.costUsd() != null) alert(ws, r.month(), a.agentId().toString(), a.name(), a.costUsd(), a.budgetUsd(), now);
+        }
+    }
+
+    private void alert(UUID ws, String month, String scope, String agentName, BigDecimal spent, BigDecimal limit, java.time.Instant now) {
+        int level = spent.compareTo(limit) >= 0 ? 100 : spent.compareTo(limit.multiply(new BigDecimal("0.8"))) >= 0 ? 80 : 0;
+        if (level == 0) return;
+        // Al llegar al 100 % sin haber avisado el 80 %, el 80 % queda marcado (no tiene sentido avisarlo después).
+        if (level == 100) store.markAlert(ws, scope, month, 80, now);
+        if (store.markAlert(ws, scope, month, level, now) && events != null) {
+            events.publishEvent(new ec.kuador.board.agents.AiBudgetAlert(ws, month, level, agentName, spent, limit));
+        }
+    }
+
+    @Transactional
+    public Report setCardCap(BigDecimal cap, boolean keyConfigured) {
+        if (!keyConfigured) throw new DomainException("Primero guarda la clave de IA de la empresa.");
+        if (cap != null && cap.signum() <= 0) throw new DomainException("El tope por tarjeta es un monto mayor que cero, o vacío para no tener tope.");
+        store.saveCardCap(TenantContext.require(), cap == null ? null : cap.setScale(2, RoundingMode.HALF_UP));
+        return report();
+    }
+
+    @Transactional
+    public Report setAgentBudget(UUID agentId, BigDecimal monthly) {
+        if (members.find(agentId).filter(MemberView::agent).isEmpty()) throw new DomainException("Ese agente no existe.");
+        if (monthly != null && monthly.signum() <= 0) throw new DomainException("El tope del agente es un monto mayor que cero, o vacío para no tener tope.");
+        store.saveAgentBudget(TenantContext.require(), agentId, monthly == null ? null : monthly.setScale(2, RoundingMode.HALF_UP));
+        return report();
     }
 
     /**

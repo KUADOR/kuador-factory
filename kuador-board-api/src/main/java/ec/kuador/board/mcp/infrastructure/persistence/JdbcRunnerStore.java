@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
 class JdbcRunnerStore implements RunnerStore {
 
     private static final String LEASE_COLUMNS = "id, workspace_id, issue_key, epic_key, status, machine_id, member_id, agent_id, started_at, expires_at, released_at, outcome, run_token_id";
-    private static final String MACHINE_COLUMNS = "id, workspace_id, member_id, name, os, tool, roles, capacity, paused, version, last_seen, created_at";
+    private static final String MACHINE_COLUMNS = "id, workspace_id, member_id, name, os, tool, roles, capacity, paused, version, last_seen, created_at, daily_minutes";
 
     private final JdbcClient jdbc;
 
@@ -51,6 +51,20 @@ class JdbcRunnerStore implements RunnerStore {
     }
 
     @Override
+    public void setDailyMinutes(UUID id, Integer minutes) {
+        jdbc.sql("update runner_machine set daily_minutes = ? where id = ?").params(minutes, id).update();
+    }
+
+    @Override
+    public long minutesSince(UUID machineId, Instant since, Instant now) {
+        return jdbc.sql("""
+                select coalesce(sum(extract(epoch from (least(coalesce(released_at, :now), :now) - greatest(started_at, :since))) / 60), 0)
+                from runner_lease where machine_id = :machine and coalesce(released_at, :now) > :since""")
+                .param("now", Timestamp.from(now)).param("since", Timestamp.from(since)).param("machine", machineId)
+                .query(Double.class).single().longValue();
+    }
+
+    @Override
     public void deleteMachine(UUID id) {
         jdbc.sql("delete from runner_machine where id = ?").param(id).update();
     }
@@ -59,7 +73,7 @@ class JdbcRunnerStore implements RunnerStore {
         String roles = rs.getString(7);
         return new Machine(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getObject(3, UUID.class), rs.getString(4), rs.getString(5),
                 rs.getString(6), roles.isBlank() ? List.of() : Arrays.asList(roles.split(",")), rs.getInt(8), rs.getBoolean(9), rs.getString(10),
-                rs.getTimestamp(11).toInstant(), rs.getTimestamp(12).toInstant());
+                rs.getTimestamp(11).toInstant(), rs.getTimestamp(12).toInstant(), (Integer) rs.getObject(13));
     }
 
     // ---- Préstamos ----

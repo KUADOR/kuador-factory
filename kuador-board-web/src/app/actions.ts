@@ -183,7 +183,10 @@ export async function approveRunnerAction(userCode: string): Promise<ActionResul
   return run(() => boardApi.approveRunner(userCode), "/local-agents");
 }
 
-export async function updateRunnerMachineAction(id: string, patch: { paused?: boolean; roles?: string[]; capacity?: number }): Promise<ActionResult<RunnerMachine>> {
+export async function updateRunnerMachineAction(
+  id: string,
+  patch: { paused?: boolean; roles?: string[]; capacity?: number; dailyMinutes?: number; noDailyLimit?: boolean },
+): Promise<ActionResult<RunnerMachine>> {
   return run(() => boardApi.updateRunnerMachine(id, patch), "/local-agents");
 }
 
@@ -478,6 +481,14 @@ export async function removeFromTeamAction(key: string, memberId: string): Promi
 
 export async function setAgentProfileAction(memberId: string, input: { mode: AgentMode; model: string | null; effort?: string | null }): Promise<ActionResult<TeamAgent>> {
   return run(() => boardApi.setAgentProfile(memberId, input));
+}
+
+export async function setCardCapAction(cardCapUsd: number | null): Promise<ActionResult<AiUsageReport>> {
+  return run(() => boardApi.setCardCap(cardCapUsd), "/connections");
+}
+
+export async function setAgentBudgetAction(agentId: string, monthlyUsd: number | null): Promise<ActionResult<AiUsageReport>> {
+  return run(() => boardApi.setAgentBudget(agentId, monthlyUsd), "/connections");
 }
 
 export async function setAiBudgetAction(budgetUsd: number | null): Promise<ActionResult<AiUsageReport>> {

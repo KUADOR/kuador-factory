@@ -51,6 +51,20 @@ class BoardTeamController {
         return usage.setBudget(r.budgetUsd(), ai.status().configured());
     }
 
+    record CapRequest(java.math.BigDecimal cardCapUsd) {}
+
+    record AgentBudgetRequest(java.math.BigDecimal monthlyUsd) {}
+
+    @PutMapping("/api/workspace/ai/card-cap")
+    ec.kuador.board.agents.application.AiUsage.Report cardCap(@RequestBody CapRequest r) {
+        return usage.setCardCap(r.cardCapUsd(), ai.status().configured());
+    }
+
+    @PutMapping("/api/workspace/ai/agents/{agentId}/budget")
+    ec.kuador.board.agents.application.AiUsage.Report agentBudget(@PathVariable UUID agentId, @RequestBody AgentBudgetRequest r) {
+        return usage.setAgentBudget(agentId, r.monthlyUsd());
+    }
+
     @GetMapping("/api/platform/ai-prices")
     List<ec.kuador.board.agents.domain.AiUsageStore.Price> prices() {
         return usage.prices();

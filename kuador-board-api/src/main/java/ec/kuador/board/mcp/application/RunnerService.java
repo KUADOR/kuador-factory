@@ -70,8 +70,9 @@ public class RunnerService {
 
     public record Register(UUID machineId, String name, String os, String tool, List<String> roles, Integer capacity, String version, boolean register) {}
 
+    /** {@code dailyMinutes}: tope de trabajo por día (nulo = sin tope); {@code minutesToday}: lo que lleva hoy. */
     public record MachineView(UUID id, String name, String os, String tool, List<String> roles, int capacity, boolean paused, boolean online,
-            String version, Instant lastSeen, UUID memberId, String person, List<String> working) {}
+            String version, Instant lastSeen, UUID memberId, String person, List<String> working, Integer dailyMinutes, long minutesToday) {}
 
     /** Lo que el runner necesita para lanzar el cliente de IA con esa tarjeta. */
     public record Claim(String issueKey, String projectKey, String projectKind, String title, String role, String roleName, boolean worksOnCode,
@@ -89,6 +90,12 @@ public class RunnerService {
     private final ec.kuador.board.auth.RunTokens runTokens;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private java.time.ZoneId zone = java.time.ZoneId.of("America/Guayaquil");
+
+    @org.springframework.beans.factory.annotation.Value("${board.billing.zone:America/Guayaquil}")
+    void setZone(String zone) {
+        this.zone = java.time.ZoneId.of(zone);
+    }
     /** Cuándo vio el reparto por primera vez cada tarjeta libre (para la preferencia de la épica). */
     private final Map<String, Instant> firstSeen = new ConcurrentHashMap<>();
 
@@ -161,6 +168,8 @@ public class RunnerService {
         Machine machine = ownMachine(who, machineId);
         Instant now = clock.instant();
         if (machine.paused()) return Optional.empty();
+        // Con la suscripción de una persona el freno es de tiempo: llegado el tope del día, no toma más hasta mañana.
+        if (machine.dailyMinutes() != null && store.minutesSince(machineId, startOfDay(now), now) >= machine.dailyMinutes()) return Optional.empty();
         UUID ws = who.workspaceId();
         List<Lease> active = store.activeLeases(ws);
         if (active.stream().filter(l -> l.machineId().equals(machineId)).count() >= machine.capacity()) return Optional.empty();
@@ -359,14 +368,19 @@ public class RunnerService {
                 .map(m -> view(m, active, now)).toList();
     }
 
-    public MachineView update(AuthenticatedMember who, UUID machineId, Boolean paused, List<String> roles, Integer capacity) {
+    public MachineView update(AuthenticatedMember who, UUID machineId, Boolean paused, List<String> roles, Integer capacity, Integer dailyMinutes,
+            boolean clearDailyMinutes) {
         Machine m = manageable(who, machineId);
         Machine next = new Machine(m.id(), m.workspaceId(), m.memberId(), m.name(), m.os(), m.tool(), roles == null ? m.roles() : cleanRoles(roles),
                 capacity == null ? m.capacity() : Math.max(1, Math.min(6, capacity)), paused == null ? m.paused() : paused, m.version(), m.lastSeen(),
-                m.createdAt());
+                m.createdAt(), m.dailyMinutes());
         store.saveMachine(next);
+        if (clearDailyMinutes || dailyMinutes != null) {
+            if (dailyMinutes != null && (dailyMinutes < 15 || dailyMinutes > 1440)) throw new DomainException("El tope por día va de 15 minutos a 24 horas.");
+            store.setDailyMinutes(machineId, clearDailyMinutes ? null : dailyMinutes);
+        }
         if (Boolean.FALSE.equals(paused)) hub.signal(who.workspaceId());
-        return view(next, store.activeLeases(who.workspaceId()), clock.instant());
+        return view(store.machine(machineId).orElse(next), store.activeLeases(who.workspaceId()), clock.instant());
     }
 
     public void delete(AuthenticatedMember who, UUID machineId) {
@@ -380,7 +394,11 @@ public class RunnerService {
         String person = members.find(m.memberId()).map(MemberView::name).orElse("—");
         List<String> working = active.stream().filter(l -> l.machineId().equals(m.id())).map(Lease::issueKey).toList();
         return new MachineView(m.id(), m.name(), m.os(), m.tool(), m.roles(), m.capacity(), m.paused(), m.lastSeen().isAfter(now.minus(ONLINE)),
-                m.version(), m.lastSeen(), m.memberId(), person, working);
+                m.version(), m.lastSeen(), m.memberId(), person, working, m.dailyMinutes(), store.minutesSince(m.id(), startOfDay(now), now));
+    }
+
+    private Instant startOfDay(Instant now) {
+        return now.atZone(zone).toLocalDate().atStartOfDay(zone).toInstant();
     }
 
     private Machine ownMachine(AuthenticatedMember who, UUID machineId) {

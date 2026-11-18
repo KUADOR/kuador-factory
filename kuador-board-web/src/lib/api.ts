@@ -205,6 +205,9 @@ export const boardApi = {
     request<TeamAgent>(`/api/agents/${encodeURIComponent(memberId)}/profile`, json("PUT", input)),
   aiUsage: () => request<AiUsageReport>("/api/workspace/ai/usage"),
   setAiBudget: (budgetUsd: number | null) => request<AiUsageReport>("/api/workspace/ai/budget", json("PUT", { budgetUsd })),
+  setCardCap: (cardCapUsd: number | null) => request<AiUsageReport>("/api/workspace/ai/card-cap", json("PUT", { cardCapUsd })),
+  setAgentBudget: (agentId: string, monthlyUsd: number | null) =>
+    request<AiUsageReport>(`/api/workspace/ai/agents/${encodeURIComponent(agentId)}/budget`, json("PUT", { monthlyUsd })),
   aiPrices: () => request<AiModelPrice[]>("/api/platform/ai-prices"),
   saveAiPrice: (model: string, inputPerMTok: number, outputPerMTok: number) =>
     request<AiModelPrice[]>(`/api/platform/ai-prices/${encodeURIComponent(model)}`, json("PUT", { inputPerMTok, outputPerMTok })),
@@ -264,7 +267,7 @@ export const boardApi = {
   insightsMine: () => request<InsightsMine>("/api/insights/me"),
   saveHoursPerPoint: (hoursPerPoint: number) => request<{ hoursPerPoint: number }>("/api/insights/settings", json("PUT", { hoursPerPoint })),
   runnerMachines: () => request<RunnerMachine[]>("/api/runner/machines"),
-  updateRunnerMachine: (id: string, patch: { paused?: boolean; roles?: string[]; capacity?: number }) =>
+  updateRunnerMachine: (id: string, patch: { paused?: boolean; roles?: string[]; capacity?: number; dailyMinutes?: number; noDailyLimit?: boolean }) =>
     request<RunnerMachine>(`/api/runner/machines/${encodeURIComponent(id)}`, json("PATCH", patch)),
   deleteRunnerMachine: (id: string) => request<void>(`/api/runner/machines/${encodeURIComponent(id)}`, { method: "DELETE" }),
   approveRunner: (userCode: string) => request<{ machineName: string }>("/api/runner/pair/approve", json("POST", { userCode })),

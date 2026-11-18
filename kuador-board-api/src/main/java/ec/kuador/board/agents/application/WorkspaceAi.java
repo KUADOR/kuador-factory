@@ -129,6 +129,11 @@ public class WorkspaceAi implements AiKeyProvider {
     }
 
     @Override
+    public Optional<String> budgetBlock(UUID agentId, String issueKey) {
+        return usage.blockReason(agentId, issueKey);
+    }
+
+    @Override
     public boolean overRate() {
         return usage.overRate();
     }

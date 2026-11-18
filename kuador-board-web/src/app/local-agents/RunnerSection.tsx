@@ -7,7 +7,7 @@ import { clsx } from "clsx";
 
 import { deleteRunnerMachineAction, updateRunnerMachineAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
-import { Switch } from "@/components/ui/Field";
+import { SelectInput, Switch } from "@/components/ui/Field";
 import { Section } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
 import type { RunnerMachine } from "@/lib/types";
@@ -83,7 +83,8 @@ function MachineRow({ machine: m, roleName, mine }: { machine: RunnerMachine; ro
         <Laptop className="size-4 shrink-0 text-fg-muted" aria-hidden />
         <span className="text-[14px] font-medium text-fg-strong">{m.name}</span>
         <span className="text-xs text-fg-faint">
-          {OS[m.os] ?? m.os} · {mine ? "tuya" : m.person} · hasta {m.capacity} a la vez
+          {OS[m.os] ?? m.os} · {mine ? "tuya" : m.person} · hasta {m.capacity} a la vez · hoy {Math.round(m.minutesToday)} min
+          {m.dailyMinutes != null && ` de ${m.dailyMinutes}`}
         </span>
         <span className={clsx("ml-auto flex items-center gap-1.5 text-xs", m.online && !m.paused ? "text-fg" : "text-fg-muted")}>
           <span aria-hidden className={clsx("size-2 rounded-full", !m.online ? "bg-fg-faint" : m.paused ? "bg-warn" : "bg-ok")} />
@@ -98,6 +99,30 @@ function MachineRow({ machine: m, roleName, mine }: { machine: RunnerMachine; ro
           </span>
         ))}
         <span className="ml-auto flex items-center gap-2">
+          {/* Con la suscripción de la persona el freno es de tiempo al día. */}
+          <span className="w-36">
+            <SelectInput<number>
+              size="sm"
+              ariaLabel={`Tope por día de ${m.name}`}
+              value={m.dailyMinutes ?? 0}
+              disabled={pending}
+              onChange={(v) =>
+                start(async () => {
+                  const minutes = v ?? 0;
+                  const r = await updateRunnerMachineAction(m.id, minutes === 0 ? { noDailyLimit: true } : { dailyMinutes: minutes });
+                  if (r.ok) notify.ok(minutes === 0 ? `«${m.name}» sin tope por día` : `«${m.name}» trabaja hasta ${minutes / 60} h al día`);
+                  else notify.error("No se pudo cambiar", r.error);
+                })
+              }
+              options={[
+                { value: 0, label: "Sin tope al día" },
+                { value: 60, label: "Hasta 1 h al día" },
+                { value: 120, label: "Hasta 2 h al día" },
+                { value: 240, label: "Hasta 4 h al día" },
+                { value: 480, label: "Hasta 8 h al día" },
+              ]}
+            />
+          </span>
           <Switch
             checked={!m.paused}
             disabled={pending}

@@ -31,4 +31,20 @@ public interface AiUsageStore {
     Optional<BigDecimal> budget(UUID workspaceId);
 
     void saveBudget(UUID workspaceId, BigDecimal budget);
+
+    // ---- Freno: por tarjeta, por agente y avisos ----
+
+    /** Consumo de una tarjeta (todas sus ejecuciones en el servidor), por agente y modelo. */
+    List<Usage> issueUsage(UUID workspaceId, String issueKey);
+
+    Optional<BigDecimal> cardCap(UUID workspaceId);
+
+    void saveCardCap(UUID workspaceId, BigDecimal cap);
+
+    java.util.Map<UUID, BigDecimal> agentBudgets(UUID workspaceId);
+
+    void saveAgentBudget(UUID workspaceId, UUID agentId, BigDecimal monthly);
+
+    /** Marca el aviso como enviado; falso si ya se había enviado (se avisa una sola vez por mes, tope y nivel). */
+    boolean markAlert(UUID workspaceId, String scope, String month, int level, Instant now);
 }

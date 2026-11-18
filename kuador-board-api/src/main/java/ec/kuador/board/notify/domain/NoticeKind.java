@@ -10,6 +10,8 @@ public enum NoticeKind {
     PLAN,
     /** Cobros: el plan vence pronto, venció o llegó un pago (recibo). Siempre se envía. */
     BILLING,
+    /** El gasto de IA llegó al 80 % o al 100 % de un tope del mes. Siempre se envía a quien administra. */
+    BUDGET,
     /** Prueba pedida por la propia persona. */
     TEST
 }

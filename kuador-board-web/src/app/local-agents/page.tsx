@@ -40,15 +40,29 @@ export default async function LocalAgentsPage() {
         description="Conecta el Claude Code o Codex de cada persona con el tablero, y déjalos trabajando solos con el runner."
       />
       <div className="max-w-3xl px-4 pt-5 sm:px-6 sm:pt-6">
-        <RunnerSection machines={machines} server={server} roleName={Object.fromEntries(roles.map((r) => [r.key, r.name]))} meId={me.id} />
+        <RunnerSection
+          machines={machines}
+          server={server}
+          roleName={Object.fromEntries(roles.map((r) => [r.key, r.name]))}
+          meId={me.id}
+        />
       </div>
-      <AgentSetup
-        tokens={tokens}
-        servers={servers}
-        initialKit={kit}
-        initialMcp={DEFAULT_MCP}
-        personName={me.name}
-      />
+      {/* El camino principal es el runner; conectar el cliente a mano queda a un toque, sin llenar la pantalla. */}
+      <details className="group" open={machines.length === 0 && tokens.length > 0}>
+        <summary className="mx-4 mt-5 flex max-w-3xl cursor-pointer list-none items-center gap-2 rounded-lg border border-line bg-surface px-4 py-3 text-[13px] font-medium text-fg-strong hover:bg-hover sm:mx-6 [&::-webkit-details-marker]:hidden">
+          <span className="flex-1">Conectar tu cliente de IA a mano (sin runner)</span>
+          <span aria-hidden className="text-fg-muted transition-transform group-open:rotate-90">
+            ›
+          </span>
+        </summary>
+        <AgentSetup
+          tokens={tokens}
+          servers={servers}
+          initialKit={kit}
+          initialMcp={DEFAULT_MCP}
+          personName={me.name}
+        />
+      </details>
     </>
   );
 }

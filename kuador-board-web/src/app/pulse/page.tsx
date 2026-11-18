@@ -35,13 +35,14 @@ export default async function PulsePage() {
       boardApi.decisions(),
       boardApi.members(),
       boardApi.runnerTokens().catch(() => []),
+      boardApi.runnerMachines().catch(() => []),
       // El gasto lo ve quien administra; para el resto la API responde 403.
       boardApi.aiUsage().catch(() => null),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [runs, decisions, members, runners, usage] = data;
+  const [runs, decisions, members, runners, machines, usage] = data;
   // eslint-disable-next-line react-hooks/purity -- página dinámica: «ahora» es el momento de la petición
   const now = Date.now();
   const recent = runs.filter((r) => now - new Date(r.createdAt).getTime() < DAY);
@@ -82,19 +83,43 @@ export default async function PulsePage() {
           })}
         </div>
 
-        <section className="flex flex-col gap-2 rounded-lg border border-line bg-surface px-4 py-3" aria-label="Tu PC">
-          <p className="text-[13px] font-medium text-fg-strong">
-            <span aria-hidden className={`mr-1.5 inline-block size-2 rounded-full ${runnerOnline ? "bg-ok" : "bg-fg-faint"}`} />
-            Tu PC (agentes locales)
-          </p>
-          <p className="text-xs text-fg-muted">
-            {runners.length === 0
-              ? "No tienes agentes locales conectados. Conéctalos en Agentes locales para que tu Claude Code trabaje tus tarjetas."
-              : runnerOnline
-                ? `Conectada: usó el tablero ${ago(lastRunner, now)}.`
-                : `Sin actividad desde ${ago(lastRunner, now)}. Si la dejaste trabajando, revisa que siga prendida.`}
-          </p>
-        </section>
+        {machines.length > 0 ? (
+          // Con runner: cada máquina con lo que está haciendo, en una línea.
+          <Link href="/local-agents" className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface px-4 py-3 hover:bg-hover" aria-label="Tus máquinas">
+            <p className="text-[13px] font-medium text-fg-strong">Tus máquinas</p>
+            <ul className="flex flex-col gap-1">
+              {machines.map((m) => (
+                <li key={m.id} className="flex items-center gap-2 text-xs text-fg-muted">
+                  <span aria-hidden className={`size-2 shrink-0 rounded-full ${!m.online ? "bg-fg-faint" : m.paused ? "bg-warn" : "bg-ok"}`} />
+                  <span className="truncate text-fg">{m.name}</span>
+                  <span className="ml-auto shrink-0">
+                    {!m.online ? `desconectada ${ago(m.lastSeen, now)}` : m.paused ? "en pausa" : m.working.length ? `trabajando ${m.working.join(", ")}` : "esperando trabajo"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Link>
+        ) : (
+          <section className="flex flex-col gap-2 rounded-lg border border-line bg-surface px-4 py-3" aria-label="Tu PC">
+            <p className="text-[13px] font-medium text-fg-strong">
+              <span aria-hidden className={`mr-1.5 inline-block size-2 rounded-full ${runnerOnline ? "bg-ok" : "bg-fg-faint"}`} />
+              Tu PC (agentes locales)
+            </p>
+            <p className="text-xs text-fg-muted">
+              {runners.length === 0 ? (
+                <>
+                  Deja a tus agentes trabajando solos en tu PC con el runner. <Link href="/local-agents" className="k-link">Cómo instalarlo</Link>
+                </>
+              ) : runnerOnline ? (
+                `Conectada: usó el tablero ${ago(lastRunner, now)}.`
+              ) : (
+                <>
+                  Sin actividad desde {ago(lastRunner, now)}. Para que trabaje sola, instala el <Link href="/local-agents" className="k-link">runner</Link>.
+                </>
+              )}
+            </p>
+          </section>
+        )}
 
         {usage && (
           <section className="flex flex-col gap-1 rounded-lg border border-line bg-surface px-4 py-3" aria-label="Gasto de IA">

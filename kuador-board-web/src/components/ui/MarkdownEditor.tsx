@@ -55,6 +55,7 @@ export function MarkdownEditor({
   rows = 8,
   placeholder,
   templates = [],
+  hint,
 }: {
   id?: string;
   value: string;
@@ -65,8 +66,10 @@ export function MarkdownEditor({
   rows?: number;
   placeholder?: string;
   templates?: MarkdownTemplate[];
+  /** Ayuda que se muestra solo mientras se escribe. */
+  hint?: React.ReactNode;
 }) {
-  const [mode, setMode] = useState<"view" | "write" | "preview">(readOnly || (startInView && value.trim()) ? "view" : "write");
+  const [mode, setMode] = useState<"view" | "write" | "preview">(readOnly || startInView ? "view" : "write");
   // El contenedor en estado (no en un ref): las acciones de la barra leen el textarea al ejecutarse.
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const area = () => box?.querySelector("textarea") ?? null;
@@ -78,10 +81,14 @@ export function MarkdownEditor({
           <div className="max-h-[32rem] overflow-y-auto px-3.5 py-3" onDoubleClick={readOnly ? undefined : () => setMode("write")}>
             <Markdown content={value} />
           </div>
-        ) : (
+        ) : readOnly ? (
           <p className="px-3.5 py-3 text-[13px] text-fg-faint">Sin descripción.</p>
+        ) : (
+          <button type="button" onClick={() => setMode("write")} className="block w-full px-3.5 py-3 text-left text-[13px] text-fg-faint hover:text-fg-muted">
+            Agregar una descripción…
+          </button>
         )}
-        {!readOnly && (
+        {!readOnly && value.trim() && (
           <button
             type="button"
             onClick={() => setMode("write")}
@@ -215,7 +222,7 @@ export function MarkdownEditor({
 
   return (
     <div ref={setBox} className="rounded-md border border-line bg-surface focus-within:border-line-hover">
-      <div role="toolbar" aria-label="Formato" className="flex flex-wrap items-center gap-0.5 border-b border-line px-1.5 py-1">
+      <div role="toolbar" aria-label="Formato" className="flex items-center gap-0.5 overflow-x-auto border-b border-line px-1.5 py-1 sm:flex-wrap sm:overflow-visible">
         {mode === "write" &&
           tools.map((t) => (
             <button
@@ -224,7 +231,7 @@ export function MarkdownEditor({
               title={t.key ? `${t.label} (${t.key})` : t.label}
               aria-label={t.label}
               onClick={t.run}
-              className="grid size-7 place-items-center rounded text-fg-muted hover:bg-hover hover:text-fg-strong"
+              className="grid size-7 shrink-0 place-items-center rounded text-fg-muted hover:bg-hover hover:text-fg-strong"
             >
               <t.icon className="size-3.5" aria-hidden />
             </button>
@@ -254,7 +261,7 @@ export function MarkdownEditor({
             }))}
           />
         )}
-        <span className="ml-auto flex items-center gap-0.5" role="tablist" aria-label="Vista">
+        <span className="ml-auto flex shrink-0 items-center gap-0.5" role="tablist" aria-label="Vista">
           {(["write", "preview"] as const).map((m) => (
             <button
               key={m}
@@ -285,6 +292,7 @@ export function MarkdownEditor({
           {value.trim() ? <Markdown content={value} /> : <p className="text-[13px] text-fg-faint">Nada para mostrar todavía.</p>}
         </div>
       )}
+      {hint && mode === "write" && <p className="border-t border-line px-3.5 py-2 text-xs text-fg-faint">{hint}</p>}
     </div>
   );
 }

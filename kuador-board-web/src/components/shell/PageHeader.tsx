@@ -50,7 +50,7 @@ export function PageHeader({
       <div className="flex flex-wrap items-start justify-between gap-3 pb-3 md:pb-4">
         <div className="min-w-0 flex-1 md:flex-none">
           <h1 className="text-lg font-semibold tracking-tight text-balance text-fg-strong md:text-xl">{title}</h1>
-          {description && <p className="mt-1 line-clamp-2 max-w-3xl text-[13px] leading-relaxed text-fg-muted md:line-clamp-none">{description}</p>}
+          {description && <p className="mt-1 line-clamp-1 max-w-3xl text-[13px] leading-relaxed text-fg-muted md:line-clamp-none">{description}</p>}
         </div>
         {mobileAside && <div className="max-w-[55%] shrink-0 md:hidden">{mobileAside}</div>}
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}

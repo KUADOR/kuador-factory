@@ -121,20 +121,20 @@ export function StageBar({
       )}
 
       {stage && !rejecting && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-md:[&>button]:min-h-10 max-md:[&>button]:grow">
           {canTake && !step.actions.some((a) => a.kind === "take") && (
             <Button size="sm" tone={canApprove ? "secondary" : "primary"} icon={Hand} loading={pending} onClick={() => act(() => takeIssueAction(project.key, issue.key), `Tomaste ${issue.key}`)}>
               Tomar
             </Button>
           )}
           {canEdit && !stage.gate && !workingAgent && (mine || (isHuman && !!issue.assigneeId)) && next && (
-            <Button size="sm" tone={step.actions.length > 0 ? "secondary" : "primary"} icon={ArrowRight} loading={pending} onClick={() => act(() => deliverIssueAction(project.key, issue.key, null), `${issue.key} pasó a ${next.name}`)}>
+            <Button size="sm" tone={step.actions.length > 0 ? "secondary" : "primary"} icon={ArrowRight} loading={pending} className="max-md:order-first max-md:basis-full" onClick={() => act(() => deliverIssueAction(project.key, issue.key, null), `${issue.key} pasó a ${next.name}`)}>
               Entregar a {next.name}
             </Button>
           )}
           {canApprove && (
             <>
-              <Button size="sm" tone="primary" icon={Check} loading={pending} disabled={!next} onClick={() => act(() => reviewIssueAction(project.key, issue.key, true, null), `${issue.key} aprobado`)}>
+              <Button size="sm" tone="primary" icon={Check} loading={pending} disabled={!next} className="max-md:order-first max-md:basis-full" onClick={() => act(() => reviewIssueAction(project.key, issue.key, true, null), `${issue.key} aprobado`)}>
                 Aprobar{next ? ` y pasar a ${next.name}` : ""}
               </Button>
               <Button size="sm" tone="danger" icon={Undo2} disabled={pending} onClick={() => setRejecting(true)}>
@@ -220,7 +220,7 @@ function ReviewByPicker({
 }) {
   const anyAgent = project.stages.some((s) => s.gate && s.review && s.review.mode !== "PERSON");
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
+    <div className="hidden flex-wrap items-center gap-2 text-xs text-fg-muted md:flex">
       <span>Revisión en las puertas</span>
       <div className="w-64 max-w-full">
         <SelectInput<"BOARD" | "PERSON" | "AGENT">

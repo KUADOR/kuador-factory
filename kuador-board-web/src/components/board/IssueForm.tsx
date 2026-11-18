@@ -143,10 +143,7 @@ export function IssueForm({
           />
         )}
       </Field>
-      <Field
-        label={software ? "Descripción y criterios de aceptación" : "Descripción"}
-        hint={readOnly ? undefined : "Títulos, tablas y bloques de código (JSON, SQL…). Pega un JSON o celdas de una planilla y se formatean solos. Los agentes lo leen tal cual."}
-      >
+      <Field label={software ? "Descripción y criterios de aceptación" : "Descripción"}>
         {(id) => (
           <MarkdownEditor
             id={id}
@@ -156,6 +153,7 @@ export function IssueForm({
             startInView={layout === "detail"}
             rows={layout === "detail" ? 14 : 10}
             templates={issueTemplates(software, values.type)}
+            hint={readOnly ? undefined : "Títulos, tablas y bloques de código (JSON, SQL…). Pega un JSON o celdas de una planilla y se formatean solos. Los agentes lo leen tal cual."}
             placeholder={software ? "Como … quiero … para …\n\nDado …, cuando …, entonces …\n\nUsa «Plantilla» para empezar con secciones y un contrato JSON." : "Detalles, contacto, próximos pasos…"}
           />
         )}
@@ -240,7 +238,8 @@ export function IssueForm({
       {layout === "detail" ? (
         <div className="grid flex-1 gap-6 px-5 py-5 md:grid-cols-[minmax(0,1fr)_16rem] md:grid-rows-[auto_1fr]">
           {main}
-          <aside aria-label="Propiedades" className="md:col-start-2 md:row-span-2 md:row-start-1 md:border-l md:border-line md:pl-5">
+          {/* En el celular, primero leer y conversar (comentarios); los campos para editar quedan al final. */}
+          <aside aria-label="Propiedades" className="max-md:order-last max-md:border-t max-md:border-line max-md:pt-5 md:col-start-2 md:row-span-2 md:row-start-1 md:border-l md:border-line md:pl-5">
             {properties}
           </aside>
           {below && <div className="min-w-0 md:col-start-1">{below}</div>}

@@ -54,6 +54,22 @@ class CatalogController {
         service.delete(type(type), key);
     }
 
+    /** El historial de una entrada: cada versión con quién la guardó y cuándo. */
+    @GetMapping("/{key}/revisions")
+    List<ec.kuador.board.catalog.domain.CatalogRepository.Revision> revisions(@PathVariable String type, @PathVariable String key) {
+        return service.revisions(type(type), key);
+    }
+
+    @GetMapping("/{key}/revisions/{id}")
+    Object revision(@PathVariable String type, @PathVariable String key, @PathVariable java.util.UUID id) {
+        return service.revision(type(type), key, id);
+    }
+
+    @PostMapping("/{key}/revisions/{id}/restore")
+    Object restoreRevision(@PathVariable String type, @PathVariable String key, @PathVariable java.util.UUID id) {
+        return service.restoreRevision(type(type), key, id);
+    }
+
     @PostMapping("/{key}/restore")
     Object restore(@PathVariable String type, @PathVariable String key) {
         return service.restore(type(type), key);

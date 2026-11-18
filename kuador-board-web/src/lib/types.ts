@@ -1103,3 +1103,11 @@ export interface RoutineInput {
   enabled: boolean;
   skipIfOpen: boolean;
 }
+
+/** Una versión guardada de una entrada del catálogo. `savedBy` null = de fábrica o del sistema. */
+export interface CatalogRevision {
+  id: string;
+  version: number;
+  savedBy: string | null;
+  savedAt: string;
+}

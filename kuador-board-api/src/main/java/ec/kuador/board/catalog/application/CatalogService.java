@@ -242,6 +242,26 @@ public class CatalogService implements CatalogApi {
         entries.delete(type, key);
     }
 
+    // ---- Historial ----
+
+    @Transactional(readOnly = true)
+    public List<ec.kuador.board.catalog.domain.CatalogRepository.Revision> revisions(CatalogType type, String key) {
+        get(type, key);
+        return entries.revisions(type, key);
+    }
+
+    @Transactional(readOnly = true)
+    public Object revision(CatalogType type, String key, java.util.UUID id) {
+        return entries.revision(type, key, id, type.recordType())
+                .orElseThrow(() -> new NotFoundException("No existe esa versión de " + key + "."));
+    }
+
+    /** Vuelve a una versión anterior: se guarda como una versión nueva (la actual queda en el historial). */
+    @Transactional
+    public Object restoreRevision(CatalogType type, String key, java.util.UUID id) {
+        return save(type, key, revision(type, key, id));
+    }
+
     /** Vuelve una entrada de fábrica a sus valores originales (crea una versión nueva). */
     @Transactional
     @SuppressWarnings({"unchecked", "rawtypes"})

@@ -116,6 +116,22 @@ class PlatformCatalogIT {
         ((ObjectNode) own).put("instructions", "Nuestras reglas de marketing.");
         assertThat(call("PUT", "/api/catalog/roles/MARKETING", own, edited).get("_status").asInt()).isEqualTo(200);
 
+        // Cada versión queda en el historial con quién la guardó; se puede leer una anterior y volver a ella.
+        JsonNode history = call("GET", "/api/catalog/roles/MARKETING/revisions", null, edited).get("body");
+        assertThat(history.size()).as("la de fábrica y la editada").isGreaterThanOrEqualTo(2);
+        assertThat(history.get(0).get("savedBy").isNull()).as("la última la guardó una persona").isFalse();
+        String previous = history.get(1).get("id").asString();
+        String before = call("GET", "/api/catalog/roles/MARKETING/revisions/" + previous, null, edited).get("body").get("instructions").asString();
+        assertThat(before).isNotEqualTo("Nuestras reglas de marketing.");
+        assertThat(call("POST", "/api/catalog/roles/MARKETING/revisions/" + previous + "/restore", null, edited).get("body").get("instructions").asString())
+                .isEqualTo(before);
+        assertThat(call("GET", "/api/catalog/roles/MARKETING/revisions", null, edited).get("body").size()).as("restaurar es una versión más")
+                .isEqualTo(history.size() + 1);
+        // Y se vuelve a la propia, para lo que sigue.
+        JsonNode again = call("GET", "/api/catalog/roles/MARKETING", null, edited).get("body");
+        ((ObjectNode) again).put("instructions", "Nuestras reglas de marketing.");
+        assertThat(call("PUT", "/api/catalog/roles/MARKETING", again, edited).get("_status").asInt()).isEqualTo(200);
+
         // La plataforma pule el Analista y Marketing, y agrega un rol nuevo: quedan en borrador.
         ObjectNode better = (ObjectNode) analyst.get("entry").deepCopy();
         better.put("instructions", "Manual mejorado del analista.");

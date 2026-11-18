@@ -21,12 +21,17 @@ interface SpringDataCatalogEntries extends JpaRepository<CatalogEntryEntity, UUI
 @Repository
 class JpaCatalogRepository implements CatalogRepository {
 
+    /** Versiones que se guardan por entrada; las más viejas se borran. */
+    static final int KEEP = 30;
+
     private final SpringDataCatalogEntries jpa;
     private final Clock clock;
+    private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
-    JpaCatalogRepository(SpringDataCatalogEntries jpa, Clock clock) {
+    JpaCatalogRepository(SpringDataCatalogEntries jpa, Clock clock, org.springframework.jdbc.core.simple.JdbcClient jdbc) {
         this.jpa = jpa;
         this.clock = clock;
+        this.jdbc = jdbc;
     }
 
     @Override
@@ -49,10 +54,63 @@ class JpaCatalogRepository implements CatalogRepository {
             throw new ConflictException("Otra persona cambió " + key + " mientras lo editabas (versión " + entity.version
                     + "). Recarga y vuelve a aplicar tus cambios.");
         }
+        // Las entradas de antes del historial no tienen versión base: la que había queda guardada antes de pisarla.
+        if (entity.payload != null && revisions(type, key).isEmpty()) baseline(type, key, entity.version, entity.payload, entity.updatedAt);
         entity.payload = CatalogJson.payload(entry);
         entity.builtIn = builtIn;
         entity.updatedAt = now;
-        return toRecord(jpa.saveAndFlush(entity), recordType);
+        CatalogEntryEntity saved = jpa.saveAndFlush(entity);
+        revision(type, key, saved.version, saved.payload, now);
+        return toRecord(saved, recordType);
+    }
+
+    /** Deja la versión en el historial, con quién la guardó (si fue una persona; si no, «de fábrica» o el sistema). */
+    private void revision(CatalogType type, String key, long version, String payload, java.time.Instant now) {
+        java.util.UUID ws = ec.kuador.board.shared.tenant.TenantContext.current();
+        if (ws == null || ec.kuador.board.shared.tenant.TenantContext.NONE.equals(ws) || ec.kuador.board.shared.tenant.TenantContext.ROOT.equals(ws)) return;
+        // Quién hizo la petición (lo deja el filtro de seguridad para la auditoría); fuera de una petición, nadie.
+        ec.kuador.board.shared.web.AuditHints.Actor who = null;
+        var attrs = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+        if (attrs != null && attrs.getAttribute(ec.kuador.board.shared.web.AuditHints.ACTOR,
+                org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST) instanceof ec.kuador.board.shared.web.AuditHints.Actor a) who = a;
+        jdbc.sql("""
+                insert into catalog_revision (id, workspace_id, type, entry_key, version, payload, saved_by, saved_by_name, saved_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)""")
+                .params(java.util.UUID.randomUUID(), ws, type.name(), key, version, payload, who == null ? null : who.memberId(), who == null ? null : who.name(),
+                        java.sql.Timestamp.from(now))
+                .update();
+        jdbc.sql("""
+                delete from catalog_revision where workspace_id = ? and type = ? and entry_key = ? and id not in (
+                    select id from catalog_revision where workspace_id = ? and type = ? and entry_key = ? order by saved_at desc limit ?)""")
+                .params(ws, type.name(), key, ws, type.name(), key, KEEP).update();
+    }
+
+    private void baseline(CatalogType type, String key, long version, String payload, java.time.Instant at) {
+        java.util.UUID ws = ec.kuador.board.shared.tenant.TenantContext.current();
+        if (ws == null || ec.kuador.board.shared.tenant.TenantContext.NONE.equals(ws) || ec.kuador.board.shared.tenant.TenantContext.ROOT.equals(ws)) return;
+        jdbc.sql("""
+                insert into catalog_revision (id, workspace_id, type, entry_key, version, payload, saved_by, saved_by_name, saved_at)
+                values (?, ?, ?, ?, ?, ?, null, null, ?)""")
+                .params(java.util.UUID.randomUUID(), ws, type.name(), key, version, payload, java.sql.Timestamp.from(at)).update();
+    }
+
+    @Override
+    public List<Revision> revisions(CatalogType type, String key) {
+        return jdbc.sql("""
+                select id, version, saved_by_name, saved_at from catalog_revision
+                where workspace_id = ? and type = ? and entry_key = ? order by saved_at desc""")
+                .params(ec.kuador.board.shared.tenant.TenantContext.require(), type.name(), key)
+                .query((rs, n) -> new Revision(rs.getObject(1, java.util.UUID.class), rs.getLong(2), rs.getString(3), rs.getTimestamp(4).toInstant()))
+                .list();
+    }
+
+    @Override
+    public <T> Optional<T> revision(CatalogType type, String key, java.util.UUID id, Class<T> recordType) {
+        return jdbc.sql("select payload from catalog_revision where workspace_id = ? and type = ? and entry_key = ? and id = ?")
+                .params(ec.kuador.board.shared.tenant.TenantContext.require(), type.name(), key, id)
+                .query(String.class).optional()
+                // Con el id y la versión de la entrada vigente: así restaurarla es un guardado normal (y detecta cambios ajenos).
+                .flatMap(payload -> jpa.findByTypeAndKey(type, key).map(e -> CatalogJson.read(payload, e.id, e.builtIn, e.version, recordType)));
     }
 
     @Override

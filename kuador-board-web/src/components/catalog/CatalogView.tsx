@@ -23,6 +23,7 @@ import type { AgentPolicy, AgentRole, CatalogEntries, CatalogType, ComponentTemp
 
 import { CATALOG_SECTIONS, type CatalogSection } from "./catalogTypes";
 import { McpEditor, MethodologyEditor, RoleEditor, TemplateEditor, blankEntry, ComponentEditor, COMPONENT_KIND_LABEL } from "./editors";
+import { EntryHistory } from "./EntryHistory";
 import { PolicyEditor } from "./PolicyEditor";
 
 type AnyEntry = CatalogEntries[CatalogType];
@@ -195,6 +196,15 @@ export function CatalogView({
             {section.type === "mcp-servers" && <McpEditor value={draft as McpServer} onChange={setDraft} isNew={isNew} />}
             {section.type === "component-templates" && <ComponentEditor value={draft as ComponentTemplate} onChange={setDraft} isNew={isNew} />}
             {section.type === "agent-policies" && <PolicyEditor value={draft as AgentPolicy} onChange={setDraft} core={core} />}
+            {/* El historial: comparar con versiones anteriores y volver a una, sin miedo a romper un agente. */}
+            {!platform && !isNew && (
+              <details className="mt-6 border-t border-line pt-4">
+                <summary className="cursor-pointer text-[13px] font-medium text-fg-strong">Historial de versiones</summary>
+                <div className="mt-3">
+                  <EntryHistory type={section.type} entryKey={draft.key} current={draft} onRestored={() => done("Versión restaurada")} />
+                </div>
+              </details>
+            )}
           </div>
         )}
       </SidePanel>

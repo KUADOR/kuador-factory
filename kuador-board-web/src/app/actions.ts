@@ -10,6 +10,7 @@ import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
   Routine,
   RoutineInput,
+  CatalogRevision,
   RunnerMachine,
   PieceUpdate,
   ProjectPiece,
@@ -651,6 +652,18 @@ export async function saveCatalogEntryAction<T extends CatalogType>(
 
 export async function deleteCatalogEntryAction(type: CatalogType, key: string): Promise<ActionResult<void>> {
   return run(() => boardApi.deleteCatalogEntry(type, key), "/settings");
+}
+
+export async function catalogRevisionsAction(type: CatalogType, key: string): Promise<ActionResult<CatalogRevision[]>> {
+  return run(() => boardApi.catalogRevisions(type, key));
+}
+
+export async function catalogRevisionAction<T extends CatalogType>(type: T, key: string, id: string): Promise<ActionResult<CatalogEntries[T]>> {
+  return run(() => boardApi.catalogRevision(type, key, id));
+}
+
+export async function restoreCatalogRevisionAction<T extends CatalogType>(type: T, key: string, id: string): Promise<ActionResult<CatalogEntries[T]>> {
+  return run(() => boardApi.restoreCatalogRevision(type, key, id), "/settings");
 }
 
 export async function restoreCatalogEntryAction<T extends CatalogType>(type: T, key: string): Promise<ActionResult<CatalogEntries[T]>> {

@@ -23,4 +23,16 @@ public interface CatalogRepository {
 
     /** La entrada en su forma guardada (JSON canónico, sin id, builtIn ni versión): para comparar contenidos. */
     String payloadOf(Object entry);
+
+    /** Una versión guardada de una entrada: cuál fue, quién la guardó y cuándo (nulo = de fábrica o del sistema). */
+    record Revision(java.util.UUID id, long version, String savedBy, java.time.Instant savedAt) {}
+
+    default List<Revision> revisions(CatalogType type, String key) {
+        return List.of();
+    }
+
+    /** El contenido de esa versión, como la entrada de su tipo. */
+    default <T> Optional<T> revision(CatalogType type, String key, java.util.UUID id, Class<T> recordType) {
+        return Optional.empty();
+    }
 }

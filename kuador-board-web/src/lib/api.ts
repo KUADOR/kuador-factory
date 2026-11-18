@@ -54,6 +54,7 @@ import type {
   InsightsMine,
   Routine,
   RoutineInput,
+  CatalogRevision,
   RunnerMachine,
   RunnerToken,
   MemberKind,
@@ -348,6 +349,12 @@ export const boardApi = {
     request<CatalogEntries[T]>(`/api/catalog/${type}/${encodeURIComponent(entry.key)}`, json("PUT", entry)),
   deleteCatalogEntry: (type: CatalogType, key: string) =>
     request<void>(`/api/catalog/${type}/${encodeURIComponent(key)}`, { method: "DELETE" }),
+  catalogRevisions: (type: CatalogType, key: string) =>
+    request<CatalogRevision[]>(`/api/catalog/${type}/${encodeURIComponent(key)}/revisions`),
+  catalogRevision: <T extends CatalogType>(type: T, key: string, id: string) =>
+    request<CatalogEntries[T]>(`/api/catalog/${type}/${encodeURIComponent(key)}/revisions/${encodeURIComponent(id)}`),
+  restoreCatalogRevision: <T extends CatalogType>(type: T, key: string, id: string) =>
+    request<CatalogEntries[T]>(`/api/catalog/${type}/${encodeURIComponent(key)}/revisions/${encodeURIComponent(id)}/restore`, { method: "POST" }),
   restoreCatalogEntry: <T extends CatalogType>(type: T, key: string) =>
     request<CatalogEntries[T]>(`/api/catalog/${type}/${encodeURIComponent(key)}/restore`, { method: "POST" }),
 

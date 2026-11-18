@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { api, VERSION } from "./api.js";
 import { ensureDirs, LOGS, PAUSE, requireConfig, save, SECRETS, writeState } from "./config.js";
 import { keepAwake, osName } from "./service.js";
+import { forget, remember, resumable } from "./sessions.js";
 import { launch, outcome } from "./tools.js";
 import { cleanup, prepare } from "./workdir.js";
 
@@ -109,12 +110,28 @@ export async function start() {
     }
     const logFile = join(LOGS, `${claim.issueKey}-${started.replace(/[:.]/g, "-")}.log`);
     const stream = createWriteStream(logFile);
-    log(`${claim.issueKey} → ${claim.agentName} (${claim.roleName}) en ${work.dir}${work.repo ? " (copia del repo)" : ""}`);
-    const { child, done } = launch(config, claim, work.dir, stream);
-    const job = { claim, started, child, lost: false, timedOut: false };
+    // Si esta máquina ya trabajó la tarjeta con este rol, se retoma esa conversación (ahorra releer todo).
+    const resumeId = resumable(claim, work.dir);
+    log(`${claim.issueKey} → ${claim.agentName} (${claim.roleName}) en ${work.dir}${work.repo ? " (copia del repo)" : ""}${resumeId ? " · retoma su conversación" : ""}`);
+    const job = { claim, started, child: null, lost: false, timedOut: false };
+    const start = (id) => {
+      const launched = launch(config, claim, work.dir, stream, id);
+      job.child = launched.child;
+      if (config.keepAwake !== false) keepAwake(launched.child.pid);
+      return launched.done;
+    };
+    let done = start(resumeId);
+    if (resumeId) {
+      // Si la conversación ya no existe en Claude Code, se arranca de cero una sola vez.
+      done = done.then((result) => {
+        if (outcome(result).outcome !== "RESUME_MISSING") return result;
+        forget(claim);
+        log(`${claim.issueKey}: la conversación anterior ya no existe; empieza de cero.`);
+        return start(null);
+      });
+    }
     jobs.set(claim.issueKey, job);
     state();
-    if (config.keepAwake !== false) keepAwake(child.pid);
 
     const renew = setInterval(async () => {
       try {
@@ -122,7 +139,7 @@ export async function start() {
           // La tarjeta ya no es de esta máquina (la movieron o la tomó otra): se corta.
           job.lost = true;
           log(`${claim.issueKey}: el préstamo ya no es de esta máquina; se detiene.`);
-          child.kill();
+          job.child?.kill();
         }
       } catch (e) {
         log(`${claim.issueKey}: no se pudo renovar (${e.message}); se reintenta.`);
@@ -131,7 +148,7 @@ export async function start() {
     const limit = setTimeout(() => {
       job.timedOut = true;
       log(`${claim.issueKey}: pasó el tiempo máximo (${config.timeoutMinutes ?? 60} min); se detiene.`);
-      child.kill();
+      job.child?.kill();
     }, (config.timeoutMinutes ?? 60) * 60_000);
 
     done.then(async (result) => {
@@ -142,6 +159,9 @@ export async function start() {
       jobs.delete(claim.issueKey);
       if (!job.lost && !stopping) {
         const r = job.timedOut ? { outcome: "TIMEOUT", message: `Pasó el tiempo máximo de ${config.timeoutMinutes ?? 60} minutos.` } : outcome(result);
+        // La conversación queda para la próxima vuelta de esta tarjeta con este rol.
+        if (r.sessionId) remember(claim, work.dir, r.sessionId);
+        if (r.outcome === "RESUME_MISSING") r.outcome = "FAILED";
         if (r.outcome === "RATE_LIMITED") {
           pausedUntil = r.resumeAt.getTime();
           log(`La suscripción llegó a su límite: pausa hasta ${r.resumeAt.toLocaleString()}.`);
@@ -180,7 +200,7 @@ export async function start() {
     log("Deteniendo: se liberan las tarjetas en curso.");
     await Promise.all(
       [...jobs.values()].map(async (j) => {
-        j.child.kill();
+        j.child?.kill();
         await client.release(config.machineId, j.claim.issueKey, "CANCELLED", "Se detuvo el runner.").catch(() => {});
       }),
     );

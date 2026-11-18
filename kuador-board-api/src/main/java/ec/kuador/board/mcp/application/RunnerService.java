@@ -76,7 +76,7 @@ public class RunnerService {
     /** Lo que el runner necesita para lanzar el cliente de IA con esa tarjeta. */
     public record Claim(String issueKey, String projectKey, String projectKind, String title, String role, String roleName, boolean worksOnCode,
             UUID agentId, String agentName, String model, String effort, String prompt, String instructions, List<String> allowedTools,
-            String mcpServer, String mcpUrl, long leaseSeconds, String runToken) {}
+            String mcpServer, String mcpUrl, long leaseSeconds, String runToken, int reworkCount, String resumePrompt) {}
 
     private final RunnerStore store;
     private final RunnerHub hub;
@@ -260,9 +260,15 @@ public class RunnerService {
                 Ya está tomado a nombre de %6$s: empieza por `role_manual` y `get_issue`, haz el trabajo de tu etapa y termina con `deliver`, `send_back` o `ask_human`.
                 Trabaja solo este issue y responde al final con un resumen de una o dos líneas."""
                 .formatted(item.key(), item.title(), project.name(), r.name(), r.key(), agent.name());
+        // Si la máquina ya trabajó esta tarjeta con este rol, retoma esa conversación (ya tiene el contexto) y solo mira
+        // qué cambió: el ahorro grande de tokens está en no releer todo en cada vuelta.
+        String resume = """
+                Volviste a %1$s («%2$s»), que ahora está en «%3$s». Ya conoces la tarjeta: no releas todo. Llama a `get_issue` y mira solo lo nuevo desde tu                 última entrega (comentarios, el motivo de la devolución, documentos cambiados) y corrige eso. Termina con `deliver`, `send_back` o `ask_human`                 (usa `agent: %4$s`) y responde con un resumen de una o dos líneas."""
+                .formatted(item.key(), item.title(), item.statusName(), r.key());
         AgentKit.Connection c = kit.connection();
         return new Claim(item.key(), item.projectKey(), project.kind().name(), item.title(), r.key(), r.name(), r.worksOnCode(), agent.id(), agent.name(),
-                profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds(), runToken);
+                profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds(), runToken,
+                item.reworkCount(), resume);
     }
 
     // ---- Préstamos ----

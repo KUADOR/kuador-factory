@@ -25,3 +25,13 @@ test("el texto «rate limit» en una respuesta correcta no pausa", () => {
   const r = outcome({ code: 0, out: JSON.stringify({ is_error: false, result: "Documenté el rate limit de la API" }), err: "" });
   assert.equal(r.outcome, "DONE");
 });
+
+test("guarda el id de la sesión para retomarla en la próxima vuelta", () => {
+  const r = outcome({ code: 0, out: JSON.stringify({ is_error: false, result: "listo", session_id: "abc-123" }), err: "" });
+  assert.equal(r.sessionId, "abc-123");
+});
+
+test("si la sesión para retomar ya no existe, no es un fallo: se reintenta de cero", () => {
+  const r = outcome({ code: 1, out: "", err: "Error: No conversation found with session ID: abc-123" });
+  assert.equal(r.outcome, "RESUME_MISSING");
+});

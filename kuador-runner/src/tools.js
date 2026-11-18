@@ -28,16 +28,18 @@ const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
  * mientras dure el préstamo), nunca la conexión larga de la máquina; va en un archivo fuera de la carpeta de trabajo
  * (nunca dentro del repo) y solo legible por ti. Devuelve el proceso y una promesa con el resultado.
  */
-export function launch(config, claim, cwd, logStream) {
+export function launch(config, claim, cwd, logStream, resumeId = null) {
   const mcpFile = join(SECRETS, `${claim.issueKey}.json`);
   writeFileSync(
     mcpFile,
     JSON.stringify({ mcpServers: { [claim.mcpServer]: { type: "http", url: claim.mcpUrl, headers: { Authorization: `Bearer ${claim.runToken ?? config.token}` } } } }),
     { mode: 0o600 },
   );
+  // Al retomar, la conversación ya tiene el contexto: el pedido es solo lo nuevo (lo arma el tablero).
   const args = [
+    ...(resumeId ? ["--resume", resumeId] : []),
     "-p",
-    claim.prompt,
+    resumeId && claim.resumePrompt ? claim.resumePrompt : claim.prompt,
     "--mcp-config",
     mcpFile,
     "--strict-mcp-config",
@@ -82,9 +84,12 @@ export function outcome({ code, out, err }) {
   if (/usage limit|rate.?limit|limit reached|quota|5-hour limit|weekly limit/i.test(text) && (code !== 0 || result?.is_error)) {
     return { outcome: "RATE_LIMITED", message: "La suscripción de IA llegó a su límite de uso.", resumeAt: resetTime(text) };
   }
-  if (code === 0 && !result?.is_error) return { outcome: "DONE", message: String(result?.result ?? "").slice(0, 300), usage: result?.usage };
+  const sessionId = typeof result?.session_id === "string" ? result.session_id : null;
+  // La sesión para retomar ya no existe (se borró o venció en Claude Code): se reintenta de cero, no es un fallo.
+  if (code !== 0 && /no conversation found|session.*not found|could not find session/i.test(text)) return { outcome: "RESUME_MISSING", sessionId };
+  if (code === 0 && !result?.is_error) return { outcome: "DONE", message: String(result?.result ?? "").slice(0, 300), usage: result?.usage, sessionId };
   const why = (result?.result || err || out || `salió con código ${code}`).toString().trim().split("\n").slice(-3).join(" ");
-  return { outcome: "FAILED", message: `Claude Code: ${why}`.slice(0, 480) };
+  return { outcome: "FAILED", message: `Claude Code: ${why}`.slice(0, 480), sessionId };
 }
 
 /** Si el mensaje dice cuándo se renueva el límite; si no, en 30 minutos se vuelve a intentar. */

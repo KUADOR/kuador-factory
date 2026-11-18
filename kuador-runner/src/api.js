@@ -1,5 +1,5 @@
 /** Cliente de la API del tablero (rutas del runner). */
-export const VERSION = "0.1.1";
+export const VERSION = "0.1.2";
 
 export class ApiError extends Error {
   constructor(status, message) {

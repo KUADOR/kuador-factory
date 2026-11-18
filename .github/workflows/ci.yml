@@ -45,11 +45,12 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
 
-  # El runner (npx @kuador-npm/runner): sin dependencias, en los tres sistemas donde corre.
+  # El runner (npx @kuador-npm/runner): sin dependencias. Linux y Windows aquí; macOS no (en un repo privado sus minutos
+  # cuestan 10 veces más y la cuenta no tiene esos runners: el trabajo se quedaba esperando hasta cancelarse).
   runner:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:

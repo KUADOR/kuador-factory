@@ -1046,3 +1046,45 @@ export interface InsightsMine {
   epics: { key: string; title: string; projectKey: string; done: number; total: number; inProgress: number }[];
   week: { closed: number; leadTimeHours: number | null; reworked: number; agentDeliveries: number };
 }
+
+// ---- Rutinas ----
+
+export type RoutineFrequency = "DAILY" | "WEEKLY" | "MONTHLY";
+
+export interface Routine {
+  id: string;
+  projectKey: string;
+  title: string;
+  description: string | null;
+  status: string | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
+  frequency: RoutineFrequency;
+  /** «1,4» = lunes y jueves (1 = lunes … 7 = domingo). */
+  weekdays: string | null;
+  monthDay: number | null;
+  at: string;
+  timezone: string;
+  /** En palabras: «Cada lunes a las 08:00». */
+  schedule: string;
+  enabled: boolean;
+  skipIfOpen: boolean;
+  nextRunAt: string | null;
+  lastRunAt: string | null;
+  lastIssueKey: string | null;
+  webhook: boolean;
+}
+
+export interface RoutineInput {
+  title: string;
+  description: string | null;
+  status: string | null;
+  assigneeId: string | null;
+  frequency: RoutineFrequency;
+  weekdays: string | null;
+  monthDay: number | null;
+  at: string;
+  timezone: string;
+  enabled: boolean;
+  skipIfOpen: boolean;
+}

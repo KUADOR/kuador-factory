@@ -24,6 +24,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
               { slug: "columns", label: "Columnas" },
               { slug: "stages", label: "Etapas y responsables" },
               { slug: "agents", label: "Equipo de agentes" },
+              { slug: "routines", label: "Rutinas" },
               { slug: "transitions", label: "Reglas de transición" },
             ],
           },
@@ -35,6 +36,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
             items: [
               { slug: "columns", label: "Columnas" },
               { slug: "agents", label: "Equipo de agentes" },
+              { slug: "routines", label: "Rutinas" },
             ],
           },
           {

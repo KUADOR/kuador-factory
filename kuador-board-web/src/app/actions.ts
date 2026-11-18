@@ -8,6 +8,8 @@ import { ApiError, boardApi } from "@/lib/api";
 import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
+  Routine,
+  RoutineInput,
   RunnerMachine,
   PieceUpdate,
   ProjectPiece,
@@ -145,6 +147,23 @@ export async function createRunnerTokenAction(name: string): Promise<ActionResul
 
 export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionResult<void>> {
   return run(() => boardApi.revokeRunnerToken(tokenId), "/local-agents");
+}
+
+export async function saveRoutineAction(projectKey: string, id: string | null, input: RoutineInput): Promise<ActionResult<Routine>> {
+  const path = `/projects/${projectKey}/settings/routines`;
+  return run(() => (id ? boardApi.updateRoutine(id, input) : boardApi.createRoutine(projectKey, input)), path);
+}
+
+export async function deleteRoutineAction(projectKey: string, id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteRoutine(id), `/projects/${projectKey}/settings/routines`);
+}
+
+export async function runRoutineAction(projectKey: string, id: string): Promise<ActionResult<{ issueKey: string | null; skipped: string | null }>> {
+  return run(() => boardApi.runRoutine(id), `/projects/${projectKey}/settings/routines`);
+}
+
+export async function routineWebhookAction(projectKey: string, id: string): Promise<ActionResult<{ secret: string }>> {
+  return run(() => boardApi.routineWebhook(id), `/projects/${projectKey}/settings/routines`);
 }
 
 export async function saveProjectGoalAction(projectKey: string, goal: string): Promise<ActionResult<{ goal: string | null }>> {

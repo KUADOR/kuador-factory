@@ -118,6 +118,24 @@ public class IssueService implements IssueApi {
     }
 
     @Override
+    @Transactional
+    public IssueRef createForRoutine(String projectKey, String title, String description, String status, UUID assigneeId, UUID actorId) {
+        IssueType type = project(projectKey).allows(IssueType.TASK) ? IssueType.TASK : IssueType.STORY;
+        Issue issue = create(projectKey, new IssueDetails(title, description, type, null, null, null, null, List.of("rutina")), actorId, status);
+        if (assigneeId != null) assign(issue.key(), assigneeId, actorId);
+        return find(issue.key()).orElseThrow();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isClosed(String issueKey) {
+        Optional<Issue> issue = issues.findByKey(issueKey);
+        if (issue.isEmpty()) return true;
+        ProjectView project = project(issue.get().projectKey());
+        return project.column(issue.get().status()).map(c -> c.category() == ec.kuador.board.catalog.ColumnCategory.DONE).orElse(false);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Optional<IssueRef> find(String issueKey) {
         return issues.findByKey(issueKey).map(i -> new IssueRef(i.key(), i.projectKey(),

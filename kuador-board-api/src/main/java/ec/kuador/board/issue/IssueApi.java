@@ -16,6 +16,19 @@ public interface IssueApi {
     /** Crea un issue en la primera columna del proyecto (p. ej. al importar una spec del repo). */
     IssueRef createForImport(String projectKey, String title, UUID actorId);
 
+    /**
+     * Crea la tarjeta de una rutina en {@code status} (nulo = la primera columna), asignada a {@code assigneeId} (persona o
+     * agente; nulo = sin asignar), como si la creara {@code actorId}.
+     */
+    default IssueRef createForRoutine(String projectKey, String title, String description, String status, UUID assigneeId, UUID actorId) {
+        throw new UnsupportedOperationException("createForRoutine");
+    }
+
+    /** El issue está en una columna de terminado (o ya no existe). */
+    default boolean isClosed(String issueKey) {
+        throw new UnsupportedOperationException("isClosed");
+    }
+
     record CommentView(UUID authorId, String body, Instant createdAt) {}
 
     /** Todo lo que un agente necesita saber de un issue. Enums como texto. */

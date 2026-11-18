@@ -148,7 +148,14 @@ class McpIT {
         assertThat(manual.get("instructions").asString()).contains("Product Owner");
         assertThat(manual.get("languages").get("code").asString()).isEqualTo("en");
         assertThat(manual.get("factoryRules").toString()).contains("el código va en inglés", "van en español");
+        assertThat(tool(runner, "get_issue", Map.of("key", key), false).get("project").has("goal")).as("sin objetivo todavía").isFalse();
+        // El objetivo del tablero viaja con cada tarjeta: lo escribe una persona que edita.
+        assertThat(call("PUT", "/api/projects/PI/goal", Map.of("goal", "Que la clínica agende en línea antes de marzo; simple para pacientes mayores."),
+                owner).body().get("goal").asString()).startsWith("Que la clínica");
+        assertThat(call("PUT", "/api/projects/PI/goal", Map.of("goal", "x".repeat(1001)), owner).status()).isEqualTo(422);
+        assertThat(call("GET", "/api/projects/PI/goal", null, owner).body().get("goal").asString()).contains("pacientes mayores");
         JsonNode detail = tool(runner, "get_issue", Map.of("key", key), false);
+        assertThat(detail.get("project").get("goal").asString()).contains("pacientes mayores");
         assertThat(detail.get("stage").get("next").get("column").asString()).isEqualTo("APPROVAL");
 
         assertThat(tool(otherRunner, "take_issue", Map.of("key", key, "agent", "PRODUCT_OWNER"), true).asString()).contains("lo supervisa Pía");

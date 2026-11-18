@@ -147,6 +147,10 @@ export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionRe
   return run(() => boardApi.revokeRunnerToken(tokenId), "/local-agents");
 }
 
+export async function saveProjectGoalAction(projectKey: string, goal: string): Promise<ActionResult<{ goal: string | null }>> {
+  return run(() => boardApi.saveProjectGoal(projectKey, goal), `/projects/${projectKey}`);
+}
+
 export async function saveHoursPerPointAction(hours: number): Promise<ActionResult<{ hoursPerPoint: number }>> {
   return run(() => boardApi.saveHoursPerPoint(hours), "/");
 }

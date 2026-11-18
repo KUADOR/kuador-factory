@@ -55,6 +55,19 @@ class ProjectController {
         return ProjectResponse.from(service.create(r.key(), r.name(), r.description(), r.templateKey(), actorId));
     }
 
+    /** El objetivo del tablero: lo leen los agentes con cada tarjeta. */
+    @GetMapping("/{key}/goal")
+    java.util.Map<String, String> goal(@PathVariable String key) {
+        return java.util.Collections.singletonMap("goal", service.goal(key.toUpperCase(java.util.Locale.ROOT)).orElse(null));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{key}/goal")
+    java.util.Map<String, String> setGoal(@PathVariable String key, @RequestBody GoalRequest r) {
+        return java.util.Collections.singletonMap("goal", service.setGoal(key.toUpperCase(java.util.Locale.ROOT), r.goal()).orElse(null));
+    }
+
+    record GoalRequest(@jakarta.validation.constraints.Size(max = 1000) String goal) {}
+
     /** Las personas del espacio y si están en el tablero (quien administra lo ve por su nivel). */
     @GetMapping("/{key}/people")
     List<ProjectService.BoardPerson> people(@PathVariable String key) {

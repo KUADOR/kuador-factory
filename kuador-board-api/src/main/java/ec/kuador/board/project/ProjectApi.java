@@ -15,6 +15,11 @@ public interface ProjectApi {
     /** Nombre visible del proyecto (o su clave si no existe). */
     String name(String projectKey);
 
+    /** El objetivo del tablero (para qué existe, qué le importa al negocio); vacío si no lo escribieron. */
+    default java.util.Optional<String> goal(String projectKey) {
+        return java.util.Optional.empty();
+    }
+
     /** Crea un tablero desde una plantilla del catálogo del espacio (p. ej. el tablero inicial de un paquete). */
     void createBoard(String key, String name, String templateKey);
 

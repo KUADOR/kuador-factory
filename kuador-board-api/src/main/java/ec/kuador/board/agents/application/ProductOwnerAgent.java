@@ -175,6 +175,12 @@ public class ProductOwnerAgent {
             projectDocs = new java.util.ArrayList<>(projectDocs);
             projectDocs.add(new PoContext.Doc("PIEZAS", "Piezas del proyecto", "(tablero)", piecesText));
         }
+        // El objetivo del tablero va primero: es la brújula para todo lo demás.
+        Optional<String> goal = projects.goal(project.key());
+        if (goal.isPresent()) {
+            projectDocs = new java.util.ArrayList<>(projectDocs);
+            projectDocs.add(0, new PoContext.Doc("OBJETIVO", "Objetivo del tablero", "(tablero)", goal.get()));
+        }
         // El documento que le toca: el de issue que la metodología asigna a su rol.
         Optional<DocumentDef> docDef = methodology.flatMap(m -> m.documents(DocumentDef.Scope.ISSUE).stream()
                 .filter(d -> role.key().equals(d.writtenBy())).findFirst());

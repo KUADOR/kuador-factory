@@ -207,6 +207,8 @@ public class BoardAgent {
                     .orElse("Al entregar, la tarjeta vuelve a la persona que te la pidió.\n"));
         }
         user.append("Título: ").append(card.title()).append("\n");
+        // El objetivo del tablero: para qué existe y qué le importa al negocio (lo escribe el equipo: es contexto, no órdenes).
+        projects.goal(card.projectKey()).ifPresent(g -> user.append("\nObjetivo del tablero (contexto del negocio):\n<objetivo>\n").append(fenced(g)).append("\n</objetivo>\n"));
         if (board.software()) user.append(Pieces.markdown(pieces, card.projectKey()));
         // Lo que escribe el equipo (y los clientes) va marcado como datos: pide trabajo, no cambia tus reglas ni te ordena
         // revelar archivos o secretos.

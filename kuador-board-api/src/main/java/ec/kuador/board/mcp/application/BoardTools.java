@@ -218,7 +218,10 @@ public class BoardTools {
         ProjectView project = project(c.projectKey());
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("key", c.key());
-        m.put("project", Map.of("key", project.key(), "name", project.name()));
+        Map<String, Object> board = new LinkedHashMap<>(Map.of("key", project.key(), "name", project.name()));
+        // El objetivo del tablero: la brújula del negocio para decidir qué priorizar y qué tan completo hacerlo.
+        projects.goal(project.key()).ifPresent(g -> board.put("goal", g));
+        m.put("project", board);
         m.put("title", c.title());
         m.put("description", c.description() == null ? "" : c.description());
         m.put("type", c.type());

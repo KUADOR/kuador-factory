@@ -7,6 +7,7 @@ import { failPage } from "@/lib/page-errors";
 
 import { SettingsSection } from "../SettingsSection";
 import { DeleteProject } from "./DeleteProject";
+import { GoalForm } from "./GoalForm";
 import { ProjectDetailsForm } from "./ProjectDetailsForm";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +20,17 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
   const key = (await params).key.toUpperCase();
   let data;
   try {
-    data = await Promise.all([boardApi.project(key), boardApi.catalog("workflow-templates"), boardApi.issues(key), boardApi.me()]);
+    data = await Promise.all([
+      boardApi.project(key),
+      boardApi.catalog("workflow-templates"),
+      boardApi.issues(key),
+      boardApi.me(),
+      boardApi.projectGoal(key).catch(() => ({ goal: null })),
+    ]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, templates, issues, me] = data;
+  const [project, templates, issues, me, goal] = data;
   const template = templates.find((t) => t.key === project.templateKey);
   const facts = [
     { label: "Clave", value: <span className="font-mono">{project.key}</span>, hint: `Prefijo de sus issues (${project.key}-1, ${project.key}-2…). No se cambia.` },
@@ -33,6 +40,7 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
   ];
   return (
     <SettingsSection title="General">
+      <GoalForm projectKey={project.key} initial={goal.goal} />
       <ProjectDetailsForm project={project} />
       <dl className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2">
         {facts.map((f) => (

@@ -41,6 +41,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     private final org.springframework.context.ApplicationEventPublisher events;
     private final BoardPeople people;
     private final MemberApi members;
+    private ProjectGoals goals;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setGoals(ProjectGoals goals) {
+        this.goals = goals;
+    }
 
     ProjectService(ProjectRepository projects, ColumnUsage usage, CatalogApi catalog, Clock clock, BillingApi billing,
             org.springframework.context.ApplicationEventPublisher events, BoardPeople people, MemberApi members) {
@@ -202,6 +208,19 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Transactional(readOnly = true)
     public String name(String projectKey) {
         return projects.findByKey(projectKey).map(Project::name).orElse(projectKey);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<String> goal(String projectKey) {
+        return goals.find(projectKey);
+    }
+
+    @Transactional
+    public java.util.Optional<String> setGoal(String projectKey, String goal) {
+        if (!exists(projectKey)) throw new ec.kuador.board.shared.error.NotFoundException("No existe el proyecto " + projectKey + ".");
+        goals.save(projectKey, goal);
+        return goals.find(projectKey);
     }
 
     // ---- Personas del tablero ----

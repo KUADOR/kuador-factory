@@ -36,7 +36,9 @@ class BearerTokenFilter extends OncePerRequestFilter {
     /** Rutas que acepta la conexión de agentes locales de una persona. */
     static boolean runnerPath(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        return path.equals("/mcp") || path.equals("/api/agent-kit") || path.equals("/api/agent-kit.zip");
+        return path.equals("/mcp") || path.equals("/api/agent-kit") || path.equals("/api/agent-kit.zip")
+                // El runner: instalación, señal de vida, avisos, pedir tarjetas y sus préstamos (no administra sus máquinas).
+                || (path.startsWith("/api/runner/") && !path.startsWith("/api/runner/machines") && !path.startsWith("/api/runner/pair"));
     }
 
     static boolean platformPath(HttpServletRequest request) {

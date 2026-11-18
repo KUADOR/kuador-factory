@@ -799,6 +799,14 @@ public class IssueService implements IssueApi {
     }
 
     @Override
+    @Transactional
+    public void handOver(String issueKey, UUID personId) {
+        Issue issue = load(issueKey);
+        if (personId.equals(issue.supervisorId())) return;
+        supervise(issueKey, personId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Optional<UUID> supervisorOf(String issueKey) {
         return issues.findByKey(issueKey).map(Issue::supervisorId);
@@ -828,6 +836,16 @@ public class IssueService implements IssueApi {
         if (project == null) return List.of();
         return issues.findByProject(projectKey, IssueFilter.none()).stream()
                 .filter(i -> i.assigneeId() == null)
+                .flatMap(i -> queueItem(i, project).filter(q -> !q.gate() || agentReviewed(i, project)).stream())
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<QueueItem> waitingForAgents(String projectKey) {
+        ProjectView project = projects.find(projectKey).orElse(null);
+        if (project == null) return List.of();
+        return issues.findByProject(projectKey, IssueFilter.none()).stream()
                 .flatMap(i -> queueItem(i, project).filter(q -> !q.gate() || agentReviewed(i, project)).stream())
                 .toList();
     }

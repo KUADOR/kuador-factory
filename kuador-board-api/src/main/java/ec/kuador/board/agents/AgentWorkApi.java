@@ -14,4 +14,12 @@ public interface AgentWorkApi {
 
     /** El agente terminó (entregó, devolvió o consultó): cierra su ejecución abierta con un resumen. */
     void finished(UUID agentId, String issueKey, String summary);
+
+    /** La ejecución local se cortó sin terminar (la máquina se apagó, el cliente de IA falló o se pasó de tiempo). */
+    void failed(UUID agentId, String issueKey, String reason);
+
+    /** Dónde trabaja un agente y con qué modelo: {@code local} = en la máquina de una persona; modelo y esfuerzo nulos = los por defecto. */
+    record LocalProfile(boolean local, String model, String effort) {}
+
+    LocalProfile profile(UUID agentId);
 }

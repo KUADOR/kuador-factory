@@ -88,6 +88,12 @@ class SecurityConfiguration {
                         .requestMatchers("/api/notifications", "/api/notifications/**").hasRole("HUMAN")
                         // Servidor MCP del tablero: solo con la conexión de agentes locales de una persona.
                         .requestMatchers("/mcp").hasRole("RUNNER")
+                        // Runner: emparejarse es público (el código lo aprueba una persona que edita con su sesión); sus
+                        // máquinas las administra cada persona; el resto lo usa solo el runner con su conexión.
+                        .requestMatchers(HttpMethod.POST, "/api/runner/pair", "/api/runner/pair/token").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/runner/pair/approve").access(HUMAN_EDITOR)
+                        .requestMatchers("/api/runner/machines", "/api/runner/machines/**").hasRole("HUMAN")
+                        .requestMatchers("/api/runner/**").hasRole("RUNNER")
                         .requestMatchers(HttpMethod.GET, "/api/agent-kit", "/api/agent-kit.zip").authenticated()
                         // Lo único que escribe quien solo mira: su sesión, su clave, comentarios y las puertas donde
                         // su rol aprueba (el servicio comprueba el rol aprobador).

@@ -284,6 +284,23 @@ public class AgentKit implements RepositoryInstructions {
                 """.formatted(subagentName(ws.slug(), role.key()), description, String.join(", ", allowed)) + body;
     }
 
+    /**
+     * Lo que necesita el runner para que el cliente de IA trabaje un issue con un rol sin archivos en la máquina: las
+     * instrucciones del subagente (las mismas del kit, siempre las vigentes del catálogo) y las herramientas permitidas.
+     */
+    public record RunPlan(String server, String instructions, List<String> allowedTools) {}
+
+    public RunPlan runPlan(String roleKey) {
+        Identity ws = workspace.identity();
+        Connection c = connection();
+        AgentRole role = catalog.role(roleKey).orElseThrow(() -> new IllegalArgumentException("No existe el rol " + roleKey + "."));
+        List<String> allowed = Stream.concat(role.tools().stream(), WORK_TOOLS.stream().map(t -> "mcp__" + c.server() + "__" + t)).toList();
+        List<String> all = rules.all();
+        String body = AgentRules.fill(catalog.agentPolicy().repo().subagent(), Map.of("rol", role.name(), "empresa", ws.name(),
+                "herramientas_tablero", "mcp__" + c.server() + "__*", "clave_rol", role.key(), "reglas", String.join(" ", all.subList(1, all.size()))));
+        return new RunPlan(c.server(), body, allowed);
+    }
+
     /** Las instrucciones del servidor MCP (las ve el cliente al conectarse). */
     public String mcpInstructions() {
         return AgentRules.fill(catalog.agentPolicy().repo().mcpInstructions(), Map.of("empresa", workspace.identity().name()));

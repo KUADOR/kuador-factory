@@ -8,6 +8,7 @@ import { ApiError, boardApi } from "@/lib/api";
 import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
+  RunnerMachine,
   PieceUpdate,
   ProjectPiece,
   AgentPromptPreview,
@@ -142,6 +143,18 @@ export async function createRunnerTokenAction(name: string): Promise<ActionResul
 
 export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionResult<void>> {
   return run(() => boardApi.revokeRunnerToken(tokenId), "/local-agents");
+}
+
+export async function approveRunnerAction(userCode: string): Promise<ActionResult<{ machineName: string }>> {
+  return run(() => boardApi.approveRunner(userCode), "/local-agents");
+}
+
+export async function updateRunnerMachineAction(id: string, patch: { paused?: boolean; roles?: string[]; capacity?: number }): Promise<ActionResult<RunnerMachine>> {
+  return run(() => boardApi.updateRunnerMachine(id, patch), "/local-agents");
+}
+
+export async function deleteRunnerMachineAction(id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteRunnerMachine(id), "/local-agents");
 }
 
 export async function agentKitAction(client: AgentClient, mcp: string[]): Promise<ActionResult<AgentKit>> {

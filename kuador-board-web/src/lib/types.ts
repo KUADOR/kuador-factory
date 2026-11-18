@@ -867,6 +867,24 @@ export interface KitFile {
 export type AgentClient = "claude-code" | "codex" | "mcp";
 
 /** Cómo se conecta el espacio: servidor MCP (con el nombre de la empresa), variables de entorno y URL. */
+/** Una máquina con runner: deja trabajando a los agentes locales de una persona. */
+export interface RunnerMachine {
+  id: string;
+  name: string;
+  os: string;
+  tool: string;
+  roles: string[];
+  capacity: number;
+  paused: boolean;
+  online: boolean;
+  version: string | null;
+  lastSeen: string;
+  memberId: string;
+  person: string;
+  /** Tarjetas que está trabajando ahora. */
+  working: string[];
+}
+
 export interface AgentKit {
   connection: { server: string; tokenVar: string; url: string };
   files: KitFile[];

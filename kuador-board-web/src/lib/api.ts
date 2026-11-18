@@ -50,6 +50,7 @@ import type {
   Me,
   Member,
   MemberAccess,
+  RunnerMachine,
   RunnerToken,
   MemberKind,
   Project,
@@ -247,6 +248,11 @@ export const boardApi = {
   runnerTokens: () => request<RunnerToken[]>("/api/auth/runner-tokens"),
   createRunnerToken: (name: string) => request<IssuedToken>("/api/auth/runner-tokens", json("POST", { name })),
   revokeRunnerToken: (tokenId: string) => request<void>(`/api/auth/runner-tokens/${encodeURIComponent(tokenId)}`, { method: "DELETE" }),
+  runnerMachines: () => request<RunnerMachine[]>("/api/runner/machines"),
+  updateRunnerMachine: (id: string, patch: { paused?: boolean; roles?: string[]; capacity?: number }) =>
+    request<RunnerMachine>(`/api/runner/machines/${encodeURIComponent(id)}`, json("PATCH", patch)),
+  deleteRunnerMachine: (id: string) => request<void>(`/api/runner/machines/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  approveRunner: (userCode: string) => request<{ machineName: string }>("/api/runner/pair/approve", json("POST", { userCode })),
   agentKit: (client: AgentClient, mcp: string[]) => request<AgentKit>(`/api/agent-kit?${kitQuery(client, mcp)}`),
   supervise: (key: string) => request<Issue>(`/api/issues/${encodeURIComponent(key)}/supervise`, { method: "POST" }),
   createAgentToken: (memberId: string, name: string) =>

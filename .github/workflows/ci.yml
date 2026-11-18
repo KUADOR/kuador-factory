@@ -45,6 +45,23 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
 
+  # El runner (npx @kuador/runner): sin dependencias, en los tres sistemas donde corre.
+  runner:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: kuador-runner
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+      - run: npm test
+      - run: node bin/kuador-runner.js --version
+
   # Construye las dos imágenes en cada corrida; solo desde main las publica en GHCR. Dokploy las baja de ahí.
   image:
     needs: [api, web]

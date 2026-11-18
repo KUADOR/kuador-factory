@@ -12,7 +12,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Cuando la API tiene dominio propio en Internet, por ese dominio solo entran los clientes de IA (MCP, su
- * kit y su inicio de sesión OAuth), GitHub (webhook) y el chequeo de salud (/livez, /readyz). El resto de la API lo usa solo la web por la red interna,
+ * kit y su inicio de sesión OAuth), los runners (emparejarse, avisos y tarjetas), GitHub (webhook) y el chequeo de salud (/livez, /readyz). El resto de la API lo usa solo la web por la red interna,
  * que llega con otro host; desde fuera responde 404, como si no existiera.
  */
 public final class PublicHostGate extends OncePerRequestFilter {
@@ -20,6 +20,7 @@ public final class PublicHostGate extends OncePerRequestFilter {
     static final List<String> OPEN_PATHS = List.of("/mcp", "/api/agent-kit", "/api/agent-kit.zip", "/api/github/webhook",
             "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-authorization-server",
             "/oauth/register", "/oauth/token", "/api/telegram/webhook",
+            "/api/runner/pair", "/api/runner/pair/token", "/api/runner/setup", "/api/runner/heartbeat", "/api/runner/events", "/api/runner/claim",
             "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness", "/livez", "/readyz");
 
     private final String publicHost;
@@ -46,7 +47,8 @@ public final class PublicHostGate extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String path = request.getRequestURI();
-        if (!fullAccess(request) && !OPEN_PATHS.contains(path) && !path.matches("^/api/(telegram|payments)/webhook/[A-Za-z0-9_-]{1,64}$")) {
+        if (!fullAccess(request) && !OPEN_PATHS.contains(path) && !path.matches("^/api/(telegram|payments)/webhook/[A-Za-z0-9_-]{1,64}$")
+                && !path.matches("^/api/runner/leases/[A-Za-z0-9]{1,12}-[0-9]{1,7}/(renew|release)$")) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             response.setContentType("application/problem+json;charset=UTF-8");
             response.getWriter().write("{\"status\":404,\"title\":\"No encontrado\"}");

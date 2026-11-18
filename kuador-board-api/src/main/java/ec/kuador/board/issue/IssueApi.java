@@ -71,11 +71,21 @@ public interface IssueApi {
     /** Issues del tablero sin asignar que esperan a un agente (no incluye puertas): los que puede tomar el siguiente de la cadena. */
     List<QueueItem> openForAgents(String projectKey);
 
+    /** Lo que espera a un agente en el tablero, esté por tomar o ya asignado a un agente (sea quien sea que lo supervise). */
+    default List<QueueItem> waitingForAgents(String projectKey) {
+        return openForAgents(projectKey);
+    }
+
     /** Persona que supervisa el trabajo de los agentes en el issue, si hay una. */
     Optional<UUID> supervisorOf(String issueKey);
 
     /** Toma el issue de su etapa como {@code agentId} (reglas de etapa de siempre). */
     Progress takeAs(String issueKey, UUID agentId);
+
+    /** La persona pasa a supervisar el issue: sus agentes lo atienden (p. ej. su runner lo tomó de la bolsa común). */
+    default void handOver(String issueKey, UUID personId) {
+        throw new UnsupportedOperationException("handOver");
+    }
 
     /** Entrega el issue a la siguiente etapa como {@code agentId}. */
     Progress deliverAs(String issueKey, String comment, UUID agentId);

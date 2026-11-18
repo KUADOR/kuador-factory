@@ -145,11 +145,41 @@ public class BoardTools {
     public Object call(String name, Map<String, String> args, UUID personId, String client) {
         Definition d = tools.get(name);
         if (d == null) throw new ToolException("No existe la herramienta " + name + ".");
+        ec.kuador.board.auth.RunScope.current().ifPresent(scope -> enforce(scope, d.tool(), args));
         CLIENT.set(client);
         try {
-            return d.run().apply(args, personId);
+            Object result = d.run().apply(args, personId);
+            // Con la credencial de una ejecución, la cola muestra solo su tarjeta.
+            if ("pending_work".equals(name) && ec.kuador.board.auth.RunScope.current().isPresent() && result instanceof Map<?, ?> m
+                    && m.get("items") instanceof List<?> items) {
+                String only = ec.kuador.board.auth.RunScope.current().get().issueKey();
+                List<?> mine = items.stream().filter(i -> i instanceof Map<?, ?> im && only.equals(im.get("key"))).toList();
+                return Map.of("items", mine, "total", mine.size());
+            }
+            return result;
         } finally {
             CLIENT.remove();
+        }
+    }
+
+    /**
+     * La credencial de una ejecución del runner vale para una tarjeta y un rol: escribe solo en esa tarjeta y como ese rol,
+     * y lee solo dentro de su tablero. Así, si algo en un repo engaña al agente, el daño no pasa de esa tarjeta.
+     */
+    private void enforce(ec.kuador.board.auth.RunScope scope, Tool tool, Map<String, String> a) {
+        String key = upper(a.get("key"));
+        if (key != null) {
+            if (!tool.readOnly() && !key.equals(scope.issueKey())) {
+                throw new ToolException("Esta ejecución solo puede trabajar " + scope.issueKey() + "; " + key + " lo atiende otra ejecución.");
+            }
+            if (tool.readOnly() && !BoardScope.projectOf(key).equals(scope.projectKey())) {
+                throw new ToolException("Esta ejecución solo lee el tablero " + scope.projectKey() + ".");
+            }
+        }
+        String project = upper(a.get("project"));
+        if (project != null && !project.equals(scope.projectKey())) throw new ToolException("Esta ejecución solo lee el tablero " + scope.projectKey() + ".");
+        if (a.get("agent") != null && !agent(a).role().equals(scope.role())) {
+            throw new ToolException("Esta ejecución trabaja como " + scope.role() + ": usa `agent: " + scope.role() + "`.");
         }
     }
 

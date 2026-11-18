@@ -59,6 +59,8 @@ public class RunnerService {
     static final int MAX_FAILURES = 3;
     static final List<String> TOOLS = List.of("claude", "codex", "opencode");
     static final List<String> OUTCOMES = List.of("DONE", "FAILED", "TIMEOUT", "RATE_LIMITED", "CANCELLED");
+    /** Tope de vida de la credencial de una ejecución; antes la revoca el fin del préstamo. */
+    static final Duration RUN_TOKEN_TTL = Duration.ofHours(3);
 
     public record RoleOption(String key, String name, boolean worksOnCode, boolean local) {}
 
@@ -74,7 +76,7 @@ public class RunnerService {
     /** Lo que el runner necesita para lanzar el cliente de IA con esa tarjeta. */
     public record Claim(String issueKey, String projectKey, String projectKind, String title, String role, String roleName, boolean worksOnCode,
             UUID agentId, String agentName, String model, String effort, String prompt, String instructions, List<String> allowedTools,
-            String mcpServer, String mcpUrl, long leaseSeconds) {}
+            String mcpServer, String mcpUrl, long leaseSeconds, String runToken) {}
 
     private final RunnerStore store;
     private final RunnerHub hub;
@@ -84,13 +86,14 @@ public class RunnerService {
     private final AgentWorkApi work;
     private final CatalogApi catalog;
     private final AgentKit kit;
+    private final ec.kuador.board.auth.RunTokens runTokens;
     private final TransactionTemplate tx;
     private final Clock clock;
     /** Cuándo vio el reparto por primera vez cada tarjeta libre (para la preferencia de la épica). */
     private final Map<String, Instant> firstSeen = new ConcurrentHashMap<>();
 
     RunnerService(RunnerStore store, RunnerHub hub, IssueApi issues, ProjectApi projects, MemberApi members, AgentWorkApi work, CatalogApi catalog,
-            AgentKit kit, TransactionTemplate tx, Clock clock) {
+            AgentKit kit, ec.kuador.board.auth.RunTokens runTokens, TransactionTemplate tx, Clock clock) {
         this.store = store;
         this.hub = hub;
         this.issues = issues;
@@ -99,6 +102,7 @@ public class RunnerService {
         this.work = work;
         this.catalog = catalog;
         this.kit = kit;
+        this.runTokens = runTokens;
         this.tx = tx;
         this.clock = clock;
     }
@@ -228,12 +232,16 @@ public class RunnerService {
         try {
             return tx.execute(s -> {
                 Lease lease = new Lease(UUID.randomUUID(), who.workspaceId(), item.key(), context.parentKey(), item.status(), machine.id(),
-                        who.memberId(), agent.id(), now, now.plus(LEASE), null, null);
+                        who.memberId(), agent.id(), now, now.plus(LEASE), null, null, null);
                 if (!store.insertLease(lease)) return Optional.<Claim>empty(); // otra máquina la ganó
                 if (!who.memberId().equals(supervisor)) issues.handOver(item.key(), who.memberId());
                 if (item.assigneeId() == null) issues.takeAs(item.key(), agent.id());
                 work.started(agent.id(), item.key(), item.projectKey(), who.memberId(), "runner · " + machine.name());
-                return Optional.of(claimFor(item, role, agent));
+                // La credencial de esta ejecución: solo esta tarjeta, solo este rol, solo mientras dure el préstamo.
+                ec.kuador.board.auth.RunTokens.Issued run = runTokens.issue(who.workspaceId(), who.memberId(),
+                        new ec.kuador.board.auth.RunScope(item.key(), role), RUN_TOKEN_TTL);
+                store.setRunToken(lease.id(), run.id());
+                return Optional.of(claimFor(item, role, agent, run.secret()));
             });
         } catch (RuntimeException e) {
             // Cambió mientras tanto (alguien la tomó, se movió): se sigue con la siguiente.
@@ -242,7 +250,7 @@ public class RunnerService {
         }
     }
 
-    private Claim claimFor(QueueItem item, String role, MemberView agent) {
+    private Claim claimFor(QueueItem item, String role, MemberView agent, String runToken) {
         AgentRole r = catalog.role(role).orElseThrow();
         AgentKit.RunPlan plan = kit.runPlan(role);
         AgentWorkApi.LocalProfile profile = work.profile(agent.id());
@@ -254,7 +262,7 @@ public class RunnerService {
                 .formatted(item.key(), item.title(), project.name(), r.name(), r.key(), agent.name());
         AgentKit.Connection c = kit.connection();
         return new Claim(item.key(), item.projectKey(), project.kind().name(), item.title(), r.key(), r.name(), r.worksOnCode(), agent.id(), agent.name(),
-                profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds());
+                profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds(), runToken);
     }
 
     // ---- Préstamos ----
@@ -286,6 +294,7 @@ public class RunnerService {
         final String finalResult = result;
         tx.executeWithoutResult(s -> {
             store.release(ws, key, machineId, finalResult, clock.instant());
+            runTokens.revoke(lease.runTokenId());
             switch (finalResult) {
                 case "DONE" -> { /* el agente ya cerró su ejecución al entregar */ }
                 case "STALLED" -> work.failed(lease.agentId(), key, "El cliente de IA terminó sin entregar, devolver ni consultar.");
@@ -306,6 +315,7 @@ public class RunnerService {
                 TenantContext.run(lease.workspaceId(), () -> tx.executeWithoutResult(s -> {
                     String machine = store.machine(lease.machineId()).map(Machine::name).orElse("la máquina");
                     if (store.release(lease.workspaceId(), lease.issueKey(), lease.machineId(), "EXPIRED", now).isEmpty()) return;
+                    runTokens.revoke(lease.runTokenId());
                     work.failed(lease.agentId(), lease.issueKey(), "Se cortó: «" + machine + "» dejó de responder.");
                     afterFailure(lease.workspaceId(), lease, "EXPIRED");
                 }));

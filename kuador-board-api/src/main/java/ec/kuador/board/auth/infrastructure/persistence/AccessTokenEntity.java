@@ -44,6 +44,8 @@ class AccessTokenEntity {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
+    private String scope;
+
     protected AccessTokenEntity() {}
 
     static AccessTokenEntity from(AccessToken t) {
@@ -58,10 +60,11 @@ class AccessTokenEntity {
         e.expiresAt = t.expiresAt();
         e.lastUsedAt = t.lastUsedAt();
         e.revokedAt = t.revokedAt();
+        e.scope = t.scope();
         return e;
     }
 
     AccessToken toDomain() {
-        return new AccessToken(id, workspaceId, memberId, kind, name, tokenHash, createdAt, expiresAt, lastUsedAt, revokedAt);
+        return new AccessToken(id, workspaceId, memberId, kind, name, tokenHash, createdAt, expiresAt, lastUsedAt, revokedAt, scope);
     }
 }

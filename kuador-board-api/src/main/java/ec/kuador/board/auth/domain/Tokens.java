@@ -21,6 +21,7 @@ public final class Tokens {
             case AGENT -> "kfa_";
             case RUNNER -> "kfr_";
             case SESSION -> "kfs_";
+            case RUN -> "kfx_";
         };
         return prefix + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }

@@ -113,6 +113,12 @@ class RunnerIT {
         return id;
     }
 
+    /** Llama una herramienta del servidor MCP y devuelve su resultado (con isError). */
+    private JsonNode mcp(String token, String tool, Map<String, String> args) throws Exception {
+        return call("POST", "/mcp", Map.of("jsonrpc", "2.0", "id", 1, "method", "tools/call", "params", Map.of("name", tool, "arguments", args)), token)
+                .body().get("result");
+    }
+
     private Reply claim(String runner, UUID machine) throws Exception {
         return call("POST", "/api/runner/claim", Map.of("machineId", machine), runner);
     }
@@ -162,6 +168,19 @@ class RunnerIT {
         assertThat(c.get("instructions").asString()).contains("role_manual");
         assertThat(c.get("allowedTools").toString()).contains("mcp__run__deliver");
         assertThat(call("GET", "/api/agents/runs?issueKey=" + story, null, ana).body().get(0).get("status").asString()).isEqualTo("RUNNING");
+
+        // La credencial de esta ejecución: solo esta tarjeta, solo este rol y solo el servidor MCP.
+        String runToken = c.get("runToken").asString();
+        assertThat(runToken).startsWith("kfx_");
+        assertThat(mcp(runToken, "get_issue", Map.of("key", story)).get("isError").asBoolean()).isFalse();
+        assertThat(mcp(runToken, "role_manual", Map.of("agent", "PRODUCT_OWNER")).get("isError").asBoolean()).isFalse();
+        JsonNode otherRole = mcp(runToken, "add_comment", Map.of("key", story, "agent", "BACKEND", "text", "hola"));
+        assertThat(otherRole.get("isError").asBoolean()).isTrue();
+        assertThat(otherRole.get("content").get(0).get("text").asString()).contains("trabaja como PRODUCT_OWNER");
+        JsonNode otherBoard = mcp(runToken, "read_document", Map.of("type", "SPEC", "project", "OTRO"));
+        assertThat(otherBoard.get("content").get(0).get("text").asString()).contains("solo lee el tablero RUN");
+        assertThat(call("GET", "/api/runner/setup", null, runToken).status()).as("no abre las rutas del runner").isEqualTo(401);
+        assertThat(call("GET", "/api/projects", null, runToken).status()).isEqualTo(401);
         assertThat(claim(anaRunner, anaMachine).status()).as("capacidad 1: ya tiene una").isEqualTo(204);
         assertThat(call("POST", "/api/runner/leases/" + story + "/renew", Map.of("machineId", anaMachine), anaRunner).status()).isEqualTo(200);
         JsonNode mine = call("GET", "/api/runner/machines", null, ana).body().get(0);
@@ -172,6 +191,8 @@ class RunnerIT {
         assertThat(call("POST", "/api/runner/leases/" + story + "/release", Map.of("machineId", anaMachine, "outcome", "DONE"), anaRunner).status())
                 .isEqualTo(204);
         assertThat(call("GET", "/api/agents/runs?issueKey=" + story, null, ana).body().get(0).get("status").asString()).isEqualTo("FAILED");
+        assertThat(call("POST", "/mcp", Map.of("jsonrpc", "2.0", "id", 9, "method", "tools/list"), runToken).status())
+                .as("al liberar la tarjeta, su credencial muere").isEqualTo(401);
         assertThat(call("POST", "/api/runner/leases/" + story + "/renew", Map.of("machineId", anaMachine), anaRunner).status())
                 .as("el préstamo ya no es suyo").isEqualTo(409);
 

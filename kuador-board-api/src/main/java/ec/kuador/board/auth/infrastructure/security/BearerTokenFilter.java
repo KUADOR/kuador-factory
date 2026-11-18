@@ -41,6 +41,10 @@ class BearerTokenFilter extends OncePerRequestFilter {
                 || (path.startsWith("/api/runner/") && !path.startsWith("/api/runner/machines") && !path.startsWith("/api/runner/pair"));
     }
 
+    static boolean mcpPath(HttpServletRequest request) {
+        return request.getRequestURI().substring(request.getContextPath().length()).equals("/mcp");
+    }
+
     static boolean platformPath(HttpServletRequest request) {
         return request.getRequestURI().substring(request.getContextPath().length()).startsWith("/api/platform/");
     }
@@ -52,10 +56,12 @@ class BearerTokenFilter extends OncePerRequestFilter {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
             if (header != null && header.regionMatches(true, 0, PREFIX, 0, PREFIX.length())) {
                 auth.authenticate(header.substring(PREFIX.length()))
-                        // La conexión de agentes locales solo abre el servidor MCP y la descarga del kit.
+                        // La conexión de agentes locales solo abre el servidor MCP y la descarga del kit; la de una ejecución, solo el MCP.
                         .filter(who -> !who.runner() || runnerPath(request))
+                        .filter(who -> who.run() == null || mcpPath(request))
                         .ifPresent(who -> {
                     TenantContext.set(who.workspaceId());
+                    if (who.run() != null) ec.kuador.board.auth.RunScope.set(who.run());
                     request.setAttribute(AuditHints.ACTOR, new AuditHints.Actor(who.workspaceId(),
                             who.memberId(), who.name(), who.agent() ? AuditHints.Kind.AGENT : AuditHints.Kind.HUMAN));
                     var kind = new SimpleGrantedAuthority(who.runner() ? "ROLE_RUNNER" : who.agent() ? "ROLE_AGENT" : "ROLE_HUMAN");
@@ -77,6 +83,7 @@ class BearerTokenFilter extends OncePerRequestFilter {
         } finally {
             TenantContext.clear();
             ec.kuador.board.shared.tenant.BoardScope.clear();
+            ec.kuador.board.auth.RunScope.clear();
         }
     }
 }

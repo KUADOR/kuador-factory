@@ -11,8 +11,9 @@ public interface RunnerStore {
     record Machine(UUID id, UUID workspaceId, UUID memberId, String name, String os, String tool, List<String> roles, int capacity,
             boolean paused, String version, Instant lastSeen, Instant createdAt) {}
 
+    /** {@code runTokenId}: la credencial de esta ejecución (se revoca al cerrar el préstamo). */
     record Lease(UUID id, UUID workspaceId, String issueKey, String epicKey, String status, UUID machineId, UUID memberId, UUID agentId,
-            Instant startedAt, Instant expiresAt, Instant releasedAt, String outcome) {}
+            Instant startedAt, Instant expiresAt, Instant releasedAt, String outcome, UUID runTokenId) {}
 
     // ---- Máquinas ----
 
@@ -28,6 +29,8 @@ public interface RunnerStore {
 
     /** Crea el préstamo si nadie más tiene la tarjeta; falso si otra máquina la ganó. */
     boolean insertLease(Lease lease);
+
+    void setRunToken(UUID leaseId, UUID tokenId);
 
     List<Lease> activeLeases(UUID workspaceId);
 

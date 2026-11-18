@@ -2,6 +2,7 @@ package ec.kuador.board.auth.application;
 
 import ec.kuador.board.auth.AuthApi;
 import ec.kuador.board.auth.AuthenticatedMember;
+import ec.kuador.board.auth.RunTokens;
 import ec.kuador.board.auth.domain.AccessToken;
 import ec.kuador.board.auth.domain.AccessTokenRepository;
 import ec.kuador.board.auth.domain.Credential;
@@ -33,7 +34,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * en el espacio de quien hace la petición.
  */
 @Service
-public class AuthService implements AuthApi {
+public class AuthService implements AuthApi, ec.kuador.board.auth.RunTokens {
 
     static final Duration SESSION_TTL = Duration.ofDays(7);
     /** Evita escribir en base en cada petición: last_used_at se actualiza como mucho cada 5 minutos. */
@@ -127,15 +128,17 @@ public class AuthService implements AuthApi {
             Optional<MemberView> member = members.find(token.memberId())
                     .filter(m -> m.workspaceId().equals(token.workspaceId()))
                     .filter(m -> m.agent() == (token.kind() == TokenKind.AGENT))
-                    // Una conexión de agentes locales deja de valer si su persona pasa a solo lectura.
-                    .filter(m -> token.kind() != TokenKind.RUNNER || !m.viewOnly());
+                    // Una conexión de agentes locales (o una ejecución suya) deja de valer si su persona pasa a solo lectura.
+                    .filter(m -> (token.kind() != TokenKind.RUNNER && token.kind() != TokenKind.RUN) || !m.viewOnly());
             if (member.isEmpty()) return Optional.<AuthenticatedMember>empty();
             if (token.lastUsedAt() == null || token.lastUsedAt().plus(TOUCH_EVERY).isBefore(now)) {
                 tokens.save(token.touch(now));
             }
             MemberView m = member.get();
+            ec.kuador.board.auth.RunScope run = token.kind() == TokenKind.RUN ? ec.kuador.board.auth.RunScope.decode(token.scope()).orElse(null) : null;
+            if (token.kind() == TokenKind.RUN && run == null) return Optional.<AuthenticatedMember>empty();
             return Optional.of(new AuthenticatedMember(m.id(), m.workspaceId(), m.name(), m.agent(), token.id(), m.access(),
-                    token.kind() == TokenKind.RUNNER));
+                    token.kind() == TokenKind.RUNNER || token.kind() == TokenKind.RUN, run));
         }));
     }
 
@@ -286,6 +289,25 @@ public class AuthService implements AuthApi {
             // Por inicio de sesión vence: si alguien engañó a la persona para aprobar, el acceso no queda para siempre.
             return createRunnerToken(who, name.length() > 80 ? name.substring(0, 80) : name, OAUTH_RUNNER_TTL);
         }));
+    }
+
+    // ---- Credenciales de una sola ejecución del runner ----
+
+    @Override
+    @Transactional
+    public RunTokens.Issued issue(UUID workspaceId, UUID memberId, ec.kuador.board.auth.RunScope scope, java.time.Duration ttl) {
+        Instant now = clock.instant();
+        String secret = Tokens.newSecret(TokenKind.RUN);
+        AccessToken saved = tokens.save(new AccessToken(UUID.randomUUID(), workspaceId, memberId, TokenKind.RUN, "Ejecución " + scope.issueKey(),
+                Tokens.hash(secret), now, now.plus(ttl), null, null, scope.encode()));
+        return new RunTokens.Issued(saved.id(), secret);
+    }
+
+    @Override
+    @Transactional
+    public void revoke(UUID tokenId) {
+        if (tokenId == null) return;
+        tokens.findById(tokenId).filter(t -> t.kind() == TokenKind.RUN).ifPresent(t -> tokens.save(t.revoke(clock.instant())));
     }
 
     @Transactional(readOnly = true)

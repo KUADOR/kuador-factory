@@ -9,5 +9,10 @@ public enum TokenKind {
      * Conexión de agentes locales de una persona (su cliente de IA con MCP): solo abre el servidor MCP del tablero, donde actúa como
      * los agentes del espacio y solo sobre los issues que esa persona supervisa.
      */
-    RUNNER
+    RUNNER,
+    /**
+     * Una ejecución de un agente en el runner: vale solo para una tarjeta y un rol (ver {@code scope}), solo en el servidor
+     * MCP y solo mientras dura el préstamo de la tarjeta. Es lo que recibe el cliente de IA, nunca la conexión larga.
+     */
+    RUN
 }

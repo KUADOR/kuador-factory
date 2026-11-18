@@ -16,7 +16,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 class JdbcRunnerStore implements RunnerStore {
 
-    private static final String LEASE_COLUMNS = "id, workspace_id, issue_key, epic_key, status, machine_id, member_id, agent_id, started_at, expires_at, released_at, outcome";
+    private static final String LEASE_COLUMNS = "id, workspace_id, issue_key, epic_key, status, machine_id, member_id, agent_id, started_at, expires_at, released_at, outcome, run_token_id";
     private static final String MACHINE_COLUMNS = "id, workspace_id, member_id, name, os, tool, roles, capacity, paused, version, last_seen, created_at";
 
     private final JdbcClient jdbc;
@@ -76,6 +76,11 @@ class JdbcRunnerStore implements RunnerStore {
     }
 
     @Override
+    public void setRunToken(UUID leaseId, UUID tokenId) {
+        jdbc.sql("update runner_lease set run_token_id = ? where id = ?").params(tokenId, leaseId).update();
+    }
+
+    @Override
     public List<Lease> activeLeases(UUID workspaceId) {
         return jdbc.sql("select " + LEASE_COLUMNS + " from runner_lease where workspace_id = ? and released_at is null")
                 .param(workspaceId).query(JdbcRunnerStore::lease).list();
@@ -127,6 +132,6 @@ class JdbcRunnerStore implements RunnerStore {
         Timestamp released = rs.getTimestamp(11);
         return new Lease(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3), rs.getString(4), rs.getString(5),
                 rs.getObject(6, UUID.class), rs.getObject(7, UUID.class), rs.getObject(8, UUID.class), rs.getTimestamp(9).toInstant(),
-                rs.getTimestamp(10).toInstant(), released == null ? null : released.toInstant(), rs.getString(12));
+                rs.getTimestamp(10).toInstant(), released == null ? null : released.toInstant(), rs.getString(12), rs.getObject(13, UUID.class));
     }
 }

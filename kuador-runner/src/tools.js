@@ -24,14 +24,15 @@ const claudeModel = (model) => (model && /^(claude-|opus|sonnet|haiku|fable)/i.t
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
 /**
- * Lanza el cliente de IA con la tarjeta. La conexión al tablero va en un archivo fuera de la carpeta de trabajo (nunca
- * dentro del repo) y solo legible por ti. Devuelve el proceso y una promesa con el resultado.
+ * Lanza el cliente de IA con la tarjeta. Le da la credencial de esta ejecución (solo esta tarjeta, solo este rol, solo
+ * mientras dure el préstamo), nunca la conexión larga de la máquina; va en un archivo fuera de la carpeta de trabajo
+ * (nunca dentro del repo) y solo legible por ti. Devuelve el proceso y una promesa con el resultado.
  */
 export function launch(config, claim, cwd, logStream) {
   const mcpFile = join(SECRETS, `${claim.issueKey}.json`);
   writeFileSync(
     mcpFile,
-    JSON.stringify({ mcpServers: { [claim.mcpServer]: { type: "http", url: claim.mcpUrl, headers: { Authorization: `Bearer ${config.token}` } } } }),
+    JSON.stringify({ mcpServers: { [claim.mcpServer]: { type: "http", url: claim.mcpUrl, headers: { Authorization: `Bearer ${claim.runToken ?? config.token}` } } } }),
     { mode: 0o600 },
   );
   const args = [

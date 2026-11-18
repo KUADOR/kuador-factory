@@ -35,30 +35,64 @@ export function LiveUpdates({ projectKey, children }: { projectKey: string; chil
         router.refresh();
       }, 250);
     };
-    const source = new EventSource(`/live?project=${encodeURIComponent(projectKey)}`);
+    // En el celular la app se suspende y el navegador puede dejar la conexión cerrada para siempre (o rendirse tras
+    // un error del servidor): se reabre a mano, con espera creciente, y al volver a la app.
+    let source: EventSource | null = null;
     let connected = false;
-    source.addEventListener("listo", () => {
-      // Al reconectar pudo perderse algo mientras estaba cortado: se recarga por las dudas.
-      if (connected) refresh();
-      connected = true;
-    });
-    source.addEventListener("cambio", (e) => {
-      try {
-        const change = JSON.parse((e as MessageEvent<string>).data) as Change;
-        if (change.issue) setVersions((v) => ({ ...v, [change.issue!]: (v[change.issue!] ?? 0) + 1 }));
-      } catch {
-        // Aviso ilegible: igual se recarga.
-      }
-      refresh();
-    });
-    const onVisible = () => {
-      if (!document.hidden && pending.current) refresh();
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    let disposed = false;
+
+    const open = () => {
+      if (disposed) return;
+      clearTimeout(retry);
+      source?.close();
+      const es = new EventSource(`/live?project=${encodeURIComponent(projectKey)}`);
+      source = es;
+      es.addEventListener("listo", () => {
+        attempts = 0;
+        // Al reconectar pudo perderse algo mientras estaba cortado: se recarga por las dudas.
+        if (connected) refresh();
+        connected = true;
+      });
+      es.addEventListener("cambio", (e) => {
+        try {
+          const change = JSON.parse((e as MessageEvent<string>).data) as Change;
+          if (change.issue) setVersions((v) => ({ ...v, [change.issue!]: (v[change.issue!] ?? 0) + 1 }));
+        } catch {
+          // Aviso ilegible: igual se recarga.
+        }
+        refresh();
+      });
+      es.onerror = () => {
+        // CONNECTING: el navegador ya reintenta solo. CLOSED: se rindió; reintentamos nosotros.
+        if (es.readyState !== EventSource.CLOSED || document.hidden) return;
+        attempts += 1;
+        retry = setTimeout(open, Math.min(30_000, 1000 * 2 ** Math.min(attempts, 5)));
+      };
     };
+
+    const onVisible = () => {
+      if (document.hidden) return;
+      if (!source || source.readyState === EventSource.CLOSED) open();
+      if (pending.current) refresh();
+    };
+    const onOnline = () => {
+      if (!source || source.readyState !== EventSource.OPEN) open();
+    };
+
+    open();
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("pageshow", onVisible);
     return () => {
-      source.close();
+      disposed = true;
+      source?.close();
+      clearTimeout(retry);
       clearTimeout(timer.current);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("pageshow", onVisible);
     };
   }, [projectKey, router]);
 

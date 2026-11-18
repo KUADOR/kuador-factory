@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.context.annotation.Bean;
@@ -56,6 +57,9 @@ class SecurityConfiguration {
                 .logout(l -> l.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
+                        // El cierre de una respuesta asíncrona (tiempo real) y la página de error son despachos internos de
+                        // una petición que ya pasó estas reglas: sin esto, cada desconexión terminaba en «Access Denied».
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         // Alta pública de espacios (modo SaaS): verificación por correo, ver SignupService.
                         .requestMatchers("/api/signup/**").permitAll()

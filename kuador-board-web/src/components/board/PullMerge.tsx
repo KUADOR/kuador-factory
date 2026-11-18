@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 
 import { cardPullsAction, mergePullAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
+import { decisionsChanged } from "@/components/shell/useDecisionsCount";
 import { notify } from "@/components/ui/Toaster";
 import type { CardPull } from "@/lib/types";
 
@@ -13,6 +14,7 @@ const CI: Record<CardPull["ci"], { label: string; tone: string }> = {
   RED: { label: "CI en rojo", tone: "text-danger" },
   PENDING: { label: "CI corriendo", tone: "text-fg-muted" },
   NONE: { label: "sin CI", tone: "text-fg-muted" },
+  UNREADABLE: { label: "no se puede leer el CI", tone: "text-warn" },
 };
 
 /**
@@ -23,13 +25,18 @@ export function PullMerge({ projectKey, issueKey }: { projectKey: string; issueK
   const [pulls, setPulls] = useState<CardPull[] | null>(null);
   const [pending, start] = useTransition();
 
+  const running = (pulls ?? []).some((p) => !p.merged && p.ci === "PENDING");
   useEffect(() => {
     let alive = true;
-    cardPullsAction(issueKey).then((r) => alive && setPulls(r.ok ? r.data : []));
+    const load = () => cardPullsAction(issueKey).then((r) => alive && setPulls(r.ok ? r.data : []));
+    load();
+    // Mientras el CI corre, se vuelve a mirar: el botón se habilita solo apenas queda en verde.
+    const timer = running ? setInterval(load, 20_000) : undefined;
     return () => {
       alive = false;
+      clearInterval(timer);
     };
-  }, [issueKey]);
+  }, [issueKey, running]);
 
   const open = (pulls ?? []).filter((p) => !p.merged && p.state.toLowerCase() === "open");
   if (open.length === 0) return null;
@@ -43,6 +50,14 @@ export function PullMerge({ projectKey, issueKey }: { projectKey: string; issueK
               {p.repository} #{p.number} · {p.title}
             </p>
             <p className={`text-xs ${CI[p.ci].tone}`}>{CI[p.ci].label}</p>
+            {p.ci !== "GREEN" && (p.note || p.ci === "PENDING" || p.ci === "RED") && (
+              <p className="mt-0.5 text-xs leading-relaxed text-fg-muted">
+                {p.note ??
+                  (p.ci === "PENDING"
+                    ? "Se habilita solo cuando el CI termine en verde."
+                    : "Corrige el CI (o revísalo en GitHub) antes de fusionar. Puedes aprobar sin fusionar.")}
+              </p>
+            )}
           </div>
           <Button size="sm" tone="ghost" icon={ExternalLink} href={p.url} label="Ver en GitHub" iconOnly />
           <Button
@@ -59,6 +74,7 @@ export function PullMerge({ projectKey, issueKey }: { projectKey: string; issueK
                   return;
                 }
                 notify.ok(`Fusionado ${p.repository} #${p.number}`, `${issueKey} avanzó.`);
+                decisionsChanged();
                 setPulls((all) => (all ?? []).map((x) => (x === p ? { ...x, merged: true } : x)));
               })
             }

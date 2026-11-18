@@ -18,6 +18,7 @@ import { AccessProvider } from "./AccessContext";
 import { PlanBanner } from "./PlanBanner";
 import { RouteProgress } from "./RouteProgress";
 import { SidebarNav } from "./SidebarNav";
+import { useDecisionsCount } from "./useDecisionsCount";
 
 /**
  * Armazón de la app. En escritorio, barra lateral fija. En el celular (y en la app instalada), barra superior con el
@@ -34,7 +35,8 @@ export function AppShell(props: {
   theme: ThemeMode;
   children: React.ReactNode;
 }) {
-  const { children, plan, ...nav } = props;
+  const { children, plan, ...rest } = props;
+  const nav = { ...rest, decisions: useDecisionsCount(rest.decisions) };
   // El panel recuerda en qué ruta se abrió: al navegar a otra, queda cerrado sin efectos extra.
   const path = usePathname();
   const [openAt, setOpenAt] = useState<string | null>(null);

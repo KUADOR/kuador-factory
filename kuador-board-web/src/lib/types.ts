@@ -984,7 +984,9 @@ export interface CardPull {
   url: string;
   state: string;
   merged: boolean;
-  ci: "GREEN" | "RED" | "PENDING" | "NONE";
+  ci: "GREEN" | "RED" | "PENDING" | "NONE" | "UNREADABLE";
+  /** Por qué no se puede fusionar todavía (sin permiso para leer el CI, sin CI). */
+  note: string | null;
 }
 
 export interface Merged {

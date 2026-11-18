@@ -31,8 +31,11 @@ public class MergeService {
 
     public record Merged(String repository, int number, String commit, String status) {}
 
-    /** Un PR de la tarjeta con su CI resumido: GREEN, RED, PENDING o NONE. */
-    public record CardPull(String repository, int number, String title, String url, String state, boolean merged, String ci) {}
+    /**
+     * Un PR de la tarjeta con su CI resumido: GREEN, RED, PENDING, NONE o UNREADABLE (la conexión con GitHub no tiene permiso
+     * para leer el CI). {@code note}: por qué no se puede fusionar todavía, en palabras de la persona.
+     */
+    public record CardPull(String repository, int number, String title, String url, String state, boolean merged, String ci, String note) {}
 
     /** Los PRs que mencionan la tarjeta (los abiertos con su CI), para revisar y fusionar desde el tablero. */
     public java.util.List<CardPull> pulls(String issueKey) {
@@ -40,16 +43,24 @@ public class MergeService {
         java.util.List<CardPull> out = new java.util.ArrayList<>();
         for (CodeReviewApi.PullSummary p : code.pullRequests(card.projectKey(), issueKey).stream().limit(5).toList()) {
             String ci = "NONE";
+            String note = null;
             if (!p.merged() && "open".equalsIgnoreCase(p.state())) {
                 CodeReviewApi.PullDetail d = code.pullRequest(card.projectKey(), p.repository(), p.number());
-                ci = d.checks().isEmpty() ? "NONE" : "GREEN";
-                for (CodeReviewApi.Check c : d.checks()) {
-                    String r = c.conclusion() == null ? null : c.conclusion().toLowerCase(Locale.ROOT);
-                    if (r == null || !PASSED.contains(r)) ci = r == null ? "PENDING" : "RED";
-                    if ("RED".equals(ci)) break;
+                if (d.checksNote() != null) {
+                    // Sin permiso para leer el CI no se fusiona a ciegas, pero se dice por qué (antes el botón quedaba gris sin más).
+                    ci = "UNREADABLE";
+                    note = d.checksNote();
+                } else {
+                    ci = d.checks().isEmpty() ? "NONE" : "GREEN";
+                    for (CodeReviewApi.Check c : d.checks()) {
+                        String r = c.conclusion() == null ? null : c.conclusion().toLowerCase(Locale.ROOT);
+                        if (r == null || !PASSED.contains(r)) ci = r == null ? "PENDING" : "RED";
+                        if ("RED".equals(ci)) break;
+                    }
+                    if ("NONE".equals(ci)) note = "El PR no tiene CI: revísalo en GitHub antes de fusionar.";
                 }
             }
-            out.add(new CardPull(p.repository(), p.number(), p.title(), p.url(), p.state(), p.merged(), ci));
+            out.add(new CardPull(p.repository(), p.number(), p.title(), p.url(), p.state(), p.merged(), ci, note));
         }
         return out;
     }
@@ -64,6 +75,7 @@ public class MergeService {
         if (!mentions) throw new DomainException("El PR " + repository + " #" + number + " no menciona " + issueKey + ".");
         CodeReviewApi.PullDetail pr = code.pullRequest(card.projectKey(), repository, number);
         if (pr.pull().merged() || !"open".equalsIgnoreCase(pr.pull().state())) throw new ConflictException("El PR #" + number + " ya no está abierto.");
+        if (pr.checksNote() != null) throw new ConflictException(pr.checksNote());
         if (pr.checks().isEmpty()) throw new ConflictException("El PR #" + number + " no tiene CI: revísalo en GitHub antes de fusionar.");
         for (CodeReviewApi.Check c : pr.checks()) {
             String result = c.conclusion() == null ? null : c.conclusion().toLowerCase(Locale.ROOT);

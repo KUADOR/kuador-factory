@@ -25,6 +25,8 @@ class MergeServiceTest {
     private final List<String> merged = new ArrayList<>();
     private List<CodeReviewApi.Check> checks = List.of(new CodeReviewApi.Check("api", "completed", "success", ""));
     private String approved;
+    /** Lo que dice la conexión con GitHub cuando no puede leer el CI (sin permiso de Checks). */
+    private String checksNote;
 
     private MergeService service() {
         IssueApi issues = new IssueApiStub() {
@@ -56,7 +58,7 @@ class MergeServiceTest {
 
             public List<PullSummary> pullRequests(String p, String search) { return search.equalsIgnoreCase("KUA-12") ? List.of(pr) : List.of(); }
 
-            public PullDetail pullRequest(String p, String repo, int n) { return new PullDetail(pr, "a1b2c3d4", List.of(), false, checks, null); }
+            public PullDetail pullRequest(String p, String repo, int n) { return new PullDetail(pr, "a1b2c3d4", List.of(), false, checks, checksNote); }
 
             public String file(String p, String repo, String ref, String path) { return ""; }
 
@@ -91,5 +93,22 @@ class MergeServiceTest {
         assertThatThrownBy(() -> service().merge("KUA-12", "acme/kua", 7, true, OWNER)).isInstanceOf(ConflictException.class).hasMessageContaining("no tiene CI");
 
         assertThat(merged).as("en ningún caso se fusionó").isEmpty();
+    }
+
+    @Test
+    void withoutPermissionToReadTheCiItSaysWhyInsteadOfAGreyButton() {
+        checks = List.of();
+        checksNote = "La conexión con GitHub no tiene permiso para leer el CI.";
+        MergeService.CardPull pull = service().pulls("KUA-12").getFirst();
+        assertThat(pull.ci()).isEqualTo("UNREADABLE");
+        assertThat(pull.note()).contains("permiso para leer el CI");
+        assertThatThrownBy(() -> service().merge("KUA-12", "acme/kua", 7, true, OWNER)).isInstanceOf(ConflictException.class)
+                .hasMessageContaining("permiso para leer el CI");
+        assertThat(merged).isEmpty();
+
+        checksNote = null;
+        checks = List.of(new CodeReviewApi.Check("api", "completed", "success", ""));
+        assertThat(service().pulls("KUA-12").getFirst().ci()).isEqualTo("GREEN");
+        assertThat(service().pulls("KUA-12").getFirst().note()).isNull();
     }
 }

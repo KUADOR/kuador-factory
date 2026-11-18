@@ -10,6 +10,7 @@ import { PullMerge } from "@/components/board/PullMerge";
 import { Button } from "@/components/ui/Button";
 import { DictateButton } from "@/components/ui/DictateButton";
 import { TextArea } from "@/components/ui/Field";
+import { decisionsChanged } from "@/components/shell/useDecisionsCount";
 import { notify } from "@/components/ui/Toaster";
 import type { Decision } from "@/lib/types";
 
@@ -87,6 +88,7 @@ function DecisionCard({ decision: d }: { decision: Decision }) {
       }
       notify.ok(approve ? `${d.issueKey} aprobada` : `${d.issueKey} devuelta`);
       setGone(true);
+      decisionsChanged();
       router.refresh();
     });
 

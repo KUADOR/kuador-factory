@@ -18,6 +18,7 @@ import { PullMerge } from "./PullMerge";
 import { SelectInput, TextArea } from "@/components/ui/Field";
 import { useAccess } from "@/components/shell/AccessContext";
 import { Badge } from "@/components/ui/Section";
+import { decisionsChanged } from "@/components/shell/useDecisionsCount";
 import { notify } from "@/components/ui/Toaster";
 import type { AgentMode, AgentRun, Issue, Me, Member, Project } from "@/lib/types";
 
@@ -67,8 +68,10 @@ export function StageBar({
   const act = (work: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
     start(async () => {
       const r = await work();
-      if (r.ok) notify.ok(done);
-      else notify.error("No se pudo completar", r.error);
+      if (r.ok) {
+        notify.ok(done);
+        decisionsChanged();
+      } else notify.error("No se pudo completar", r.error);
     });
 
   const step = nextStep({ issue, project, me, members, modes, lastRun, workingAgent, canEdit, roleName });

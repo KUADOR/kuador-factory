@@ -77,11 +77,13 @@ import type {
   AiUsageReport,
 } from "@/lib/types";
 
-async function run<T>(work: () => Promise<T>, pathToRefresh?: string): Promise<ActionResult<T>> {
+async function run<T>(work: () => Promise<T>, pathToRefresh?: string, layoutToo = false): Promise<ActionResult<T>> {
   let expired = false;
   try {
     const data = await work();
     if (pathToRefresh) revalidatePath(pathToRefresh);
+    // Cambia lo que espera a alguien: el menú (número de «Mis decisiones») se vuelve a calcular en toda la app.
+    if (layoutToo) revalidatePath("/", "layout");
     return { ok: true, data };
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
@@ -145,6 +147,11 @@ export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionRe
   return run(() => boardApi.revokeRunnerToken(tokenId), "/local-agents");
 }
 
+/** Cuántas decisiones esperan a quien mira (el número del menú, para refrescarlo sin recargar la página). */
+export async function decisionsCountAction(): Promise<ActionResult<number>> {
+  return run(async () => (await boardApi.decisions()).length);
+}
+
 export async function approveRunnerAction(userCode: string): Promise<ActionResult<{ machineName: string }>> {
   return run(() => boardApi.approveRunner(userCode), "/local-agents");
 }
@@ -183,7 +190,7 @@ export async function createIssueAction(
 }
 
 export async function assignIssueAction(projectKey: string, key: string, assigneeId: string | null): Promise<ActionResult<Issue>> {
-  return run(() => boardApi.assignIssue(key, assigneeId), boardPath(projectKey));
+  return run(() => boardApi.assignIssue(key, assigneeId), boardPath(projectKey), true);
 }
 
 /** Posición «al final de la columna»: el mayor int de Java. */
@@ -286,7 +293,7 @@ export async function cardPullsAction(key: string): Promise<ActionResult<CardPul
 }
 
 export async function mergePullAction(projectKey: string, key: string, repository: string, number: number): Promise<ActionResult<Merged>> {
-  return run(() => boardApi.mergePull(key, repository, number, true), `/projects/${projectKey}`);
+  return run(() => boardApi.mergePull(key, repository, number, true), `/projects/${projectKey}`, true);
 }
 
 export async function subscribePushAction(s: PushSubscriptionInput): Promise<ActionResult<NotificationView>> {
@@ -749,11 +756,11 @@ export async function setStagesAction(key: string, stages: StageDef[], maxRework
 }
 
 export async function takeIssueAction(projectKey: string, key: string): Promise<ActionResult<Issue>> {
-  return run(() => boardApi.takeIssue(key), `/projects/${projectKey}`);
+  return run(() => boardApi.takeIssue(key), `/projects/${projectKey}`, true);
 }
 
 export async function deliverIssueAction(projectKey: string, key: string, comment: string | null): Promise<ActionResult<Issue>> {
-  return run(() => boardApi.deliverIssue(key, comment), `/projects/${projectKey}`);
+  return run(() => boardApi.deliverIssue(key, comment), `/projects/${projectKey}`, true);
 }
 
 export async function listEpicTasksAction(key: string): Promise<ActionResult<EpicTask[]>> {
@@ -761,9 +768,9 @@ export async function listEpicTasksAction(key: string): Promise<ActionResult<Epi
 }
 
 export async function reviewPlanAction(projectKey: string, key: string, approve: boolean, comment: string | null): Promise<ActionResult<Issue>> {
-  return run(() => boardApi.reviewPlan(key, approve, comment), `/projects/${projectKey}`);
+  return run(() => boardApi.reviewPlan(key, approve, comment), `/projects/${projectKey}`, true);
 }
 
 export async function reviewIssueAction(projectKey: string, key: string, approve: boolean, comment: string | null): Promise<ActionResult<Issue>> {
-  return run(() => boardApi.reviewIssue(key, approve, comment), `/projects/${projectKey}`);
+  return run(() => boardApi.reviewIssue(key, approve, comment), `/projects/${projectKey}`, true);
 }

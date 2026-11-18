@@ -52,7 +52,7 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
     });
 
   return (
-    <div className="flex max-w-3xl flex-col gap-5 px-6 py-6">
+    <div className="flex max-w-3xl flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       {error && (
         <p role="alert" className="rounded-md border border-danger/40 bg-danger/8 px-4 py-3 text-[13px] text-fg">
           {error}

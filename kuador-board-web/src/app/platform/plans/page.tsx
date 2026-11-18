@@ -20,7 +20,7 @@ export default async function PlatformPlansPage() {
   return (
     <>
       <PageHeader title="Planes y avisos" description="Lo que se vende y cuándo se avisa a cada empresa que su plan está por vencer." />
-      <div className="flex flex-col gap-6 px-6 py-6">
+      <div className="flex flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
         <PlansEditor plans={data.plans} />
         <ReminderSettings days={data.settings.reminderDays} />
       </div>

@@ -25,7 +25,7 @@ export function PageSkeleton({ header = true }: { header?: boolean }) {
           <Skeleton className="mt-2.5 h-3.5 w-80 max-w-full" />
         </div>
       )}
-      <div className="flex flex-col gap-6 px-6 py-6">
+      <div className="flex flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
         {[0, 1].map((i) => (
           <div key={i} className="rounded-lg border border-line p-5">
             <Skeleton className="h-4 w-40" />
@@ -46,7 +46,7 @@ export function PageSkeleton({ header = true }: { header?: boolean }) {
 export function BoardSkeleton() {
   return (
     <Loading>
-      <div className="flex gap-4 overflow-hidden px-6 py-6">
+      <div className="flex gap-4 overflow-hidden px-4 py-5 sm:px-6 sm:py-6">
         {[4, 3, 2, 1].map((cards, i) => (
           <div key={i} className="flex w-72 shrink-0 flex-col gap-3">
             <Skeleton className="h-4 w-28" />

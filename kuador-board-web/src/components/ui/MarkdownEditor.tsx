@@ -233,8 +233,8 @@ export function MarkdownEditor({
           <DropdownMenu
             align="start"
             trigger={
-              <button type="button" className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs text-fg-muted hover:bg-hover hover:text-fg-strong">
-                <Braces className="size-3.5" aria-hidden /> Bloque de código
+              <button type="button" aria-label="Bloque de código" className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs whitespace-nowrap text-fg-muted hover:bg-hover hover:text-fg-strong">
+                <Braces className="size-3.5" aria-hidden /> <span className="hidden sm:inline">Bloque de código</span>
               </button>
             }
             items={LANGUAGES.map((l) => ({ label: l.label, onSelect: () => codeBlock(l.id) }))}
@@ -244,7 +244,7 @@ export function MarkdownEditor({
           <DropdownMenu
             align="start"
             trigger={
-              <button type="button" className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs text-fg-muted hover:bg-hover hover:text-fg-strong">
+              <button type="button" className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs whitespace-nowrap text-fg-muted hover:bg-hover hover:text-fg-strong">
                 <FileText className="size-3.5" aria-hidden /> Plantilla
               </button>
             }

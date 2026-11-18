@@ -13,6 +13,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       nav={
         <SectionNav
           label="Secciones de la plataforma"
+          pickerLabel="Plataforma"
           groups={[
             {
               title: "Clientes",

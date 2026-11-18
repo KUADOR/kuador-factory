@@ -14,10 +14,12 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Plus, Search, X } from "lucide-react";
+import { Check, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { clsx } from "clsx";
 import { useSearchParams } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
+
+import { BottomSheet } from "@/components/ui/BottomSheet";
 
 import { firstStageAhead } from "./nextStep";
 import { createIssueAction, moveIssueAction, updateColumnsAction } from "@/app/actions";
@@ -133,6 +135,30 @@ export function Board({
   const [, startMove] = useTransition();
   const [, startColumns] = useTransition();
   const origin = useRef<Columns | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Celular: qué columna está a la vista (el tablero se desliza de a una) y sus chips.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const [currentColumn, setCurrentColumn] = useState(0);
+  const columnEls = () => [...(scrollerRef.current?.querySelectorAll<HTMLElement>("section[data-column]") ?? [])];
+  const onBoardScroll = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const left = el.scrollLeft + 16;
+    const sections = columnEls();
+    let index = 0;
+    sections.forEach((sec, i) => {
+      if (sec.offsetLeft - sec.offsetWidth / 2 <= left) index = i;
+    });
+    if (index !== currentColumn) {
+      setCurrentColumn(index);
+      (chipsRef.current?.children[index] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    }
+  };
+  const goToColumn = (index: number) => {
+    const sec = columnEls()[index];
+    if (sec && scrollerRef.current) scrollerRef.current.scrollTo({ left: sec.offsetLeft - 16, behavior: "smooth" });
+  };
 
   const sensors = useSensors(
     // Con el mouse se arrastra al moverlo; en el celular hay que mantener presionada la tarjeta, así deslizar el dedo
@@ -271,6 +297,11 @@ export function Board({
   const openIssue = openKey ? byKey.get(openKey) : undefined;
   const activeIssue = activeKey ? byKey.get(activeKey) : undefined;
   const filtering = Boolean(query || assignee || type);
+  const clearFilters = () => {
+    setText("");
+    setAssignee("");
+    setType("");
+  };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -282,12 +313,19 @@ export function Board({
           </button>
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
-        <div className="relative w-full sm:w-56">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 sm:px-6 md:py-3">
+        <div className="relative min-w-0 flex-1 md:w-56 md:flex-none">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 z-10 size-4 -translate-y-1/2 text-fg-faint" aria-hidden />
           <TextInput size="sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="Buscar en el tablero" aria-label="Buscar issues" className="pl-8" />
         </div>
-        <div role="group" aria-label="Filtrar por responsable" className="flex items-center gap-1 pl-1">
+        {/* Celular: responsable y tipo en una hoja; la fila de avatares no cabe. */}
+        <Button tone={assignee || type ? "primary" : "secondary"} size="sm" icon={SlidersHorizontal} className="md:hidden" onClick={() => setFiltersOpen(true)}>
+          Filtros{assignee || type ? ` · ${Number(!!assignee) + Number(!!type)}` : ""}
+        </Button>
+        {canEdit && (
+          <Button tone="primary" size="sm" icon={Plus} iconOnly label="Crear issue" className="md:hidden" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)} />
+        )}
+        <div role="group" aria-label="Filtrar por responsable" className="hidden items-center gap-1 pl-1 md:flex">
           {quickMembers.map((m) => (
             <button
               key={m.id}
@@ -312,7 +350,7 @@ export function Board({
             Sin asignar
           </button>
         </div>
-        <div className="w-44">
+        <div className="hidden w-44 md:block">
           <SelectInput
             size="sm"
             ariaLabel="Filtrar por tipo"
@@ -323,24 +361,87 @@ export function Board({
           />
         </div>
         {filtering && (
-          <Button
-            tone="ghost"
-            size="sm"
-            icon={X}
-            onClick={() => {
-              setText("");
-              setAssignee("");
-              setType("");
-            }}
-          >
+          <Button tone="ghost" size="sm" icon={X} className={clsx(!query && "hidden md:inline-flex")} onClick={clearFilters}>
             Limpiar filtros
           </Button>
         )}
         {canEdit && (
-          <Button tone="primary" size="sm" icon={Plus} className="ml-auto" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)}>
+          <Button tone="primary" size="sm" icon={Plus} className="ml-auto hidden md:inline-flex" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)}>
             Crear issue
           </Button>
         )}
+      </div>
+
+      <BottomSheet
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        title="Filtrar el tablero"
+        footer={
+          <>
+            <Button tone="ghost" className="flex-1" onClick={clearFilters} disabled={!filtering}>
+              Limpiar
+            </Button>
+            <Button tone="primary" className="flex-1" onClick={() => setFiltersOpen(false)}>
+              Ver tablero
+            </Button>
+          </>
+        }
+      >
+        <p className="px-3 pt-1 pb-1 text-[11px] font-medium tracking-wide text-fg-faint uppercase">Responsable</p>
+        <ul>
+          {[{ id: "", name: "Todos" }, ...members.map((m) => ({ id: m.id, name: m.name, m })), { id: "none", name: "Sin asignar" }].map((o) => (
+            <li key={o.id || "all"}>
+              <button
+                type="button"
+                onClick={() => setAssignee(o.id)}
+                className={clsx("flex h-12 w-full items-center gap-3 rounded-lg px-3 text-left text-[15px]", assignee === o.id ? "bg-selected font-medium text-fg-strong" : "text-fg active:bg-hover")}
+              >
+                {"m" in o && <Avatar member={o.m} size="sm" />}
+                <span className="min-w-0 flex-1 truncate">{o.name}</span>
+                {assignee === o.id && <Check className="size-4 text-sol-text" aria-hidden />}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 border-t border-line px-3 pt-3 pb-1 text-[11px] font-medium tracking-wide text-fg-faint uppercase">Tipo</p>
+        <ul>
+          {([""] as (IssueType | "")[]).concat(types).map((t) => (
+            <li key={t || "all"}>
+              <button
+                type="button"
+                onClick={() => setType(t)}
+                className={clsx("flex h-12 w-full items-center gap-3 rounded-lg px-3 text-left text-[15px]", type === t ? "bg-selected font-medium text-fg-strong" : "text-fg active:bg-hover")}
+              >
+                {t && <TypeIcon type={t} projectType={project} />}
+                <span className="flex-1">{t ? typeLabel(t, project) : "Todos los tipos"}</span>
+                {type === t && <Check className="size-4 text-sol-text" aria-hidden />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </BottomSheet>
+
+      {/* Celular: una columna a la vez; los chips dicen dónde estás y saltan a las demás. */}
+      <div role="tablist" aria-label="Columnas" className="flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-2 md:hidden" ref={chipsRef}>
+        {project.columns.map((c, i) => {
+          const count = (columns[c.key] ?? []).map((k) => byKey.get(k)).filter(filtering ? visible : (x): x is Issue => !!x).length;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              role="tab"
+              aria-selected={i === currentColumn}
+              onClick={() => goToColumn(i)}
+              className={clsx(
+                "flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] whitespace-nowrap",
+                i === currentColumn ? "border-sol/60 bg-sol/15 font-medium text-fg-strong" : "border-line text-fg-muted",
+              )}
+            >
+              {c.name}
+              <span className="tabular text-xs text-fg-faint">{count}</span>
+            </button>
+          );
+        })}
       </div>
 
       <DndContext
@@ -357,7 +458,11 @@ export function Board({
           setDragFrom(undefined);
         }}
       >
-        <div className="relative flex min-h-0 flex-1 snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-4 sm:snap-none sm:px-6">
+        <div
+          ref={scrollerRef}
+          onScroll={onBoardScroll}
+          className="relative flex min-h-0 flex-1 snap-x snap-mandatory scroll-px-4 gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-3 md:snap-none md:px-6 md:pb-4"
+        >
           {project.columns.map((column, index) => (
             <Column
               key={column.key + column.name + column.category}

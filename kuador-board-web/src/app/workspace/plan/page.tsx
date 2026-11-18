@@ -31,7 +31,7 @@ export default async function WorkspacePlanPage({ searchParams }: { searchParams
   return (
     <>
       <PageHeader title="Plan" />
-      <div className="flex flex-col gap-6 px-6 py-6">
+      <div className="flex flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
         {data.current ? (
           <>
             <PlanChooser

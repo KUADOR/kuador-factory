@@ -29,7 +29,13 @@ export function SidePanel({
     <Drawer.Root open={open} onOpenChange={(e: { value?: boolean }) => !e.value && onClose()} position="right">
       <Drawer.Portal>
         <Drawer.Backdrop />
-        <Drawer.Popup className={clsx("flex h-full flex-col p-0", width === "wide" ? "w-[min(960px,100vw)]" : "w-[min(480px,100vw)]")}>
+        <Drawer.Popup
+          className={clsx(
+            // En el iPhone el panel ocupa toda la pantalla: la cabecera queda debajo de la hora y el pie sobre la barra de inicio.
+            "flex h-full flex-col p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+            width === "wide" ? "w-[min(960px,100vw)]" : "w-[min(480px,100vw)]",
+          )}
+        >
           <Drawer.Header className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-3">
             <Drawer.Title className="min-w-0 flex-1 text-sm font-medium text-fg-strong">{title}</Drawer.Title>
             {headerExtra}

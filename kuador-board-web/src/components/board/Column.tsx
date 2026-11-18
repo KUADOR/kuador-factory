@@ -134,7 +134,7 @@ export function Column({
       aria-label={column.name}
       data-column={column.key}
       className={clsx(
-        "flex max-h-full min-h-0 w-[min(18rem,85vw)] shrink-0 snap-start flex-col rounded-lg border bg-sunken transition-[opacity,border-color]",
+        "flex max-h-full min-h-0 w-[calc(100vw-2rem)] shrink-0 snap-start flex-col sm:w-72 rounded-lg border bg-sunken transition-[opacity,border-color]",
         blocked ? "border-dashed border-line-strong opacity-45" : isOver ? "border-sol/70" : "border-transparent",
       )}
     >

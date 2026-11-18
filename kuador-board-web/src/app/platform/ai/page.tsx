@@ -20,7 +20,7 @@ export default async function PlatformAiPage() {
   return (
     <>
       <PageHeader title="Inteligencia artificial" description="Los proveedores que pueden elegir las empresas y el precio de cada modelo para estimar su consumo." />
-      <div className="flex flex-col gap-6 px-6 py-6">
+      <div className="flex flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
         <AiProvidersEditor providers={data.providers} />
         <AiPricesEditor prices={data.prices} models={data.providers.flatMap((p) => p.models)} />
       </div>

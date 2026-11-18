@@ -33,7 +33,7 @@ export default async function ConnectionsPage({ searchParams }: PageProps<"/conn
     <>
       <PageHeader title="Conexiones" width="narrow" description="Servicios externos con los que trabaja este espacio." />
       <GitHubConnections overview={github} workspaceName={workspace.name} done={one(params.listo)} error={one(params.error)} />
-      <div className="flex max-w-3xl flex-col gap-5 px-6 pb-6">
+      <div className="flex max-w-3xl flex-col gap-5 px-4 pb-5 sm:px-6 sm:pb-6">
         <AiConnection status={ai} usage={usage} />
         <TelegramConnection setup={telegram} />
       </div>

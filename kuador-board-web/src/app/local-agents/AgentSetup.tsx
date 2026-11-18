@@ -155,7 +155,7 @@ export function AgentSetup({
     });
 
   return (
-    <div className="flex max-w-3xl flex-col gap-5 px-6 py-6">
+    <div className="flex max-w-3xl flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       <Section title="1 · Conecta tu cliente de IA" description={`Tu cliente entra al tablero como los agentes del equipo, en nombre de ${personName}, y solo atiende los issues que supervisas.`}>
         <div className="flex flex-col gap-5">
           <ChoiceCards

@@ -45,7 +45,7 @@ export function ProjectsView({
           )
         }
       />
-      <div className="px-6 py-6">
+      <div className="px-4 py-5 sm:px-6 sm:py-6">
         {projects.length === 0 ? (
           canEdit ? (
             <FirstSteps onCreate={() => setCreating(true)} />

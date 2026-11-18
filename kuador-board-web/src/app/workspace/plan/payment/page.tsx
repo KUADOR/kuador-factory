@@ -38,7 +38,7 @@ export default async function PaymentReturnPage({ searchParams }: { searchParams
   return (
     <>
       <PageHeader title="Pago" />
-      <div className="px-6 py-6">
+      <div className="px-4 py-5 sm:px-6 sm:py-6">
         <Section title={title} className="max-w-2xl">
           <div className="flex flex-col items-start gap-4">
             <p className="text-[13px] leading-relaxed text-fg">{detail}</p>

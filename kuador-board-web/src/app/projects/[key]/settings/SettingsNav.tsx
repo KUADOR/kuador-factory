@@ -62,6 +62,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
       <div className="min-w-0 flex-1">
         <SectionNav
           label="Configuración del proyecto"
+          pickerLabel="Ajustes"
           groups={groups.map((g) => ({ title: g.title, items: g.items.map((item) => ({ href: `${base}/${item.slug}`, label: item.label })) }))}
         />
       </div>

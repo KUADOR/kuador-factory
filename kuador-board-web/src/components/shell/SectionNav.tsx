@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
 import { clsx } from "clsx";
+
+import { SectionPicker } from "./SectionPicker";
 
 export interface SectionNavGroup {
   title?: string;
@@ -12,19 +13,16 @@ export interface SectionNavGroup {
 
 /**
  * Secciones de una zona (Configuración, configuración del tablero, Plataforma) como una fila de pestañas sobre el
- * contenido: un solo sidebar en toda la app. Los grupos quedan separados por una línea fina; en el teléfono la fila
- * se desplaza.
+ * contenido: un solo sidebar en toda la app. Los grupos quedan separados por una línea fina. En el celular, un botón
+ * con la sección actual que abre la lista completa (ver SectionPicker): una fila que se desplaza esconde las demás.
  */
-export function SectionNav({ label, groups }: { label: string; groups: SectionNavGroup[] }) {
+export function SectionNav({ label, groups, pickerLabel = "Sección" }: { label: string; groups: SectionNavGroup[]; pickerLabel?: string }) {
   const path = usePathname();
   const active = (href: string, exact?: boolean) => path === href || (!exact && path.startsWith(href + "/"));
-  const nav = useRef<HTMLElement>(null);
-  // En el teléfono la fila se desplaza: la pestaña activa queda a la vista.
-  useEffect(() => {
-    nav.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [path]);
   return (
-    <nav ref={nav} aria-label={label} className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5 md:flex-wrap md:overflow-visible">
+    <>
+    <SectionPicker label={pickerLabel} groups={groups} className="md:hidden" />
+    <nav aria-label={label} className="-mx-1 hidden items-center gap-1 px-1 pb-0.5 md:flex md:flex-wrap">
       {groups.map((g, i) => (
         <div key={g.title ?? i} role="group" aria-label={g.title} className="flex shrink-0 items-center gap-1">
           {i > 0 && <span aria-hidden className="mx-1.5 h-4 w-px shrink-0 bg-line-strong" />}
@@ -44,6 +42,7 @@ export function SectionNav({ label, groups }: { label: string; groups: SectionNa
         </div>
       ))}
     </nav>
+    </>
   );
 }
 
@@ -51,8 +50,8 @@ export function SectionNav({ label, groups }: { label: string; groups: SectionNa
 export function SectionLayout({ title, nav, children }: { title: string; nav: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex min-h-full flex-col">
-      <div className="border-b border-line bg-page px-4 pt-4 pb-2.5 sm:px-6">
-        <p className="pb-2 text-[13px] font-semibold text-fg-strong">{title}</p>
+      <div className="border-b border-line bg-page px-4 pt-3 pb-3 sm:px-6 md:pt-4 md:pb-2.5">
+        <p className="hidden pb-2 text-[13px] font-semibold text-fg-strong md:block">{title}</p>
         {nav}
       </div>
       <div className="min-w-0 flex-1">{children}</div>

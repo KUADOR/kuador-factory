@@ -15,7 +15,7 @@ export default async function ProjectSettingsLayout({ params, children }: Layout
     return failPage(e);
   }
   return (
-    <div className="flex flex-col gap-6 px-4 py-5 sm:px-6">
+    <div className="flex flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-5">
       <SettingsNav projectKey={project.key} kind={project.kind} />
       <div className="min-w-0">{children}</div>
     </div>

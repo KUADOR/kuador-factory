@@ -48,7 +48,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
 
   if (!methodology) {
     return (
-      <div className="max-w-3xl px-6 py-6">
+      <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
         <EmptyState title="Este proyecto aún no tiene metodología" action={<Button href={settings} tone="primary" size="sm">Elegir metodología</Button>}>
           La metodología (SDD, ODD, Libre o una propia del catálogo) decide qué documentos pide el proyecto, dónde viven en el repositorio y qué escribe cada agente.
         </EmptyState>
@@ -65,7 +65,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
   const byIssue = Map.groupBy(documents.filter((d) => d.issueKey), (d) => d.issueKey as string);
 
   return (
-    <div className="flex flex-col gap-5 px-6 py-6">
+    <div className="flex flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       <p className="text-[13px] text-fg-muted">
         Metodología <span className="font-medium text-fg-strong">{methodology.name}</span>.{" "}
         <Link href={settings} className="k-link">

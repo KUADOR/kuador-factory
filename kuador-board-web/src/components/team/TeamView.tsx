@@ -59,7 +59,7 @@ export function TeamView({ members, accounts, tokens, status, runs, roles, invit
           )
         }
       />
-      <div className="flex flex-col gap-5 px-6 py-6">
+      <div className="flex flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
         {groups.map(({ title, list }) => (
           <Section key={title} title={`${title} · ${list.length}`} flush>
             <ul className="divide-y divide-line">

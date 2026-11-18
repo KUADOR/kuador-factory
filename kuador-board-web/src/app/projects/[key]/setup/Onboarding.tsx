@@ -63,6 +63,7 @@ export function Onboarding({
   issueCount,
   ai = null,
   boardAgents = [],
+  existingProject = false,
 }: {
   project: Project;
   steps: StepId[];
@@ -78,6 +79,8 @@ export function Onboarding({
   issueCount: number;
   ai?: WorkspaceAiStatus | null;
   boardAgents?: TeamAgent[];
+  /** Se eligió «Ya existe» al crear el tablero: se vincula su repo y el agente lo lee. */
+  existingProject?: boolean;
 }) {
   const router = useRouter();
   const base = `/projects/${project.key}/setup`;
@@ -147,7 +150,7 @@ export function Onboarding({
                   )}
                 </>
               )}
-              {current === "repository" && link && <RepositoryStep project={project} link={link} github={github} templates={templates} />}
+              {current === "repository" && link && <RepositoryStep project={project} link={link} github={github} templates={templates} existing={existingProject} />}
               {current === "client" && <AgentsStep connections={connections} kit={kit} onCheck={() => router.refresh()} />}
               {current === "notifications" &&
                 (notifications ? <NotificationSettingsForm initial={notifications} /> : <p className="text-[13px] text-fg-muted">No se pudieron leer tus avisos.</p>)}
@@ -174,17 +177,52 @@ export function Onboarding({
   );
 }
 
-function RepositoryStep({ project, link, github, templates }: { project: Project; link: RepositoryLink; github: GitHubOverview; templates: ComponentTemplate[] }) {
+function RepositoryStep({
+  project,
+  link,
+  github,
+  templates,
+  existing,
+}: {
+  project: Project;
+  link: RepositoryLink;
+  github: GitHubOverview;
+  templates: ComponentTemplate[];
+  existing: boolean;
+}) {
   if (link.linked) {
     return (
-      <p className="text-[13px] text-fg">
-        Vinculado a <code className="font-mono text-xs">{link.location}</code>
-        {link.branch ? ` · rama ${link.branch}` : ""}. Las piezas se ven y se suman en{" "}
-        <Link href={`/projects/${project.key}/settings/repository`} className="k-link">
-          Piezas y repositorio
-        </Link>
-        .
-      </p>
+      <div className="flex flex-col gap-4">
+        <p className="text-[13px] text-fg">
+          Vinculado a <code className="font-mono text-xs">{link.location}</code>
+          {link.branch ? ` · rama ${link.branch}` : ""}. Las piezas se ven y se suman en{" "}
+          <Link href={`/projects/${project.key}/settings/repository`} className="k-link">
+            Piezas y repositorio
+          </Link>
+          .
+        </p>
+        <RecognizeCta projectKey={project.key} />
+      </div>
+    );
+  }
+  if (existing) {
+    // Un proyecto que ya existe: primero su repo (sin crear ni tocar nada); después el agente lo lee.
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-[13px] text-fg-muted">
+          Indica el repo del proyecto. El tablero no crea ni sobrescribe nada: al vincularlo, el agente lo lee y te propone las piezas, los documentos y las primeras tarjetas.
+        </p>
+        <RepositoryForm projectKey={project.key} link={link} connections={github.connections} />
+        {github.connections.length === 0 && (
+          <p className="text-xs text-fg-faint">
+            Con la app de GitHub conectada en{" "}
+            <Link href="/connections" className="k-link">
+              Conexiones
+            </Link>{" "}
+            el kit de agentes llega como Pull Request y el revisor puede leer y fusionar los PR.
+          </p>
+        )}
+      </div>
     );
   }
   return (
@@ -207,6 +245,24 @@ function RepositoryStep({ project, link, github, templates }: { project: Project
         </div>
       </details>
     </div>
+  );
+}
+
+/** Que el agente lea el proyecto que ya existe y arme el tablero (piezas, documentos, objetivo y tarjetas). */
+function RecognizeCta({ projectKey }: { projectKey: string }) {
+  return (
+    <Link
+      href={`/projects/${projectKey}/docs/draft?origen=existente`}
+      className="flex items-center gap-3 rounded-lg border border-sol/50 bg-sol/10 px-4 py-3 text-[13px] hover:bg-sol/15"
+    >
+      <span className="text-lg" aria-hidden>
+        🔎
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium text-fg-strong">¿El proyecto ya existía? Que el agente lo lea</span>
+        <span className="block text-xs text-fg-muted">Lee el código y arma las piezas, los documentos, el objetivo, un diagnóstico y tarjetas para empezar. Tú apruebas.</span>
+      </span>
+    </Link>
   );
 }
 

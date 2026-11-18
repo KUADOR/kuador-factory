@@ -81,6 +81,8 @@ import type {
   AuditPage,
   AiProvider,
   AiUsageReport,
+  DraftApproval,
+  DraftApproved,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string, layoutToo = false): Promise<ActionResult<T>> {
@@ -178,12 +180,8 @@ export async function draftJobAction(id: string): Promise<ActionResult<DraftJob>
   return run(() => boardApi.draftJob(id));
 }
 
-export async function draftApproveAction(
-  projectKey: string,
-  documents: { kind: string; content: string }[],
-  goal: string | null,
-): Promise<ActionResult<{ saved: string[]; goal: string }>> {
-  return run(() => boardApi.draftApprove(projectKey, documents, goal), `/projects/${projectKey}/docs`, true);
+export async function draftApproveAction(projectKey: string, approval: DraftApproval): Promise<ActionResult<DraftApproved>> {
+  return run(() => boardApi.draftApprove(projectKey, approval), `/projects/${projectKey}/docs`, true);
 }
 
 export async function saveProjectGoalAction(projectKey: string, goal: string): Promise<ActionResult<{ goal: string | null }>> {

@@ -21,7 +21,7 @@ const NO_GITHUB: GitHubOverview = { app: null, canRegister: false, connections: 
 export default async function ProjectOnboardingPage({ params, searchParams }: PageProps<"/projects/[key]/setup">) {
   const key = (await params).key.toUpperCase();
   await requireEditor(`/projects/${key}`);
-  const { step } = await searchParams;
+  const { step, origen } = await searchParams;
   let data;
   try {
     const project = await boardApi.project(key);
@@ -62,6 +62,7 @@ export default async function ProjectOnboardingPage({ params, searchParams }: Pa
       issueCount={issues.length}
       ai={ai}
       boardAgents={team.filter((a) => a.inTeam && a.mode === "SERVER")}
+      existingProject={origen === "existente"}
     />
   );
 }

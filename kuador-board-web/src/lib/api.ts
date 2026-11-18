@@ -89,7 +89,7 @@ import type {
   AiModelPrice,
   AuditPage,
   AiProvider,
-  AiUsageReport, CardPull, Decision, Merged, PushSubscriptionInput } from "./types";
+  AiUsageReport, CardPull, Decision, Merged, PushSubscriptionInput, DraftApproval, DraftApproved } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
 
@@ -195,8 +195,8 @@ export const boardApi = {
   draftAsk: (key: string, step: DraftStep, input: DraftInput, local: boolean) =>
     request<DraftJob>(`/api/projects/${encodeURIComponent(key)}/drafting/${step}?local=${local}`, json("POST", input)),
   draftJob: (id: string) => request<DraftJob>(`/api/drafting/jobs/${encodeURIComponent(id)}`),
-  draftApprove: (key: string, documents: { kind: string; content: string }[], goal: string | null) =>
-    request<{ saved: string[]; goal: string }>(`/api/projects/${encodeURIComponent(key)}/drafting/approve`, json("POST", { documents, goal })),
+  draftApprove: (key: string, approval: DraftApproval) =>
+    request<DraftApproved>(`/api/projects/${encodeURIComponent(key)}/drafting/approve`, json("POST", approval)),
   projectGoal: (key: string) => request<{ goal: string | null }>(`/api/projects/${encodeURIComponent(key)}/goal`),
   saveProjectGoal: (key: string, goal: string) => request<{ goal: string | null }>(`/api/projects/${encodeURIComponent(key)}/goal`, json("PUT", { goal })),
   boardTeam: (key: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`),

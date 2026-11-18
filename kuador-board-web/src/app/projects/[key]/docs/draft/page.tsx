@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Redactar con IA" };
 
 /** El asistente para redactar los documentos base (software) o el objetivo del tablero (los demás). */
-export default async function DraftPage({ params }: PageProps<"/projects/[key]/docs/draft">) {
+export default async function DraftPage({ params, searchParams }: PageProps<"/projects/[key]/docs/draft">) {
   const key = (await params).key.toUpperCase();
+  const { origen } = await searchParams;
   await requireEditor(`/projects/${key}`);
   let data;
   try {
@@ -24,17 +25,23 @@ export default async function DraftPage({ params }: PageProps<"/projects/[key]/d
   return (
     <PageBody>
       <div className="mb-5 max-w-3xl">
-        <h2 className="text-base font-semibold text-fg-strong">{software ? "Redactar los documentos base con IA" : "Proponer el objetivo del tablero con IA"}</h2>
+        <h2 className="text-base font-semibold text-fg-strong">
+          {!software ? "Proponer el objetivo del tablero con IA" : origen === "existente" ? "Leer el proyecto con IA" : "Redactar los documentos base con IA"}
+        </h2>
         <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">
           {software
-            ? `Escribe la idea, responde unas preguntas y la IA arma ${plan.methodology === "ODD" ? "lo mínimo de ODD (Producto y Reglas para agentes)" : "los documentos de tu metodología"} con las plantillas de tu catálogo. Los pules conversando y, al aprobar, también queda el objetivo del tablero.`
+            ? origen === "existente"
+              ? "El agente lee el código del proyecto que ya existe (sin cambiar nada) y te propone las piezas, los documentos base, el objetivo del tablero, un diagnóstico y tarjetas para empezar."
+              : `Escribe la idea, responde unas preguntas y la IA arma ${plan.methodology === "ODD" ? "lo mínimo de ODD (Producto y Reglas para agentes)" : "los documentos de tu metodología"} con las plantillas de tu catálogo. Los pules conversando y, al aprobar, también queda el objetivo del tablero.`
             : "Cuéntale qué quieres lograr con este tablero y propone su objetivo: los agentes lo leen con cada tarjeta."}
         </p>
       </div>
       {software && !plan.methodology ? (
         <p className="text-[13px] text-fg-muted">Primero elige la metodología del tablero (Configuración → Metodología).</p>
       ) : (
-        <DraftingAssistant projectKey={key} plan={plan} machineOnline={machines.some((m) => m.memberId === me.id && m.online && !m.paused)} />
+        <DraftingAssistant projectKey={key} plan={plan} machineOnline={machines.some((m) => m.memberId === me.id && m.online && !m.paused)}
+          origin={origen === "existente" ? "existing" : undefined}
+        />
       )}
     </PageBody>
   );

@@ -7,7 +7,8 @@ import java.util.UUID;
 public interface AiJobsApi {
 
     /** Lo que el runner necesita para lanzar el cliente de IA: el pedido completo, sin herramientas. */
-    record JobTask(UUID id, String step, String system, String user) {}
+    /** {@code projectKey}: para reconocer un proyecto, el runner trabaja en la copia de su repo de esa máquina. */
+    record JobTask(UUID id, String step, String system, String user, String projectKey) {}
 
     /** El siguiente trabajo de esa persona, ya tomado por esa máquina; vacío si no hay. */
     Optional<JobTask> claim(UUID workspaceId, UUID memberId, UUID machineId);

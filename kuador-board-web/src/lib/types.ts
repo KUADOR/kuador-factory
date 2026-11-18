@@ -1121,9 +1121,45 @@ export interface DraftPlan {
   /** Hay clave de IA de la empresa: puede trabajar en el servidor. */
   serverReady: boolean;
   goal: string | null;
+  /** Los repos ya vinculados: con ellos se reconoce un proyecto que ya existe. */
+  repositories: string[];
+  /** Cuántas piezas tiene el proyecto (cero en uno recién vinculado). */
+  pieces: number;
 }
 
-export type DraftStep = "questions" | "draft" | "refine";
+export type DraftStep = "questions" | "draft" | "refine" | "recognize";
+
+export interface DraftApproval {
+  documents: { kind: string; content: string }[];
+  goal: string | null;
+  pieces?: DraftPiece[];
+  cards?: { title: string; description: string }[];
+  /** Proponer el kit de agentes a los repos por Pull Request. */
+  kitPullRequest?: boolean;
+}
+
+export interface DraftApproved {
+  saved: string[];
+  goal: string;
+  pieces?: number;
+  cards?: string[];
+  pullRequests?: string[];
+  /** Por qué no hubo PR del kit (ya estaba al día, o GitHub no lo permitió). */
+  kitNote?: string;
+}
+
+/** Una pieza que encontró el reconocimiento en el código (se puede corregir antes de aprobar). */
+export interface DraftPiece {
+  name: string;
+  kind: string;
+  repository: string;
+  path: string;
+  stack: string;
+  build: string;
+  test: string;
+  run: string;
+  notes: string;
+}
 
 export interface DraftInput {
   idea: string;
@@ -1143,6 +1179,9 @@ export interface DraftJob {
     documents?: { kind: string; label: string; content: string }[];
     goal?: string;
     content?: string;
+    pieces?: DraftPiece[];
+    findings?: string[];
+    cards?: { title: string; description: string }[];
   } | null;
   error: string | null;
 }

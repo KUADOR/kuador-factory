@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { createProjectAction } from "@/app/actions";
+import { createProjectAction, setMethodologyAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, TextInput } from "@/components/ui/Field";
@@ -20,6 +20,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [templateKey, setTemplateKey] = useState(recommended.find((k) => templates.some((t) => t.key === k)) ?? templates.find((t) => t.kind === "SOFTWARE")?.key ?? templates[0]?.key ?? "");
+  const [origin, setOrigin] = useState<"new" | "existing">("new");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const template = templates.find((t) => t.key === templateKey);
@@ -31,8 +32,12 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
         e.preventDefault();
         startTransition(async () => {
           const result = await createProjectAction({ key, name, description: description.trim() || null, templateKey });
-          if (result.ok) router.push(`/projects/${result.data.key}/setup`);
-          else setError(result.error);
+          if (!result.ok) return setError(result.error);
+          if (template?.kind === "SOFTWARE" && origin === "existing") {
+            // Un proyecto que ya existe: ODD (explorar antes de cambiar) y directo a vincular su repo.
+            await setMethodologyAction(result.data.key, "ODD");
+            router.push(`/projects/${result.data.key}/setup?step=repository&origen=existente`);
+          } else router.push(`/projects/${result.data.key}/setup`);
         });
       }}
     >
@@ -77,6 +82,22 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
           </p>
         )}
       </div>
+      {template?.kind === "SOFTWARE" && (
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-medium text-fg-muted">El proyecto</span>
+          <ChoiceCards
+            name="origin"
+            label="El proyecto"
+            columns={2}
+            value={origin}
+            onChange={(v) => setOrigin(v as "new" | "existing")}
+            choices={[
+              { value: "new", label: "Es nuevo", hint: "El tablero crea los repos con sus bases y redactas los documentos desde tu idea." },
+              { value: "existing", label: "Ya existe", hint: "Para mantenerlo, mejorarlo o sumarle funciones: vinculas su repo y el agente lo lee y arma el tablero." },
+            ]}
+          />
+        </div>
+      )}
       {error && (
         <p role="alert" className="text-[13px] text-danger">
           {error}

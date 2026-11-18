@@ -135,6 +135,22 @@ class GitHubCodeHost implements CodeHost {
     }
 
     @Override
+    public List<String> tree(Access access, String ref, int max) {
+        GitHubClient client = client(access);
+        String branch = ref == null || ref.isBlank() ? client.get("/repos/" + access.repository()).path("default_branch").asString("main") : ref.strip();
+        JsonNode tree = client.find("/repos/" + access.repository() + "/git/trees/" + URLEncoder.encode(branch, StandardCharsets.UTF_8) + "?recursive=1")
+                .orElse(null);
+        if (tree == null) return List.of();
+        List<String> out = new ArrayList<>();
+        for (JsonNode n : tree.path("tree")) {
+            if (!"blob".equals(n.path("type").asString(""))) continue;
+            out.add(n.path("path").asString());
+            if (out.size() >= max) break;
+        }
+        return out;
+    }
+
+    @Override
     public Optional<String> file(Access access, String ref, String path) {
         String query = ref == null || ref.isBlank() ? "" : "?ref=" + URLEncoder.encode(ref.strip(), StandardCharsets.UTF_8);
         String encoded = String.join("/", Stream.of(path.split("/")).map(p -> URLEncoder.encode(p, StandardCharsets.UTF_8).replace("+", "%20")).toList());

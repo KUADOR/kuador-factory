@@ -127,6 +127,16 @@ public class IssueService implements IssueApi {
     }
 
     @Override
+    @Transactional
+    public IssueRef createSuggested(String projectKey, String title, String description, UUID actorId) {
+        IssueType type = project(projectKey).allows(IssueType.TASK) ? IssueType.TASK : IssueType.STORY;
+        String t = title == null ? "" : title.strip();
+        if (t.length() > 255) t = t.substring(0, 255);
+        Issue issue = create(projectKey, new IssueDetails(t, description, type, null, null, null, null, List.of("sugerida")), actorId, null);
+        return find(issue.key()).orElseThrow();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public boolean isClosed(String issueKey) {
         Optional<Issue> issue = issues.findByKey(issueKey);

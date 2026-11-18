@@ -6,7 +6,7 @@ import { ensureDirs, LOGS, PAUSE, requireConfig, save, SECRETS, WORK, writeState
 import { keepAwake, osName } from "./service.js";
 import { forget, remember, resumable } from "./sessions.js";
 import { ask, launch, outcome } from "./tools.js";
-import { cleanup, prepare } from "./workdir.js";
+import { cleanup, isRepo, prepare } from "./workdir.js";
 
 const HEARTBEAT_MS = 30_000;
 const RENEW_MS = 60_000;
@@ -88,10 +88,19 @@ export async function start() {
       if (stopping || machine.paused || existsSync(PAUSE) || Date.now() < pausedUntil) return;
       const job = await client.claimJob(config.machineId);
       if (!job) return;
-      const dir = join(WORK, "_textos");
+      // Reconocer un proyecto que ya existe: Claude Code lo recorre (solo leyendo) en la carpeta del repo de esta máquina.
+      const recognize = job.step === "RECOGNIZE";
+      const repo = recognize ? config.repos?.[job.projectKey] : null;
+      if (recognize && !(repo && isRepo(repo))) {
+        const error = `Esta máquina no tiene la carpeta del repo de ${job.projectKey}. Vincúlala con: kuador-runner link ${job.projectKey} <carpeta del repo>`;
+        await client.completeJob(config.machineId, job.id, null, error).catch(() => {});
+        log(`Reconocer ${job.projectKey}: falta la carpeta del repo (kuador-runner link ${job.projectKey} <carpeta>)`);
+        continue;
+      }
+      const dir = repo ?? join(WORK, "_textos");
       mkdirSync(dir, { recursive: true });
-      log(`Trabajo de texto (${job.step}) para el tablero…`);
-      const r = await ask(job.system, job.user, dir);
+      log(recognize ? `Reconociendo el proyecto ${job.projectKey} en ${repo} (solo lectura)…` : `Trabajo de texto (${job.step}) para el tablero…`);
+      const r = await ask(job.system, job.user, dir, { readOnlyRepo: recognize });
       await client.completeJob(config.machineId, job.id, r.text, r.error).catch((e) => log(`No se pudo entregar el trabajo de texto: ${e.message}`));
       log(r.error ? `Trabajo de texto: falló · ${r.error.slice(0, 160)}` : "Trabajo de texto: listo");
     }

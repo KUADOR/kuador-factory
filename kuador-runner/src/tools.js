@@ -73,11 +73,14 @@ export function launch(config, claim, cwd, logStream, resumeId = null) {
 }
 
 /**
- * Un pedido de texto del tablero (p. ej. redactar los documentos base «en mi computador»): sin herramientas ni servidores
- * MCP, en una carpeta vacía. Devuelve el texto de la respuesta.
+ * Un pedido de texto del tablero (p. ej. redactar los documentos base «en mi computador»): sin servidores MCP ni
+ * herramientas que cambien algo, en una carpeta vacía. Con {@code readOnlyRepo} (reconocer un proyecto existente),
+ * en la carpeta del repo y solo con las herramientas de lectura. Devuelve el texto de la respuesta.
  */
-export function ask(system, user, cwd) {
-  const args = ["-p", user, "--append-system-prompt", system, "--output-format", "json", "--strict-mcp-config", "--disallowedTools", "Bash,Edit,Write,WebFetch,WebSearch"];
+export function ask(system, user, cwd, { readOnlyRepo = false } = {}) {
+  const args = ["-p", user, "--append-system-prompt", system, "--output-format", "json", "--strict-mcp-config",
+    "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch"];
+  if (readOnlyRepo) args.push("--allowedTools", "Read,Grep,Glob,LS");
   const child = spawn(TOOLS.claude.command, args, { cwd, shell: WINDOWS, windowsHide: true });
   let out = "";
   let err = "";

@@ -50,17 +50,32 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class DraftService implements AiJobsApi {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DraftService.class);
+
     /** Lo mínimo de ODD: el resto queda opcional. */
     static final List<String> ODD_MINIMUM = List.of("PRODUCT", "AGENT_RULES");
     static final int MAX_TOKENS = 16_000;
     static final Duration JOB_TTL = Duration.ofMinutes(10);
 
-    public enum Step { QUESTIONS, DRAFT, REFINE }
+    /** RECOGNIZE: leer un proyecto que ya existe (sus repos) y armar piezas, documentos, objetivo, diagnóstico y tarjetas. */
+    public enum Step { QUESTIONS, DRAFT, REFINE, RECOGNIZE }
+
+    /** Lo que se lee de un repo en el servidor (en tu computador, Claude Code recorre el repo completo). */
+    static final int TREE_MAX = 2500;
+    static final int FILE_MAX = 20_000;
+    static final int READ_BUDGET = 220_000;
+    static final java.util.regex.Pattern KEY_FILES = java.util.regex.Pattern.compile("(?i)(^|/)(readme(\\.[a-z]+)?|contributing(\\.md)?|agents\\.md|claude\\.md"
+            + "|package\\.json|pom\\.xml|build\\.gradle(\\.kts)?|settings\\.gradle(\\.kts)?|go\\.mod|pyproject\\.toml|requirements[^/]*\\.txt|cargo\\.toml"
+            + "|composer\\.json|gemfile|[^/]+\\.csproj|pubspec\\.yaml|angular\\.json|next\\.config\\.[a-z]+|vite\\.config\\.[a-z]+|tsconfig\\.json"
+            + "|dockerfile[^/]*|docker-compose[^/]*\\.ya?ml|compose\\.ya?ml|\\.editorconfig|\\.eslintrc[^/]*|eslint\\.config\\.[a-z]+|\\.prettierrc[^/]*"
+            + "|application(-[a-z]+)?\\.ya?ml|application\\.properties)$");
 
     /** Un documento que pide la metodología: si viene marcado por defecto y para qué sirve. */
     public record DocOption(String kind, String label, String purpose, boolean suggested) {}
 
-    public record Plan(String projectKind, String methodology, List<DocOption> documents, boolean serverReady, String goal) {}
+    /** {@code repositories}: los repos ya vinculados (para reconocer un proyecto existente); {@code pieces}: cuántas piezas tiene. */
+    public record Plan(String projectKind, String methodology, List<DocOption> documents, boolean serverReady, String goal, List<String> repositories,
+            int pieces) {}
 
     /** {@code status}: DONE (con {@code result}), PENDING o RUNNING (esperando la máquina) o FAILED (con {@code error}). */
     public record Job(UUID id, String status, Map<String, Object> result, String error) {}
@@ -69,7 +84,20 @@ public class DraftService implements AiJobsApi {
 
     public record ApprovedDoc(String kind, String content) {}
 
+    public record SuggestedCard(String title, String description) {}
+
     private final ProjectApi projects;
+    private ec.kuador.board.sync.CodeReviewApi code;
+    private ec.kuador.board.sync.RepositoriesApi repositories;
+    private ec.kuador.board.issue.IssueApi issues;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setCollaborators(ec.kuador.board.sync.CodeReviewApi code, ec.kuador.board.sync.RepositoriesApi repositories, ec.kuador.board.issue.IssueApi issues) {
+        this.code = code;
+        this.repositories = repositories;
+        this.issues = issues;
+    }
+
     private final CatalogApi catalog;
     private final DocsApi docs;
     private final MemberApi members;
@@ -111,7 +139,9 @@ public class DraftService implements AiJobsApi {
                 options.add(new DocOption(d.kind(), d.label(), d.purpose(), suggested));
             }
         }
-        return new Plan(p.kind().name(), p.methodology(), options, ai.key().isPresent(), projects.goal(p.key()).orElse(null));
+        List<String> repos = p.software() ? safeRepositories(p.key()) : List.of();
+        int pieceCount = p.software() ? repositories.pieces(p.key()).size() : 0;
+        return new Plan(p.kind().name(), p.methodology(), options, ai.key().isPresent(), projects.goal(p.key()).orElse(null), repos, pieceCount);
     }
 
     // ---- Un paso de la conversación ----
@@ -120,13 +150,16 @@ public class DraftService implements AiJobsApi {
     public Job ask(AuthenticatedMember who, String projectKey, Step step, Input in, boolean local) {
         requirePerson(who);
         ProjectView p = board(projectKey);
-        if (in.idea() == null || in.idea().isBlank()) throw new DomainException("Escribe la idea central: de qué se trata, para quién y qué es lo más importante.");
-        if (in.idea().length() > 4000) throw new DomainException("La idea central puede tener hasta 4000 caracteres: que sea un resumen.");
+        if (step != Step.RECOGNIZE && (in.idea() == null || in.idea().isBlank())) {
+            throw new DomainException("Escribe la idea central: de qué se trata, para quién y qué es lo más importante.");
+        }
+        if (in.idea() != null && in.idea().length() > 4000) throw new DomainException("La idea central puede tener hasta 4000 caracteres: que sea un resumen.");
         String system = system(p);
         String user = switch (step) {
             case QUESTIONS -> questionsPrompt(p, in);
             case DRAFT -> draftPrompt(p, in);
             case REFINE -> refinePrompt(p, in);
+            case RECOGNIZE -> recognizePrompt(p, in, local);
         };
         if (local) {
             UUID id = UUID.randomUUID();
@@ -169,9 +202,9 @@ public class DraftService implements AiJobsApi {
                 update ai_job set status = 'RUNNING', machine_id = ?, claimed_at = ?
                 where id = (select id from ai_job where workspace_id = ? and member_id = ? and status = 'PENDING' and created_at > ?
                             order by created_at limit 1 for update skip locked)
-                returning id, step, system_prompt, user_prompt""")
+                returning id, step, system_prompt, user_prompt, project_key""")
                 .params(machineId, Timestamp.from(clock.instant()), workspaceId, memberId, Timestamp.from(clock.instant().minus(JOB_TTL)))
-                .query((rs, n) -> new JobTask(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4))).optional();
+                .query((rs, n) -> new JobTask(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5))).optional();
     }
 
     @Override
@@ -188,6 +221,45 @@ public class DraftService implements AiJobsApi {
     /** Guarda los documentos aprobados como versión nueva (firmados por la persona) y el objetivo del tablero. */
     @Transactional
     public Map<String, Object> approve(AuthenticatedMember who, String projectKey, List<ApprovedDoc> approved, String goal) {
+        return approve(who, projectKey, approved, goal, List.of(), List.of());
+    }
+
+    /**
+     * Además de los documentos y el objetivo: las piezas que se reconocieron y las tarjetas sugeridas que eligió la persona.
+     * El kit de agentes va aparte, por Pull Request ({@link #proposeKit}).
+     */
+    @Transactional
+    public Map<String, Object> approve(AuthenticatedMember who, String projectKey, List<ApprovedDoc> approved, String goal,
+            List<ec.kuador.board.sync.RepositoriesApi.ExistingPiece> pieces, List<SuggestedCard> cards) {
+        Map<String, Object> out = new LinkedHashMap<>(approveDocs(who, projectKey, approved, goal));
+        String key = projectKey.toUpperCase(Locale.ROOT);
+        if (pieces != null && !pieces.isEmpty()) repositories.registerExisting(key, pieces, who.memberId());
+        List<String> created = new ArrayList<>();
+        for (SuggestedCard c : cards == null ? List.<SuggestedCard>of() : cards) {
+            if (c.title() == null || c.title().isBlank()) continue;
+            created.add(issues.createSuggested(key, c.title(), c.description(), who.memberId()).key());
+        }
+        out.put("pieces", pieces == null ? 0 : pieces.size());
+        out.put("cards", created);
+        return out;
+    }
+
+    /**
+     * El kit de agentes por Pull Request, después de guardar lo aprobado (en su propia transacción): si GitHub no lo
+     * permite, lo aprobado queda igual y se explica por qué no hubo PR.
+     */
+    public Map<String, Object> proposeKit(AuthenticatedMember who, String projectKey) {
+        try {
+            return Map.of("pullRequests", repositories.proposeKit(projectKey.toUpperCase(Locale.ROOT), who.memberId()));
+        } catch (DomainException e) {
+            return Map.of("pullRequests", List.of(), "kitNote", e.getMessage());
+        } catch (RuntimeException e) {
+            log.warn("No se pudo proponer el kit de agentes en {}: {}", projectKey, e.getMessage());
+            return Map.of("pullRequests", List.of(), "kitNote", "GitHub no dejó abrir el PR del kit; propónlo desde Configuración → Kit de agentes.");
+        }
+    }
+
+    private Map<String, Object> approveDocs(AuthenticatedMember who, String projectKey, List<ApprovedDoc> approved, String goal) {
         requirePerson(who);
         ProjectView p = board(projectKey);
         List<String> saved = new ArrayList<>();
@@ -281,6 +353,89 @@ public class DraftService implements AiJobsApi {
                 .formatted(clip(in.idea()), what, nz(in.content()), clip(in.instruction()), goal ? " (una o dos frases)" : " (el documento completo en Markdown)");
     }
 
+    private String recognizePrompt(ProjectView p, Input in, boolean local) {
+        List<String> repos = safeRepositories(p.key());
+        if (repos.isEmpty()) throw new DomainException("Primero vincula el repositorio del proyecto (Configuración → Piezas y repositorio).");
+        StringBuilder b = new StringBuilder();
+        b.append("Este tablero es para un proyecto de software que ya existe: hay que mantenerlo, mejorarlo o sumarle funciones.\n");
+        if (in.idea() != null && !in.idea().isBlank()) b.append("Lo que quiere hacer la persona:\n<idea>").append(clip(in.idea())).append("</idea>\n");
+        b.append("\n").append(context(p)).append("\nRepos: ").append(String.join(", ", repos)).append("\n");
+        if (local) {
+            b.append("""
+
+                    Estás en la carpeta del repo. Recórrelo SOLO leyendo (Read, Grep, Glob): el README, los archivos del stack (package.json, pom.xml,
+                    build.gradle, go.mod, pyproject…), el Dockerfile, el CI (.github/workflows), la documentación, las reglas de linters y formato, y la
+                    estructura de carpetas. No cambies nada.""");
+        } else {
+            b.append("\nLo que se leyó del código (estructura y archivos clave):\n").append(read(p.key(), repos));
+        }
+        b.append("\nA partir de lo que hay en el código (no inventes: lo que no se ve, «[POR DEFINIR: qué falta]»), arma:\n");
+        b.append("1. Las piezas: cada componente (front, back, móvil, librería…) con su stack y versiones, y sus comandos de build, test y ejecución.\n");
+        List<DocumentDef> wanted = wanted(p, in.kinds());
+        b.append("2. Estos documentos, con su plantilla:\n");
+        for (DocumentDef d : wanted) {
+            b.append("\n### ").append(d.kind()).append(" · ").append(d.label()).append("\nPara qué: ").append(nz(d.purpose())).append("\n");
+            if (d.template() != null) b.append("Plantilla:\n<plantilla>\n").append(d.template().replace("{project}", p.name())).append("\n</plantilla>\n");
+        }
+        b.append("""
+
+                3. El objetivo del tablero, a partir del producto: una o dos frases.
+                4. Un diagnóstico corto: qué falta o es riesgoso (sin pruebas, dependencias viejas, sin CI, secretos a la vista…), máximo 8 puntos.
+                5. De 3 a 5 tarjetas para empezar (las elige la persona), concretas y chicas.
+                Devuelve: {"pieces":[{"name":"api","kind":"BACKEND|FRONTEND|MONOLITH|MOBILE|LIBRARY|OTHER","repository":"dueño/repo","path":"carpeta o \"\"",
+                "stack":"Java 21 · Spring Boot 3.4","build":"…","test":"…","run":"…","notes":"…"}],"documents":[{"kind":"PRODUCT","content":"# …"}],
+                "goal":"…","findings":["…"],"cards":[{"title":"…","description":"…"}]}""");
+        return b.toString();
+    }
+
+    /** En el servidor: la estructura y los archivos clave de cada repo, dentro de un tope de tamaño. */
+    private String read(String projectKey, List<String> repos) {
+        StringBuilder b = new StringBuilder();
+        int budget = READ_BUDGET;
+        for (String repo : repos) {
+            List<String> tree;
+            try {
+                tree = code.tree(projectKey, repo, TREE_MAX);
+            } catch (RuntimeException e) {
+                b.append("\n## ").append(repo).append("\n(no se pudo leer: ").append(e.getMessage()).append(")\n");
+                continue;
+            }
+            b.append("\n## ").append(repo).append(" · estructura (").append(tree.size()).append(" archivos)\n");
+            // Las carpetas de primer y segundo nivel dicen mucho de la arquitectura sin gastar en cada archivo.
+            java.util.Set<String> dirs = new java.util.TreeSet<>();
+            for (String path : tree) {
+                String[] parts = path.split("/");
+                if (parts.length > 1) dirs.add(parts[0] + "/");
+                if (parts.length > 2) dirs.add(parts[0] + "/" + parts[1] + "/");
+            }
+            b.append(String.join("\n", dirs.stream().limit(120).toList())).append("\n");
+            List<String> key = tree.stream().filter(path -> KEY_FILES.matcher(path).find() && path.split("/").length <= 4)
+                    .sorted(java.util.Comparator.comparingInt((String path) -> path.split("/").length)).limit(40).toList();
+            List<String> docsFiles = tree.stream().filter(path -> path.matches("(?i)^(docs?|adr|specs?)/.+\\.md$")).limit(15).toList();
+            List<String> ci = tree.stream().filter(path -> path.startsWith(".github/workflows/")).limit(5).toList();
+            for (String path : java.util.stream.Stream.of(key, ci, docsFiles).flatMap(List::stream).distinct().toList()) {
+                if (budget <= 0) break;
+                try {
+                    String content = code.file(projectKey, repo, null, path);
+                    if (content.length() > FILE_MAX) content = content.substring(0, FILE_MAX) + "\n…(recortado)";
+                    budget -= content.length();
+                    b.append("\n### ").append(path).append("\n```\n").append(content).append("\n```\n");
+                } catch (RuntimeException e) {
+                    // Un archivo que no se pudo leer no frena el resto.
+                }
+            }
+        }
+        return b.toString();
+    }
+
+    private List<String> safeRepositories(String projectKey) {
+        try {
+            return code.repositories(projectKey);
+        } catch (RuntimeException e) {
+            return List.of();
+        }
+    }
+
     private String context(ProjectView p) {
         StringBuilder b = new StringBuilder("Tablero: ").append(p.name()).append(" (").append(p.software() ? "software" : "trabajo general").append(")");
         if (p.software() && p.methodology() != null) {
@@ -360,6 +515,38 @@ public class DraftService implements AiJobsApi {
                 out.put("goal", node.path("goal").asString("").strip());
             }
             case REFINE -> out.put("content", node.path("content").asString("").strip());
+            case RECOGNIZE -> {
+                Map<String, String> labels = new LinkedHashMap<>();
+                methodology(p).documents(DocumentDef.Scope.PROJECT).forEach(d -> labels.put(d.kind(), d.label()));
+                List<Map<String, Object>> documents = new ArrayList<>();
+                for (JsonNode d : node.path("documents")) {
+                    String kind = d.path("kind").asString("").strip().toUpperCase(Locale.ROOT);
+                    String content = d.path("content").asString("").strip();
+                    if (labels.containsKey(kind) && !content.isEmpty()) documents.add(Map.of("kind", kind, "label", labels.get(kind), "content", content));
+                }
+                List<Map<String, Object>> pieces = new ArrayList<>();
+                for (JsonNode x : node.path("pieces")) {
+                    if (pieces.size() >= 12) break;
+                    String name = x.path("name").asString("").strip();
+                    if (name.isEmpty()) continue;
+                    Map<String, Object> piece = new LinkedHashMap<>();
+                    for (String f : List.of("name", "kind", "repository", "path", "stack", "build", "test", "run", "notes")) piece.put(f, x.path(f).asString("").strip());
+                    pieces.add(piece);
+                }
+                List<String> findings = new ArrayList<>();
+                node.path("findings").forEach(f -> { if (findings.size() < 8 && !f.asString("").isBlank()) findings.add(f.asString().strip()); });
+                List<Map<String, Object>> cards = new ArrayList<>();
+                for (JsonNode c : node.path("cards")) {
+                    if (cards.size() >= 6) break;
+                    String title = c.path("title").asString("").strip();
+                    if (!title.isEmpty()) cards.add(Map.of("title", title, "description", c.path("description").asString("").strip()));
+                }
+                out.put("documents", documents);
+                out.put("pieces", pieces);
+                out.put("goal", node.path("goal").asString("").strip());
+                out.put("findings", findings);
+                out.put("cards", cards);
+            }
         }
         return out;
     }

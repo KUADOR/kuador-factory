@@ -45,6 +45,11 @@ public interface CodeReviewApi {
     /** Un archivo de texto del repo en una rama o commit. DomainException si no existe o no es del proyecto. */
     String file(String projectKey, String repository, String ref, String path);
 
+    /** Las rutas de archivos de un repo del proyecto (su rama principal), hasta {@code max}. */
+    default List<String> tree(String projectKey, String repository, int max) {
+        return List.of();
+    }
+
     /** Fusiona el PR si su último commit sigue siendo {@code headSha}; devuelve el commit en la rama principal. */
     String merge(String projectKey, String repository, int number, String headSha, String title);
 }

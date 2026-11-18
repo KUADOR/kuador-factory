@@ -54,6 +54,7 @@ class DraftIT {
 
     @Autowired SignupService signup;
     @Autowired AuthService auth;
+    @Autowired org.springframework.jdbc.core.simple.JdbcClient jdbc;
     @LocalServerPort int port;
 
     private final HttpClient http = HttpClient.newHttpClient();
@@ -135,6 +136,51 @@ class DraftIT {
         assertThat(approved.get("saved").toString()).contains("PRODUCT", "AGENT_RULES");
         assertThat(call("GET", "/api/projects/CLI/goal", null, owner).body().get("goal").asString()).contains("pacientes mayores");
         assertThat(call("GET", "/api/projects/CLI/docs", null, owner).body().toString()).contains("PRODUCT", "AGENT_RULES");
+
+        // Un proyecto que ya existe: se vincula su repo y el reconocimiento (en mi computador) arma piezas, documentos,
+        // objetivo, diagnóstico y tarjetas sugeridas; al aprobar quedan las piezas, las tarjetas elegidas y los documentos.
+        call("POST", "/api/projects", Map.of("key", "OLD", "name", "Sistema actual", "templateKey", "SOFTWARE_FACTORY"), owner);
+        call("PUT", "/api/projects/OLD/methodology", Map.of("methodology", "ODD"), owner);
+        assertThat(call("POST", "/api/projects/OLD/drafting/recognize?local=true", Map.of("idea", ""), owner).body().get("detail").asString())
+                .as("sin repo vinculado").contains("vincula el repositorio");
+        jdbc.sql("""
+                insert into project_repository (id, workspace_id, project_key, kind, location, branch, secret, linked_at)
+                select gen_random_uuid(), workspace_id, 'OLD', 'GITHUB_APP', 'acme/sistema', 'main', '123', now() from project where project_key = 'OLD'""").update();
+        assertThat(call("GET", "/api/projects/OLD/drafting", null, owner).body().get("repositories").toString()).contains("acme/sistema");
+        String rec = call("POST", "/api/projects/OLD/drafting/recognize?local=true", Map.of("idea", "Sumar recordatorios por WhatsApp", "kinds", List.of("PRODUCT", "AGENT_RULES")),
+                owner).body().get("id").asString();
+        Reply claimedRec = call("POST", "/api/runner/jobs/claim", Map.of("machineId", machine), runner);
+        assertThat(claimedRec.body().get("step").asString()).isEqualTo("RECOGNIZE");
+        assertThat(claimedRec.body().get("projectKey").asString()).as("el runner trabaja en la copia de ese repo").isEqualTo("OLD");
+        assertThat(claimedRec.body().get("user").asString()).contains("SOLO leyendo", "acme/sistema", "Sumar recordatorios");
+        call("POST", "/api/runner/jobs/" + claimedRec.body().get("id").asString() + "/complete", Map.of("machineId", machine, "text", """
+                {"pieces":[{"name":"api","kind":"BACKEND","repository":"acme/sistema","path":"api","stack":"Java 21 · Spring Boot 3.4","build":"./mvnw package",
+                "test":"./mvnw test","run":"./mvnw spring-boot:run","notes":"Usa PostgreSQL."},{"name":"Web App","kind":"FRONTEND","path":"web","stack":"Angular 19",
+                "build":"npm run build","test":"npm test","run":"npm start","notes":""}],"documents":[{"kind":"PRODUCT","content":"# Producto\\n\\nSistema de citas."}],
+                "goal":"Mantener el sistema de citas y sumar recordatorios.","findings":["La web no tiene pruebas."],
+                "cards":[{"title":"Agregar pruebas a la web","description":"Cubrir el flujo de agenda."},{"title":"Actualizar Angular","description":"De 17 a 19."}]}"""),
+                runner);
+        JsonNode recJob = call("GET", "/api/drafting/jobs/" + rec, null, owner).body();
+        assertThat(recJob.get("status").asString()).as(recJob.toString()).isEqualTo("DONE");
+        JsonNode recognized = recJob.get("result");
+        assertThat(recognized.get("pieces").size()).isEqualTo(2);
+        assertThat(recognized.get("findings").get(0).asString()).contains("pruebas");
+        assertThat(recognized.get("cards").size()).isEqualTo(2);
+        JsonNode done = call("POST", "/api/projects/OLD/drafting/approve", Map.of(
+                "documents", List.of(Map.of("kind", "PRODUCT", "content", "# Producto\n\nSistema de citas.")),
+                "goal", recognized.get("goal").asString(),
+                "pieces", List.of(Map.of("name", "api", "kind", "BACKEND", "repository", "acme/sistema", "path", "api", "stack", "Java 21 · Spring Boot 3.4",
+                        "build", "./mvnw package", "test", "./mvnw test", "run", "./mvnw spring-boot:run", "notes", "Usa PostgreSQL."),
+                        Map.of("name", "Web App", "kind", "FRONTEND", "path", "web", "stack", "Angular 19", "build", "npm run build", "test", "npm test", "run", "npm start")),
+                "cards", List.of(Map.of("title", "Agregar pruebas a la web", "description", "Cubrir el flujo de agenda.")),
+                "kitPullRequest", true), owner).body();
+        assertThat(done.get("kitNote").asString()).as("sin la app de GitHub no hay PR, pero lo aprobado queda").isNotBlank();
+        assertThat(done.get("pieces").asInt()).isEqualTo(2);
+        assertThat(done.get("cards").size()).as("solo la que eligió").isEqualTo(1);
+        JsonNode pieces = call("GET", "/api/projects/OLD/components", null, owner).body();
+        assertThat(pieces.toString()).contains("web-app", "Angular 19", "Java 21").doesNotContain("Web App\"");
+        JsonNode card = call("GET", "/api/issues/" + done.get("cards").get(0).asString(), null, owner).body();
+        assertThat(card.get("labels").toString()).contains("sugerida");
 
         // Fuera de software: solo el objetivo del tablero.
         call("POST", "/api/projects", Map.of("key", "MKT", "name", "Marketing", "templateKey", "TASKS"), owner);

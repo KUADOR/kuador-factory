@@ -80,6 +80,13 @@ public class CodeReviewService implements CodeReviewApi {
 
     @Override
     @Transactional(readOnly = true)
+    public List<String> tree(String projectKey, String repository, int max) {
+        CodeHost.Access a = require(projectKey, repository);
+        return host(a).tree(a, null, max).stream().filter(p -> !secretLooking(p)).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public String file(String projectKey, String repository, String ref, String path) {
         if (path == null || path.isBlank() || path.contains("..") || path.startsWith("/")) throw new DomainException("Ruta no permitida: " + path);
         if (secretLooking(path)) throw new DomainException("Por seguridad los agentes no leen archivos de secretos o credenciales: " + path);

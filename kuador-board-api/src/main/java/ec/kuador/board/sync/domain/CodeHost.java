@@ -23,6 +23,11 @@ public interface CodeHost {
 
     Optional<String> file(Access access, String ref, String path);
 
+    /** Las rutas de archivos del repo en {@code ref} (nulo = su rama principal), hasta {@code max}. */
+    default List<String> tree(Access access, String ref, int max) {
+        return List.of();
+    }
+
     /**
      * Fusiona el PR (squash) solo si su último commit sigue siendo {@code headSha}: si llegó otro después de revisarlo,
      * GitHub lo rechaza. Devuelve el commit resultante en la rama principal.

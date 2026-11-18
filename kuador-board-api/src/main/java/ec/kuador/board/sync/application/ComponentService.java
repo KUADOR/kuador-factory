@@ -88,6 +88,57 @@ public class ComponentService implements RepositoriesApi {
         this.clock = clock;
     }
 
+    private org.springframework.beans.factory.ObjectProvider<AgentKitService> kits;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setKits(org.springframework.beans.factory.ObjectProvider<AgentKitService> kits) {
+        this.kits = kits;
+    }
+
+    private static final java.util.regex.Pattern REPO = java.util.regex.Pattern.compile("^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$");
+    private static final java.util.regex.Pattern PIECE_NAME = java.util.regex.Pattern.compile("^[a-z0-9][a-z0-9-]{0,39}$");
+
+    /**
+     * Las piezas de un proyecto que ya existía: las descubrió el reconocimiento y las aprobó una persona. No crea ni toca
+     * repos; si ya hay una pieza con ese nombre, se actualiza (el equipo pudo corregir el stack o los comandos).
+     */
+    @Override
+    @Transactional
+    public void registerExisting(String projectKey, List<ExistingPiece> pieces, UUID actorId) {
+        software(projectKey);
+        RepositoryLink link = records.findLink(projectKey)
+                .orElseThrow(() -> new DomainException("Primero vincula el repositorio del proyecto."));
+        Long installation = KIND.equals(link.kind()) ? Long.valueOf(link.secret()) : null;
+        Map<String, ProjectComponent> current = new java.util.HashMap<>();
+        components.findByProject(projectKey).forEach(c -> current.put(c.name(), c));
+        Instant now = clock.instant();
+        for (ExistingPiece p : pieces) {
+            String name = p.name() == null ? "" : p.name().strip().toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9-]+", "-").replaceAll("^-+|-+$", "");
+            if (!PIECE_NAME.matcher(name).matches()) throw new DomainException("Nombre de pieza no válido: «" + p.name() + "» (minúsculas, números y guiones).");
+            String stack = p.stack() == null ? "" : p.stack().strip();
+            if (stack.isEmpty() || stack.length() > 120) throw new DomainException("Indica el stack de «" + name + "» (hasta 120 caracteres).");
+            String repo = p.repository() == null || p.repository().isBlank() ? link.location() : p.repository().strip();
+            if (!REPO.matcher(repo).matches()) throw new DomainException("El repo de «" + name + "» va como dueño/nombre: " + repo + ".");
+            String asked = p.kind() == null ? "" : p.kind().strip().toUpperCase(java.util.Locale.ROOT);
+            String kind = java.util.Arrays.stream(ComponentTemplate.Kind.values()).map(Enum::name).anyMatch(asked::equals) ? asked : ComponentTemplate.Kind.OTHER.name();
+            String path = p.path() == null ? "" : p.path().strip().replaceAll("^/+|/+$", "");
+            String notes = blankToNull(p.notes());
+            ProjectComponent existing = current.get(name);
+            ProjectComponent c = new ProjectComponent(existing == null ? UUID.randomUUID() : existing.id(), projectKey, name, null, null, null, null, kind,
+                    stack, command(p.build()), command(p.test()), command(p.run()), repo, path, installation, actorId,
+                    existing == null ? now : existing.createdAt(), notes == null ? null : notes.length() > 4000 ? notes.substring(0, 4000) : notes);
+            components.save(c);
+        }
+        log.info("{} piezas existentes registradas en {} por {}", pieces.size(), projectKey, actorId);
+    }
+
+    @Override
+    @Transactional
+    public List<String> proposeKit(String projectKey, UUID actorId) {
+        return kits.getObject().propose(projectKey, actorId).stream()
+                .map(k -> k.pullRequest() == null ? null : k.pullRequest().url()).filter(java.util.Objects::nonNull).toList();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<Piece> pieces(String projectKey) {

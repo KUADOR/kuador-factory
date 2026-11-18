@@ -42,8 +42,12 @@ class DraftController {
 
     @PostMapping("/api/projects/{key}/drafting/approve")
     Map<String, Object> approve(@AuthenticationPrincipal AuthenticatedMember who, @PathVariable String key, @RequestBody Approve r) {
-        return drafts.approve(who, key, r.documents(), r.goal());
+        Map<String, Object> out = new java.util.LinkedHashMap<>(drafts.approve(who, key, r.documents(), r.goal(), r.pieces(), r.cards()));
+        if (Boolean.TRUE.equals(r.kitPullRequest())) out.putAll(drafts.proposeKit(who, key));
+        return out;
     }
 
-    record Approve(List<DraftService.ApprovedDoc> documents, String goal) {}
+    /** {@code pieces}, {@code cards} y {@code kitPullRequest}: al aprobar el reconocimiento de un proyecto existente. */
+    record Approve(List<DraftService.ApprovedDoc> documents, String goal, List<ec.kuador.board.sync.RepositoriesApi.ExistingPiece> pieces,
+            List<DraftService.SuggestedCard> cards, Boolean kitPullRequest) {}
 }

@@ -24,6 +24,11 @@ public interface IssueApi {
         throw new UnsupportedOperationException("createForRoutine");
     }
 
+    /** Una tarjeta que sugirió el reconocimiento de un proyecto existente y eligió una persona (etiqueta «sugerida»). */
+    default IssueRef createSuggested(String projectKey, String title, String description, UUID actorId) {
+        throw new UnsupportedOperationException("createSuggested");
+    }
+
     /** El issue está en una columna de terminado (o ya no existe). */
     default boolean isClosed(String issueKey) {
         throw new UnsupportedOperationException("isClosed");

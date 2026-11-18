@@ -11,6 +11,7 @@ import { canEdit } from "@/lib/access";
 import type { Me, Project, Workspace, WorkspacePlan } from "@/lib/types";
 import type { ThemeMode } from "@/theme/theme";
 
+import { KuadorLogo } from "@/components/brand/KuadorLogo";
 import { LogoMark } from "@/components/workspace/LogoMark";
 
 import { AccessProvider } from "./AccessContext";
@@ -64,7 +65,7 @@ export function AppShell(props: {
                 <LogoMark src={nav.workspace.logo} name={nav.workspace.name} className="h-7 max-w-[10rem]" />
               ) : (
                 <>
-                  <span aria-hidden className="size-2 rounded-full bg-sol" />
+                  <KuadorLogo className="size-7" title="" />
                   <span className="truncate text-[15px] font-semibold text-fg-strong">{nav.workspace?.name ?? "Tablero"}</span>
                 </>
               )}

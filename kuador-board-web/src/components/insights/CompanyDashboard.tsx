@@ -30,7 +30,8 @@ function KpiTile({ label, kpi, format, better, hint }: { label: string; kpi: Kpi
           <trend.icon className="size-3" aria-hidden /> {trend.text}
         </span>
       ) : (
-        <span className="text-[11px] text-fg-faint">{hint ?? "sin período anterior para comparar"}</span>
+        // Sin período anterior con datos no hay comparación que mostrar: solo una nota si aporta algo.
+        hint && <span className="text-[11px] text-fg-faint">{hint}</span>
       )}
     </div>
   );
@@ -44,7 +45,12 @@ export function CompanyDashboard({ data, canEditSettings }: { data: InsightsComp
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <KpiTile label="Tarjetas terminadas" kpi={data.done} format={(n) => (n == null ? "—" : String(n))} better="up" />
         <KpiTile label="Tiempo de entrega promedio" kpi={data.leadTimeHours} format={hours} better="down" />
-        <KpiTile label="Horas ahorradas" kpi={data.hoursSaved} format={(n) => (n == null ? "—" : `${Math.round(n)} h`)} better="up" />
+        <KpiTile
+          label="Horas ahorradas"
+          kpi={s.cards === 0 ? { value: null, previous: null } : data.hoursSaved}
+          format={(n) => (n == null ? "—" : `${Math.round(n)} h`)}
+          better="up"
+        />
         <KpiTile
           label="Costo de IA por tarjeta"
           kpi={data.costPerCard}
@@ -53,9 +59,7 @@ export function CompanyDashboard({ data, canEditSettings }: { data: InsightsComp
           hint={
             data.unpricedModels.length > 0
               ? "falta el precio de algún modelo"
-              : data.costPerCard.value == null
-                ? "sin entregas o sin gasto"
-                : data.costPerCard.value === 0
+              : data.costPerCard.value === 0
                   ? "los agentes trabajaron con suscripciones (runner)"
                   : undefined
           }

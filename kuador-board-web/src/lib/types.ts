@@ -995,3 +995,54 @@ export interface Merged {
   commit: string;
   status: string;
 }
+
+// ---- Dashboard ----
+
+/** Un número con el del período anterior; `null` = sin dato. */
+export interface Kpi {
+  value: number | null;
+  previous: number | null;
+}
+
+export interface InsightsCompany {
+  days: number;
+  from: string;
+  to: string;
+  done: Kpi;
+  leadTimeHours: Kpi;
+  hoursSaved: Kpi;
+  costPerCard: Kpi;
+  savings: { hoursPerPoint: number; cards: number; points: number; estimatedHours: number; agentHours: number; unestimated: number };
+  weeks: { start: string; withAgents: number; withoutAgents: number }[];
+  flow: {
+    projectKey: string;
+    name: string;
+    agentHours: number;
+    personHours: number;
+    waitingHours: number;
+    stages: { column: string; name: string; gate: boolean; agentHours: number; personHours: number; waitingHours: number }[];
+  }[];
+  boards: { key: string; name: string; open: number; inProgress: number; waitingDecision: number; stuck: number; done: number; reworkRate: number }[];
+  recent: {
+    key: string;
+    title: string;
+    projectKey: string;
+    projectName: string;
+    doneAt: string;
+    by: string | null;
+    byAgent: boolean;
+    leadTimeHours: number;
+    agentsHelped: boolean;
+  }[];
+  agents: { id: string; name: string; role: string; delivered: number; failed: number; avgMinutes: number; costUsd: number | null }[];
+  costUsd: number | null;
+  unpricedModels: string[];
+}
+
+export interface InsightsMine {
+  assigned: { key: string; title: string; projectKey: string; projectName: string; column: string; since: string }[];
+  supervised: { key: string; title: string; projectKey: string; column: string; agent: string; working: boolean }[];
+  deliveredToday: { key: string; title: string; projectKey: string; agent: string; at: string }[];
+  epics: { key: string; title: string; projectKey: string; done: number; total: number; inProgress: number }[];
+  week: { closed: number; leadTimeHours: number | null; reworked: number; agentDeliveries: number };
+}

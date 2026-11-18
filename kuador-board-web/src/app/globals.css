@@ -34,11 +34,18 @@
   --k-info: #2f5fc4;
   --k-warn: #b4501a;
   --k-epic: #6f4bc9;
+  /* Gráficos del dashboard: agente, persona y espera (validados para daltonismo en claro y oscuro). */
+  --k-viz-agent: #2a78d6;
+  --k-viz-person: #1baf7a;
+  --k-viz-wait: #eb6834;
   --k-shadow: 0 1px 2px rgb(11 16 23 / 0.06), 0 4px 12px rgb(11 16 23 / 0.06);
 }
 
 .app-dark {
   color-scheme: dark;
+  --k-viz-agent: #3987e5;
+  --k-viz-person: #199e70;
+  --k-viz-wait: #d95926;
   --k-page: #0a0e14;
   --k-sunken: #070a0f;
   --k-rail: #070a0f;
@@ -96,6 +103,9 @@
   --color-ok: var(--k-ok);
   --color-danger: var(--k-danger);
   --color-info: var(--k-info);
+  --color-viz-agent: var(--k-viz-agent);
+  --color-viz-person: var(--k-viz-person);
+  --color-viz-wait: var(--k-viz-wait);
   --color-warn: var(--k-warn);
   --color-epic: var(--k-epic);
 

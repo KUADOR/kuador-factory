@@ -4,6 +4,7 @@ import { KuadorLogo } from "@/components/brand/KuadorLogo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  House,
   Activity,
   Inbox,
   Lightbulb,
@@ -99,6 +100,10 @@ export function SidebarNav({
         className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-2 py-4"
       >
         <div className="flex flex-col gap-0.5">
+          <NavLink href="/" active={path === "/"}>
+            <House className="size-4 shrink-0" aria-hidden />
+            Inicio
+          </NavLink>
           <NavLink href="/decisions" active={path === "/decisions"}>
             <Inbox className="size-4 shrink-0" aria-hidden />
             <span className="flex-1">Mis decisiones</span>
@@ -122,17 +127,17 @@ export function SidebarNav({
         <div className="flex flex-col gap-0.5">
           <div className="flex h-7 items-center justify-between pr-1 pl-2.5">
             <Link
-              href="/"
+              href="/projects"
               className={clsx(
                 "text-[11px] font-medium",
-                path === "/" ? "text-fg-strong" : "text-fg-faint hover:text-fg-strong",
+                path === "/projects" ? "text-fg-strong" : "text-fg-faint hover:text-fg-strong",
               )}
             >
               Proyectos
             </Link>
             {editor && (
               <Link
-                href="/?nuevo=1"
+                href="/projects?nuevo=1"
                 aria-label="Nuevo proyecto"
                 title="Nuevo proyecto"
                 className="grid size-6 place-items-center rounded text-fg-faint hover:bg-hover hover:text-fg-strong"

@@ -147,6 +147,10 @@ export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionRe
   return run(() => boardApi.revokeRunnerToken(tokenId), "/local-agents");
 }
 
+export async function saveHoursPerPointAction(hours: number): Promise<ActionResult<{ hoursPerPoint: number }>> {
+  return run(() => boardApi.saveHoursPerPoint(hours), "/");
+}
+
 /** Cuántas decisiones esperan a quien mira (el número del menú, para refrescarlo sin recargar la página). */
 export async function decisionsCountAction(): Promise<ActionResult<number>> {
   return run(async () => (await boardApi.decisions()).length);
@@ -589,7 +593,7 @@ export async function deleteProjectAction(key: string, confirm: string): Promise
   const r = await run(() => boardApi.deleteProject(key, confirm));
   if (!r.ok) return r;
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/projects");
 }
 
 export async function updateProjectAction(key: string, input: { name: string; description: string | null }): Promise<ActionResult<Project>> {

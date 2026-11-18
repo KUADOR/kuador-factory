@@ -1,7 +1,7 @@
 "use client";
 
 import { Drawer } from "@primereact/ui/drawer";
-import { Activity, Inbox, LayoutGrid, Menu, Plus } from "lucide-react";
+import { House, Inbox, LayoutGrid, Menu, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -22,7 +22,7 @@ import { useDecisionsCount } from "./useDecisionsCount";
 
 /**
  * Armazón de la app. En escritorio, barra lateral fija. En el celular (y en la app instalada), barra superior con el
- * espacio y una barra inferior con íconos, como cualquier app: Proyectos, Decisiones, Capturar, Pulso y Menú (la misma
+ * espacio y una barra inferior con íconos, como cualquier app: Inicio, Proyectos, Capturar, Decisiones y Menú (la misma
  * navegación de escritorio, en un panel). Respeta los bordes del teléfono: la hora y la Dynamic Island arriba, la barra
  * de inicio abajo y las esquinas en horizontal.
  */
@@ -89,16 +89,27 @@ export function AppShell(props: {
 
 /** Barra inferior del celular: lo de todos los días a un toque, con el pulgar. */
 function TabBar({ path, decisions, canCapture, onMenu }: { path: string; decisions: number; canCapture: boolean; onMenu: () => void }) {
-  const inProjects = path === "/" || path.startsWith("/projects");
+  const inProjects = path.startsWith("/projects");
   const item = (active: boolean) =>
     clsx("flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium", active ? "text-sol-text" : "text-fg-muted");
   return (
     <nav aria-label="Navegación" className="shrink-0 border-t border-line bg-rail pb-[env(safe-area-inset-bottom)] lg:hidden">
       <div className="flex h-16 items-stretch">
-        <Link href="/" className={item(inProjects)} aria-current={inProjects ? "page" : undefined}>
+        <Link href="/" className={item(path === "/")} aria-current={path === "/" ? "page" : undefined}>
+          <House className="size-6" aria-hidden />
+          Inicio
+        </Link>
+        <Link href="/projects" className={item(inProjects)} aria-current={inProjects ? "page" : undefined}>
           <LayoutGrid className="size-6" aria-hidden />
           Proyectos
         </Link>
+        {canCapture && (
+          <Link href="/capture" aria-label="Capturar una idea" className="flex flex-1 items-center justify-center">
+            <span className="grid size-12 place-items-center rounded-full bg-sol text-on-sol shadow-md">
+              <Plus className="size-6" aria-hidden />
+            </span>
+          </Link>
+        )}
         <Link href="/decisions" className={item(path === "/decisions")} aria-current={path === "/decisions" ? "page" : undefined}>
           <span className="relative">
             <Inbox className="size-6" aria-hidden />
@@ -109,17 +120,6 @@ function TabBar({ path, decisions, canCapture, onMenu }: { path: string; decisio
             )}
           </span>
           Decisiones
-        </Link>
-        {canCapture && (
-          <Link href="/capture" aria-label="Capturar una idea" className="flex flex-1 items-center justify-center">
-            <span className="grid size-12 place-items-center rounded-full bg-sol text-on-sol shadow-md">
-              <Plus className="size-6" aria-hidden />
-            </span>
-          </Link>
-        )}
-        <Link href="/pulse" className={item(path === "/pulse")} aria-current={path === "/pulse" ? "page" : undefined}>
-          <Activity className="size-6" aria-hidden />
-          Pulso
         </Link>
         <button type="button" onClick={onMenu} className={item(false)}>
           <Menu className="size-6" aria-hidden />

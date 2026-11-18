@@ -29,7 +29,7 @@ export function ProjectsView({
   const { canEdit } = useAccess();
   const asked = useSearchParams().get("nuevo") === "1";
   const creating = canEdit && asked;
-  const setCreating = (open: boolean) => router.replace(open ? "/?nuevo=1" : "/", { scroll: false });
+  const setCreating = (open: boolean) => router.replace(open ? "/projects?nuevo=1" : "/projects", { scroll: false });
   const templateName = (key: string) => templates.find((t) => t.key === key)?.name ?? key;
   const methodologyName = (key: string | null) => (key ? (methodologies.find((m) => m.key === key)?.key ?? key) : null);
 

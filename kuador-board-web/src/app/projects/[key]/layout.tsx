@@ -19,7 +19,7 @@ export default async function ProjectLayout({ params, children }: LayoutProps<"/
         demás páginas, más altas, hacen scroll con la página. */}
       <div className="flex h-full flex-col">
         <PageHeader
-          crumbs={[{ label: "Proyectos", href: "/" }, { label: project.key }]}
+          crumbs={[{ label: "Proyectos", href: "/projects" }, { label: project.key }]}
           title={project.name}
           description={project.description}
           mobileAside={

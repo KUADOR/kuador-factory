@@ -50,6 +50,8 @@ import type {
   Me,
   Member,
   MemberAccess,
+  InsightsCompany,
+  InsightsMine,
   RunnerMachine,
   RunnerToken,
   MemberKind,
@@ -248,6 +250,9 @@ export const boardApi = {
   runnerTokens: () => request<RunnerToken[]>("/api/auth/runner-tokens"),
   createRunnerToken: (name: string) => request<IssuedToken>("/api/auth/runner-tokens", json("POST", { name })),
   revokeRunnerToken: (tokenId: string) => request<void>(`/api/auth/runner-tokens/${encodeURIComponent(tokenId)}`, { method: "DELETE" }),
+  insightsCompany: (days: number) => request<InsightsCompany>(`/api/insights/company?days=${days}`),
+  insightsMine: () => request<InsightsMine>("/api/insights/me"),
+  saveHoursPerPoint: (hoursPerPoint: number) => request<{ hoursPerPoint: number }>("/api/insights/settings", json("PUT", { hoursPerPoint })),
   runnerMachines: () => request<RunnerMachine[]>("/api/runner/machines"),
   updateRunnerMachine: (id: string, patch: { paused?: boolean; roles?: string[]; capacity?: number }) =>
     request<RunnerMachine>(`/api/runner/machines/${encodeURIComponent(id)}`, json("PATCH", patch)),

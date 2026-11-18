@@ -32,7 +32,7 @@ export function api(server, token) {
     } catch {
       // Sin cuerpo.
     }
-    if (res.status === 401) throw new ApiError(401, "El tablero no reconoce esta máquina (la conexión venció o la revocaron). Vuelve a ejecutar: npx @kuador/runner install");
+    if (res.status === 401) throw new ApiError(401, "El tablero no reconoce esta máquina (la conexión venció o la revocaron). Vuelve a ejecutar: npx @kuador-npm/runner install");
     throw new ApiError(res.status, detail || `El tablero respondió ${res.status} en ${path}.`);
   };
   return {

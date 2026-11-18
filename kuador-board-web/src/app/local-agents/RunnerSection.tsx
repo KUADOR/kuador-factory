@@ -27,7 +27,7 @@ const ago = (iso: string) => {
  * instalarlo (pregunta qué roles atiende la máquina) y la lista de máquinas con lo que hace cada una.
  */
 export function RunnerSection({ machines, server, roleName, meId }: { machines: RunnerMachine[]; server: string; roleName: Record<string, string>; meId: string }) {
-  const command = `npx @kuador/runner install --server ${server}`;
+  const command = `npx @kuador-npm/runner install --server ${server}`;
   return (
     <Section
       title="Que trabajen solos: el runner"

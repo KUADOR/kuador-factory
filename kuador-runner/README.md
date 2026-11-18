@@ -3,7 +3,7 @@
 Deja trabajando a los agentes del tablero en tu máquina (Mac, Linux o Windows) con tu propio cliente de IA y tu suscripción: sin claves de API.
 
 ```
-npx @kuador/runner install --server https://<api-del-tablero>
+npx @kuador-npm/runner install --server https://<api-del-tablero>
 ```
 
 La instalación:

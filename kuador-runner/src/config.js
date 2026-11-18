@@ -33,7 +33,7 @@ export function save(config) {
 
 export function requireConfig() {
   const config = load();
-  if (!config?.token || !config?.machineId) throw new Error("Esta máquina todavía no está conectada. Ejecuta: npx @kuador/runner install");
+  if (!config?.token || !config?.machineId) throw new Error("Esta máquina todavía no está conectada. Ejecuta: npx @kuador-npm/runner install");
   return config;
 }
 

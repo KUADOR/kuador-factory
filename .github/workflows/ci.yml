@@ -45,7 +45,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
 
-  # El runner (npx @kuador/runner): sin dependencias, en los tres sistemas donde corre.
+  # El runner (npx @kuador-npm/runner): sin dependencias, en los tres sistemas donde corre.
   runner:
     strategy:
       matrix:

@@ -1,5 +1,5 @@
 {
-  "name": "@kuador/runner",
+  "name": "@kuador-npm/runner",
   "version": "0.1.0",
   "description": "Deja trabajando a los agentes del tablero de Kuador en tu máquina (Mac, Linux o Windows), con tu propio cliente de IA.",
   "type": "module",

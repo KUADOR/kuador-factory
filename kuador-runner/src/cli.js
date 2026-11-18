@@ -144,8 +144,8 @@ async function install(serverFlag, noService = false) {
     // 7. Como servicio: arranca solo al prender la máquina.
     const service = noService ? { kind: "sin servicio: ejecuta «kuador-runner start»" } : installService();
     console.log(`\n✔ Listo. «${name}» atiende: ${setup.roles.filter((r) => chosen.includes(r.key)).map((r) => r.name).join(", ")} (hasta ${capacity} a la vez).`);
-    console.log(noService ? "  Para que trabaje: npx @kuador/runner start. Lo ves en el tablero, en «Agentes locales»." : `  Arranca solo al iniciar sesión (${service.kind}). Lo ves en el tablero, en «Agentes locales».`);
-    console.log("  Qué está haciendo: npx @kuador/runner status   ·   Registros: " + HOME + "/logs\n");
+    console.log(noService ? "  Para que trabaje: npx @kuador-npm/runner start. Lo ves en el tablero, en «Agentes locales»." : `  Arranca solo al iniciar sesión (${service.kind}). Lo ves en el tablero, en «Agentes locales».`);
+    console.log("  Qué está haciendo: npx @kuador-npm/runner status   ·   Registros: " + HOME + "/logs\n");
   } finally {
     p.close();
   }

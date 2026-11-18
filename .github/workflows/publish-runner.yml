@@ -1,6 +1,6 @@
 name: Publicar runner
 
-# Publica @kuador/runner en npm al empujar una etiqueta runner-vX.Y.Z (la versión debe coincidir con package.json).
+# Publica @kuador-npm/runner en npm al empujar una etiqueta runner-vX.Y.Z (la versión debe coincidir con package.json).
 # Sin tokens guardados: npm confía en este workflow (Trusted Publishing por OIDC) y firma el paquete con su procedencia.
 on:
   push:

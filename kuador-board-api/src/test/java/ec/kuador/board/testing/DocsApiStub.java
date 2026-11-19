@@ -15,6 +15,9 @@ public abstract class DocsApiStub implements DocsApi {
     @Override public Optional<MethodologyRules> methodologyRules(String projectKey) { return Optional.empty(); }
     @Override public List<DocContent> ensureProjectDocuments(String projectKey, UUID actorId) { return ofProject(projectKey).stream().filter(d -> d.issueKey() == null).toList(); }
     @Override public DocContent write(String projectKey, String issueKey, String kind, String content, String note, UUID actorId) { throw new UnsupportedOperationException(); }
+    /** Documentos base sin redactar que reporta el doble (vacío = listos). */
+    public List<String> pendingBase = new java.util.ArrayList<>();
+    @Override public List<String> pendingBaseDocuments(String projectKey) { return pendingBase; }
 
     @Override
     public java.util.Optional<String> projectOf(java.util.UUID documentId) {

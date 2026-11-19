@@ -98,6 +98,7 @@ class DraftIT {
         List<String> suggested = new java.util.ArrayList<>();
         plan.get("documents").forEach(d -> { if (d.get("suggested").asBoolean()) suggested.add(d.get("kind").asString()); });
         assertThat(suggested).containsExactlyInAnyOrder("PRODUCT", "AGENT_RULES");
+        assertThat(plan.get("pendingBase")).as("lo mínimo de ODD, sin redactar todavía").hasSize(2);
 
         Map<String, Object> idea = Map.of("idea", "Agenda de citas en línea para la clínica, simple para pacientes mayores.");
         // Sin clave de IA, el servidor dice que se use la máquina.
@@ -136,6 +137,7 @@ class DraftIT {
         assertThat(approved.get("saved").toString()).contains("PRODUCT", "AGENT_RULES");
         assertThat(call("GET", "/api/projects/CLI/goal", null, owner).body().get("goal").asString()).contains("pacientes mayores");
         assertThat(call("GET", "/api/projects/CLI/docs", null, owner).body().toString()).contains("PRODUCT", "AGENT_RULES");
+        assertThat(call("GET", "/api/projects/CLI/drafting", null, owner).body().get("pendingBase")).as("ya puede crear el repo").isEmpty();
 
         // Un proyecto que ya existe: se vincula su repo y el reconocimiento (en mi computador) arma piezas, documentos,
         // objetivo, diagnóstico y tarjetas sugeridas; al aprobar quedan las piezas, las tarjetas elegidas y los documentos.

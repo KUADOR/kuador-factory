@@ -229,6 +229,7 @@ public class IssueService implements IssueApi {
         }
         // Tampoco se salta una puerta llevando la tarjeta de antes a después de ella.
         requireGatesCrossed(project, from, target, actorId, issue);
+        requireEpicWaitsForTasks(project, issue, target);
         List<Issue> column = new ArrayList<>(issues.findColumn(issue.projectKey(), target));
         column.removeIf(i -> i.id().equals(issue.id()));
         column.add(Math.clamp(index, 0, column.size()), issue);
@@ -278,10 +279,13 @@ public class IssueService implements IssueApi {
     @Transactional
     public List<IssueRef> createEpicTasks(String epicKey, List<PlannedTask> tasks, UUID actorId) {
         Issue epic = load(epicKey);
-        if (epic.type() != IssueType.EPIC) throw new DomainException(epicKey + " no es una épica: las tareas del plan se crean en una épica.");
+        ProjectView project = project(epic.projectKey());
+        boolean promote = epic.type() != IssueType.EPIC;
+        if (promote && !splittable(epic, project)) {
+            throw new DomainException(epicKey + " no es una épica: las tareas del plan se crean en una épica (o en una historia sin épica, que pasa a serlo).");
+        }
         if (tasks == null || tasks.isEmpty()) throw new DomainException("Indica al menos una tarea.");
         if (tasks.size() > MAX_TASKS) throw new DomainException("Máximo " + MAX_TASKS + " tareas por épica: agrupa las más pequeñas.");
-        ProjectView project = project(epic.projectKey());
         if (!project.allows(IssueType.TASK)) throw new DomainException("Este proyecto no usa tareas (TASK).");
         String first = project.columns().getFirst().key();
         List<Issue> previous = issues.findChildren(epicKey).stream().filter(c -> c.workRole() != null).toList();
@@ -294,9 +298,22 @@ public class IssueService implements IssueApi {
             if (t.title() == null || t.title().isBlank()) throw new DomainException("La tarea " + (i + 1) + " no tiene título.");
             String role = t.role() == null ? "" : t.role().strip().toUpperCase(java.util.Locale.ROOT);
             if (!roles.contains(role)) throw new DomainException("La tarea " + (i + 1) + " tiene un rol que no existe: «" + t.role() + "». Roles: " + String.join(", ", roles) + ".");
+            if (buildColumn(project).isPresent() && !writesCode(role)) {
+                List<String> coders = roles.stream().filter(this::writesCode).toList();
+                throw new DomainException("La tarea " + (i + 1) + " («" + t.title() + "») es para " + role + ", que no escribe en el repo: nadie abriría su rama ni su PR."
+                        + " Cada tarea la hace un rol que escribe código (" + String.join(", ", coders) + "). El diseño (contrato, modelo de datos, ADR) va en el plan;"
+                        + " si debe quedar en el repo, es la primera tarea de backend y las demás dependen de ella.");
+            }
             for (Integer d : t.dependsOn() == null ? List.<Integer>of() : t.dependsOn()) {
                 if (d == null || d < 1 || d > tasks.size() || d == i + 1) throw new DomainException("La tarea " + (i + 1) + " depende de un número inválido: " + d + ".");
             }
+        }
+        if (promote) {
+            String was = epic.type() == IssueType.STORY ? "una historia" : "una tarea";
+            edit(epicKey, new IssueDetails(epic.title(), epic.description(), IssueType.EPIC, epic.priority(), epic.storyPoints(), epic.assigneeId(), null,
+                    epic.labels()), actorId);
+            saveComment(epic, actorId, "Era " + was + ": pasa a **épica** porque el plan la reparte en " + tasks.size() + " tarea(s).", now());
+            epic = load(epicKey);
         }
         previous.forEach(c -> delete(c.key(), actorId));
         List<Issue> created = new ArrayList<>();
@@ -312,7 +329,22 @@ public class IssueService implements IssueApi {
             task.superviseBy(epic.supervisorId());
             issues.save(task);
         }
+        // Si la épica ya está donde se construye (p. ej. se repartió estando en Desarrollo), el reparto se revisa ya:
+        // moverla «a la siguiente columna» la llevaría a QA.
+        if (planStage(project, epic.status())) announcePendingPlan(epic, project, actorId);
         return created.stream().map(c -> new IssueRef(c.key(), c.projectKey(), Integer.parseInt(c.key().substring(c.key().lastIndexOf('-') + 1)), c.title())).toList();
+    }
+
+    /** Una historia o tarea suelta (sin épica ni rol de reparto) que el plan puede repartir: pasa a ser épica. */
+    private static boolean splittable(Issue issue, ProjectView project) {
+        return (issue.type() == IssueType.STORY || issue.type() == IssueType.TASK) && issue.parentKey() == null && issue.workRole() == null
+                && project.allows(IssueType.EPIC);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canSplit(String issueKey) {
+        return issues.findByKey(issueKey).map(i -> i.type() == IssueType.EPIC || splittable(i, project(i.projectKey()))).orElse(false);
     }
 
     @Override
@@ -345,12 +377,17 @@ public class IssueService implements IssueApi {
         return project.stage(column).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
     }
 
+    /** Donde se revisa el reparto: la columna de construcción si el flujo la tiene; si no, cualquier etapa de trabajo. */
+    private boolean planStage(ProjectView project, String column) {
+        return buildColumn(project).map(column::equals).orElse(workStage(project, column));
+    }
+
     /**
      * La épica llegó a una etapa de trabajo con su reparto sin aprobar. Si la etapa tiene «el reparto arranca solo», las
      * tareas arrancan ya; si no, lo avisa y nada arranca hasta que una persona lo apruebe.
      */
     private void announcePendingPlan(Issue epic, ProjectView project, UUID actorId) {
-        if (!workStage(project, epic.status())) return;
+        if (!planStage(project, epic.status())) return;
         List<Issue> waiting = waitingTasks(epic, project);
         if (waiting.isEmpty()) return;
         if (project.stage(epic.status()).map(StageDef::autoPlan).orElse(false)) {
@@ -376,9 +413,12 @@ public class IssueService implements IssueApi {
         if (epic.type() != IssueType.EPIC) throw new DomainException(epicKey + " no es una épica.");
         List<Issue> waiting = waitingTasks(epic, project);
         if (waiting.isEmpty()) throw new DomainException(epicKey + " no tiene un reparto de tareas por aprobar.");
-        if (!workStage(project, epic.status())) {
-            throw new DomainException("El reparto se aprueba cuando la épica llega a una etapa de trabajo (p. ej. Desarrollo); ahora está en «"
-                    + columnName(project, epic.status()) + "».");
+        Optional<String> build = buildColumn(project);
+        boolean ready = build.map(b -> project.indexOf(epic.status()) >= project.indexOf(b) && !isDone(project, epic.status()))
+                .orElse(workStage(project, epic.status()));
+        if (!ready) {
+            throw new DomainException("El reparto se aprueba cuando la épica llega a «" + build.map(b -> columnName(project, b)).orElse("una etapa de trabajo")
+                    + "»; ahora está en «" + columnName(project, epic.status()) + "».");
         }
         if (approve) {
             saveComment(epic, actorId, "**Reparto aprobado** por " + person.name() + "." + (comment == null || comment.isBlank() ? "" : "\n\n" + comment.strip()), now());
@@ -403,23 +443,33 @@ public class IssueService implements IssueApi {
         return moved;
     }
 
-    /** Reparto aprobado: las tareas del plan arrancan en la etapa de la épica, cada una para su rol. */
+    /**
+     * Reparto aprobado: las tareas del plan arrancan donde se construye (Desarrollo), cada una para su rol, y la épica
+     * espera ahí. Si la épica quedó más adelante (p. ej. la llevaron a QA antes de aprobar), vuelve a esa columna.
+     */
     private void releaseTasks(Issue epic, ProjectView project, UUID actorId) {
         String first = project.columns().getFirst().key();
         List<Issue> waiting = waitingTasks(epic, project);
         if (waiting.isEmpty()) return;
+        String target = buildColumn(project).orElse(epic.status());
+        if (!target.equals(epic.status())) {
+            String was = columnName(project, epic.status());
+            place(epic, project, target, actorId);
+            saveComment(epic, actorId, "La épica estaba en «" + was + "»: vuelve a «" + columnName(project, target)
+                    + "», donde espera mientras se trabajan sus tareas. Sigue sola cuando terminen.", now());
+        }
         Instant now = now();
-        int position = issues.nextPosition(epic.projectKey(), epic.status());
-        ColumnDef to = requireColumn(project, epic.status());
+        int position = issues.nextPosition(epic.projectKey(), target);
+        ColumnDef to = requireColumn(project, target);
         String fromCategory = project.column(first).map(c -> c.category().name()).orElse(null);
         for (Issue task : waiting) {
             UUID previous = task.assigneeId();
-            task.moveTo(epic.status(), now);
+            task.moveTo(target, now);
             task.reposition(position++);
             task.assign(null, now);
             if (task.supervisorId() == null) task.superviseBy(epic.supervisorId());
             issues.save(task);
-            events.publishEvent(new IssueMoved(UUID.randomUUID(), TenantContext.require(), task.key(), task.projectKey(), actorId, now, first, epic.status(),
+            events.publishEvent(new IssueMoved(UUID.randomUUID(), TenantContext.require(), task.key(), task.projectKey(), actorId, now, first, target,
                     fromCategory, to.category().name()));
             publishAssignmentIfChanged(task, previous, actorId, now);
         }
@@ -475,10 +525,53 @@ public class IssueService implements IssueApi {
         return project.column(column).map(c -> c.category() == ec.kuador.board.catalog.ColumnCategory.DONE).orElse(false);
     }
 
-    /** Tarea de una épica en la misma columna que su épica (la de trabajo): la cubre su rol, no la etapa. */
+    /**
+     * Tarea de una épica en la columna donde se construye: la cubre su rol, no la etapa. Fuera de ella (QA, revisión…)
+     * la atiende la etapa, como a cualquier tarjeta. En flujos sin etapa de código, vale la columna de su épica.
+     */
     private boolean inWorkColumn(Issue issue) {
         if (issue.workRole() == null || issue.parentKey() == null) return false;
+        Optional<String> build = projects.find(issue.projectKey()).flatMap(this::buildColumn);
+        if (build.isPresent()) return build.get().equals(issue.status());
         return issues.findByKey(issue.parentKey()).map(p -> p.status().equals(issue.status())).orElse(false);
+    }
+
+    /**
+     * La columna donde se construye: la primera etapa de trabajo que cubre un rol que escribe en el repo (en la fábrica,
+     * Desarrollo). Ahí arrancan las tareas del reparto y ahí espera la épica mientras se trabajan.
+     */
+    Optional<String> buildColumn(ProjectView project) {
+        if (!project.software()) return Optional.empty();
+        for (ColumnDef c : project.columns()) {
+            Optional<StageDef> st = project.stage(c.key());
+            if (st.isPresent() && !st.get().gate() && st.get().roles().stream().anyMatch(this::writesCode)) return Optional.of(c.key());
+        }
+        return Optional.empty();
+    }
+
+    private boolean writesCode(String role) {
+        return catalog.role(role).map(ec.kuador.board.catalog.AgentRole::worksOnCode).orElse(false);
+    }
+
+    /**
+     * Una épica con tareas sin terminar no pasa de la columna de construcción: avanza sola cuando terminan (a Release o a
+     * Hecho). Llevarla antes a QA dejaba sus tareas arrancando en QA, atendidas por el rol equivocado.
+     */
+    private void requireEpicWaitsForTasks(ProjectView project, Issue issue, String target) {
+        if (issue.type() != IssueType.EPIC || issue.status().equals(target)) return;
+        Optional<String> build = buildColumn(project);
+        if (build.isEmpty() || project.indexOf(target) <= project.indexOf(build.get())) return;
+        List<Issue> open = openTasks(issue, project);
+        if (open.isEmpty()) return;
+        String buildName = columnName(project, build.get());
+        boolean waiting = !waitingTasks(issue, project).isEmpty();
+        throw new DomainException(issue.key() + " tiene " + open.size() + " tarea(s) sin terminar: la épica espera en «" + buildName
+                + "» y sigue sola cuando terminen." + (waiting ? " Primero aprueba el reparto (la épica debe estar en «" + buildName + "»)." : ""));
+    }
+
+    /** Tareas del plan de la épica que todavía no terminan. */
+    private List<Issue> openTasks(Issue epic, ProjectView project) {
+        return issues.findChildren(epic.key()).stream().filter(c -> c.workRole() != null && !isDone(project, c.status())).toList();
     }
 
     /** Dependencias que todavía no están listas para que otras tareas sigan. */

@@ -48,6 +48,9 @@ public class BoardAgent {
     private static final long MAX_INPUT_BYTES = 40L * 1024 * 1024;
     /** Herramienta del rol (Catálogo → Roles) para ejecutar código en el tablero: cálculos, gráficos, PDF, Excel. */
     public static final String CODE_EXECUTION = "CodeExecution";
+    /** Historia suelta en la etapa que reparte: puede quedar entera o pasar a épica al repartirla. */
+    static final String STORY_SPLIT = "Esta tarjeta es una historia sin épica. Si es un cambio chico, entrégala entera para que la construya un solo rol."
+            + " Si el plan la divide en varias tareas, créalas con create_tasks: la historia pasa a ser épica (no le pidas a una persona que la convierta).";
 
     private final AgentRunRepository runs;
     private final AiProviders providers;
@@ -187,7 +190,10 @@ public class BoardAgent {
         List<String> all = new ArrayList<>(AgentRules.common(policy, company.teamLanguage(), company.codeLanguage()));
         all.addAll(rules.board());
         boolean epic = "EPIC".equals(card.type()) && board.software();
+        // Una historia suelta en la etapa que reparte (Diseño): si el plan la divide, create_tasks la vuelve épica.
+        boolean splits = !epic && board.software() && board.epicSplitsInto(card.status()) && issues.canSplit(card.key());
         if (epic) all.add(rules.epicPlan());
+        else if (splits) all.add(STORY_SPLIT + " " + rules.epicPlan());
         else if (board.software()) all.add(rules.bigCard());
         StringBuilder user = new StringBuilder();
         String column = board.column(card.status()).map(c -> c.name()).orElse(card.status());
@@ -250,7 +256,7 @@ public class BoardAgent {
         if (!skipped.isEmpty()) user.append("No te pasé por tamaño o cantidad: ").append(String.join(", ", skipped)).append("\n");
 
         List<BoardAgentModel.BoardTool> tools = new ArrayList<>();
-        if (epic) tools.add(createTasks(agent, card.key()));
+        if (epic || splits) tools.add(createTasks(agent, card.key()));
         // En software, el código se revisa en GitHub: los PRs, sus cambios, el CI y los archivos del repo (solo lectura).
         List<String> repos = board.software() ? repositories(card.projectKey()) : List.of();
         if (!repos.isEmpty()) {
@@ -466,7 +472,8 @@ public class BoardAgent {
         task.put("required", List.of("title", "role"));
         task.put("properties", Map.of(
                 "title", Map.of("type", "string", "description", "Título corto de la tarea."),
-                "role", Map.of("type", "string", "description", "Rol que la trabaja: BACKEND, FRONTEND, DEVOPS..."),
+                "role", Map.of("type", "string", "description", "Rol que la trabaja y escribe en el repo: BACKEND, FRONTEND o DEVOPS. El arquitecto no:"
+                        + " el contrato, el modelo de datos y los ADR van en el plan, y si deben quedar en el repo son la tarea 1 de BACKEND."),
                 "description", Map.of("type", "string", "description", "Qué hacer, archivos o módulos y criterio de terminado."),
                 "dependsOn", Map.of("type", "array", "items", Map.of("type", "integer"), "description", "Números (desde 1) de tareas de esta lista que deben terminar antes.")));
         Map<String, Object> params = new LinkedHashMap<>();

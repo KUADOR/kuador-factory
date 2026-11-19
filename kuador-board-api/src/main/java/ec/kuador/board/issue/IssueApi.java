@@ -80,6 +80,11 @@ public interface IssueApi {
     /** Tareas de una épica (vacío si no tiene). */
     List<TaskInfo> epicTasks(String epicKey);
 
+    /** Se puede repartir en tareas: es una épica, o una historia o tarea suelta que al repartirla pasa a ser épica. */
+    default boolean canSplit(String issueKey) {
+        return false;
+    }
+
     /** Si el issue es una tarea del plan de una épica, su rol y dependencias. */
     Optional<TaskInfo> taskInfo(String issueKey);
 

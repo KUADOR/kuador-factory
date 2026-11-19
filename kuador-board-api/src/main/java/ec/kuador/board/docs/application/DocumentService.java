@@ -38,6 +38,7 @@ public class DocumentService implements DocsApi {
 
     public static final int MAX_CONTENT = 200_000;
     private static final ZoneId ECUADOR = ZoneId.of("America/Guayaquil");
+    private static final String FROM_TEMPLATE = "Creado desde la plantilla";
 
     private final DocumentRepository documents;
     private final ProjectApi projects;
@@ -120,7 +121,7 @@ public class DocumentService implements DocsApi {
         Document doc = documents.save(new Document(UUID.randomUUID(), projectKey, scopeKey, kind, title, path, 1, now, now, actorId));
         String body = content != null ? content
                 : DocumentTemplate.render(def.template(), project.name(), scopeKey, issue == null ? null : issue.title(), LocalDate.ofInstant(now, ECUADOR));
-        String note = content == null ? "Creado desde la plantilla" : importedPath != null ? "Importado de " + path : "Creado por un agente";
+        String note = content == null ? FROM_TEMPLATE : importedPath != null ? "Importado de " + path : "Creado por un agente";
         documents.saveVersion(new DocumentVersion(doc.id(), 1, body, actorId, note, now));
         publish(doc, actorId, now);
         return new WithContent(doc, body);
@@ -225,6 +226,23 @@ public class DocumentService implements DocsApi {
             }
         });
         return ofProject(projectKey).stream().filter(d -> d.issueKey() == null).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> pendingBaseDocuments(String projectKey) {
+        ProjectView project = softwareProject(projectKey);
+        return catalog.methodology(project.methodology()).map(m -> {
+            List<Document> existing = documents.findByProject(projectKey).stream().filter(d -> d.issueKey() == null).toList();
+            return m.baseDocuments().stream()
+                    .filter(def -> existing.stream().filter(d -> d.kind().equals(def.kind())).findFirst().map(this::onlyTemplate).orElse(true))
+                    .map(DocumentDef::label).toList();
+        }).orElse(List.of());
+    }
+
+    /** Sigue como salió de la plantilla: nadie lo redactó, editó ni importó. */
+    private boolean onlyTemplate(Document d) {
+        return d.currentVersion() == 1 && documents.findVersion(d.id(), 1).map(v -> FROM_TEMPLATE.equals(v.note())).orElse(false);
     }
 
     @Override

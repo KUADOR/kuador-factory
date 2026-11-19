@@ -119,11 +119,12 @@ public class BoardTools {
                 List.of("key", "agent", "type", "content"), this::writeDoc);
         Map<String, Object> taskItem = Map.of("type", "object", "additionalProperties", false, "required", List.of("title", "role"), "properties", Map.of(
                 "title", Map.of("type", "string", "description", "Título corto de la tarea."),
-                "role", Map.of("type", "string", "description", "Rol que la trabaja: BACKEND, FRONTEND, DEVOPS..."),
+                "role", Map.of("type", "string", "description", "Rol que la trabaja y escribe en el repo: BACKEND, FRONTEND o DEVOPS. El arquitecto no:"
+                        + " el contrato, el modelo de datos y los ADR van en el plan, y si deben quedar en el repo son la tarea 1 de BACKEND."),
                 "description", Map.of("type", "string", "description", "Qué hacer, archivos o módulos, criterio de terminado y las líneas del tasks.md que cubre."),
                 "dependsOn", Map.of("type", "array", "items", Map.of("type", "integer"), "description", "Números (desde 1) de tareas de esta lista que deben terminar antes.")));
         tools.put("create_tasks", new Definition(new Tool("create_tasks", "Crear tareas de la épica",
-                "Épicas: al terminar el plan, crea una tarjeta por cada tarea del tasks.md, hija de la épica, con su rol y sus dependencias. "
+                "Épicas (o una historia sin épica, que pasa a ser épica): al terminar el plan, crea una tarjeta por cada tarea del tasks.md, hija de la épica, con su rol y sus dependencias. "
                         + "Esperan en la primera columna; cuando la épica llega a Desarrollo, una persona revisa el reparto y al aprobarlo arrancan: cada una la toma el agente de su rol, en su propia rama y PR. "
                         + "Si llamas otra vez antes de que arranquen, reemplaza las anteriores.",
                 Tool.schema(Map.of("key", "Clave de la épica.", "agent", AGENT),

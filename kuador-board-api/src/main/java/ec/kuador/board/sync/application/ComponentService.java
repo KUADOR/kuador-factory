@@ -195,6 +195,7 @@ public class ComponentService implements RepositoriesApi {
         if (records.findLink(projectKey).isPresent()) {
             throw new ConflictException("El proyecto ya tiene un repositorio. Suma piezas desde «Agregar pieza».");
         }
+        requireBaseReady(project);
         List<PieceSpec> specs = s.pieces() == null ? List.of() : s.pieces();
         Set<String> names = new HashSet<>();
         Set<String> repos = new HashSet<>(Set.of(s.repoName() == null ? "" : s.repoName().strip()));
@@ -340,6 +341,24 @@ public class ComponentService implements RepositoriesApi {
         Map<String, File> byPath = new LinkedHashMap<>();
         files.forEach(f -> byPath.put(f.path(), f));
         return List.copyOf(byPath.values());
+    }
+
+    /**
+     * Un proyecto nuevo no arma su repo sin sus bases: los documentos de su metodología redactados (van en el primer
+     * commit y guían a los agentes) o, sin metodología, al menos el objetivo del tablero.
+     */
+    private void requireBaseReady(ProjectView project) {
+        if (project.methodology() == null) {
+            if (projects.goal(project.key()).filter(g -> !g.isBlank()).isEmpty()) {
+                throw new DomainException("Antes de crear el repo, escribe el objetivo del tablero (Documentos → Redactar con IA): los agentes lo leen con cada tarjeta.");
+            }
+            return;
+        }
+        List<String> pending = docs.pendingBaseDocuments(project.key());
+        if (!pending.isEmpty()) {
+            throw new DomainException("Antes de crear el repo, redacta y aprueba los documentos base de la metodología: " + String.join(", ", pending)
+                    + ". Van en el primer commit y guían a los agentes (Documentos → Redactar con IA).");
+        }
     }
 
     private List<DocContent> projectDocuments(String projectKey, String agentsMd, UUID actorId) {

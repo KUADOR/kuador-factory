@@ -35,6 +35,9 @@ public interface DocsApi {
      */
     List<DocContent> ensureProjectDocuments(String projectKey, UUID actorId);
 
+    /** Los documentos base de la metodología que siguen sin redactar (no existen o solo tienen la plantilla), por su nombre. */
+    List<String> pendingBaseDocuments(String projectKey);
+
     /** Crea el documento del issue con {@code content} o guarda una versión nueva si ya existe. */
     DocContent write(String projectKey, String issueKey, String kind, String content, String note, UUID actorId);
 }

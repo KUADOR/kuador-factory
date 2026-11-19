@@ -30,14 +30,18 @@ export function DraftingAssistant({
   plan,
   machineOnline,
   origin: initialOrigin,
+  returnTo,
 }: {
   projectKey: string;
   plan: DraftPlan;
   machineOnline: boolean;
   origin?: "new" | "existing";
+  /** A dónde volver al aprobar (p. ej. al asistente de inicio, para seguir con el repo). */
+  returnTo?: string;
 }) {
   const router = useRouter();
-  const software = plan.projectKind === "SOFTWARE";
+  // Software sin metodología redacta solo el objetivo, como los demás tableros.
+  const software = plan.projectKind === "SOFTWARE" && !!plan.methodology;
   // Un proyecto que ya existe se reconoce leyendo su código; uno nuevo nace de la idea.
   const [origin, setOrigin] = useState<"new" | "existing">(initialOrigin ?? (software && plan.repositories.length > 0 && plan.pieces === 0 ? "existing" : "new"));
   const existing = software && origin === "existing";
@@ -145,7 +149,7 @@ export function DraftingAssistant({
       return;
     }
     notify.ok(software ? `Guardados ${r.data.saved.length} documentos y el objetivo` : "Objetivo guardado", "Los agentes los leen desde su próxima tarjeta.");
-    router.push(software ? `/projects/${projectKey}/docs` : `/projects/${projectKey}/settings/general`);
+    router.push(returnTo ?? (software ? `/projects/${projectKey}/docs` : `/projects/${projectKey}/settings/general`));
   };
 
   const current = tab === "GOAL" ? null : docs?.find((d) => d.kind === tab);

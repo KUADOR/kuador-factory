@@ -1117,7 +1117,10 @@ export interface CatalogRevision {
 export interface DraftPlan {
   projectKind: ProjectKind;
   methodology: string | null;
-  documents: { kind: string; label: string; purpose: string | null; suggested: boolean }[];
+  /** `suggested`: documento base (se redacta al empezar); `written`: ya no es la plantilla. */
+  documents: { kind: string; label: string; purpose: string | null; suggested: boolean; written: boolean }[];
+  /** Documentos base sin redactar: sin ellos no se crea el repo de un proyecto nuevo. */
+  pendingBase: string[];
   /** Hay clave de IA de la empresa: puede trabajar en el servidor. */
   serverReady: boolean;
   goal: string | null;

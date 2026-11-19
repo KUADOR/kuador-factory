@@ -53,7 +53,6 @@ public class DraftService implements AiJobsApi {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DraftService.class);
 
     /** Lo mínimo de ODD: el resto queda opcional. */
-    static final List<String> ODD_MINIMUM = List.of("PRODUCT", "AGENT_RULES");
     static final int MAX_TOKENS = 16_000;
     static final Duration JOB_TTL = Duration.ofMinutes(10);
 
@@ -71,11 +70,15 @@ public class DraftService implements AiJobsApi {
             + "|application(-[a-z]+)?\\.ya?ml|application\\.properties)$");
 
     /** Un documento que pide la metodología: si viene marcado por defecto y para qué sirve. */
-    public record DocOption(String kind, String label, String purpose, boolean suggested) {}
+    /** {@code suggested}: es documento base (se redacta al empezar); {@code written}: ya no es la plantilla. */
+    public record DocOption(String kind, String label, String purpose, boolean suggested, boolean written) {}
 
-    /** {@code repositories}: los repos ya vinculados (para reconocer un proyecto existente); {@code pieces}: cuántas piezas tiene. */
+    /**
+     * {@code repositories}: los repos ya vinculados (para reconocer un proyecto existente); {@code pieces}: cuántas piezas tiene;
+     * {@code pendingBase}: los documentos base sin redactar (sin ellos no se crea el repo de un proyecto nuevo).
+     */
     public record Plan(String projectKind, String methodology, List<DocOption> documents, boolean serverReady, String goal, List<String> repositories,
-            int pieces) {}
+            int pieces, List<String> pendingBase) {}
 
     /** {@code status}: DONE (con {@code result}), PENDING o RUNNING (esperando la máquina) o FAILED (con {@code error}). */
     public record Job(UUID id, String status, Map<String, Object> result, String error) {}
@@ -132,16 +135,22 @@ public class DraftService implements AiJobsApi {
     public Plan plan(String projectKey) {
         ProjectView p = board(projectKey);
         List<DocOption> options = new ArrayList<>();
-        if (p.software()) {
+        List<String> pending = hasDocs(p) ? docs.pendingBaseDocuments(p.key()) : List.of();
+        if (hasDocs(p)) {
             Methodology m = methodology(p);
+            List<String> base = m.baseDocuments().stream().map(DocumentDef::kind).toList();
             for (DocumentDef d : m.documents(DocumentDef.Scope.PROJECT)) {
-                boolean suggested = !"ODD".equals(m.key()) || ODD_MINIMUM.contains(d.kind());
-                options.add(new DocOption(d.kind(), d.label(), d.purpose(), suggested));
+                options.add(new DocOption(d.kind(), d.label(), d.purpose(), base.contains(d.kind()), !pending.contains(d.label())));
             }
         }
         List<String> repos = p.software() ? safeRepositories(p.key()) : List.of();
         int pieceCount = p.software() ? repositories.pieces(p.key()).size() : 0;
-        return new Plan(p.kind().name(), p.methodology(), options, ai.key().isPresent(), projects.goal(p.key()).orElse(null), repos, pieceCount);
+        return new Plan(p.kind().name(), p.methodology(), options, ai.key().isPresent(), projects.goal(p.key()).orElse(null), repos, pieceCount, pending);
+    }
+
+    /** Hay documentos que redactar: software con metodología. Sin ella (o fuera de software) se redacta solo el objetivo. */
+    private static boolean hasDocs(ProjectView p) {
+        return p.software() && p.methodology() != null;
     }
 
     // ---- Un paso de la conversación ----
@@ -301,7 +310,7 @@ public class DraftService implements AiJobsApi {
                 No preguntes lo que la idea ya dice. Devuelve:
                 {"questions":[{"id":"q1","text":"¿…?","options":["…","…"]}]}"""
                 .formatted(clip(in.idea()), context(p),
-                        p.software() ? "redactar bien los documentos base de su metodología" : "escribir el objetivo del tablero");
+                        hasDocs(p) ? "redactar bien los documentos base de su metodología" : "escribir el objetivo del tablero");
     }
 
     private String draftPrompt(ProjectView p, Input in) {
@@ -312,7 +321,7 @@ public class DraftService implements AiJobsApi {
             in.answers().forEach((q, a) -> b.append("- ").append(clip(q)).append(" → ").append(clip(a)).append("\n"));
         }
         b.append("\n").append(context(p)).append("\n");
-        if (!p.software()) {
+        if (!hasDocs(p)) {
             b.append("""
 
                     Escribe el objetivo del tablero: una o dos frases, para qué existe y qué es lo más importante para el negocio (lo leen los agentes con
@@ -504,7 +513,7 @@ public class DraftService implements AiJobsApi {
             }
             case DRAFT -> {
                 Map<String, String> labels = new LinkedHashMap<>();
-                if (p.software()) methodology(p).documents(DocumentDef.Scope.PROJECT).forEach(d -> labels.put(d.kind(), d.label()));
+                if (hasDocs(p)) methodology(p).documents(DocumentDef.Scope.PROJECT).forEach(d -> labels.put(d.kind(), d.label()));
                 List<Map<String, Object>> documents = new ArrayList<>();
                 for (JsonNode d : node.path("documents")) {
                     String kind = d.path("kind").asString("").strip().toUpperCase(Locale.ROOT);

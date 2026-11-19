@@ -19,6 +19,9 @@ export interface IssueFormValues extends IssueInput {
   status: IssueStatus;
 }
 
+/** Un título que empieza con «Épica» (o «Epic»): la tarjeta nueva se crea como épica. */
+const EPIC_TITLE = /^\s*[ÉéEe]pica?\b/i;
+
 export function emptyValues(status: IssueStatus, projectType: TypeSource): IssueFormValues {
   return {
     title: "",
@@ -97,6 +100,16 @@ export function IssueForm({
     if (!readOnly && window.matchMedia("(pointer: fine)").matches) titleRef.current?.focus();
   }, [readOnly]);
   const set = <K extends keyof IssueFormValues>(key: K, value: IssueFormValues[K]) => setValues((v) => ({ ...v, [key]: value }));
+  // En una tarjeta nueva, «Épica: …» en el título la crea como épica (MED-10 nació historia por el tipo por defecto),
+  // salvo que la persona haya elegido el tipo a mano.
+  const [typeTouched, setTypeTouched] = useState(false);
+  const epicAllowed = allowedTypes(project).includes("EPIC");
+  const setTitle = (title: string) =>
+    setValues((v) => {
+      if (selfKey || typeTouched || !epicAllowed) return { ...v, title };
+      const epic = EPIC_TITLE.test(title);
+      return { ...v, title, type: epic ? "EPIC" : v.type === "EPIC" ? initial.type : v.type };
+    });
   const dirty = formKey(values, labelsText) !== formKey(base, base.labels.join(", "));
   const newAgent = values.assigneeId !== base.assigneeId ? members.find((m) => m.id === values.assigneeId && m.kind === "AGENT") : undefined;
 
@@ -131,7 +144,7 @@ export function IssueForm({
             maxLength={255}
             ref={titleRef}
             value={values.title}
-            onChange={(e) => set("title", e.target.value.replace(/\n/g, " "))}
+            onChange={(e) => setTitle(e.target.value.replace(/\n/g, " "))}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -180,7 +193,20 @@ export function IssueForm({
         </p>
       )}
       <Field label="Tipo">
-        {(id) => <SelectInput id={id} size="sm" disabled={readOnly} options={typeOptions} value={values.type} onChange={(v) => v && set("type", v)} />}
+        {(id) => (
+          <SelectInput
+            id={id}
+            size="sm"
+            disabled={readOnly}
+            options={typeOptions}
+            value={values.type}
+            onChange={(v) => {
+              if (!v) return;
+              setTypeTouched(true);
+              set("type", v);
+            }}
+          />
+        )}
       </Field>
       <Field label="Prioridad">
         {(id) => <SelectInput id={id} size="sm" disabled={readOnly} options={priorityOptions} value={values.priority} onChange={(v) => v && set("priority", v)} />}

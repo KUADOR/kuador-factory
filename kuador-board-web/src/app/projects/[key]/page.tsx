@@ -65,12 +65,13 @@ export default async function BoardPage({ params, searchParams }: Props) {
 
 /** Pasos del asistente que faltan (los mismos que mide su página). */
 async function pendingSetup(project: Project, issues: number): Promise<number> {
-  const [link, connections, notifications, ai] = await Promise.all([
+  const [link, connections, notifications, ai, draft] = await Promise.all([
     project.kind === "SOFTWARE" ? boardApi.repository(project.key).catch(() => null) : null,
     boardApi.runnerTokens().catch(() => []),
     boardApi.notifications().catch(() => null),
     project.kind === "SOFTWARE" ? null : boardApi.workspaceAi().catch(() => null),
+    project.kind === "SOFTWARE" ? boardApi.draftPlan(project.key).catch(() => null) : null,
   ]);
-  const done = setupDone(project, link, connections, notifications, issues, !!ai?.configured);
+  const done = setupDone(project, link, connections, notifications, issues, !!ai?.configured, draft);
   return setupSteps(project).filter((s) => !done[s]).length;
 }

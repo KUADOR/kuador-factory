@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
@@ -17,6 +17,7 @@ import type { StepId } from "@/lib/onboarding";
 import type {
   AgentKit,
   ComponentTemplate,
+  DraftPlan,
   GitHubOverview,
   Methodology,
   NotificationView,
@@ -33,12 +34,13 @@ import { PiecesSetupForm } from "../settings/repository/Pieces";
 
 
 const STEPS: Record<StepId, { title: string; description: string }> = {
-  ai: { title: "IA de la empresa", description: "El proveedor de IA de tu empresa (Claude, ChatGPT, DeepSeek…) y su clave: con ella trabajan tus agentes en el tablero. El consumo va a tu cuenta con ese proveedor." },
-  methodology: { title: "Metodología", description: "Qué documentos pide el proyecto (spec, plan, tareas…) y qué escribe cada agente." },
-  repository: { title: "Repositorio y piezas", description: "Dónde vive el código: el tablero crea los repos con sus bases, o vinculas uno que ya existe." },
-  client: { title: "Tu cliente de IA", description: "Tus agentes trabajan en tu Claude Code (o Codex) con tu suscripción, conectados al tablero." },
-  notifications: { title: "Notificaciones", description: "Te avisamos por correo o Telegram cuando algo te necesita: una pregunta, una aprobación o un reparto." },
-  firstWork: { title: "Primer trabajo", description: "Una épica para arrancar: el PO la refina, tú apruebas y el arquitecto la reparte en tareas." },
+  ai: { title: "IA de la empresa", description: "El proveedor y la clave con la que trabajan tus agentes. El consumo va a tu cuenta." },
+  methodology: { title: "Metodología", description: "Qué documentos pide el proyecto y qué escribe cada agente." },
+  docs: { title: "Documentos base", description: "Guían a los agentes desde el primer commit. Obligatorio antes del repo." },
+  repository: { title: "Repositorio y piezas", description: "El tablero crea los repos con sus bases, o vinculas uno que ya existe." },
+  client: { title: "Tu cliente de IA", description: "Tus agentes trabajan en tu Claude Code o Codex, conectados al tablero." },
+  notifications: { title: "Notificaciones", description: "Te avisamos cuando algo te necesita." },
+  firstWork: { title: "Primer trabajo", description: "Una épica para arrancar: el PO la refina, tú apruebas y el arquitecto la reparte." },
 };
 
 const SKELETON = `Primera versión que funciona de punta a punta, mínima pero desplegable:
@@ -47,7 +49,7 @@ const SKELETON = `Primera versión que funciona de punta a punta, mínima pero d
 - Un flujo completo de ejemplo que cruce todas las piezas (por ejemplo, la web llama a la API y la API a la base).
 - Configuración por entorno y cómo levantarlo en local.`;
 
-/** Asistente de inicio: un paso a la vez, con lo hecho marcado. Cada paso se puede saltar. */
+/** Asistente de inicio: un paso a la vez, con lo hecho marcado. Cada paso se puede saltar, salvo los documentos base. */
 export function Onboarding({
   project,
   steps,
@@ -64,6 +66,7 @@ export function Onboarding({
   ai = null,
   boardAgents = [],
   existingProject = false,
+  draft = null,
 }: {
   project: Project;
   steps: StepId[];
@@ -81,6 +84,8 @@ export function Onboarding({
   boardAgents?: TeamAgent[];
   /** Se eligió «Ya existe» al crear el tablero: se vincula su repo y el agente lo lee. */
   existingProject?: boolean;
+  /** Qué documentos base pide la metodología y cuáles faltan (software). */
+  draft?: DraftPlan | null;
 }) {
   const router = useRouter();
   const base = `/projects/${project.key}/setup`;
@@ -88,6 +93,9 @@ export function Onboarding({
   const next = steps[index + 1];
   const go = (step: StepId | "done") => router.push(step === "done" ? `${base}?step=fin` : `${base}?step=${step}`);
   const pending = steps.filter((s) => !done[s]).length;
+  // Un proyecto nuevo no crea su repo sin sus documentos base; uno que ya existe se vincula y el agente los propone leyéndolo.
+  const mandatory = current === "docs" && !done.docs && !existingProject;
+  const repoBlocked = current === "repository" && !done.docs && !existingProject && !link?.linked;
 
   return (
     <div className="grid gap-6 px-4 py-5 sm:px-6 sm:py-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
@@ -128,29 +136,12 @@ export function Onboarding({
               <p className="mt-0.5 text-[13px] text-fg-muted">{stepDescription(current, project)}</p>
             </header>
             <div className="rounded-lg border border-line bg-surface p-5">
-              {current === "methodology" && (
-                <>
-                  <MethodologyPicker project={project} methodologies={methodologies} />
-                  {project.methodology && (
-                    <Link
-                      href={`/projects/${project.key}/docs/draft`}
-                      className="mt-4 flex items-center gap-3 rounded-lg border border-sol/50 bg-sol/10 px-4 py-3 text-[13px] hover:bg-sol/15"
-                    >
-                      <span className="text-lg" aria-hidden>
-                        ✨
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-medium text-fg-strong">Redacta los documentos base con IA</span>
-                        <span className="block text-xs text-fg-muted">
-                          {project.methodology === "ODD" ? "Lo mínimo de ODD: Producto y Reglas para agentes." : "Constitución, Producto y los demás de tu metodología."} Escribes la idea y la
-                          pules conversando.
-                        </span>
-                      </span>
-                    </Link>
-                  )}
-                </>
+              {current === "methodology" && <MethodologyPicker project={project} methodologies={methodologies} />}
+              {current === "docs" && <DocsStep project={project} draft={draft} />}
+              {repoBlocked && <RepositoryLocked project={project} draft={draft} />}
+              {current === "repository" && !repoBlocked && link && (
+                <RepositoryStep project={project} link={link} github={github} templates={templates} existing={existingProject} />
               )}
-              {current === "repository" && link && <RepositoryStep project={project} link={link} github={github} templates={templates} existing={existingProject} />}
               {current === "client" && <AgentsStep connections={connections} kit={kit} onCheck={() => router.refresh()} />}
               {current === "notifications" &&
                 (notifications ? <NotificationSettingsForm initial={notifications} /> : <p className="text-[13px] text-fg-muted">No se pudieron leer tus avisos.</p>)}
@@ -166,9 +157,13 @@ export function Onboarding({
               <Link href={`/projects/${project.key}`} className="k-link text-[13px]">
                 Ir al tablero
               </Link>
-              <Button tone={done[current] ? "primary" : "ghost"} onClick={() => go(next ?? "done")}>
-                {done[current] ? "Siguiente" : "Saltar por ahora"}
-              </Button>
+              {mandatory ? (
+                <span className="text-xs text-fg-muted">Obligatorio</span>
+              ) : (
+                <Button tone={done[current] ? "primary" : "ghost"} onClick={() => go(next ?? "done")}>
+                  {done[current] ? "Siguiente" : "Saltar por ahora"}
+                </Button>
+              )}
             </div>
           </>
         )}
@@ -249,6 +244,61 @@ function RepositoryStep({
 }
 
 /** Que el agente lea el proyecto que ya existe y arme el tablero (piezas, documentos, objetivo y tarjetas). */
+/**
+ * Documentos base: se redactan antes del repo porque van en su primer commit y guían a los agentes. Con metodología,
+ * los suyos (en ODD, lo mínimo); sin metodología, el objetivo del tablero.
+ */
+function DocsStep({ project, draft }: { project: Project; draft: DraftPlan | null }) {
+  if (!draft) return <p className="text-[13px] text-fg-muted">No se pudo leer qué documentos pide el proyecto.</p>;
+  const base = draft.documents.filter((d) => d.suggested);
+  const ready = draft.methodology ? draft.pendingBase.length === 0 : !!draft.goal?.trim();
+  return (
+    <div className="flex flex-col gap-5">
+      {draft.methodology ? (
+        <ul className="flex flex-col divide-y divide-line" aria-label="Documentos base">
+          {base.map((d) => (
+            <li key={d.kind} className="flex items-center gap-2.5 py-2 text-[13px] first:pt-0 last:pb-0">
+              {d.written ? <Check className="size-3.5 shrink-0 text-ok" aria-hidden /> : <span aria-hidden className="size-3.5 shrink-0 rounded-full border border-line-strong" />}
+              <span className={clsx("min-w-0 flex-1", d.written ? "text-fg-muted" : "text-fg-strong")}>{d.label}</span>
+              <span className="sr-only">{d.written ? "redactado" : "pendiente"}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[13px] text-fg">{draft.goal ? draft.goal : "Sin metodología basta con el objetivo del tablero."}</p>
+      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Button tone={ready ? "secondary" : "primary"} icon={Sparkles} href={`/projects/${project.key}/docs/draft?origen=asistente`}>
+          {ready ? "Volver a redactar" : draft.methodology ? "Redactar con IA" : "Proponer el objetivo con IA"}
+        </Button>
+        <Link href={`/projects/${project.key}/setup?step=repository&origen=existente`} className="k-link text-xs">
+          El proyecto ya existe
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/** El repo de un proyecto nuevo espera a sus documentos base (la API tampoco lo crea sin ellos). */
+function RepositoryLocked({ project, draft }: { project: Project; draft: DraftPlan | null }) {
+  const missing = draft?.methodology ? draft.pendingBase : [];
+  return (
+    <div className="flex flex-col gap-4 text-[13px]">
+      <p className="text-fg">
+        Falta {missing.length > 0 ? missing.join(", ") : "el objetivo del tablero"} antes de crear el repo.
+      </p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Button tone="primary" href={`/projects/${project.key}/setup?step=docs`}>
+          Ir a Documentos base
+        </Button>
+        <Link href={`/projects/${project.key}/setup?step=repository&origen=existente`} className="k-link text-xs">
+          El proyecto ya existe
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function RecognizeCta({ projectKey }: { projectKey: string }) {
   return (
     <Link

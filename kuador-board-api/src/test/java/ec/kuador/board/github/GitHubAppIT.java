@@ -190,6 +190,19 @@ class GitHubAppIT {
         call("POST", "/api/projects", Map.of("key", "PI", "name", "Portal Pi", "templateKey", "SOFTWARE_FACTORY"), owner);
         call("POST", "/api/projects/PI/people", Map.of("memberId", dev.id().toString()), owner);
         call("PUT", "/api/projects/PI/methodology", Map.of("methodology", "SDD"), owner);
+        // Un proyecto nuevo no arma su repo sin sus documentos base: van en el primer commit y guían a los agentes.
+        Reply early = call("POST", "/api/projects/PI/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "pi"), owner);
+        assertThat(early.status()).as(String.valueOf(early.body())).isEqualTo(422);
+        assertThat(early.body().get("detail").asString()).contains("documentos base", "Constitución", "Producto");
+        assertThat(call("GET", "/api/projects/PI/drafting", null, owner).body().get("pendingBase")).hasSize(5);
+        assertThat(call("POST", "/api/projects/PI/drafting/approve", Map.of("documents", List.of(
+                Map.of("kind", "CONSTITUTION", "content", "# Constitución de Portal Pi\n\n## Principios fundamentales\n\n### I. Pruebas primero"),
+                Map.of("kind", "PRODUCT", "content", "# Producto: Portal Pi\n\nPortal de pacientes."),
+                Map.of("kind", "ARCHITECTURE", "content", "# Arquitectura de Portal Pi\n\nAPI y web."),
+                Map.of("kind", "GLOSSARY", "content", "# Glosario\n\n- **Paciente:** quien usa el portal."),
+                Map.of("kind", "AGENT_RULES", "content", "# Reglas para agentes\n\n- Pruebas antes del código.")), "goal", "Que los pacientes vean sus citas."), owner)
+                .status()).isEqualTo(200);
+        assertThat(call("GET", "/api/projects/PI/drafting", null, owner).body().get("pendingBase")).isEmpty();
         Reply mono = call("POST", "/api/projects/PI/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "pi",
                 "description", "Portal de pacientes", "pieces", List.of(
                         Map.of("name", "api", "templateKey", "API_ACME", "variables", Map.of("PAQUETE", "ec.pi.api")),
@@ -269,6 +282,10 @@ class GitHubAppIT {
 
         // Un repo por pieza, públicos: el repo del proyecto guarda los documentos; cada pieza en la raíz de su repo, protegido.
         call("POST", "/api/projects", Map.of("key", "PU", "name", "Pagos", "templateKey", "SOFTWARE_FACTORY"), owner);
+        // Sin metodología, al menos el objetivo del tablero.
+        assertThat(call("POST", "/api/projects/PU/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "pu-plataforma"), owner)
+                .body().get("detail").asString()).contains("objetivo del tablero");
+        call("POST", "/api/projects/PU/drafting/approve", Map.of("documents", List.of(), "goal", "Cobrar en línea sin errores."), owner);
         Reply multi = call("POST", "/api/projects/PU/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "pu-plataforma",
                 "privateRepo", false, "pieces", List.of(
                         Map.of("name", "pagos", "templateKey", "API_ACME", "repoName", "pu-pagos"),

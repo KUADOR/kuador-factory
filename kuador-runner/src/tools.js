@@ -1,10 +1,8 @@
 import { spawn, spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, writeFileSync } from "node:fs";
+import { delimiter, dirname, join } from "node:path";
 
 import { SECRETS } from "./config.js";
-
-const WINDOWS = process.platform === "win32";
 
 /** Herramientas de IA que el runner sabe lanzar. Codex y OpenCode llegan en la próxima versión. */
 export const TOOLS = {
@@ -13,9 +11,45 @@ export const TOOLS = {
   opencode: { label: "OpenCode", command: "opencode", ready: false },
 };
 
+/**
+ * Cómo lanzar la herramienta sin pasar por un shell: el texto de las tarjetas va en los argumentos y, con `cmd.exe`,
+ * unas comillas o un `&` en una tarjeta ejecutarían comandos en la PC. En Mac y Linux se lanza tal cual. En Windows:
+ * el `.exe` del instalador nativo, o, si se instaló con npm (`claude.cmd`), `node` con el `cli.js` del paquete.
+ * Devuelve {command, prefix} (los argumentos que van antes de los propios) o null si no se encontró.
+ */
+export function resolve(name, { platform = process.platform, path = process.env.PATH ?? "", nodePath = process.execPath, exists = existsSync } = {}) {
+  if (platform !== "win32") return { command: name, prefix: [] };
+  const dirs = path.split(platform === "win32" ? ";" : delimiter).filter(Boolean);
+  for (const dir of dirs) {
+    const exe = join(dir, `${name}.exe`);
+    if (exists(exe)) return { command: exe, prefix: [] };
+  }
+  for (const dir of dirs) {
+    if (!exists(join(dir, `${name}.cmd`))) continue;
+    const cli = NPM_CLI[name] && join(dir, "node_modules", ...NPM_CLI[name]);
+    if (cli && exists(cli)) return { command: nodePath, prefix: [cli] };
+  }
+  return null;
+}
+
+/** Dónde deja npm el punto de entrada de cada herramienta, junto a su atajo `.cmd`. */
+const NPM_CLI = { claude: ["@anthropic-ai", "claude-code", "cli.js"] };
+
+/** Lanza la herramienta sin shell; si en Windows no se puede, el error explica cómo instalarla. */
+function run(name, args, options) {
+  const how = resolve(name);
+  if (!how) {
+    const error = new Error(`No encontré ${name} en el PATH. En Windows instálalo con su instalador (deja ${name}.exe) o con npm (npm i -g).`);
+    return { how: null, error };
+  }
+  return { how, child: spawn(how.command, [...how.prefix, ...args], { ...options, shell: false }) };
+}
+
 /** Versión instalada de la herramienta, o null si no está. */
 export function detect(tool) {
-  const r = spawnSync(TOOLS[tool].command, ["--version"], { encoding: "utf8", shell: WINDOWS, timeout: 15_000 });
+  const how = resolve(TOOLS[tool].command);
+  if (!how) return null;
+  const r = spawnSync(how.command, [...how.prefix, "--version"], { encoding: "utf8", shell: false, timeout: 15_000, windowsHide: true });
   return r.status === 0 ? (r.stdout || r.stderr).trim().split("\n")[0] : null;
 }
 
@@ -54,7 +88,9 @@ export function launch(config, claim, cwd, logStream, resumeId = null) {
   if (model) args.push("--model", model);
   if (claim.effort && EFFORTS.includes(claim.effort)) args.push("--effort", claim.effort);
 
-  const child = spawn(TOOLS.claude.command, args, { cwd, shell: WINDOWS, env: { ...process.env, KUADOR_ISSUE: claim.issueKey }, windowsHide: true });
+  const started = run(TOOLS.claude.command, args, { cwd, env: { ...process.env, KUADOR_ISSUE: claim.issueKey }, windowsHide: true });
+  if (!started.child) return { child: null, done: Promise.resolve({ code: -1, out: "", err: String(started.error) }) };
+  const { child } = started;
   let out = "";
   let err = "";
   child.stdout.on("data", (d) => {
@@ -81,7 +117,9 @@ export function ask(system, user, cwd, { readOnlyRepo = false } = {}) {
   const args = ["-p", user, "--append-system-prompt", system, "--output-format", "json", "--strict-mcp-config",
     "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch"];
   if (readOnlyRepo) args.push("--allowedTools", "Read,Grep,Glob,LS");
-  const child = spawn(TOOLS.claude.command, args, { cwd, shell: WINDOWS, windowsHide: true });
+  const started = run(TOOLS.claude.command, args, { cwd, windowsHide: true });
+  if (!started.child) return Promise.resolve({ text: null, error: String(started.error) });
+  const { child } = started;
   let out = "";
   let err = "";
   child.stdout.on("data", (d) => (out += d));

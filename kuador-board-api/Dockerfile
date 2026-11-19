@@ -11,7 +11,9 @@ RUN ./mvnw -B -q -DskipTests package \
     && java -Djarmode=tools -jar target/kuador-board-api-*.jar extract --layers --launcher --destination target/extracted
 
 FROM eclipse-temurin:25-jre
-RUN groupadd --system board && useradd --system --gid board --no-create-home board
+# pebble (administrador de servicios que trae la base de Ubuntu) no lo usa la API y arrastra fallas de su Go: fuera.
+RUN rm -f /usr/bin/pebble \
+    && groupadd --system board && useradd --system --gid board --no-create-home board
 WORKDIR /app
 COPY --from=build /workspace/target/extracted/dependencies/ ./
 COPY --from=build /workspace/target/extracted/spring-boot-loader/ ./

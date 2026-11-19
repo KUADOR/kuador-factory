@@ -1,24 +1,24 @@
 package ec.kuador.board.agents.infrastructure.tools;
 
-import com.lowagie.text.Chunk;
-import com.lowagie.text.Document;
-import com.lowagie.text.DocumentException;
-import com.lowagie.text.Element;
-import com.lowagie.text.Font;
-import com.lowagie.text.Image;
-import com.lowagie.text.ListItem;
-import com.lowagie.text.PageSize;
-import com.lowagie.text.Paragraph;
-import com.lowagie.text.Phrase;
-import com.lowagie.text.Rectangle;
-import com.lowagie.text.pdf.BaseFont;
-import com.lowagie.text.pdf.ColumnText;
-import com.lowagie.text.pdf.PdfContentByte;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfPageEventHelper;
-import com.lowagie.text.pdf.PdfTemplate;
-import com.lowagie.text.pdf.PdfWriter;
+import org.openpdf.text.Chunk;
+import org.openpdf.text.Document;
+import org.openpdf.text.DocumentException;
+import org.openpdf.text.Element;
+import org.openpdf.text.Font;
+import org.openpdf.text.Image;
+import org.openpdf.text.ListItem;
+import org.openpdf.text.PageSize;
+import org.openpdf.text.Paragraph;
+import org.openpdf.text.Phrase;
+import org.openpdf.text.Rectangle;
+import org.openpdf.text.pdf.BaseFont;
+import org.openpdf.text.pdf.ColumnText;
+import org.openpdf.text.pdf.PdfContentByte;
+import org.openpdf.text.pdf.PdfPCell;
+import org.openpdf.text.pdf.PdfPTable;
+import org.openpdf.text.pdf.PdfPageEventHelper;
+import org.openpdf.text.pdf.PdfTemplate;
+import org.openpdf.text.pdf.PdfWriter;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -110,7 +110,7 @@ final class ReportPdf {
                 doc.add(p);
             }
             case "bullets" -> {
-                com.lowagie.text.List list = new com.lowagie.text.List(false, 12);
+                org.openpdf.text.List list = new org.openpdf.text.List(false, 12);
                 list.setListSymbol(new Chunk("•  ", BODY));
                 for (JsonNode item : items(b)) {
                     ListItem li = new ListItem(rich(item.asString("")));
@@ -283,7 +283,7 @@ final class ReportPdf {
             img.setSpacingBefore(6);
             img.setSpacingAfter(12);
             return img;
-        } catch (com.lowagie.text.BadElementException e) {
+        } catch (org.openpdf.text.BadElementException e) {
             throw new IllegalArgumentException("no se pudo dibujar el gráfico.", e);
         }
     }

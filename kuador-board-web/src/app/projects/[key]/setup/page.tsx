@@ -39,12 +39,13 @@ export default async function ProjectOnboardingPage({ params, searchParams }: Pa
       software ? null : boardApi.workspaceAi().catch(() => null),
       software ? [] : boardApi.boardTeam(key).catch(() => []),
       software ? boardApi.draftPlan(key).catch(() => null) : null,
+      software ? boardApi.piecePlan(key).catch(() => null) : null,
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, methodologies, link, github, templates, connections, kit, notifications, issues, ai, team, draft] = data;
-  const done = setupDone(project, link, connections, notifications, issues.length, !!ai?.configured, draft);
+  const [project, methodologies, link, github, templates, connections, kit, notifications, issues, ai, team, draft, plan] = data;
+  const done = setupDone(project, link, connections, notifications, issues.length, !!ai?.configured, draft, plan);
   const steps = setupSteps(project);
   const requested = typeof step === "string" && steps.includes(step as StepId) ? (step as StepId) : null;
   return (
@@ -65,6 +66,7 @@ export default async function ProjectOnboardingPage({ params, searchParams }: Pa
       boardAgents={team.filter((a) => a.inTeam && a.mode === "SERVER")}
       existingProject={origen === "existente"}
       draft={draft}
+      plan={plan}
     />
   );
 }

@@ -189,6 +189,8 @@ public class BoardAgent {
         // Reglas: el núcleo fijo, las del espacio (Catálogo → Reglas de agentes) y las de la situación de esta tarjeta.
         List<String> all = new ArrayList<>(AgentRules.common(policy, company.teamLanguage(), company.codeLanguage()));
         all.addAll(rules.board());
+        // En el tablero trabajan quienes planean y revisan: el plan dice si cambia el despliegue y la revisión lo exige en el PR.
+        if (board.software()) all.addAll(AgentRules.softwareProject(true));
         boolean epic = "EPIC".equals(card.type()) && board.software();
         // Una historia suelta en la etapa que reparte (Diseño): si el plan la divide, create_tasks la vuelve épica.
         boolean splits = !epic && board.software() && board.epicSplitsInto(card.status()) && issues.canSplit(card.key());

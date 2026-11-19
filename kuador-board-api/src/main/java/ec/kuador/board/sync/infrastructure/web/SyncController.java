@@ -74,6 +74,8 @@ class SyncController {
 
     record AddPieceRequest(@NotNull @Valid PieceRequest piece, Boolean privateRepo) {}
 
+    record PlanRequest(@Size(max = 12) String layout, @NotNull @Size(max = 20) @Valid List<PieceRequest> pieces) {}
+
     record PieceResponse(String name, String templateKey, Long templateVersion, String templateRef, String kind, String stack, String repository,
             String path, String build, String test, String run, String notes, Instant createdAt) {
         static PieceResponse from(ProjectComponent c) {
@@ -112,6 +114,19 @@ class SyncController {
         List<ComponentService.PieceSpec> pieces = r.pieces() == null ? List.of() : r.pieces().stream().map(PieceRequest::spec).toList();
         return SetupResponse.from(components.setup(projectKey,
                 new ComponentService.Setup(r.installationId(), r.repoName(), r.description(), r.privateRepo() == null || r.privateRepo(), pieces), who.memberId()));
+    }
+
+    /** Las piezas planeadas de un proyecto nuevo (antes del repo); 204 si no hay. */
+    @GetMapping("/components/plan")
+    org.springframework.http.ResponseEntity<ComponentService.PiecePlan> plan(@PathVariable String projectKey) {
+        return components.plan(projectKey).map(org.springframework.http.ResponseEntity::ok)
+                .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
+    }
+
+    /** Guarda las piezas planeadas: son la fuente del stack para los documentos y el paso del repositorio arranca con ellas. */
+    @PutMapping("/components/plan")
+    ComponentService.PiecePlan savePlan(@PathVariable String projectKey, @Valid @RequestBody PlanRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        return components.savePlan(projectKey, new ComponentService.PiecePlan(r.layout(), r.pieces().stream().map(PieceRequest::spec).toList()), who.memberId());
     }
 
     /** Suma una pieza: carpeta nueva por Pull Request a develop, o un repo propio con sus bases. */

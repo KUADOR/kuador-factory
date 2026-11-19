@@ -87,9 +87,14 @@ public class DocumentService implements DocsApi {
      */
     private WithContent createDocument(String projectKey, String kind, String issueKey, String importedPath, String content, UUID actorId) {
         ProjectView project = softwareProject(projectKey);
-        Methodology methodology = methodologyOf(project);
-        DocumentDef def = methodology.document(kind)
-                .orElseThrow(() -> new DomainException("La metodología " + methodology.name() + " no usa documentos de tipo " + kind + "."));
+        DocumentDef def;
+        if (Methodology.DEPLOYMENT_KIND.equals(kind) && project.methodology() == null) {
+            def = Methodology.DEPLOYMENT; // Despliegue no depende de la metodología
+        } else {
+            Methodology methodology = methodologyOf(project);
+            def = methodology.document(kind)
+                    .orElseThrow(() -> new DomainException("La metodología " + methodology.name() + " no usa documentos de tipo " + kind + "."));
+        }
         if (content != null && content.length() > MAX_CONTENT) {
             throw new DomainException("El documento pasa de " + MAX_CONTENT + " caracteres.");
         }
@@ -202,9 +207,11 @@ public class DocumentService implements DocsApi {
     @Override
     @Transactional(readOnly = true)
     public List<String> allowedKinds(String projectKey) {
+        // Despliegue lo trae el tablero aunque la metodología no lo tenga (o no haya metodología).
         return catalog.methodology(softwareProject(projectKey).methodology())
-                .map(m -> m.documents().stream().map(DocumentDef::kind).toList())
-                .orElse(List.of());
+                .map(m -> java.util.stream.Stream.concat(m.documents(DocumentDef.Scope.PROJECT).stream(), m.documents(DocumentDef.Scope.ISSUE).stream())
+                        .map(DocumentDef::kind).toList())
+                .orElse(List.of(Methodology.DEPLOYMENT_KIND));
     }
 
     @Override
@@ -240,9 +247,9 @@ public class DocumentService implements DocsApi {
         }).orElse(List.of());
     }
 
-    /** Sigue como salió de la plantilla: nadie lo redactó, editó ni importó. */
+    /** Sigue como salió de la plantilla: nadie lo redactó, editó ni importó (el stack que escribe el tablero no cuenta). */
     private boolean onlyTemplate(Document d) {
-        return d.currentVersion() == 1 && documents.findVersion(d.id(), 1).map(v -> FROM_TEMPLATE.equals(v.note())).orElse(false);
+        return documents.findVersions(d.id()).stream().allMatch(v -> FROM_TEMPLATE.equals(v.note()) || STACK_NOTE.equals(v.note()));
     }
 
     @Override

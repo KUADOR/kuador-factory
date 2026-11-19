@@ -57,8 +57,11 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
   const projectRules = documentsOf(methodology, "PROJECT");
   const issueRules = documentsOf(methodology, "ISSUE");
   const projectDocs = documents.filter((d) => !d.issueKey);
-  const expected = new Set(projectRules.map((r) => r.kind));
+  // Despliegue lo trae el tablero en toda metodología: documento vivo, opcional, que se actualiza con el proyecto.
+  const expected = new Set([...projectRules.map((r) => r.kind), "DEPLOYMENT"]);
   const others = projectDocs.filter((d) => !expected.has(d.kind));
+  const deployment = projectRules.some((r) => r.kind === "DEPLOYMENT") ? null : projectDocs.find((d) => d.kind === "DEPLOYMENT");
+  const deploymentDraft = `/projects/${project.key}/docs/draft?doc=DEPLOYMENT`;
   const titles = new Map(issues.map((i) => [i.key, i.title]));
   const byIssue = Map.groupBy(documents.filter((d) => d.issueKey), (d) => d.issueKey as string);
 
@@ -107,6 +110,26 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
               </li>
             );
           })}
+          {!projectRules.some((r) => r.kind === "DEPLOYMENT") && (
+            <li className="flex items-center">
+              {deployment ? (
+                <div className="min-w-0 flex-1">
+                  <DocRow projectKey={project.key} doc={deployment} label="Despliegue" />
+                </div>
+              ) : (
+                <div className="grid min-w-0 flex-1 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-3 py-2.5 pl-5">
+                  <FileText className="size-4 text-fg-faint/50" aria-hidden />
+                  <span className="min-w-0">
+                    <span className="block text-[13px] text-fg">Despliegue</span>
+                    <span className="block truncate text-xs text-fg-faint">Dónde y cómo se despliega cada entorno. Opcional.</span>
+                  </span>
+                </div>
+              )}
+              <Link href={deploymentDraft} className="k-link shrink-0 px-5 text-xs">
+                {deployment ? "Actualizar con IA" : "Redactar con IA"}
+              </Link>
+            </li>
+          )}
           {others.map((doc) => (
             <li key={doc.id}>
               <DocRow projectKey={project.key} doc={doc} />

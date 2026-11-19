@@ -245,6 +245,10 @@ public class BoardTools {
                     "sizeBytes", f.sizeBytes(), "by", f.uploadedBy() == null ? "" : name(f.uploadedBy()))).toList());
         }
         m.put("projectDocuments", all.stream().filter(d -> d.issueKey() == null).map(BoardTools::docMeta).toList());
+        if (project.software()) {
+            boolean deployment = all.stream().anyMatch(d -> d.issueKey() == null && ec.kuador.board.catalog.Methodology.DEPLOYMENT_KIND.equals(d.kind()));
+            m.put("projectRules", ec.kuador.board.catalog.AgentRules.softwareProject(deployment));
+        }
         if ("EPIC".equals(c.type())) {
             List<IssueApi.TaskInfo> tasks = issues.epicTasks(c.key());
             m.put("tasks", tasks.stream().map(BoardTools::task).toList());
@@ -407,8 +411,10 @@ public class BoardTools {
         String kind = required(a, "type").toUpperCase(Locale.ROOT);
         List<String> allowed = docs.allowedKinds(c.projectKey());
         if (!allowed.contains(kind)) {
+            // Despliegue es del proyecto (se actualiza en el PR), no de la metodología: no cuenta como «tipo posible» del issue.
+            List<String> own = allowed.stream().filter(k -> !ec.kuador.board.catalog.Methodology.DEPLOYMENT_KIND.equals(k)).toList();
             throw new ToolException("La metodología del proyecto no pide documentos " + kind + ". Tipos posibles: "
-                    + (allowed.isEmpty() ? "ninguno (el proyecto no tiene metodología)" : String.join(", ", allowed)) + ".");
+                    + (own.isEmpty() ? "ninguno (el proyecto no tiene metodología)" : String.join(", ", own)) + ".");
         }
         DocContent d = docs.write(c.projectKey(), c.key(), kind, required(a, "content"), a.get("note"), agent.id());
         return Map.of("ok", true, "message", "Guardé " + d.title() + " (versión " + d.version() + ").", "document", docMeta(d));

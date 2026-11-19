@@ -41,6 +41,7 @@ import type {
   IssuedToken,
   Issue,
   PieceInput,
+  PiecePlan,
   PiecesSetup,
   SetupResult,
   IssueInput,
@@ -721,6 +722,10 @@ export async function linkRepositoryAction(
   input: { kind: RepositoryKind; location: string; branch: string | null; token: string | null; installationId?: number | null },
 ): Promise<ActionResult<RepositoryLink>> {
   return run(() => boardApi.linkRepository(projectKey, input), `/projects/${projectKey}/settings`);
+}
+
+export async function savePiecePlanAction(projectKey: string, plan: PiecePlan): Promise<ActionResult<PiecePlan>> {
+  return run(() => boardApi.savePiecePlan(projectKey, plan), `/projects/${projectKey}/setup`);
 }
 
 export async function setupPiecesAction(projectKey: string, input: PiecesSetup): Promise<ActionResult<SetupResult>> {

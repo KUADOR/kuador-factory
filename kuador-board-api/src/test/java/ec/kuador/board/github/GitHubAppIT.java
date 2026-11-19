@@ -191,10 +191,16 @@ class GitHubAppIT {
         assertThat(early.status()).as(String.valueOf(early.body())).isEqualTo(422);
         assertThat(early.body().get("detail").asString()).contains("documentos base", "Constitución", "Producto");
         assertThat(call("GET", "/api/projects/PI/drafting", null, owner).body().get("pendingBase")).hasSize(5);
+        // Las piezas se eligen antes de redactar: son la única fuente del stack.
+        Reply planned = call("PUT", "/api/projects/PI/components/plan", Map.of("layout", "MONOREPO", "pieces", List.of(
+                Map.of("name", "api", "templateKey", "API_ACME", "variables", Map.of("PAQUETE", "ec.pi.api")),
+                Map.of("name", "web", "templateKey", "WEB_ANGULAR"))), owner);
+        assertThat(planned.status()).as(String.valueOf(planned.body())).isEqualTo(200);
+        assertThat(call("GET", "/api/projects/PI/components/plan", null, owner).body().get("pieces")).hasSize(2);
         assertThat(call("POST", "/api/projects/PI/drafting/approve", Map.of("documents", List.of(
                 Map.of("kind", "CONSTITUTION", "content", "# Constitución de Portal Pi\n\n## Principios fundamentales\n\n### I. Pruebas primero"),
                 Map.of("kind", "PRODUCT", "content", "# Producto: Portal Pi\n\nPortal de pacientes."),
-                Map.of("kind", "ARCHITECTURE", "content", "# Arquitectura de Portal Pi\n\nAPI y web."),
+                Map.of("kind", "ARCHITECTURE", "content", "# Arquitectura de Portal Pi\n\n## Stack\n\nSpring Boot 3 y React.\n\n## Módulos\n\nAPI y web."),
                 Map.of("kind", "GLOSSARY", "content", "# Glosario\n\n- **Paciente:** quien usa el portal."),
                 Map.of("kind", "AGENT_RULES", "content", "# Reglas para agentes\n\n- Pruebas antes del código.")), "goal", "Que los pacientes vean sus citas."), owner)
                 .status()).isEqualTo(200);
@@ -220,6 +226,10 @@ class GitHubAppIT {
         assertThat(GITHUB.file("acme/pi", "main", "AGENTS.md")).as("el AGENTS.md de la metodología lleva el flujo del tablero")
                 .contains("# Reglas para agentes", "## Tablero de Acme Lab", "role_manual").doesNotContainIgnoringCase("kuador");
         assertThat(GITHUB.file("acme/pi", "main", ".specify/memory/constitution.md")).contains("Portal Pi");
+        assertThat(GITHUB.file("acme/pi", "main", "docs/architecture.md")).as("el stack lo escribe el tablero desde las piezas")
+                .contains("## Stack", "| api | Backend | Java 25 · Spring Boot | `api/` |", "| web | Frontend |", "## Módulos").doesNotContain("Spring Boot 3 y React");
+        assertThat(GITHUB.file("acme/pi", "main", "docs/deployment.md")).as("Despliegue nace con el repo").contains("# Despliegue de Portal Pi", "| Pruebas | develop |");
+        assertThat(call("GET", "/api/projects/PI/components/plan", null, owner).status()).as("desde el repo mandan las piezas reales").isEqualTo(204);
         assertThat(call("GET", "/api/projects/PI/components", null, devSession).body()).extracting(n -> n.get("path").asString()).containsExactly("api", "web");
 
         // El equipo ajusta la pieza creada: va con Java 21 y Spring Boot 3, y deja una nota para los agentes.
@@ -233,12 +243,14 @@ class GitHubAppIT {
         assertThat(api.get("notes").asString()).isEqualTo("Nada de APIs de Java 22+.");
         assertThat(api.get("run").isNull()).as("sin comando").isTrue();
 
-        // Vinculado y sincronizado desde el primer momento, con tokens de corta duración reutilizados.
+        // Vinculado y sincronizado desde el primer momento, con tokens de corta duración reutilizados. Al ajustar la pieza, el
+        // stack de Arquitectura cambió solo en el tablero: es lo único que queda por llevar al repo.
         Reply sync = call("GET", "/api/projects/PI/sync", null, owner);
         assertThat(sync.status()).as(String.valueOf(sync.body())).isEqualTo(200);
-        List<String> states = new ArrayList<>();
-        sync.body().get("entries").forEach(e -> states.add(e.get("state").asString()));
-        assertThat(states).isNotEmpty().allMatch("SYNCED"::equals);
+        Map<String, String> states = new java.util.HashMap<>();
+        sync.body().get("entries").forEach(e -> states.put(e.get("document").get("path").asString(), e.get("state").asString()));
+        assertThat(states).containsEntry("docs/architecture.md", "BOARD_AHEAD");
+        assertThat(states).hasSizeGreaterThan(1).allSatisfy((path, state) -> { if (!path.equals("docs/architecture.md")) assertThat(state).as(path).isEqualTo("SYNCED"); });
         assertThat(GITHUB.tokensIssued).isEqualTo(1);
         assertThat(call("POST", "/api/projects/PI/components/setup", Map.of("installationId", FakeGitHubCloud.INSTALLATION, "repoName", "otro"), owner).status())
                 .as("se arma una sola vez").isEqualTo(409);

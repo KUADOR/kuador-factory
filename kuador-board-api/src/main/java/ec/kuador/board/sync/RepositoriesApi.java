@@ -24,6 +24,17 @@ public interface RepositoriesApi {
         throw new UnsupportedOperationException("registerExisting");
     }
 
+    /**
+     * El stack del proyecto, que es la fuente para los documentos: las piezas reales o, antes de crear el repo, las
+     * planeadas (con el stack y los comandos de su plantilla).
+     */
+    default List<Piece> stack(String projectKey) {
+        return pieces(projectKey);
+    }
+
+    /** Reescribe la sección «## Stack» de Arquitectura con las piezas actuales (p. ej. después de aprobar documentos). */
+    default void refreshStack(String projectKey, UUID actorId) {}
+
     /** Propone el kit de agentes a los repos del proyecto por Pull Request (nunca directo a la rama principal); devuelve los enlaces. */
     default List<String> proposeKit(String projectKey, UUID actorId) {
         return List.of();

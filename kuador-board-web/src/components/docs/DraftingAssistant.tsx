@@ -31,6 +31,7 @@ export function DraftingAssistant({
   machineOnline,
   origin: initialOrigin,
   returnTo,
+  only,
 }: {
   projectKey: string;
   plan: DraftPlan;
@@ -38,20 +39,23 @@ export function DraftingAssistant({
   origin?: "new" | "existing";
   /** A dónde volver al aprobar (p. ej. al asistente de inicio, para seguir con el repo). */
   returnTo?: string;
+  /** Redactar solo ese documento (p. ej. DEPLOYMENT): sin elegir documentos y sin tocar el objetivo del tablero. */
+  only?: string;
 }) {
   const router = useRouter();
   // Software sin metodología redacta solo el objetivo, como los demás tableros.
   const software = plan.projectKind === "SOFTWARE" && !!plan.methodology;
   // Un proyecto que ya existe se reconoce leyendo su código; uno nuevo nace de la idea.
   const [origin, setOrigin] = useState<"new" | "existing">(initialOrigin ?? (software && plan.repositories.length > 0 && plan.pieces === 0 ? "existing" : "new"));
-  const existing = software && origin === "existing";
+  const existing = software && origin === "existing" && !only;
+  const onlyDoc = only ? plan.documents.find((d) => d.kind === only) : undefined;
   const [pieces, setPieces] = useState<DraftPiece[]>([]);
   const [findings, setFindings] = useState<string[]>([]);
   const [cards, setCards] = useState<{ title: string; description: string; chosen: boolean }[]>([]);
   const [kitPr, setKitPr] = useState(true);
   const [local, setLocal] = useState(!plan.serverReady);
   const [idea, setIdea] = useState("");
-  const [kinds, setKinds] = useState(plan.documents.filter((d) => d.suggested).map((d) => d.kind));
+  const [kinds, setKinds] = useState(only ? [only] : plan.documents.filter((d) => d.suggested).map((d) => d.kind));
   const [questions, setQuestions] = useState<{ id: string; text: string; options: string[] }[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [docs, setDocs] = useState<Doc[] | null>(null);
@@ -101,7 +105,7 @@ export function DraftingAssistant({
   };
 
   const draft = async () => {
-    const r = await run("draft", { idea, answers, kinds }, software ? "Redactando los documentos" : "Escribiendo el objetivo");
+    const r = await run("draft", { idea, answers, kinds }, onlyDoc ? `Redactando ${onlyDoc.label}` : software ? "Redactando los documentos" : "Escribiendo el objetivo");
     if (!r) return;
     setDocs(r.documents ?? []);
     if (r.goal) setGoal(r.goal);
@@ -136,7 +140,7 @@ export function DraftingAssistant({
     const chosen = cards.filter((c) => c.chosen).map(({ title, description }) => ({ title, description }));
     const r = await draftApproveAction(projectKey, {
       documents: (docs ?? []).map((d) => ({ kind: d.kind, content: d.content })),
-      goal: goal.trim() || null,
+      goal: only ? null : goal.trim() || null,
       ...(existing ? { pieces: pieces.filter((p) => p.name.trim() && p.stack.trim()), cards: chosen, kitPullRequest: kitPr } : {}),
     });
     setBusy(null);
@@ -157,7 +161,7 @@ export function DraftingAssistant({
   const special = tab === "PIECES" || tab === "FINDINGS";
   const setPiece = (i: number, patch: Partial<DraftPiece>) => setPieces((all) => all.map((p, j) => (j === i ? { ...p, ...patch } : p)));
 
-  const documentChoice = software && plan.documents.length > 0 && (
+  const documentChoice = software && !only && plan.documents.length > 0 && (
     <fieldset className="flex flex-col gap-1.5">
       <legend className="mb-1 text-xs font-medium text-fg-muted">Qué documentos redactar</legend>
       {plan.documents.map((d) => (
@@ -257,15 +261,23 @@ export function DraftingAssistant({
       {/* 1. La idea central. */}
       {!existing && (
       <section className={clsx("flex flex-col gap-3 rounded-lg border bg-surface p-4", stage === 1 ? "border-sol/50" : "border-line")}>
-        <h2 className="text-[14px] font-semibold text-fg-strong">1 · La idea central</h2>
-        <p className="-mt-2 text-xs text-fg-muted">De qué se trata y para quién, en dos o tres frases.</p>
+        <h2 className="text-[14px] font-semibold text-fg-strong">{only ? "1 · Tu infraestructura" : "1 · La idea central"}</h2>
+        <p className="-mt-2 text-xs text-fg-muted">
+          {only ? "Dónde vas a desplegar, dominios y servicios que necesitas. develop va a pruebas y main a producción." : "De qué se trata y para quién, en dos o tres frases."}
+        </p>
         <div className="flex items-start gap-2">
           <TextArea
             rows={4}
             value={idea}
             onChange={(e) => setIdea(e.target.value)}
-            placeholder={software ? "Una app para que la clínica agende citas en línea, simple para pacientes mayores, con recordatorios por WhatsApp." : "Publicar 3 veces por semana para que pymes de la ciudad nos conozcan y pidan una demo."}
-            aria-label="Idea central"
+            placeholder={
+              only
+                ? "VPS en Hetzner con Dokploy. Pruebas en pruebas.clinica.com y producción en clinica.com. Necesito Keycloak y Grafana."
+                : software
+                  ? "Una app para que la clínica agende citas en línea, simple para pacientes mayores, con recordatorios por WhatsApp."
+                  : "Publicar 3 veces por semana para que pymes de la ciudad nos conozcan y pidan una demo."
+            }
+            aria-label={only ? "Tu infraestructura" : "Idea central"}
           />
           <DictateButton onText={(t) => setIdea((v) => (v ? `${v} ${t}` : t))} />
         </div>
@@ -318,7 +330,7 @@ export function DraftingAssistant({
           ))}
           {stage === 2 && (
             <Button tone="primary" icon={Wand2} loading={busy != null} onClick={draft} className="self-start">
-              {software ? "Redactar los documentos" : "Proponer el objetivo"}
+              {onlyDoc ? `Redactar ${onlyDoc.label}` : software ? "Redactar los documentos" : "Proponer el objetivo"}
             </Button>
           )}
         </section>
@@ -332,7 +344,7 @@ export function DraftingAssistant({
             {[
               ...(existing ? [{ key: "PIECES", label: `Piezas (${pieces.length})` }] : []),
               ...docs.map((d) => ({ key: d.kind, label: d.label })),
-              { key: "GOAL", label: "Objetivo del tablero" },
+              ...(only ? [] : [{ key: "GOAL", label: "Objetivo del tablero" }]),
               ...(existing ? [{ key: "FINDINGS", label: `Diagnóstico y tarjetas` }] : []),
             ].map((t) => (
               <button

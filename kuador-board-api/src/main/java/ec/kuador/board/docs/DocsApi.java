@@ -35,6 +35,9 @@ public interface DocsApi {
      */
     List<DocContent> ensureProjectDocuments(String projectKey, UUID actorId);
 
+    /** Nota de la versión que escribe el tablero al reescribir el stack desde las piezas: no cuenta como redacción de una persona. */
+    String STACK_NOTE = "El tablero actualizó el stack desde las piezas";
+
     /** Los documentos base de la metodología que siguen sin redactar (no existen o solo tienen la plantilla), por su nombre. */
     List<String> pendingBaseDocuments(String projectKey);
 

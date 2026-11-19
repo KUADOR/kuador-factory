@@ -168,6 +168,12 @@ export interface PieceInput {
   variables: Record<string, string>;
 }
 
+/** Piezas planeadas antes del repo: la fuente del stack para los documentos; el paso del repositorio arranca con ellas. */
+export interface PiecePlan {
+  layout: "MONOREPO" | "MULTI_REPO";
+  pieces: PieceInput[];
+}
+
 export interface PiecesSetup {
   installationId: number;
   repoName: string;

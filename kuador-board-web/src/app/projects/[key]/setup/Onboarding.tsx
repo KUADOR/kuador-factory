@@ -18,6 +18,7 @@ import type {
   AgentKit,
   ComponentTemplate,
   DraftPlan,
+  PiecePlan,
   GitHubOverview,
   Methodology,
   NotificationView,
@@ -30,12 +31,13 @@ import type {
 
 import { MethodologyPicker } from "../settings/MethodologyPicker";
 import { RepositoryForm } from "../settings/RepositoryForm";
-import { PiecesSetupForm } from "../settings/repository/Pieces";
+import { PiecesPlanForm, PiecesSetupForm } from "../settings/repository/Pieces";
 
 
 const STEPS: Record<StepId, { title: string; description: string }> = {
   ai: { title: "IA de la empresa", description: "El proveedor y la clave con la que trabajan tus agentes. El consumo va a tu cuenta." },
   methodology: { title: "Metodología", description: "Qué documentos pide el proyecto y qué escribe cada agente." },
+  pieces: { title: "Piezas", description: "De qué está hecho el proyecto: es la única fuente del stack." },
   docs: { title: "Documentos base", description: "Guían a los agentes desde el primer commit. Obligatorio antes del repo." },
   repository: { title: "Repositorio y piezas", description: "El tablero crea los repos con sus bases, o vinculas uno que ya existe." },
   client: { title: "Tu cliente de IA", description: "Tus agentes trabajan en tu Claude Code o Codex, conectados al tablero." },
@@ -67,6 +69,7 @@ export function Onboarding({
   boardAgents = [],
   existingProject = false,
   draft = null,
+  plan = null,
 }: {
   project: Project;
   steps: StepId[];
@@ -86,6 +89,8 @@ export function Onboarding({
   existingProject?: boolean;
   /** Qué documentos base pide la metodología y cuáles faltan (software). */
   draft?: DraftPlan | null;
+  /** Piezas planeadas antes del repo. */
+  plan?: PiecePlan | null;
 }) {
   const router = useRouter();
   const base = `/projects/${project.key}/setup`;
@@ -94,7 +99,9 @@ export function Onboarding({
   const go = (step: StepId | "done") => router.push(step === "done" ? `${base}?step=fin` : `${base}?step=${step}`);
   const pending = steps.filter((s) => !done[s]).length;
   // Un proyecto nuevo no crea su repo sin sus documentos base; uno que ya existe se vincula y el agente los propone leyéndolo.
-  const mandatory = current === "docs" && !done.docs && !existingProject;
+  // Orden de un proyecto nuevo: piezas (el stack) → documentos (con ese stack) → repo. Ninguno de los dos primeros se salta.
+  const mandatory = ((current === "pieces" && !done.pieces) || (current === "docs" && !done.docs)) && !existingProject;
+  const docsBlocked = current === "docs" && !done.pieces && !existingProject;
   const repoBlocked = current === "repository" && !done.docs && !existingProject && !link?.linked;
 
   return (
@@ -137,10 +144,14 @@ export function Onboarding({
             </header>
             <div className="rounded-lg border border-line bg-surface p-5">
               {current === "methodology" && <MethodologyPicker project={project} methodologies={methodologies} />}
-              {current === "docs" && <DocsStep project={project} draft={draft} />}
+              {current === "pieces" && (
+                <PiecesStep project={project} templates={templates} plan={plan} linked={!!link?.linked} existing={existingProject} onSaved={() => go(next ?? "done")} />
+              )}
+              {docsBlocked && <Locked text="Primero elige las piezas: los documentos se redactan con su stack." step="pieces" label="Ir a Piezas" projectKey={project.key} />}
+              {current === "docs" && !docsBlocked && <DocsStep project={project} draft={draft} />}
               {repoBlocked && <RepositoryLocked project={project} draft={draft} />}
               {current === "repository" && !repoBlocked && link && (
-                <RepositoryStep project={project} link={link} github={github} templates={templates} existing={existingProject} />
+                <RepositoryStep project={project} link={link} github={github} templates={templates} existing={existingProject} plan={plan} />
               )}
               {current === "client" && <AgentsStep connections={connections} kit={kit} onCheck={() => router.refresh()} />}
               {current === "notifications" &&
@@ -178,12 +189,14 @@ function RepositoryStep({
   github,
   templates,
   existing,
+  plan,
 }: {
   project: Project;
   link: RepositoryLink;
   github: GitHubOverview;
   templates: ComponentTemplate[];
   existing: boolean;
+  plan: PiecePlan | null;
 }) {
   if (link.linked) {
     return (
@@ -220,7 +233,7 @@ function RepositoryStep({
   return (
     <div className="flex flex-col gap-6">
       {github.connections.length > 0 ? (
-        <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} />
+        <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} plan={plan} />
       ) : (
         <p className="text-[13px] text-fg-muted">
           Conecta primero tu organización de GitHub en{" "}
@@ -248,6 +261,7 @@ function RepositoryStep({
 function DocsStep({ project, draft }: { project: Project; draft: DraftPlan | null }) {
   if (!draft) return <p className="text-[13px] text-fg-muted">No se pudo leer qué documentos pide el proyecto.</p>;
   const base = draft.documents.filter((d) => d.suggested);
+  const deployment = draft.documents.find((d) => d.kind === "DEPLOYMENT");
   const ready = draft.methodology ? draft.pendingBase.length === 0 : !!draft.goal?.trim();
   return (
     <div className="flex flex-col gap-5">
@@ -264,6 +278,17 @@ function DocsStep({ project, draft }: { project: Project; draft: DraftPlan | nul
       ) : (
         <p className="text-[13px] text-fg">{draft.goal ? draft.goal : "Sin metodología basta con el objetivo del tablero."}</p>
       )}
+      {deployment && (
+        <p className="flex items-center gap-2.5 text-[13px]">
+          {deployment.written ? <Check className="size-3.5 shrink-0 text-ok" aria-hidden /> : <span aria-hidden className="size-3.5 shrink-0 rounded-full border border-dashed border-line-strong" />}
+          <span className="min-w-0 flex-1 text-fg">
+            Despliegue <span className="text-fg-muted">· opcional, se actualiza con el proyecto</span>
+          </span>
+          <Link href={`/projects/${project.key}/docs/draft?doc=DEPLOYMENT&origen=asistente`} className="k-link text-xs">
+            {deployment.written ? "Actualizar" : "Redactar"}
+          </Link>
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Button tone={ready ? "secondary" : "primary"} icon={Sparkles} href={`/projects/${project.key}/docs/draft?origen=asistente`}>
           {ready ? "Volver a redactar" : draft.methodology ? "Redactar con IA" : "Proponer el objetivo con IA"}
@@ -272,6 +297,46 @@ function DocsStep({ project, draft }: { project: Project; draft: DraftPlan | nul
           El proyecto ya existe
         </Link>
       </div>
+    </div>
+  );
+}
+
+/** Piezas: de qué está hecho el proyecto. Antes del repo se planean; después se ajustan en «Piezas y repositorio». */
+function PiecesStep({
+  project,
+  templates,
+  plan,
+  linked,
+  existing,
+  onSaved,
+}: {
+  project: Project;
+  templates: ComponentTemplate[];
+  plan: PiecePlan | null;
+  linked: boolean;
+  existing: boolean;
+  onSaved: () => void;
+}) {
+  if (linked || existing) {
+    return (
+      <p className="text-[13px] text-fg">
+        {existing && !linked ? "Las propone el agente al leer el repo." : "Ya están en el repo."}{" "}
+        <Link href={`/projects/${project.key}/${existing && !linked ? "setup?step=repository&origen=existente" : "settings/repository"}`} className="k-link">
+          {existing && !linked ? "Vincular el repo" : "Piezas y repositorio"}
+        </Link>
+      </p>
+    );
+  }
+  return <PiecesPlanForm projectKey={project.key} templates={templates} initial={plan} onSaved={onSaved} />;
+}
+
+function Locked({ text, step, label, projectKey }: { text: string; step: StepId; label: string; projectKey: string }) {
+  return (
+    <div className="flex flex-col gap-4 text-[13px]">
+      <p className="text-fg">{text}</p>
+      <Button tone="primary" href={`/projects/${projectKey}/setup?step=${step}`} className="self-start">
+        {label}
+      </Button>
     </div>
   );
 }

@@ -177,6 +177,12 @@ class DraftIT {
         assertThat(done.get("cards").size()).as("solo la que eligió").isEqualTo(1);
         JsonNode pieces = call("GET", "/api/projects/OLD/components", null, owner).body();
         assertThat(pieces.toString()).contains("web-app", "Angular 19", "Java 21").doesNotContain("Web App\"");
+        // Las piezas reconocidas son el stack: Arquitectura (creada desde su plantilla) lo trae escrito por el tablero.
+        JsonNode oldDocs = call("GET", "/api/projects/OLD/docs", null, owner).body();
+        String architectureId = oldDocs.get("documents").valueStream().filter(d -> d.get("kind").asString().equals("ARCHITECTURE")).findFirst().orElseThrow()
+                .get("id").asString();
+        assertThat(call("GET", "/api/docs/" + architectureId, null, owner).body().get("content").asString())
+                .contains("## Stack", "| api | Backend | Java 21 · Spring Boot 3.4 | `api/` |", "| web-app | Frontend | Angular 19 |");
         JsonNode card = call("GET", "/api/issues/" + done.get("cards").get(0).asString(), null, owner).body();
         assertThat(card.get("labels").toString()).contains("sugerida");
 

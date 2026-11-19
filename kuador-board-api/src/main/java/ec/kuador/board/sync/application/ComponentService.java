@@ -55,6 +55,9 @@ public class ComponentService implements RepositoriesApi {
     /** Una pieza a crear. {@code repoName} nulo = carpeta en el repo del proyecto; si no, un repo propio. */
     public record PieceSpec(String name, String templateKey, String repoName, Map<String, String> variables) {}
 
+    /** Piezas planeadas antes del repo. {@code layout}: MONOREPO (cada pieza en su carpeta) o MULTI_REPO (un repo por pieza). */
+    public record PiecePlan(String layout, List<PieceSpec> pieces) {}
+
     /** Armado inicial: el repo del proyecto (bases y documentos) y sus piezas. */
     public record Setup(long installationId, String repoName, String description, boolean privateRepo, List<PieceSpec> pieces) {}
 
@@ -73,10 +76,15 @@ public class ComponentService implements RepositoriesApi {
     private final RepositoryInstructions agents;
     private final Clock clock;
     private final BillingApi billing;
+    private final PiecePlans plans;
+    private final StackDocs stack;
 
     ComponentService(ComponentRepository components, SyncRecordRepository records, RepositoryCreator creator, TemplateFiles templates,
-            CatalogApi catalog, DocsApi docs, ProjectApi projects, RepositoryInstructions agents, Clock clock, BillingApi billing) {
+            CatalogApi catalog, DocsApi docs, ProjectApi projects, RepositoryInstructions agents, Clock clock, BillingApi billing, PiecePlans plans,
+            StackDocs stack) {
         this.billing = billing;
+        this.plans = plans;
+        this.stack = stack;
         this.components = components;
         this.records = records;
         this.creator = creator;
@@ -129,6 +137,7 @@ public class ComponentService implements RepositoriesApi {
                     existing == null ? now : existing.createdAt(), notes == null ? null : notes.length() > 4000 ? notes.substring(0, 4000) : notes);
             components.save(c);
         }
+        this.stack.refresh(projectKey, this.stack.lines(projectKey), actorId, true);
         log.info("{} piezas existentes registradas en {} por {}", pieces.size(), projectKey, actorId);
     }
 
@@ -146,6 +155,19 @@ public class ComponentService implements RepositoriesApi {
                 .map(c -> new Piece(c.name(), c.kind(), c.stack(), c.templateKey(), c.repoLocation(), c.path(), c.buildCommand(), c.testCommand(), c.runCommand(),
                         c.notes()))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Piece> stack(String projectKey) {
+        return stack.lines(projectKey).stream()
+                .map(l -> new Piece(l.name(), l.kind(), l.stack(), null, null, l.where(), l.build(), l.test(), l.run(), null)).toList();
+    }
+
+    @Override
+    @Transactional
+    public void refreshStack(String projectKey, UUID actorId) {
+        this.stack.refresh(projectKey, actorId);
     }
 
     @Transactional(readOnly = true)
@@ -172,6 +194,7 @@ public class ComponentService implements RepositoriesApi {
         if (notes != null && notes.length() > 4000) throw new DomainException("Las notas admiten hasta 4000 caracteres.");
         ProjectComponent updated = current.adjusted(stack, command(u.build()), command(u.test()), command(u.run()), notes);
         components.save(updated);
+        this.stack.refresh(projectKey, actorId);
         log.info("Pieza {} de {} ajustada por {}", name, projectKey, actorId);
         return updated;
     }
@@ -207,6 +230,9 @@ public class ComponentService implements RepositoriesApi {
             }
         }
         String agentsMd = agents.agentsMd();
+        // El stack de Arquitectura sale de estas piezas y entra así en el primer commit.
+        docs.ensureProjectDocuments(projectKey, actorId);
+        this.stack.refresh(projectKey, this.stack.planned(specs, specs.stream().anyMatch(p -> p.repoName() != null && !p.repoName().isBlank())), actorId);
         List<DocContent> documents = projectDocuments(projectKey, agentsMd, actorId);
 
         // Piezas en carpeta: van en el commit inicial del repo del proyecto.
@@ -242,6 +268,7 @@ public class ComponentService implements RepositoriesApi {
             results.add(result(repo, null));
             saved.add(save(projectKey, p, repo.fullName(), s.installationId(), actorId, now));
         }
+        plans.delete(projectKey); // desde ahora mandan las piezas reales
         log.info("Proyecto {} armado: {} pieza(s), {} repo(s)", projectKey, saved.size(), results.size());
         return new Result(link, results, saved, documents.size());
     }
@@ -275,7 +302,47 @@ public class ComponentService implements RepositoriesApi {
             result = new RepoResult(link.location(), null, List.of(), List.of(), pr.url());
             saved = save(projectKey, p, link.location(), installationId, actorId, now);
         }
+        this.stack.refresh(projectKey, actorId);
         return new Result(link, List.of(result), List.of(saved), 0);
+    }
+
+    // ---- Piezas planeadas (antes del repo) ----
+
+    /** Las piezas planeadas de un proyecto nuevo, o vacío si no las hay. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<PiecePlan> plan(String projectKey) {
+        software(projectKey);
+        return plans.find(projectKey);
+    }
+
+    /**
+     * Guarda las piezas planeadas, antes de crear el repo: son la fuente del stack con que se redactan los documentos y
+     * el paso del repositorio arranca con ellas. Reescribe el stack de Arquitectura si ya existe.
+     */
+    @Transactional
+    public PiecePlan savePlan(String projectKey, PiecePlan plan, UUID actorId) {
+        software(projectKey);
+        if (records.findLink(projectKey).isPresent()) {
+            throw new ConflictException("El proyecto ya tiene repositorio: suma o ajusta las piezas desde «Piezas y repositorio».");
+        }
+        String layout = "MULTI_REPO".equals(plan.layout()) ? "MULTI_REPO" : "MONOREPO";
+        List<PieceSpec> specs = plan.pieces() == null ? List.of() : plan.pieces();
+        if (specs.isEmpty()) throw new DomainException("Elige al menos una pieza: de ellas sale el stack del proyecto.");
+        Set<String> names = new HashSet<>();
+        for (PieceSpec p : specs) {
+            validName(p.name());
+            if (!names.add(p.name())) throw new DomainException("Hay dos piezas llamadas «" + p.name() + "».");
+            if (p.templateKey() != null && !p.templateKey().isBlank() && catalog.componentTemplate(p.templateKey()).isEmpty()) {
+                throw new DomainException("No existe la plantilla de pieza " + p.templateKey() + " en el catálogo.");
+            }
+        }
+        PiecePlan clean = new PiecePlan(layout, specs.stream()
+                .map(p -> new PieceSpec(p.name(), blankToNull(p.templateKey()), "MULTI_REPO".equals(layout) ? blankToNull(p.repoName()) : null,
+                        p.variables() == null ? Map.of() : p.variables()))
+                .toList());
+        plans.save(projectKey, clean);
+        this.stack.refresh(projectKey, actorId);
+        return clean;
     }
 
     // ---- Apoyo ----

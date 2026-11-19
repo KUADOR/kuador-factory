@@ -24,11 +24,12 @@ export default async function RepositorySettingsPage({ params }: PageProps<"/pro
       boardApi.github().catch(() => NO_GITHUB),
       boardApi.catalog("component-templates"),
       boardApi.pieces(key),
+      boardApi.piecePlan(key).catch(() => null),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, link, github, templates, pieces] = data;
+  const [project, link, github, templates, pieces, plan] = data;
   if (project.kind !== "SOFTWARE") notFound();
   const viaApp = link.linked && link.kind === "GITHUB_APP";
   return (
@@ -39,7 +40,7 @@ export default async function RepositorySettingsPage({ params }: PageProps<"/pro
           description="Las piezas del sistema (API, web, microfrontends…) y sus repositorios."
         >
           <div className="rounded-lg border border-line bg-surface p-5">
-            <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} />
+            <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} plan={plan} />
           </div>
         </SettingsSection>
       ) : (

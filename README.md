@@ -442,12 +442,25 @@ MCP · 5 desarrollo y QA · 6 release.
   plataforma (*Plataforma → Precios de modelos de IA*, USD por millón de tokens; no están fijos en el
   código). Con un **tope mensual**, los agentes no arrancan al llegar a él y lo dicen en la tarjeta.
   No incluye el tiempo de ejecución de código ni a los agentes en la PC de una persona.
-- **Documentos base antes del repo** (software, proyecto nuevo): el asistente de inicio va Metodología →
-  Documentos base → Repositorio, y ese paso no se salta. El repo no se crea (la API responde 422) hasta
-  que estén redactados los documentos base de la metodología (en ODD, Producto y Reglas para agentes; en
-  las demás, todos los del proyecto) o, sin metodología, el objetivo del tablero. Un documento cuenta como
-  redactado cuando ya no es la plantilla. Un proyecto que ya existe se vincula sin este freno y el agente
-  propone los documentos leyendo el código.
+- **Piezas y documentos base antes del repo** (software, proyecto nuevo): el asistente de inicio va
+  Metodología → Piezas → Documentos base → Repositorio, y los dos pasos del medio no se saltan. Las piezas
+  se planean sin crear nada en GitHub (`PUT /api/projects/{key}/components/plan`) y el paso del repo
+  arranca con ellas. El repo no se crea (la API responde 422) hasta que estén redactados los documentos
+  base de la metodología (en ODD, Producto y Reglas para agentes; en las demás, todos los del proyecto) o,
+  sin metodología, el objetivo del tablero. Un documento cuenta como redactado cuando alguien lo escribió
+  (no la plantilla ni el stack automático). Un proyecto que ya existe se vincula sin este freno y el agente
+  propone piezas y documentos leyendo el código.
+- **Las piezas son la única fuente del stack**: la sección «## Stack» de Arquitectura la escribe el tablero
+  con las piezas (reales o planeadas: tipo, stack, carpeta o repo y comandos) y la reescribe cada vez que se
+  planean, se arman, se suman, se ajustan o se reconocen. La IA recibe ese stack como dato fijo y los demás
+  documentos remiten a esa sección; los agentes saben que, si un documento dice otra cosa, manda la pieza.
+- **Despliegue, documento vivo** (`docs/deployment.md`, en toda metodología, opcional): entornos (develop →
+  pruebas, main → producción), infraestructura, dependencias (Keycloak, Grafana…), variables y secretos (solo
+  nombres), paso a paso, CI/CD, respaldos y un registro de cambios. Se redacta con IA a partir de lo que
+  cuentas de tu infraestructura (VPS con Dokploy, VPS vacía…) desde el asistente o *Documentos*, y al
+  actualizarlo la IA parte de la versión vigente. Los agentes lo actualizan en el mismo PR que cambia el
+  despliegue y anotan la tarjeta en «Cambios»; el plan del arquitecto dice si cambia. En un proyecto que ya
+  existe sale de lo que se ve en el repo (Dockerfile, compose, workflows, `.env.example`).
 - **Primera experiencia fuera de software**: el asistente de inicio de un tablero que no es de software
   pide la clave de IA, los avisos y un *primer pedido* (qué necesitas, archivos y para qué agente, en un
   paso); sus agentes nacen trabajando en el tablero, «Etapas» y «Reglas» quedan en *Avanzado* y

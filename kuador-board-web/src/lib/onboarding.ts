@@ -1,14 +1,14 @@
-import type { DraftPlan, NotificationView, Project, RepositoryLink, RunnerToken } from "./types";
+import type { DraftPlan, NotificationView, PiecePlan, Project, RepositoryLink, RunnerToken } from "./types";
 
-export type StepId = "methodology" | "docs" | "repository" | "client" | "ai" | "notifications" | "firstWork";
+export type StepId = "methodology" | "pieces" | "docs" | "repository" | "client" | "ai" | "notifications" | "firstWork";
 
 /**
  * Pasos del asistente de inicio según el tipo de proyecto. En software los agentes trabajan en la PC de cada persona
- * (su cliente de IA); en los demás, en el tablero con la clave de IA de la empresa. En software, los documentos base van
- * antes del repo: van en su primer commit y guían a los agentes.
+ * (su cliente de IA); en los demás, en el tablero con la clave de IA de la empresa. En software: primero las piezas (son la
+ * única fuente del stack), después los documentos base (se redactan con ese stack) y recién entonces el repo.
  */
 export function setupSteps(project: Pick<Project, "kind">): StepId[] {
-  return project.kind === "SOFTWARE" ? ["methodology", "docs", "repository", "client", "notifications", "firstWork"] : ["ai", "notifications", "firstWork"];
+  return project.kind === "SOFTWARE" ? ["methodology", "pieces", "docs", "repository", "client", "notifications", "firstWork"] : ["ai", "notifications", "firstWork"];
 }
 
 /**
@@ -29,10 +29,12 @@ export function setupDone(
   issues: number,
   aiConfigured = false,
   draft: DraftPlan | null = null,
+  plan: PiecePlan | null = null,
 ): Record<StepId, boolean> {
   const s = notifications?.settings;
   return {
     methodology: project.methodology != null,
+    pieces: (plan?.pieces.length ?? 0) > 0 || !!link?.linked,
     // Con el repo ya vinculado (un proyecto que ya existía, o de antes de este paso) ya no frena nada.
     docs: baseReady(draft) || !!link?.linked,
     repository: !!link?.linked,

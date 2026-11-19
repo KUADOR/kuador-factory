@@ -3,13 +3,13 @@
 import { ExternalLink, GitBranchPlus, GitPullRequest, Pencil, Plus, ShieldCheck, Trash, TriangleAlert } from "lucide-react";
 import { useState, useTransition } from "react";
 
-import { addPieceAction, setupPiecesAction, updatePieceAction } from "@/app/actions";
+import { addPieceAction, savePiecePlanAction, setupPiecesAction, updatePieceAction } from "@/app/actions";
 import { COMPONENT_KIND_LABEL } from "@/components/catalog/editors";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, SelectInput, Switch, TextArea, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
-import type { ComponentTemplate, GitHubConnection, PieceInput, ProjectPiece, SetupResult } from "@/lib/types";
+import type { ComponentTemplate, GitHubConnection, PieceInput, PiecePlan, ProjectPiece, SetupResult } from "@/lib/types";
 
 type Layout = "MONOREPO" | "MULTI_REPO";
 const PIECE_NAME = "[a-z][a-z0-9\\-]{1,39}";
@@ -132,26 +132,114 @@ function SetupSummary({ result }: { result: SetupResult }) {
   );
 }
 
-/** Armado inicial: repo del proyecto (bases y documentos) y sus piezas, en monorepo o un repo por pieza. */
+/** Las piezas del plan como filas editables (el repo propio por defecto: proyecto-pieza). */
+function fromPlan(plan: PiecePlan | null | undefined, base: string): PieceInput[] {
+  return (plan?.pieces ?? []).map((p) => ({ ...p, repoName: p.repoName ?? `${base}-${p.name}`, variables: p.variables ?? {} }));
+}
+
+function nextPiece(pieces: PieceInput[], base: string): PieceInput {
+  const name = ["api", "web", "app", "servicio"].find((n) => !pieces.some((p) => p.name === n)) ?? "";
+  return { name, templateKey: null, repoName: name ? `${base}-${name}` : "", variables: {} };
+}
+
+const LAYOUT_CHOICES = [
+  { value: "MONOREPO" as const, label: "Monorepo", hint: "Un repo con cada pieza en su carpeta." },
+  { value: "MULTI_REPO" as const, label: "Un repo por pieza", hint: "Cada pieza en su repo." },
+];
+
+/** Piezas planeadas, antes del repo: son la única fuente del stack con que se redactan los documentos. */
+export function PiecesPlanForm({
+  projectKey,
+  templates,
+  initial,
+  onSaved,
+}: {
+  projectKey: string;
+  templates: ComponentTemplate[];
+  initial: PiecePlan | null;
+  onSaved: () => void;
+}) {
+  const base = projectKey.toLowerCase();
+  const [layout, setLayout] = useState<Layout>(initial?.layout ?? "MONOREPO");
+  const [pieces, setPieces] = useState<PieceInput[]>(() => {
+    const planned = fromPlan(initial, base);
+    return planned.length > 0 ? planned : [nextPiece([], base)];
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const multi = layout === "MULTI_REPO";
+
+  return (
+    <form
+      className="flex flex-col gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await savePiecePlanAction(projectKey, { layout, pieces: pieces.map((p) => clean(p, multi)) });
+          if (!r.ok) return setError(r.error);
+          setError(null);
+          notify.ok("Piezas guardadas");
+          onSaved();
+        });
+      }}
+    >
+      <ChoiceCards name="plan-layout" label="Organización de repos" columns={2} value={layout} onChange={setLayout} choices={LAYOUT_CHOICES} />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-fg-muted">Piezas</span>
+          <Button size="sm" icon={Plus} onClick={() => setPieces([...pieces, nextPiece(pieces, base)])}>
+            Pieza
+          </Button>
+        </div>
+        <ul className="flex flex-col gap-2">
+          {pieces.map((p, i) => (
+            <PieceRow
+              key={i}
+              piece={p}
+              templates={templates}
+              ownRepo={multi}
+              onChange={(next) => setPieces(pieces.map((x, j) => (j === i ? next : x)))}
+              onRemove={pieces.length > 1 ? () => setPieces(pieces.filter((_, j) => j !== i)) : undefined}
+            />
+          ))}
+        </ul>
+      </div>
+      {error && (
+        <p role="alert" className="text-[13px] text-danger">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end">
+        <Button type="submit" tone="primary" size="sm" loading={pending}>
+          Guardar piezas
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Armado inicial: repo del proyecto (bases y documentos) y sus piezas, en monorepo o un repo por pieza. Arranca con las planeadas. */
 export function PiecesSetupForm({
   projectKey,
   projectName,
   connections,
   templates,
+  plan = null,
 }: {
   projectKey: string;
   projectName: string;
   connections: GitHubConnection[];
   templates: ComponentTemplate[];
+  plan?: PiecePlan | null;
 }) {
   const orgs = connections.filter((c) => c.accountType === "Organization");
   const base = projectKey.toLowerCase();
   const [installationId, setInstallationId] = useState<number | null>(orgs[0]?.installationId ?? null);
-  const [layout, setLayout] = useState<Layout>("MONOREPO");
+  const [layout, setLayout] = useState<Layout>(plan?.layout ?? "MONOREPO");
   const [repoName, setRepoName] = useState(base);
   const [description, setDescription] = useState(projectName);
   const [privateRepo, setPrivateRepo] = useState(true);
-  const [pieces, setPieces] = useState<PieceInput[]>([]);
+  const [pieces, setPieces] = useState<PieceInput[]>(() => fromPlan(plan, base));
   const [result, setResult] = useState<SetupResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -166,10 +254,7 @@ export function PiecesSetupForm({
     );
   }
 
-  const addPiece = () => {
-    const name = ["api", "web", "app", "servicio"].find((n) => !pieces.some((p) => p.name === n)) ?? "";
-    setPieces([...pieces, { name, templateKey: null, repoName: name ? `${base}-${name}` : "", variables: {} }]);
-  };
+  const addPiece = () => setPieces([...pieces, nextPiece(pieces, base)]);
 
   return (
     <form
@@ -199,10 +284,7 @@ export function PiecesSetupForm({
         columns={2}
         value={layout}
         onChange={setLayout}
-        choices={[
-          { value: "MONOREPO", label: "Monorepo", hint: "Un repo con cada pieza en su carpeta." },
-          { value: "MULTI_REPO", label: "Un repo por pieza", hint: "Cada pieza en su repo." },
-        ]}
+        choices={LAYOUT_CHOICES}
       />
       <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
         <Field label="Organización">

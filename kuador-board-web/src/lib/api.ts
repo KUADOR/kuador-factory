@@ -34,6 +34,7 @@ import type {
   GitHubOverview,
   Issue,
   PieceInput,
+  PiecePlan,
   PiecesSetup,
   ProjectPiece,
   SetupResult,
@@ -393,6 +394,8 @@ export const boardApi = {
   pieces: (key: string) => request<ProjectPiece[]>(`/api/projects/${encodeURIComponent(key)}/components`),
   updatePiece: (key: string, name: string, input: PieceUpdate) =>
     request<ProjectPiece>(`/api/projects/${encodeURIComponent(key)}/components/${encodeURIComponent(name)}`, json("PUT", input)),
+  piecePlan: async (key: string) => (await request<PiecePlan | undefined>(`/api/projects/${encodeURIComponent(key)}/components/plan`)) ?? null,
+  savePiecePlan: (key: string, plan: PiecePlan) => request<PiecePlan>(`/api/projects/${encodeURIComponent(key)}/components/plan`, json("PUT", plan)),
   setupPieces: (key: string, input: PiecesSetup) => request<SetupResult>(`/api/projects/${encodeURIComponent(key)}/components/setup`, json("POST", input)),
   addPiece: (key: string, piece: PieceInput, privateRepo: boolean) =>
     request<SetupResult>(`/api/projects/${encodeURIComponent(key)}/components`, json("POST", { piece, privateRepo })),

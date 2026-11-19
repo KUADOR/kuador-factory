@@ -67,7 +67,9 @@ public class DraftService implements AiJobsApi {
             + "|package\\.json|pom\\.xml|build\\.gradle(\\.kts)?|settings\\.gradle(\\.kts)?|go\\.mod|pyproject\\.toml|requirements[^/]*\\.txt|cargo\\.toml"
             + "|composer\\.json|gemfile|[^/]+\\.csproj|pubspec\\.yaml|angular\\.json|next\\.config\\.[a-z]+|vite\\.config\\.[a-z]+|tsconfig\\.json"
             + "|dockerfile[^/]*|docker-compose[^/]*\\.ya?ml|compose\\.ya?ml|\\.editorconfig|\\.eslintrc[^/]*|eslint\\.config\\.[a-z]+|\\.prettierrc[^/]*"
-            + "|application(-[a-z]+)?\\.ya?ml|application\\.properties)$");
+            + "|application(-[a-z]+)?\\.ya?ml|application\\.properties"
+            // Lo que dice cómo se despliega (para el documento de Despliegue de un proyecto que ya existe).
+            + "|\\.env\\.(example|sample)|procfile|fly\\.toml|render\\.ya?ml|nginx[^/]*\\.conf|traefik[^/]*\\.ya?ml)$");
 
     /** Un documento que pide la metodología: si viene marcado por defecto y para qué sirve. */
     /** {@code suggested}: es documento base (se redacta al empezar); {@code written}: ya no es la plantilla. */
@@ -248,6 +250,8 @@ public class DraftService implements AiJobsApi {
             if (c.title() == null || c.title().isBlank()) continue;
             created.add(issues.createSuggested(key, c.title(), c.description(), who.memberId()).key());
         }
+        // Las piezas mandan: el stack de Arquitectura se reescribe con ellas aunque el borrador dijera otra cosa.
+        if (board(key).software()) repositories.refreshStack(key, who.memberId());
         out.put("pieces", pieces == null ? 0 : pieces.size());
         out.put("cards", created);
         return out;
@@ -310,7 +314,8 @@ public class DraftService implements AiJobsApi {
                 No preguntes lo que la idea ya dice. Devuelve:
                 {"questions":[{"id":"q1","text":"¿…?","options":["…","…"]}]}"""
                 .formatted(clip(in.idea()), context(p),
-                        hasDocs(p) ? "redactar bien los documentos base de su metodología" : "escribir el objetivo del tablero");
+                        deploymentOnly(in.kinds()) ? "redactar el documento de despliegue (servidor, plataforma, entornos y dominios, dependencias, respaldos)"
+                                : hasDocs(p) ? "redactar bien los documentos base de su metodología" : "escribir el objetivo del tablero");
     }
 
     private String draftPrompt(ProjectView p, Input in) {
@@ -329,11 +334,24 @@ public class DraftService implements AiJobsApi {
             return b.toString();
         }
         List<DocumentDef> wanted = wanted(p, in.kinds());
+        Map<String, DocsApi.DocContent> current = new LinkedHashMap<>();
+        docs.ofProject(p.key()).stream().filter(d -> d.issueKey() == null && d.version() > 1).forEach(d -> current.put(d.kind(), d));
         b.append("\nRedacta estos documentos con su plantilla (respeta sus secciones; quita los [corchetes] de ejemplo):\n");
         for (DocumentDef d : wanted) {
             b.append("\n### ").append(d.kind()).append(" · ").append(d.label()).append("\nPara qué: ").append(nz(d.purpose())).append("\n");
             if (d.agentInstructions() != null && !d.agentInstructions().isBlank()) b.append("Cómo: ").append(d.agentInstructions().strip()).append("\n");
             if (d.template() != null) b.append("Plantilla:\n<plantilla>\n").append(d.template().replace("{project}", p.name())).append("\n</plantilla>\n");
+            // Un documento vivo (p. ej. Despliegue) se actualiza: se parte de lo que ya dice y se aplica lo nuevo.
+            DocsApi.DocContent now = current.get(d.kind());
+            if (now != null) b.append("Versión actual (consérvala y aplica solo lo nuevo):\n<actual>\n").append(clip(now.content(), 20_000)).append("\n</actual>\n");
+        }
+        b.append("\n").append(STACK_RULE).append("\n");
+        if (deploymentOnly(in.kinds())) {
+            b.append("""
+
+                    Lo que contó la persona es su infraestructura: dónde y cómo quiere desplegar. develop despliega a pruebas y main a producción.
+                    Devuelve: {"documents":[{"kind":"DEPLOYMENT","content":"# … (Markdown completo)"}]}""");
+            return b.toString();
         }
         b.append("""
 
@@ -384,8 +402,10 @@ public class DraftService implements AiJobsApi {
         b.append("2. Estos documentos, con su plantilla:\n");
         for (DocumentDef d : wanted) {
             b.append("\n### ").append(d.kind()).append(" · ").append(d.label()).append("\nPara qué: ").append(nz(d.purpose())).append("\n");
+            if (d.agentInstructions() != null && !d.agentInstructions().isBlank()) b.append("Cómo: ").append(d.agentInstructions().strip()).append("\n");
             if (d.template() != null) b.append("Plantilla:\n<plantilla>\n").append(d.template().replace("{project}", p.name())).append("\n</plantilla>\n");
         }
+        b.append("\n").append(STACK_RULE).append(" Despliegue sale de lo que se ve en el repo (Dockerfile, compose, workflows, .env.example); lo que no se vea, [POR DEFINIR].\n");
         b.append("""
 
                 3. El objetivo del tablero, a partir del producto: una o dos frases.
@@ -452,8 +472,36 @@ public class DraftService implements AiJobsApi {
             b.append(". Metodología: ").append(m.name()).append(" — ").append(nz(m.summary()));
         }
         projects.goal(p.key()).ifPresent(g -> b.append("\nObjetivo actual del tablero: ").append(g));
+        if (p.software()) b.append("\n").append(stack(p));
         return b.toString();
     }
+
+    /** El stack del proyecto sale de sus piezas: es un dato fijo para la IA, nunca algo que proponga. */
+    private String stack(ProjectView p) {
+        List<ec.kuador.board.sync.RepositoriesApi.Piece> pieces;
+        try {
+            pieces = repositories.stack(p.key());
+        } catch (RuntimeException e) {
+            pieces = List.of();
+        }
+        if (pieces.isEmpty()) return "Stack: todavía no se eligieron las piezas; donde haga falta, escribe [POR DEFINIR: stack].";
+        StringBuilder b = new StringBuilder("Stack del proyecto (lo definen sus piezas: es un dato fijo, no lo cambies ni lo contradigas):\n");
+        for (var x : pieces) {
+            b.append("- ").append(x.name()).append(" · ").append(nz(x.kind())).append(" · ").append(nz(x.stack())).append(" · en ").append(nz(x.path()));
+            if (x.build() != null) b.append(" · compila `").append(x.build()).append("`");
+            if (x.test() != null) b.append(" · prueba `").append(x.test()).append("`");
+            b.append("\n");
+        }
+        return b.toString().stripTrailing();
+    }
+
+    /** Solo el documento de despliegue: se redacta aparte, a partir de lo que la persona cuenta de su infraestructura. */
+    private static boolean deploymentOnly(List<String> kinds) {
+        return kinds != null && kinds.size() == 1 && Methodology.DEPLOYMENT_KIND.equals(kinds.getFirst());
+    }
+
+    static final String STACK_RULE = "El stack no se redacta: en Arquitectura deja la sección «## Stack» con una sola línea (la escribe el tablero desde las piezas);"
+            + " en los demás documentos no lo repitas y, si hace falta, remite a «Arquitectura § Stack».";
 
     private List<DocumentDef> wanted(ProjectView p, List<String> kinds) {
         List<DocumentDef> all = methodology(p).documents(DocumentDef.Scope.PROJECT);
@@ -592,9 +640,13 @@ public class DraftService implements AiJobsApi {
     }
 
     private static String clip(String s) {
+        return clip(s, 4000);
+    }
+
+    private static String clip(String s, int max) {
         if (s == null) return "";
         String t = s.strip();
-        return t.length() > 4000 ? t.substring(0, 4000) : t;
+        return t.length() > max ? t.substring(0, max) : t;
     }
 
     private static String nz(String s) {

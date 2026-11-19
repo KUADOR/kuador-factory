@@ -76,6 +76,19 @@ class FactoryCatalogTest {
     }
 
     @Test
+    void everyMethodologyHasAnOptionalLivingDeploymentDocument() {
+        for (Methodology m : factory.methodologies()) {
+            assertThat(m.documents(DocumentDef.Scope.PROJECT)).as(m.key()).extracting(DocumentDef::kind).contains(Methodology.DEPLOYMENT_KIND);
+            assertThat(m.document(Methodology.DEPLOYMENT_KIND)).contains(Methodology.DEPLOYMENT);
+            assertThat(m.baseDocuments()).as("no es obligatorio antes del repo").extracting(DocumentDef::kind).doesNotContain(Methodology.DEPLOYMENT_KIND);
+        }
+        String rendered = DocumentTemplate.render(Methodology.DEPLOYMENT.template(), "Clínica", null, null, LocalDate.of(2026, 11, 19));
+        assertThat(rendered).startsWith("# Despliegue de Clínica").contains("| Pruebas | develop |", "| Producción | main |", "| 2026-11-19 | Primera versión |")
+                .doesNotContain("{project}", "{date}");
+        assertThat(Methodology.DEPLOYMENT.agentInstructions()).contains("mismo PR", "Nunca escribas valores de secretos");
+    }
+
+    @Test
     void everyTemplateRendersWithoutLeftoverPlaceholders() {
         for (Methodology m : factory.methodologies()) {
             for (DocumentDef d : m.documents()) {

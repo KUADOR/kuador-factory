@@ -1,9 +1,16 @@
 name: CI
 
+# Flujo de ramas (docs/despliegue.md § Ramas y pipeline):
+#   rama de trabajo → PR a develop: pruebas y escaneos, sin imágenes.
+#   develop: pruebas, escaneos, imágenes con su SHA (escaneadas), publicación y despliegue a pruebas.
+#   develop → main (PR, merge commit): solo se valida que sea el mismo código y se promueve la imagen ya probada.
+#   hotfix/* → main: como no hay imagen de develop, corre el pipeline completo; después vuelve a develop.
+# El plan gratuito de GitHub no protege ramas en repos privados: estas reglas las hace cumplir el trabajo «branches».
 on:
   pull_request:
+    branches: [develop, main]
   push:
-    branches: [main]
+    branches: [develop, main]
   # Para relanzarlo a mano (Actions → CI → Run workflow) si un run se queda trabado.
   workflow_dispatch:
 
@@ -15,8 +22,92 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  # Versiones fijas (y por digest) de las herramientas de seguridad: nada cambia sin un PR.
+  GITLEAKS: ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+  TRIVY: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+  SEMGREP: semgrep/semgrep:1.183.0@sha256:2e45517a85e13a9cca14a2a00df6bb48affd66b8ebfae1b0991cd57578362fb0
+
 jobs:
+  # Reglas de ramas y qué hace esta corrida: test (PR), integrate (develop), promote o full (main).
+  branches:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+      tag: ${{ steps.mode.outputs.tag }}
+      source: ${{ steps.mode.outputs.source }}
+      owner: ${{ steps.mode.outputs.owner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: mode
+        name: Reglas de ramas
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          owner="$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "owner=$owner" >> "$GITHUB_OUTPUT"
+          git fetch --no-tags --quiet origin main
+          contains_main() {
+            git merge-base --is-ancestor origin/main HEAD || {
+              echo "::error::develop no contiene todo main (falta traer un hotfix). Fusiona main en develop y vuelve a intentar."; exit 1; }
+          }
+          short() { git rev-parse --short=7 "$1"; }
+
+          if [ "$EVENT" = "pull_request" ]; then
+            if [ "$BASE" = "develop" ]; then contains_main; fi
+            if [ "$BASE" = "main" ] && [ "$HEAD_BRANCH" != "develop" ] && [[ "$HEAD_BRANCH" != hotfix/* ]]; then
+              echo "::error::A main solo llegan develop o hotfix/*: lleva «$HEAD_BRANCH» a develop."; exit 1
+            fi
+            echo "mode=test" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          if [ "$BRANCH" = "develop" ]; then
+            contains_main
+            echo "mode=integrate" >> "$GITHUB_OUTPUT"; echo "tag=sha-$(short HEAD)" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          if [ "$BRANCH" = "main" ]; then
+            # De un PR develop → main con merge commit, el código probado es el segundo padre.
+            source=HEAD
+            if git rev-parse --verify --quiet HEAD^2 >/dev/null; then source=HEAD^2; fi
+            same_code=false
+            [ "$(git rev-parse "HEAD^{tree}")" = "$(git rev-parse "$source^{tree}")" ] && same_code=true
+            images=true
+            for app in kuador-board-api kuador-board-web; do
+              docker buildx imagetools inspect "ghcr.io/$owner/$app:sha-$(short "$source")" >/dev/null 2>&1 || images=false
+            done
+            echo "tag=sha-$(short HEAD)" >> "$GITHUB_OUTPUT"
+            echo "source=sha-$(short "$source")" >> "$GITHUB_OUTPUT"
+            if [ "$same_code" = true ] && [ "$images" = true ]; then
+              echo "Se promueve la imagen ya probada en develop: sha-$(short "$source")."
+              echo "mode=promote" >> "$GITHUB_OUTPUT"
+            else
+              echo "Sin imagen probada en develop para este código (p. ej. un hotfix): corre el pipeline completo."
+              echo "mode=full" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+          echo "mode=test" >> "$GITHUB_OUTPUT"
+
   api:
+    needs: branches
+    if: needs.branches.outputs.mode != 'promote'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,8 +121,17 @@ jobs:
           cache: maven
       # Incluye las pruebas de integración con Testcontainers (el runner ya trae Docker).
       - run: ./mvnw -B verify
+      # Dependencias de la API con fallas críticas o altas que ya tienen arreglo: frenan. Usa la caché de Maven que dejó
+      # el build (sin ella, Trivy le pediría a Maven Central cada BOM y lo bloquean por exceso de pedidos).
+      - name: Dependencias (Trivy)
+        run: >
+          docker run --rm -v "$GITHUB_WORKSPACE":/repo -v "$HOME/.m2":/root/.m2:ro "$TRIVY"
+          fs /repo/kuador-board-api --scanners vuln --severity CRITICAL,HIGH --ignore-unfixed --offline-scan
+          --skip-dirs /repo/kuador-board-api/target --exit-code 1 --no-progress
 
   web:
+    needs: branches
+    if: needs.branches.outputs.mode != 'promote'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,6 +148,8 @@ jobs:
   # El runner (npx @kuador-npm/runner): sin dependencias. Linux y Windows aquí; macOS no (en un repo privado sus minutos
   # cuestan 10 veces más y la cuenta no tiene esos runners: el trabajo se quedaba esperando hasta cancelarse).
   runner:
+    needs: branches
+    if: needs.branches.outputs.mode != 'promote'
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -63,9 +165,33 @@ jobs:
       - run: npm test
       - run: node bin/kuador-runner.js --version
 
-  # Construye las dos imágenes en paralelo con las pruebas (en cada corrida, también en PR) y deja sus capas en la
-  # caché de Actions. No publica nada: eso lo hace «publish» cuando todo pasó.
+  # Secretos en todo el historial, patrones peligrosos en el código y dependencias de la web con fallas conocidas.
+  # Frena solo lo grave: un secreto, un hallazgo ERROR de Semgrep o una falla crítica/alta con arreglo.
+  security:
+    needs: branches
+    if: needs.branches.outputs.mode != 'promote'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Secretos (gitleaks)
+        run: docker run --rm -v "$GITHUB_WORKSPACE":/repo "$GITLEAKS" git /repo --config /repo/.gitleaks.toml --redact --no-banner
+      - name: Código (Semgrep)
+        run: >
+          docker run --rm -v "$GITHUB_WORKSPACE":/src -w /src "$SEMGREP"
+          semgrep scan --config p/default --severity ERROR --error --metrics off
+      - name: Dependencias de la web y el runner (Trivy)
+        run: >
+          docker run --rm -v "$GITHUB_WORKSPACE":/repo "$TRIVY"
+          fs /repo --skip-dirs /repo/kuador-board-api --scanners vuln --severity CRITICAL,HIGH --ignore-unfixed
+          --exit-code 1 --no-progress
+
+  # Construye las dos imágenes (develop, o main sin imagen probada), en paralelo con las pruebas, y las escanea: el
+  # sistema base y las librerías que de verdad van a producción. Deja las capas en la caché; no publica nada.
   image:
+    needs: branches
+    if: needs.branches.outputs.mode == 'integrate' || needs.branches.outputs.mode == 'full'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -77,14 +203,22 @@ jobs:
         with:
           context: ${{ matrix.app }}
           push: false
+          load: true
+          tags: ${{ matrix.app }}:ci
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+      - name: Imagen (Trivy)
+        env:
+          APP: ${{ matrix.app }}
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY"
+          image "$APP:ci" --scanners vuln --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --no-progress --timeout 15m
 
-  # Solo desde main y con todo en verde: publica las imágenes en GHCR (Dokploy las baja de ahí). Las capas ya están en
-  # la caché que dejó «image», así que aquí solo se arman y se suben.
+  # Con todo en verde: publica en GHCR con su SHA (y «develop» o «latest» según la rama). Las capas ya están en la
+  # caché que dejó «image», así que aquí solo se arman y se suben.
   publish:
-    needs: [api, web, runner, image]
-    if: github.event_name != 'pull_request'
+    needs: [branches, api, web, runner, security, image]
+    if: needs.branches.outputs.mode == 'integrate' || needs.branches.outputs.mode == 'full'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -104,10 +238,11 @@ jobs:
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.app }}
+          images: ghcr.io/${{ needs.branches.outputs.owner }}/${{ matrix.app }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=short
+            type=raw,value=${{ needs.branches.outputs.tag }}
+            type=raw,value=develop,enable=${{ needs.branches.outputs.mode == 'integrate' }}
+            type=raw,value=latest,enable=${{ needs.branches.outputs.mode == 'full' }}
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: ${{ matrix.app }}
@@ -116,13 +251,65 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.app }}
 
-  # Opcional: pide a Dokploy que redespliegue. Se omite hasta que existan los secretos (docs/despliegue.md).
-  # La clave de Dokploy vale todo el servidor: solo la ve este trabajo, solo desde main y dentro del entorno «production»
-  # (en GitHub → Settings → Environments → production: «Deployment branches» = main; así una rama con el workflow
-  # cambiado no puede leerla).
+  # main con el mismo código que se probó en develop: no se reconstruye ni se vuelve a probar. La misma imagen (mismo
+  # digest) recibe «latest» y el SHA de main, para desplegar y para volver atrás.
+  promote:
+    needs: branches
+    if: needs.branches.outputs.mode == 'promote'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [kuador-board-api, kuador-board-web]
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Log in to GHCR
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promover la imagen de develop
+        env:
+          IMAGE: ghcr.io/${{ needs.branches.outputs.owner }}/${{ matrix.app }}
+          SOURCE: ${{ needs.branches.outputs.source }}
+          TAG: ${{ needs.branches.outputs.tag }}
+        run: docker buildx imagetools create --tag "$IMAGE:latest" --tag "$IMAGE:$TAG" "$IMAGE:$SOURCE"
+
+  # Despliegue a pruebas (develop). Se omite hasta que existan los secretos del entorno «staging» (docs/despliegue.md).
+  deploy-staging:
+    needs: [branches, publish]
+    if: needs.branches.outputs.mode == 'integrate'
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions: {}
+    steps:
+      - name: Redesplegar pruebas en Dokploy
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          API_ID: ${{ secrets.DOKPLOY_API_APPLICATION_ID }}
+          WEB_ID: ${{ secrets.DOKPLOY_WEB_APPLICATION_ID }}
+        run: |
+          if [ -z "$DOKPLOY_URL" ] || [ -z "$DOKPLOY_API_KEY" ]; then
+            echo "::warning::Sin secretos de Dokploy en este entorno: la imagen quedó publicada, pero hay que desplegarla con el botón Deploy."; exit 0
+          fi
+          for id in "$API_ID" "$WEB_ID"; do
+            [ -n "$id" ] || continue
+            curl -fsS -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" -H "Content-Type: application/json" \
+              -d "{\"applicationId\":\"${id}\"}"
+          done
+
+  # Producción: después de promover (lo normal) o de publicar un hotfix. La clave de Dokploy vale todo el servidor:
+  # solo la ve este trabajo, solo desde main y dentro del entorno «production».
   deploy:
-    needs: publish
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [branches, publish, promote]
+    if: >
+      !cancelled() && github.ref_name == 'main' && github.event_name == 'push' &&
+      (needs.promote.result == 'success' || (needs.branches.outputs.mode == 'full' && needs.publish.result == 'success'))
     runs-on: ubuntu-latest
     environment: production
     permissions: {}
@@ -135,7 +322,7 @@ jobs:
           WEB_ID: ${{ secrets.DOKPLOY_WEB_APPLICATION_ID }}
         run: |
           if [ -z "$DOKPLOY_URL" ] || [ -z "$DOKPLOY_API_KEY" ]; then
-            echo "Sin secretos de Dokploy: se despliega con el botón Deploy."; exit 0
+            echo "::warning::Sin secretos de Dokploy en este entorno: la imagen quedó publicada, pero hay que desplegarla con el botón Deploy."; exit 0
           fi
           for id in "$API_ID" "$WEB_ID"; do
             [ -n "$id" ] || continue

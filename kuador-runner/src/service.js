@@ -8,7 +8,8 @@ import { APP, LOGS } from "./config.js";
 
 const LABEL = "ai.kuador.runner";
 const here = dirname(dirname(fileURLToPath(import.meta.url)));
-const run = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8", shell: process.platform === "win32" });
+// Sin shell: launchctl, systemctl y schtasks son ejecutables; las rutas van como argumentos, nunca interpretadas.
+const run = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8", shell: false, windowsHide: true });
 
 /** Sistema operativo con nombre legible. */
 export function osName() {

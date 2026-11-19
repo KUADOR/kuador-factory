@@ -142,7 +142,7 @@ export async function start() {
     const start = (id) => {
       const launched = launch(config, claim, work.dir, stream, id);
       job.child = launched.child;
-      if (config.keepAwake !== false) keepAwake(launched.child.pid);
+      if (config.keepAwake !== false && launched.child) keepAwake(launched.child.pid);
       return launched.done;
     };
     let done = start(resumeId);

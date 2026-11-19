@@ -146,28 +146,55 @@ reutiliza en producción.
 
 Grafana, Prometheus, Loki y Alloy en un servicio Compose aparte: ver [monitoreo.md](monitoreo.md).
 
-## 6. Despliegues
+## 6. Ramas, pipeline y despliegues
 
-Cada push a `main` corre las pruebas y construye las dos imágenes en paralelo; si todo pasó, las publica y, si existen estos secretos en
-GitHub (**Settings → Secrets and variables → Actions**), pide a Dokploy que redespliegue:
+El trabajo va de ramas cortas a `develop` (pruebas) y de `develop` a `main` (producción). Cada imagen se
+construye **una sola vez**, en `develop`; producción recibe esa misma imagen, ya probada y escaneada.
 
-| Secreto | Dónde se obtiene |
-|---|---|
-| `DOKPLOY_URL` | URL del panel de Dokploy |
-| `DOKPLOY_API_KEY` | Dokploy → Settings → API keys |
-| `DOKPLOY_API_APPLICATION_ID` | ID del servicio de la API (en la URL del servicio) |
-| `DOKPLOY_WEB_APPLICATION_ID` | ID del servicio de la web |
+| Rama o evento | Qué corre | Imágenes | Despliega |
+|---|---|---|---|
+| PR de una rama de trabajo → `develop` | Pruebas (API, web, runner) y escaneos | No | No |
+| Push a `develop` (al fusionar) | Pruebas, escaneos, construcción, escaneo de imagen y publicación | `sha-<commit>` y `develop` | Pruebas (entorno `staging`) |
+| PR `develop` → `main` | Pruebas y escaneos | No | No |
+| Push a `main` (al fusionar el PR) | Solo valida: mismo código que develop e imagen existente | Reetiqueta la de develop: `latest` y `sha-<commit de main>` | Producción (entorno `production`) |
+| `hotfix/*` → `main` | Como no hay imagen de develop, el pipeline completo | `sha-<commit>` y `latest` | Producción |
 
-**Protege la clave de Dokploy** (da control de todo el servidor): el trabajo `deploy` corre en el entorno
-`production`. En GitHub → **Settings → Environments → production** (se crea solo en el primer despliegue):
+**Reglas que hace cumplir el pipeline** (el plan gratuito de GitHub no protege ramas en repos privados; el
+trabajo `branches` falla y no despliega nada si no se cumplen):
 
-1. **Deployment branches and tags** → *Selected branches* → `main`. Así una rama con el workflow cambiado
-   no puede leer los secretos.
-2. Mueve `DOKPLOY_URL`, `DOKPLOY_API_KEY` y los dos IDs de *Repository secrets* a los secretos de ese entorno.
-3. Opcional: *Required reviewers* para aprobar cada despliegue.
+- `develop` debe contener todo `main`. Después de un hotfix, fusiona `main` en `develop` antes de seguir.
+- A `main` solo llegan PRs desde `develop` o `hotfix/*`.
+- Fusiona `develop` → `main` con **merge commit** (no squash ni rebase): así `main` reconoce el commit probado
+  (el segundo padre) y promueve su imagen. Con otro tipo de merge, corre el pipeline completo.
 
-Las acciones del CI están fijadas por commit (`@<sha> # vN`): para actualizarlas, cambia el sha por el del
-nuevo tag (Dependabot puede hacerlo).
+**Escaneos** (frenan solo lo grave; versiones fijadas por digest en `ci.yml`):
+
+| Herramienta | Qué revisa | Frena si… |
+|---|---|---|
+| gitleaks | Secretos en todo el historial (excepciones en `.gitleaks.toml`) | Encuentra un secreto |
+| Semgrep (`p/default`) | Patrones peligrosos en el código | Hay un hallazgo de severidad ERROR |
+| Trivy (archivos) | Dependencias de la API (Maven), la web (pnpm) y el runner | Una falla crítica o alta con arreglo disponible |
+| Trivy (imagen) | Sistema base y librerías de cada imagen | Una falla crítica o alta con arreglo disponible |
+| Dependabot (`.github/dependabot.yml`) | Maven, pnpm, imágenes base y acciones | Nunca frena: abre PRs semanales hacia `develop` |
+
+Las alertas de Dependabot y sus arreglos de seguridad se activan en **Settings → Code security**.
+
+**Secretos de Dokploy**, uno por entorno (**Settings → Environments**), con los mismos nombres:
+
+| Secreto | `staging` (pruebas) | `production` |
+|---|---|---|
+| `DOKPLOY_URL` | URL del panel de Dokploy | la misma |
+| `DOKPLOY_API_KEY` | Dokploy → Settings → API keys | la misma |
+| `DOKPLOY_API_APPLICATION_ID` | ID del servicio de la API de pruebas | ID del de producción |
+| `DOKPLOY_WEB_APPLICATION_ID` | ID del servicio de la web de pruebas | ID del de producción |
+
+Sin estos secretos el despliegue se salta con un aviso: la imagen queda publicada y se despliega con el
+botón **Deploy** de Dokploy. Los servicios de pruebas usan las imágenes `:develop`, su propia base de datos y
+sus propias variables; los de producción, `:latest`. En el entorno `production` conviene limitar
+**Deployment branches** a `main` (y en `staging`, a `develop`) para que una rama con el workflow cambiado no
+lea los secretos.
+
+Las acciones del CI están fijadas por commit (`@<sha> # vN`) y Dependabot propone las actualizaciones.
 
 **Volver atrás**: cambia la imagen a `:sha-<commit>` y despliega. Flyway solo avanza: revisa que la
 versión anterior siga siendo compatible con la base.

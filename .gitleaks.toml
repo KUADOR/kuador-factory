@@ -1,0 +1,12 @@
+# gitleaks: reglas de fábrica más lo que se sabe que no es un secreto real. Cada excepción dice por qué.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Pruebas: claves, PEM y contraseñas inventadas para los dobles (FakeGitHubCloud, PushChannelTest…)."
+paths = ['''^kuador-board-api/src/test/''']
+
+[[allowlists]]
+description = "Marcadores en la documentación y la contraseña de usar y tirar del stack de monitoreo que levanta el CI."
+regexTarget = "line"
+regexes = ['''<contraseña>''', '''prueba-ci-123''', '''tokens de los agentes, CPU''']

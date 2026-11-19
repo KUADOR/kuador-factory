@@ -19,12 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -33,16 +29,16 @@ import tools.jackson.databind.node.ObjectNode;
  * El catálogo de la plataforma: se siembra, se edita en borrador y al publicar llega a los espacios (lo nuevo a todos;
  * lo actualizado solo a quienes no lo modificaron). Los paquetes por industria arrancan un espacio con su tablero.
  */
-@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
         "board.platform.admins=pia@cat.test",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class PlatformCatalogIT {
 
-    @Container
-    @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        ec.kuador.board.testing.SharedPostgres.register(registry);
+    }
 
     static final Map<String, String> INBOX = new ConcurrentHashMap<>();
 
@@ -104,7 +100,7 @@ class PlatformCatalogIT {
         assertThat(call("GET", "/api/platform/catalog", null, untouched).get("_status").asInt()).isEqualTo(403);
 
         JsonNode summary = call("GET", "/api/platform/catalog", null, admin).get("body");
-        assertThat(summary.get("version").asInt()).isEqualTo(8);
+        assertThat(summary.get("version").asInt()).isEqualTo(9);
         assertThat(summary.get("pending").asInt()).isZero();
         JsonNode analyst = call("GET", "/api/platform/catalog/roles", null, admin).get("body").valueStream()
                 .filter(e -> e.get("key").asString().equals("ANALYST")).findFirst().orElseThrow();
@@ -155,7 +151,7 @@ class PlatformCatalogIT {
                 .as("el borrador no llega a nadie").doesNotContain("mejorado");
 
         JsonNode published = call("POST", "/api/platform/catalog/publish", null, admin).get("body");
-        assertThat(published.get("version").asInt()).isEqualTo(9);
+        assertThat(published.get("version").asInt()).isEqualTo(10);
         assertThat(published.get("pending").asInt()).isZero();
         assertThat(call("POST", "/api/platform/catalog/publish", null, admin).get("_status").asInt()).as("sin cambios no hay versión").isEqualTo(422);
 

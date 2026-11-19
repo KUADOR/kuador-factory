@@ -63,9 +63,28 @@ jobs:
       - run: npm test
       - run: node bin/kuador-runner.js --version
 
-  # Construye las dos imágenes en cada corrida; solo desde main las publica en GHCR. Dokploy las baja de ahí.
+  # Construye las dos imágenes en paralelo con las pruebas (en cada corrida, también en PR) y deja sus capas en la
+  # caché de Actions. No publica nada: eso lo hace «publish» cuando todo pasó.
   image:
-    needs: [api, web]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [kuador-board-api, kuador-board-web]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: ${{ matrix.app }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  # Solo desde main y con todo en verde: publica las imágenes en GHCR (Dokploy las baja de ahí). Las capas ya están en
+  # la caché que dejó «image», así que aquí solo se arman y se suben.
+  publish:
+    needs: [api, web, runner, image]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -77,7 +96,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
@@ -93,18 +111,17 @@ jobs:
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: ${{ matrix.app }}
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
   # Opcional: pide a Dokploy que redespliegue. Se omite hasta que existan los secretos (docs/despliegue.md).
   # La clave de Dokploy vale todo el servidor: solo la ve este trabajo, solo desde main y dentro del entorno «production»
   # (en GitHub → Settings → Environments → production: «Deployment branches» = main; así una rama con el workflow
   # cambiado no puede leerla).
   deploy:
-    needs: image
+    needs: publish
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: production

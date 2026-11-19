@@ -7,7 +7,7 @@
 # Versión del catálogo de fábrica. Cada espacio guarda hasta qué versión recibió; al arrancar recibe
 # una sola vez lo que se agregó después (ver «releases»). Así una entrada nueva llega a los espacios
 # existentes sin pisar sus cambios ni revivir lo que un equipo borró.
-version: 8
+version: 9
 releases:
   - version: 2
     added:
@@ -44,6 +44,9 @@ releases:
   - version: 8
     added:
       - { type: AGENT_ROLE, key: PR_REVIEWER }
+  - version: 9
+    added:
+      - { type: COMPONENT_TEMPLATE, key: MOBILE_FLUTTER }
 
 workflowTemplates:
   - key: SOFTWARE
@@ -1066,6 +1069,18 @@ componentTemplates:
     commands: { build: "pnpm build", test: "pnpm test", run: "pnpm dev" }
     ciChecks: [ci]
     suggestedRoles: [ARCHITECT, BACKEND, FRONTEND, QA]
+    mcpServers: [CONTEXT7]
+  - key: MOBILE_FLUTTER
+    name: App móvil Flutter
+    description: "App Flutter con Dart para Android e iOS (y web si la activas), con análisis estático y pruebas de widgets."
+    kind: MOBILE
+    stack: "Flutter · Dart"
+    templateRepo: null
+    templateRef: null
+    variables: []
+    commands: { build: "flutter build apk --release", test: "flutter analyze && flutter test", run: "flutter run" }
+    ciChecks: [ci]
+    suggestedRoles: [FRONTEND, QA]
     mcpServers: [CONTEXT7]
 
 # Reglas de agentes: lo que reciben todos los agentes además del manual de su rol, las perillas de costo y los textos

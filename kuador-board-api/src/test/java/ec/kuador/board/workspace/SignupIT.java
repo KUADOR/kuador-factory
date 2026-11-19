@@ -19,23 +19,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /** Alta SaaS de punta a punta: código por correo, verificación, espacio con su marca y login. */
-@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {
         "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class SignupIT {
 
-    @Container
-    @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        ec.kuador.board.testing.SharedPostgres.register(registry);
+    }
 
     /** Buzón en memoria: guarda el último código enviado a cada correo. */
     static final Map<String, String> INBOX = new ConcurrentHashMap<>();

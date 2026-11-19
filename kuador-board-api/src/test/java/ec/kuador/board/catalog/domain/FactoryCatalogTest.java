@@ -66,6 +66,13 @@ class FactoryCatalogTest {
         assertThat(factory.addedAfter(5)).extracting(e -> e.getKey().name() + ":" + e.getValue()).first().isEqualTo("AGENT_POLICY:DEFAULT");
         assertThat(factory.addedAfter(6)).extracting(e -> e.getValue()).contains("API_SPRING_3", "MONOLITH_SPRING", "MONOLITH_LARAVEL", "MONOLITH_NEXTJS");
         assertThat(factory.componentTemplates()).filteredOn(c -> c.kind() == ec.kuador.board.catalog.ComponentTemplate.Kind.MONOLITH).hasSize(6);
+        // La versión 9 suma la app móvil Flutter: el job «ci» lo exige la rama protegida y lo trae el CI del tablero.
+        assertThat(factory.addedAfter(8)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("COMPONENT_TEMPLATE:MOBILE_FLUTTER");
+        assertThat(factory.componentTemplates()).filteredOn(c -> c.key().equals("MOBILE_FLUTTER")).singleElement().satisfies(c -> {
+            assertThat(c.kind()).isEqualTo(ec.kuador.board.catalog.ComponentTemplate.Kind.MOBILE);
+            assertThat(c.commands().test()).isEqualTo("flutter analyze && flutter test");
+            assertThat(c.ciChecks()).containsExactly("ci");
+        });
     }
 
     @Test

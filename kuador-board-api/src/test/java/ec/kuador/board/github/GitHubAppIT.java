@@ -28,15 +28,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -44,16 +40,16 @@ import tools.jackson.databind.ObjectMapper;
  * GitHub App de punta a punta contra un GitHub falso: registro con el manifiesto, instalación con
  * verificación OAuth, repo nuevo con sus bases (ramas, CI, AGENTS.md, metodología) y protección de ramas.
  */
-@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
         "spring.config.import=optional:file:does-not-exist.env[.properties]",
         "board.platform.workspace=acme-lab", "board.web-url=http://web.test"})
 class GitHubAppIT {
 
-    @Container
-    @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        ec.kuador.board.testing.SharedPostgres.register(registry);
+    }
 
     static final FakeGitHubCloud GITHUB;
 

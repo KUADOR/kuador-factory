@@ -148,7 +148,7 @@ Grafana, Prometheus, Loki y Alloy en un servicio Compose aparte: ver [monitoreo.
 
 ## 6. Despliegues
 
-Cada push a `main` corre las pruebas, publica las dos imágenes y, si existen estos secretos en
+Cada push a `main` corre las pruebas y construye las dos imágenes en paralelo; si todo pasó, las publica y, si existen estos secretos en
 GitHub (**Settings → Secrets and variables → Actions**), pide a Dokploy que redespliegue:
 
 | Secreto | Dónde se obtiene |

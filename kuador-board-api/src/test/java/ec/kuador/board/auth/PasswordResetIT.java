@@ -17,24 +17,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /** Recuperar la contraseña con el enlace o con el código del correo, sin revelar qué correos existen. */
-@Testcontainers
 @SpringBootTest(properties = {
         "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
         "board.web-url=https://tablero.test",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class PasswordResetIT {
 
-    @Container
-    @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        ec.kuador.board.testing.SharedPostgres.register(registry);
+    }
 
     static final Map<String, String> CODES = new ConcurrentHashMap<>();
     static final Map<String, String> MAIL = new ConcurrentHashMap<>();

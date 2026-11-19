@@ -17,13 +17,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -32,15 +28,15 @@ import tools.jackson.databind.node.ObjectNode;
  * Una puerta que revisa un agente, en un espacio que todavía no tiene al Agente Revisor de PR (los espacios creados
  * antes de que existiera el rol): al guardar las etapas se crea, se suma al equipo y trabaja en el tablero.
  */
-@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "board.bootstrap.admin-email=", "board.bootstrap.admin-password=",
         "spring.config.import=optional:file:does-not-exist.env[.properties]"})
 class GateReviewIT {
 
-    @Container
-    @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        ec.kuador.board.testing.SharedPostgres.register(registry);
+    }
 
     static final Map<String, String> INBOX = new ConcurrentHashMap<>();
 

@@ -15,9 +15,9 @@ import { notify } from "@/components/ui/Toaster";
 import type { Decision } from "@/lib/types";
 
 const GROUPS: { kind: Decision["kind"]; title: string; empty: string }[] = [
-  { kind: "HANDED", title: "❓ Te dejaron", empty: "Ningún agente espera tu respuesta." },
-  { kind: "GATE", title: "🖋️ Por aprobar", empty: "Nada espera tu aprobación." },
-  { kind: "PLAN", title: "🧩 Repartos", empty: "Ningún reparto espera tu visto bueno." },
+  { kind: "HANDED", title: "Te dejaron", empty: "Ningún agente espera tu respuesta." },
+  { kind: "GATE", title: "Por aprobar", empty: "Nada espera tu aprobación." },
+  { kind: "PLAN", title: "Repartos", empty: "Ningún reparto espera tu visto bueno." },
 ];
 
 const ago = (iso: string | null) => {
@@ -37,11 +37,7 @@ export function DecisionsView({ decisions }: { decisions: Decision[] }) {
   if (decisions.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-        <p className="text-3xl" aria-hidden>
-          ✅
-        </p>
         <p className="text-[15px] font-medium text-fg-strong">Nada espera tu decisión</p>
-        <p className="max-w-sm text-[13px] text-fg-muted">Los agentes siguen trabajando. Te avisamos cuando algo te necesite.</p>
       </div>
     );
   }

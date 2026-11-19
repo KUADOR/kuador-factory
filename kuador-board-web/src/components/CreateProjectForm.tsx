@@ -78,7 +78,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
         />
         {template && (
           <p className="text-xs text-fg-faint">
-            Columnas: {template.columns.map((c) => c.name).join(" → ")}. Se pueden cambiar después.
+            Columnas: {template.columns.map((c) => c.name).join(" → ")}.
           </p>
         )}
       </div>
@@ -92,8 +92,8 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
             value={origin}
             onChange={(v) => setOrigin(v as "new" | "existing")}
             choices={[
-              { value: "new", label: "Es nuevo", hint: "El tablero crea los repos con sus bases y redactas los documentos desde tu idea." },
-              { value: "existing", label: "Ya existe", hint: "Para mantenerlo, mejorarlo o sumarle funciones: vinculas su repo y el agente lo lee y arma el tablero." },
+              { value: "new", label: "Es nuevo", hint: "El tablero crea los repos." },
+              { value: "existing", label: "Ya existe", hint: "Vinculas su repo y el agente lo lee." },
             ]}
           />
         </div>

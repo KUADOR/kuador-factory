@@ -21,7 +21,7 @@ const ago = (iso: string | null, now: number) => {
 };
 const usd = (n: number) => `USD ${n.toFixed(2)}`;
 
-const ICON: Record<AgentRun["status"], string> = { SUCCEEDED: "✅", FAILED: "⚠️", RUNNING: "⏳", SKIPPED: "⏭️" };
+const DOT: Record<AgentRun["status"], string> = { SUCCEEDED: "bg-ok", FAILED: "bg-danger", RUNNING: "bg-sol", SKIPPED: "bg-fg-faint" };
 
 /**
  * Pulso del día: en 20 segundos, qué hicieron los agentes en las últimas 24 horas, qué te espera, si tu PC (el runner)
@@ -61,7 +61,7 @@ export default async function PulsePage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <PageHeader title="Pulso del día" description="Las últimas 24 horas de tus tableros, de un vistazo." />
+      <PageHeader title="Pulso del día" description="Las últimas 24 horas de tus tableros." />
       <div className="flex flex-col gap-5 px-4 py-5 sm:px-6">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {tiles.map((t) => {
@@ -108,13 +108,13 @@ export default async function PulsePage() {
             <p className="text-xs text-fg-muted">
               {runners.length === 0 ? (
                 <>
-                  Deja a tus agentes trabajando solos en tu PC con el runner. <Link href="/local-agents" className="k-link">Cómo instalarlo</Link>
+                  Sin runner. <Link href="/local-agents" className="k-link">Instalarlo</Link>
                 </>
               ) : runnerOnline ? (
                 `Conectada: usó el tablero ${ago(lastRunner, now)}.`
               ) : (
                 <>
-                  Sin actividad desde {ago(lastRunner, now)}. Para que trabaje sola, instala el <Link href="/local-agents" className="k-link">runner</Link>.
+                  Sin actividad desde {ago(lastRunner, now)}. <Link href="/local-agents" className="k-link">Instalar el runner</Link>
                 </>
               )}
             </p>
@@ -139,7 +139,7 @@ export default async function PulsePage() {
             <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
               {recent.slice(0, 20).map((r) => (
                 <li key={r.id} className="flex gap-3 px-4 py-2.5">
-                  <span aria-hidden>{ICON[r.status]}</span>
+                  <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[r.status]}`} />
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] text-fg-strong">
                       {nameOf(r.agentId)} ·{" "}

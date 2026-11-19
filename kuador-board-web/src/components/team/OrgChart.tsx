@@ -164,28 +164,22 @@ function WhoDoesWhat({ people, agents, machines, workspaceName }: { people: Memb
             <p className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-fg-faint uppercase">
               <Cloud className="size-3.5" aria-hidden /> En el servidor del tablero
             </p>
-            <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface px-3 py-2">
-              <span className="text-xs text-fg-muted">Trabajan solos con la clave de IA de la empresa, sin una PC prendida.</span>
-              <span className="flex flex-wrap gap-1.5">
-                {server.map((a) => (
-                  <AgentChip key={a.id} agent={a} />
-                ))}
-              </span>
-            </div>
+            <span className="flex flex-wrap gap-1.5">
+              {server.map((a) => (
+                <AgentChip key={a.id} agent={a} />
+              ))}
+            </span>
           </section>
         )}
 
         {orphan.length > 0 && (
-          <section aria-label="Sin máquina" className="flex flex-col gap-1.5 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-fg-strong">
-              <TriangleAlert className="size-3.5 text-warn" aria-hidden /> Sin una máquina prendida que los atienda
-            </p>
-            <span className="text-xs text-fg-muted">
-              Trabajan en la PC de una persona, pero ninguna máquina con runner prendida tiene su rol: sus tarjetas esperan.{" "}
+          <section aria-label="Sin máquina" className="flex flex-col gap-1.5">
+            <p className="flex flex-wrap items-center gap-1.5 text-xs text-warn">
+              <TriangleAlert className="size-3.5" aria-hidden /> Sin una máquina prendida que los atienda: sus tarjetas esperan.
               <Link href="/local-agents" className="k-link">
                 Instalar el runner
               </Link>
-            </span>
+            </p>
             <span className="flex flex-wrap gap-1.5">
               {orphan.map((a) => (
                 <AgentChip key={a.id} agent={a} />
@@ -278,8 +272,7 @@ function BoardFlows({ projects, agents, roleNames }: { projects: Project[]; agen
         })}
       </ol>
       <p className="text-xs text-fg-faint">
-        <Cloud className="inline size-3" aria-hidden /> en el servidor · <Laptop className="inline size-3" aria-hidden /> en la PC de una persona · el número es lo que
-        entregó en 30 días. Cámbialo en{" "}
+        <Cloud className="inline size-3" aria-hidden /> servidor · <Laptop className="inline size-3" aria-hidden /> PC de una persona · número: entregas en 30 días. Cámbialo en{" "}
         <Link href={`/projects/${project.key}/settings/stages`} className="k-link">
           Etapas
         </Link>{" "}

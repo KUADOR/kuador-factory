@@ -52,7 +52,7 @@ export function nextStep(c: StepContext): NextStep {
   if (column?.category === "DONE") return { tone: "done", title: `Terminada en «${column.name}».`, actions: [] };
 
   if (workingAgent) {
-    return { tone: "working", title: `${workingAgent.name} está trabajando en esta tarjeta.`, detail: "Al terminar deja un comentario y la pasa a la etapa siguiente o te la devuelve.", actions: [] };
+    return { tone: "working", title: `${workingAgent.name} está trabajando en esta tarjeta.`, detail: undefined, actions: [] };
   }
 
   // Lo último que hizo un agente aquí, si quedó trabado.
@@ -71,7 +71,7 @@ export function nextStep(c: StepContext): NextStep {
     return {
       tone: mineToDo ? "action" : "wait",
       title: mineToDo ? `${name(agent)} te hizo preguntas.` : `${name(agent)} hizo preguntas a ${assignee!.name}.`,
-      detail: "Respóndelas en un comentario (lo que respondas queda decidido) y vuelve a asignarle la tarjeta para que siga.",
+      detail: "Respóndelas en un comentario y vuelve a asignársela.",
       actions: mineToDo && agent && canEdit ? [{ kind: "assign", memberId: agent.id, label: `Ya respondí: devolver a ${agent.name}` }] : [],
     };
   }
@@ -102,10 +102,10 @@ export function nextStep(c: StepContext): NextStep {
       };
     }
     if (mode !== "PERSON" && assignee?.kind === "HUMAN" && canApprove) {
-      return { tone: "action", title: "El agente revisor te la dejó: decides tú.", detail: "Lee su análisis en los comentarios y apruébala o devuélvela.", actions: [] };
+      return { tone: "action", title: "El agente revisor te la dejó: decides tú.", detail: "Su análisis está en los comentarios.", actions: [] };
     }
     return canApprove
-      ? { tone: "action", title: "Te toca revisar y aprobar.", detail: "Aprueba para que pase a la etapa siguiente o recházala con lo que hay que corregir.", actions: [] }
+      ? { tone: "action", title: "Te toca revisar y aprobar.", detail: undefined, actions: [] }
       : { tone: "wait", title: `Espera la aprobación de ${approvers}.`, detail: assignee ? `Avisado: ${assignee.name}.` : undefined, actions: [] };
   }
 
@@ -114,7 +114,7 @@ export function nextStep(c: StepContext): NextStep {
     const roles = roleList(stage.roles, roleName);
     if (assignee?.kind === "AGENT") {
       const mode = modes[assignee.id];
-      if (mode === "SERVER") return { tone: "working", title: `${assignee.name} la tomará en el tablero.`, detail: "Trabaja solo con la IA de la empresa; si tiene dudas te pregunta aquí.", actions: [] };
+      if (mode === "SERVER") return { tone: "working", title: `${assignee.name} la tomará en el tablero.`, detail: "Si tiene dudas, te pregunta aquí.", actions: [] };
       const supervisor = members.find((m) => m.id === issue.supervisorId);
       return {
         tone: supervisor?.id === me.id ? "action" : "wait",
@@ -129,7 +129,7 @@ export function nextStep(c: StepContext): NextStep {
     }
     if (assignee) {
       return mineToDo
-        ? { tone: "action", title: `Te toca: trabajo de «${column?.name}».`, detail: "Cuando termines, entrégala a la etapa siguiente.", actions: [] }
+        ? { tone: "action", title: `Te toca: trabajo de «${column?.name}».`, detail: undefined, actions: [] }
         : { tone: "wait", title: `La tiene ${assignee.name}.`, actions: [] };
     }
     const candidates = agents.filter((a) => stage.roles.includes(a.role));

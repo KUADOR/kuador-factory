@@ -31,7 +31,7 @@ export function RetryRunButton({ run }: { run: AgentRun }) {
           const r = await retryAgentRunAction(run.id, run.projectKey);
           if (r.ok) {
             setSent(true);
-            notify.ok("Reintentando", "El agente vuelve a trabajar el issue; el resultado aparece aquí.");
+            notify.ok("Reintentando");
           } else notify.error("No se pudo reintentar", r.error);
         })
       }

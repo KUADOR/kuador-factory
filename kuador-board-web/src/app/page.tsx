@@ -62,7 +62,7 @@ export default async function HomePage({ searchParams }: Props) {
     <>
       <PageHeader
         title={showCompany ? "Cómo va la empresa" : `Hola, ${me.name.split(" ")[0]}`}
-        description={showCompany ? "Entregas, tiempos, ahorro y dónde se atasca el trabajo en todos tus tableros." : "Lo que espera de ti, lo que hacen tus agentes y cómo va tu semana."}
+        description={showCompany ? "Entregas, tiempos y ahorro en todos tus tableros." : undefined}
       >
         {admin && (
           <nav aria-label="Vista" className="-mx-1 flex flex-wrap items-center gap-1 px-1 pb-3">

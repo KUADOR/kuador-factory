@@ -20,7 +20,7 @@ export default async function BoardPeoplePage({ params }: PageProps<"/projects/[
   return (
     <SettingsSection
       title="Personas del tablero"
-      description="Quien edita o solo mira ve únicamente los tableros donde está. Quien administra el espacio los ve todos."
+      description="Quien edita o mira solo ve los tableros donde está."
     >
       <PeopleEditor projectKey={key} people={people} />
     </SettingsSection>

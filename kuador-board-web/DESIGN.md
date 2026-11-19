@@ -309,6 +309,19 @@ Sobrios y de herramienta; el color lo pone solo el primario.
 ### Tema
 - **ThemeToggle:** botón ícono (sol / luna) que alterna la clase `.app-dark` en `<html>` al instante y guarda la elección en la cookie `kuador_theme`, que el servidor lee para pintar el primer render sin destello. Sin cookie, oscuro.
 
+## Minimalismo
+
+Toda pantalla apunta a ser minimalista: la interfaz se entiende por su estructura, no por párrafos que la expliquen.
+
+### Named Rules
+**The Una Línea Rule.** Bajo un título va como mucho una frase corta (unos 90 caracteres), y ninguna si el título ya lo dice. Etiquetas, botones y opciones dicen qué hacen, sin «para», «así» ni porqués.
+
+**The Ayuda Que Evita Un Error Rule.** Un `hint` o texto de ayuda solo aparece si evita un error o avisa una consecuencia que no se ve (se borra, cuesta, notifica a alguien, no se puede deshacer). Una línea. Lo que explica cómo funciona el sistema por dentro va al README, no a la pantalla.
+
+**The Sin Cajas Rule.** Nada de cajas con borde o fondo dentro de una tarjeta para destacar un texto o un enlace: un botón, una fila o una línea de texto. Los avisos de estado (`warn`, `danger`) son una línea sin borde.
+
+**The Lo Que Decide Se Queda Rule.** Minimalista no es ocultar: se quedan los mensajes de error, las confirmaciones de acciones destructivas o con costo, los precios y límites, las etiquetas accesibles (`aria-*`, `sr-only`) y el dato que la persona necesita para decidir.
+
 ## Do's and Don'ts
 
 ### Do:

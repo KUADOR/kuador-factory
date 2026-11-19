@@ -46,7 +46,7 @@ export default async function OrgPage() {
     }));
   return (
     <>
-      <PageHeader title="Organigrama" description="Quién hace qué: las personas, sus máquinas y los agentes que atienden, y quién cubre cada etapa de cada tablero." />
+      <PageHeader title="Organigrama" description="Personas, máquinas, agentes y quién cubre cada etapa de cada tablero." />
       <PageBody>
         <OrgChart
           people={members.filter((m) => m.kind === "HUMAN")}

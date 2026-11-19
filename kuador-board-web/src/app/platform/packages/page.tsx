@@ -18,7 +18,7 @@ export default async function PlatformPackagesPage() {
   }
   return (
     <>
-      <PageHeader title="Paquetes por industria" description="Con qué tablero y plantillas arranca cada empresa según a qué se dedica." />
+      <PageHeader title="Paquetes por industria" description="Con qué tablero y plantillas arranca cada empresa." />
       <PageBody>
         <PackagesEditor packages={data.packages} templates={data.templates.filter((t) => t.status !== "NEW").map((t) => ({ key: t.key, name: t.entry.name }))} />
       </PageBody>

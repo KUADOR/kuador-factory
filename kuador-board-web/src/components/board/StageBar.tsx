@@ -175,12 +175,12 @@ export function StageBar({
   );
 }
 
-const STEP_STYLE: Record<NextStep["tone"], { icon: React.ComponentType<{ className?: string }>; box: string; icon_: string; label: string }> = {
-  action: { icon: Zap, box: "border-sol/50 bg-sol/10", icon_: "text-sol-text", label: "Siguiente paso" },
-  wait: { icon: Hourglass, box: "border-line-strong bg-surface", icon_: "text-fg-muted", label: "En espera" },
-  working: { icon: LoaderCircle, box: "border-info/40 bg-info/10", icon_: "text-info animate-spin [animation-duration:2.4s]", label: "En curso" },
-  warn: { icon: TriangleAlert, box: "border-danger/40 bg-danger/10", icon_: "text-danger", label: "Trabado" },
-  done: { icon: CheckCircle2, box: "border-ok/40 bg-ok/10", icon_: "text-ok", label: "Listo" },
+const STEP_STYLE: Record<NextStep["tone"], { icon: React.ComponentType<{ className?: string }>; icon_: string }> = {
+  action: { icon: Zap, icon_: "text-sol-text" },
+  wait: { icon: Hourglass, icon_: "text-fg-muted" },
+  working: { icon: LoaderCircle, icon_: "text-info animate-spin [animation-duration:2.4s]" },
+  warn: { icon: TriangleAlert, icon_: "text-danger" },
+  done: { icon: CheckCircle2, icon_: "text-ok" },
 };
 
 /** Lo que tiene que pasar ahora, siempre visible arriba del detalle (en cualquier tipo de tablero). */
@@ -188,11 +188,10 @@ function NextStepCallout({ step, pending, onAction }: { step: NextStep; pending:
   const style = STEP_STYLE[step.tone];
   const Icon = style.icon;
   return (
-    <div role="status" className={`flex flex-wrap items-start gap-x-3 gap-y-2 rounded-lg border px-3 py-2.5 ${style.box}`}>
+    <div role="status" className="flex flex-wrap items-start gap-x-3 gap-y-2">
       <Icon className={`mt-0.5 size-4 shrink-0 ${style.icon_}`} aria-hidden />
       {/* Con poco ancho (p. ej. el panel de la oficina) los botones bajan en vez de apretar el texto. */}
       <div className="min-w-0 flex-1 basis-56">
-        <p className="text-[11px] font-medium tracking-wide text-fg-muted uppercase">{style.label}</p>
         <p className="text-[13px] font-medium text-fg-strong">{step.title}</p>
         {step.detail && <p className="mt-0.5 text-xs leading-relaxed text-fg-muted">{step.detail}</p>}
       </div>
@@ -238,8 +237,8 @@ function ReviewByPicker({
           }}
           options={[
             { value: "BOARD", label: anyAgent ? "Según el tablero (agente revisor)" : "Según el tablero (una persona)" },
-            { value: "PERSON", label: "👤 Siempre una persona" },
-            { value: "AGENT", label: "🤖 Que la revise el agente" },
+            { value: "PERSON", label: "Siempre una persona" },
+            { value: "AGENT", label: "Que la revise el agente" },
           ]}
         />
       </div>

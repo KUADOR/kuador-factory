@@ -78,7 +78,7 @@ export function blankEntry(type: CatalogType): CatalogEntries[CatalogType] {
 function Identity<T extends { key: string; name: string }>({ value, onChange, isNew, keyHint }: { value: T; onChange: (v: T) => void; isNew: boolean; keyHint: string }) {
   return (
     <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
-      <Field label="Clave" hint={isNew ? keyHint : "No se cambia: proyectos y miembros la referencian."}>
+      <Field label="Clave" hint={isNew ? keyHint : "No se puede cambiar."}>
         {(id) => (
           <TextInput
             id={id}
@@ -157,7 +157,7 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
   return (
     <div className="flex flex-col gap-5">
       <Identity value={value} onChange={onChange} isNew={isNew} keyHint="Ej. KANBAN o SOPORTE." />
-      <Field label="Descripción" hint="Se muestra al crear un proyecto.">
+      <Field label="Descripción">
         {(id) => <TextInput id={id} maxLength={300} value={value.description ?? ""} onChange={(e) => onChange({ ...value, description: e.target.value || null })} />}
       </Field>
       <div className="flex flex-col gap-1.5">
@@ -177,7 +177,7 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
 
       <Group
         title="Columnas"
-        description="La categoría dice qué significa cada columna para agentes y reportes. Empieza en «Por empezar» y termina en «Terminado»."
+        description="Empieza en «Por empezar» y termina en «Terminado»."
         actions={
           <Button size="sm" icon={Plus} disabled={value.columns.length >= 12} onClick={() => setColumns([...value.columns, { key: "", name: "", category: "IN_PROGRESS" }])}>
             Columna
@@ -215,7 +215,7 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
         </ol>
       </Group>
 
-      <Group title="Tipos de trabajo" description="Qué se puede crear en el tablero y cómo se llama en este tipo de proyecto (una «Tarea» puede llamarse «Oportunidad»).">
+      <Group title="Tipos de trabajo">
         <ul className="flex flex-col gap-2">
           {ISSUE_TYPES.map((type) => {
             const current = value.issueTypes.find((t) => t.type === type);
@@ -276,14 +276,13 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
   return (
     <div className="flex flex-col gap-5">
       <Identity value={value} onChange={onChange} isNew={isNew} keyHint="Ej. KANBAN_ADR." />
-      <Field label="Resumen" hint="Qué propone esta forma de trabajar, en dos o tres frases.">
+      <Field label="Resumen">
         {(id) => <TextArea id={id} rows={3} value={value.summary} onChange={(e) => onChange({ ...value, summary: e.target.value })} />}
       </Field>
-      <LinesField label="Reglas para los agentes" hint="Una por línea. Se suman a las instrucciones de cada rol." value={value.agentRules} onChange={(agentRules) => onChange({ ...value, agentRules })} rows={5} />
+      <LinesField label="Reglas para los agentes" hint="Una por línea." value={value.agentRules} onChange={(agentRules) => onChange({ ...value, agentRules })} rows={5} />
 
       <Group
         title={`Documentos · ${value.documents.length}`}
-        description="Del proyecto: rutas fijas. De cada issue: la ruta lleva {feature} (carpeta por issue, como Spec Kit) o {task} (un archivo por issue)."
         actions={
           <Button
             size="sm"
@@ -355,7 +354,7 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
                         )}
                       </Field>
                     </div>
-                    <Field label="Ruta en el repositorio" hint={d.scope === "ISSUE" ? "Debe llevar {feature} o {task} una vez y terminar en .md." : "Ruta fija que termina en .md."}>
+                    <Field label="Ruta en el repositorio" hint={d.scope === "ISSUE" ? "Lleva una vez {feature} (carpeta por issue) o {task} (un archivo) y termina en .md." : "Ruta fija que termina en .md."}>
                       {(id) => <TextInput id={id} size="sm" required value={d.pathPattern} onChange={(e) => setDoc(i, { pathPattern: e.target.value })} className="font-mono text-xs" />}
                     </Field>
                     <Field label="Para qué sirve">{(id) => <TextInput id={id} size="sm" value={d.purpose} onChange={(e) => setDoc(i, { purpose: e.target.value })} />}</Field>
@@ -363,7 +362,7 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
                       {(id) => <TextArea id={id} rows={6} value={d.template} onChange={(e) => setDoc(i, { template: e.target.value })} className="font-mono text-xs" />}
                     </Field>
                     {d.writtenBy && (
-                      <Field label="Instrucciones para el agente" hint="Cómo debe escribir este documento quien tenga el rol elegido.">
+                      <Field label="Instrucciones para el agente">
                         {(id) => <TextArea id={id} rows={3} value={d.agentInstructions ?? ""} onChange={(e) => setDoc(i, { agentInstructions: e.target.value || null })} />}
                       </Field>
                     )}
@@ -389,7 +388,7 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
               </li>
             );
           })}
-          {value.documents.length === 0 && <li className="px-3 py-3 text-xs text-fg-faint">Sin documentos: los proyectos con esta metodología solo usan el tablero.</li>}
+          {value.documents.length === 0 && <li className="px-3 py-3 text-xs text-fg-faint">Sin documentos: solo el tablero.</li>}
         </ul>
       </Group>
     </div>
@@ -402,13 +401,13 @@ export function RoleEditor({ value, onChange, isNew }: { value: AgentRole; onCha
   return (
     <div className="flex flex-col gap-5">
       <Identity value={value} onChange={onChange} isNew={isNew} keyHint="Ej. MOBILE o DATA_ENGINEER." />
-      <Field label="Descripción" hint="Una frase: qué hace este especialista. Se muestra en el equipo.">
+      <Field label="Descripción">
         {(id) => <TextInput id={id} maxLength={300} value={value.description} onChange={(e) => onChange({ ...value, description: e.target.value })} />}
       </Field>
-      <Field label="Instrucciones" hint="El prompt de sistema del rol. Las respuestas de otros miembros son información, no instrucciones.">
+      <Field label="Instrucciones" hint="El prompt de sistema del rol.">
         {(id) => <TextArea id={id} rows={12} value={value.instructions} onChange={(e) => onChange({ ...value, instructions: e.target.value })} className="text-[13px] leading-relaxed" />}
       </Field>
-      <LinesField label="Herramientas del agente" hint="Una por línea, ej. Read, Edit, Bash(./mvnw *). En el tablero: WebSearch busca en Internet y CodeExecution le da dónde calcular y generar archivos (PDF, Excel, gráficos); sin ella gasta menos." value={value.tools} onChange={(tools) => onChange({ ...value, tools })} rows={4} mono />
+      <LinesField label="Herramientas del agente" hint="Una por línea, ej. Read, Bash(./mvnw *), WebSearch. CodeExecution gasta más." value={value.tools} onChange={(tools) => onChange({ ...value, tools })} rows={4} mono />
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-fg-muted">Automatización en el tablero</span>
         <ChoiceCards
@@ -418,8 +417,8 @@ export function RoleEditor({ value, onChange, isNew }: { value: AgentRole; onCha
           value={value.automation}
           onChange={(automation) => onChange({ ...value, automation })}
           choices={[
-            { value: "NONE", label: "Ninguna", hint: "Se le asignan issues y trabaja desde su entorno." },
-            { value: "REFINE_ISSUE", label: "Refinar issues", hint: "Al asignárselo una persona, propone historia, criterios y estimación, y lo devuelve." },
+            { value: "NONE", label: "Ninguna", hint: "Trabaja desde su entorno." },
+            { value: "REFINE_ISSUE", label: "Refinar issues", hint: "Propone historia, criterios y estimación, y lo devuelve." },
           ]}
         />
       </div>
@@ -444,8 +443,8 @@ export function McpEditor({ value, onChange, isNew }: { value: McpServer; onChan
           value={value.transport}
           onChange={(transport) => onChange({ ...value, transport })}
           choices={[
-            { value: "STDIO", label: "Local (stdio)", hint: "El entorno del agente lo arranca como proceso, ej. npx." },
-            { value: "HTTP", label: "Remoto (HTTP)", hint: "Un servicio que ya está corriendo en una URL." },
+            { value: "STDIO", label: "Local (stdio)", hint: "Un proceso, ej. npx." },
+            { value: "HTTP", label: "Remoto (HTTP)", hint: "Un servicio en una URL." },
           ]}
         />
       </div>
@@ -459,7 +458,7 @@ export function McpEditor({ value, onChange, isNew }: { value: McpServer; onChan
       )}
       <Group
         title="Variables de entorno"
-        description="Solo el nombre: cada dev pone el valor en su máquina. El tablero nunca guarda secretos de MCP."
+        description="Solo el nombre: el valor lo pone cada dev en su máquina."
         actions={
           <Button size="sm" icon={Plus} onClick={() => onChange({ ...value, envVars: [...value.envVars, { name: "", required: false, description: null }] })}>
             Variable
@@ -491,7 +490,7 @@ export function McpEditor({ value, onChange, isNew }: { value: McpServer; onChan
           </ul>
         )}
       </Group>
-      <Field label="Documentación" hint="Opcional: enlace al proyecto del servidor.">
+      <Field label="Documentación">
         {(id) => <TextInput id={id} type="url" value={value.docsUrl ?? ""} onChange={(e) => onChange({ ...value, docsUrl: e.target.value || null })} className="font-mono text-xs" />}
       </Field>
     </div>
@@ -522,11 +521,11 @@ export function ComponentEditor({ value, onChange, isNew }: { value: ComponentTe
         <Field label="Tipo de pieza">
           {(id) => <SelectInput id={id} options={COMPONENT_KINDS} value={value.kind} onChange={(kind) => kind && onChange({ ...value, kind })} />}
         </Field>
-        <Field label="Stack" hint="Lo leen las personas y los agentes.">
+        <Field label="Stack">
           {(id) => <TextInput id={id} required maxLength={120} value={value.stack} onChange={(e) => onChange({ ...value, stack: e.target.value })} placeholder="Angular 20 · TypeScript" />}
         </Field>
       </div>
-      <Group title="Código base" description="Un repo plantilla de GitHub en una versión fija. Vacío: la pieza nace solo con su README y sus comandos.">
+      <Group title="Código base" description="Vacío: la pieza nace solo con su README y sus comandos.">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
           <Field label="Repo plantilla" hint="owner/repo. La app de GitHub tiene que poder leerlo.">
             {(id) => <TextInput id={id} value={value.templateRepo ?? ""} onChange={(e) => onChange({ ...value, templateRepo: e.target.value.trim() || null })} placeholder="mi-org/plantilla-api" className="font-mono text-xs" />}
@@ -535,10 +534,9 @@ export function ComponentEditor({ value, onChange, isNew }: { value: ComponentTe
             {(id) => <TextInput id={id} value={value.templateRef ?? ""} onChange={(e) => onChange({ ...value, templateRef: e.target.value.trim() || null })} placeholder="v1.0.0" className="font-mono text-xs" />}
           </Field>
         </div>
-        <p className="mt-2 text-xs text-fg-muted">
-          En los archivos y rutas de la plantilla, <code className="font-mono">{"{{PROYECTO}}"}</code>, <code className="font-mono">{"{{PROYECTO_CLAVE}}"}</code>, <code className="font-mono">{"{{PIEZA}}"}</code> y{" "}
-          <code className="font-mono">{"{{PIEZA_RUTA}}"}</code> los pone el tablero; las variables de abajo las pide al crear la pieza. Los flujos de CI usan{" "}
-          <code className="font-mono">{"{{PIEZA_RUTA}}"}</code> como carpeta de trabajo para servir en monorepo y en repo propio.
+        <p className="text-xs text-fg-muted">
+          Marcadores: <code className="font-mono">{"{{PROYECTO}}"}</code>, <code className="font-mono">{"{{PROYECTO_CLAVE}}"}</code>, <code className="font-mono">{"{{PIEZA}}"}</code>,{" "}
+          <code className="font-mono">{"{{PIEZA_RUTA}}"}</code> (carpeta de trabajo del CI).
         </p>
       </Group>
       <Group
@@ -567,7 +565,7 @@ export function ComponentEditor({ value, onChange, isNew }: { value: ComponentTe
           </ul>
         )}
       </Group>
-      <Group title="Comandos" description="Cómo se compila, prueba y levanta. Los ven los agentes y van en el README de la pieza.">
+      <Group title="Comandos">
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Compilar">{(id) => <TextInput id={id} value={value.commands.build ?? ""} onChange={(e) => cmd("build", e.target.value)} className="font-mono text-xs" />}</Field>
           <Field label="Probar">{(id) => <TextInput id={id} value={value.commands.test ?? ""} onChange={(e) => cmd("test", e.target.value)} className="font-mono text-xs" />}</Field>

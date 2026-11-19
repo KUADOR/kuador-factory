@@ -19,7 +19,7 @@ export default async function PlatformWorkspacesPage() {
   }
   return (
     <>
-      <PageHeader title="Espacios y licencias" description="Cada empresa que usa la plataforma, su plan y hasta cuándo está pagado." />
+      <PageHeader title="Espacios y licencias" description="Cada empresa, su plan y hasta cuándo está pagado." />
       <PageBody>
         <LicensesTable workspaces={data.workspaces} plans={data.plans} />
       </PageBody>

@@ -75,14 +75,13 @@ export function CompanyDashboard({ data, canEditSettings }: { data: InsightsComp
           </>
         ) : (
           <>
-            El ahorro se mide con las tarjetas que terminan con agentes y tienen puntos, a <HoursPerPoint value={s.hoursPerPoint} canEdit={canEditSettings} />.
-            Todavía no hay ninguna en este período.
+            Sin tarjetas terminadas con agentes y puntos en este período. Ahorro a <HoursPerPoint value={s.hoursPerPoint} canEdit={canEditSettings} />.
           </>
         )}
         {s.unestimated > 0 && ` ${s.unestimated} terminada${s.unestimated === 1 ? "" : "s"} sin puntos no cuenta${s.unestimated === 1 ? "" : "n"}: estímala${s.unestimated === 1 ? "" : "s"} para medirla${s.unestimated === 1 ? "" : "s"}.`}
       </p>
 
-      <Section title="¿Dónde se atasca el trabajo?" description={`Últimos ${data.days} días: tiempo de cada columna con un agente, con una persona o esperando.`}>
+      <Section title="¿Dónde se atasca el trabajo?" description={`Últimos ${data.days} días, por columna: con agente, con persona o esperando.`}>
         <FlowChart flow={data.flow} />
       </Section>
 

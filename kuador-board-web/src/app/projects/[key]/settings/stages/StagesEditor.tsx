@@ -24,17 +24,17 @@ const REVIEW_CHOICES: { value: ReviewMode; label: string; hint: string }[] = [
   {
     value: "PERSON",
     label: "Una persona",
-    hint: "Espera a que alguien con el rol aprobador la apruebe o la devuelva.",
+    hint: "La aprueba o la devuelve alguien con el rol aprobador.",
   },
   {
     value: "AGENT_ESCALATE",
     label: "Agente revisor, con escalamiento (recomendado)",
-    hint: "El agente aprueba lo claro (CI en verde, criterios con evidencia, nada sensible ni demasiado grande), devuelve lo que falla y deja lo dudoso a quien aprueba, con su análisis.",
+    hint: "El agente aprueba lo claro, devuelve lo que falla y deja lo dudoso a una persona.",
   },
   {
     value: "AGENT",
     label: "Agente revisor",
-    hint: "El agente aprueba o devuelve; solo pasa a una persona si no puede decidir (p. ej. no encuentra el PR).",
+    hint: "El agente aprueba o devuelve; solo pasa a una persona si no puede decidir.",
   },
 ];
 
@@ -167,11 +167,6 @@ export function StagesEditor({
                 </div>
               ) : (
                 <div className="flex flex-col gap-2 self-center">
-                  <p className="text-xs text-fg-faint">
-                    {s.roles.length > 0
-                      ? "Al llegar aquí el issue queda sin asignar hasta que alguien con ese rol lo tome."
-                      : "Etapa libre: se asigna a mano como siempre."}
-                  </p>
                   {s.roles.length > 0 && (
                     <>
                       <Switch
@@ -179,10 +174,7 @@ export function StagesEditor({
                         onChange={(autoPlan) => set(c.key, { autoPlan })}
                         label="El reparto de una épica arranca solo"
                       />
-                      <p className="text-xs text-fg-faint">
-                        Las tareas que reparte el arquitecto empiezan al llegar aquí, sin esperar que alguien apruebe el reparto. El
-                        spec ya pasó su puerta; si algo no convence, se devuelve.
-                      </p>
+                      <p className="text-xs text-fg-faint">Las tareas empiezan sin que nadie apruebe el reparto.</p>
                     </>
                   )}
                 </div>
@@ -274,11 +266,9 @@ function ReviewFields({
       />
       <p className="text-xs text-fg-faint">{choice.hint}</p>
       {mode !== "PERSON" && (
-        <div className="mt-1 flex flex-col gap-2 rounded-md border border-line bg-sunken p-3">
+        <div className="mt-1 flex flex-col gap-2">
           <p className="text-xs text-fg-muted">
-            Al guardar se suma al equipo el <strong>Agente Revisor de PR</strong>, que trabaja en el
-            tablero. Hacer merge sigue siendo de una persona; cada tarjeta puede pedir «Siempre una
-            persona».
+            Al guardar se suma al equipo el <strong>Agente Revisor de PR</strong>. El merge sigue siendo de una persona.
           </p>
           {mode === "AGENT_ESCALATE" && (
             <>

@@ -39,7 +39,7 @@ export function MethodologyPicker({ project, methodologies }: { project: Project
       />
 
       {guide && (
-        <div className="flex flex-col gap-4 rounded-md border border-line bg-sunken px-4 py-3.5">
+        <div className="flex flex-col gap-4">
           <p className="max-w-3xl text-[13px] leading-relaxed text-fg">{guide.summary}</p>
           <div className="grid gap-4 md:grid-cols-2">
             {[

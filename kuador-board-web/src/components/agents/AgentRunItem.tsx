@@ -40,7 +40,7 @@ export function AgentRunItem({ run, agentName, showIssue = false }: { run: Agent
         <RetryRunButton run={run} />
       </div>
       {run.model?.startsWith("local:") || run.model === "claude-code" ? (
-        <p className="font-mono text-[11px] text-fg-faint">Trabajado en {clientName(run.model)}, en el equipo de quien lo supervisa</p>
+        <p className="font-mono text-[11px] text-fg-faint">Trabajado en {clientName(run.model)}</p>
       ) : run.inputTokens != null && (
         <p className="tabular font-mono text-[11px] text-fg-faint">
           {run.model} · {inputOf(run).toLocaleString("es-EC")} tokens de entrada

@@ -31,7 +31,7 @@ export function AcceptForm({ token }: { token: string }) {
         {(id) => <PasswordInput id={id} required minLength={10} maxLength={128} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />}
       </Field>
       <Button type="submit" tone="primary" loading={pending} className="w-full">Aceptar y entrar</Button>
-      {error && <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-[13px] text-danger">{error}</p>}
+      {error && <p role="alert" className="text-[13px] text-danger">{error}</p>}
     </form>
   );
 }

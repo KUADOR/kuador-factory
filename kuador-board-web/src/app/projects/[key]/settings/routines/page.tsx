@@ -37,7 +37,7 @@ export default async function RoutinesPage({ params }: PageProps<"/projects/[key
   return (
     <SettingsSection
       title="Rutinas"
-      description="Trabajo que se repite: a su hora el tablero crea la tarjeta y se la da a quien elijas. Un agente la trabaja solo; también se disparan desde afuera con su webhook."
+      description="A su hora el tablero crea la tarjeta y se la da a quien elijas."
     >
       <RoutinesEditor
         projectKey={key}

@@ -120,12 +120,12 @@ export function Office({
     archived,
     board: project.columns.map((c) => ({ name: c.name, n: issues.filter((i) => i.status === c.key).length })),
   };
-  const legend: { icon: string; n: number; label: string; focus?: PendingFocus }[] = [
-    { icon: "💻", n: seats.filter((s) => s.state === "working").length, label: "trabajando" },
-    { icon: "❓", n: pending.asking.length, label: "preguntaron", focus: "asking" as const },
-    { icon: "🖋️", n: inReview.length, label: "por aprobar", focus: "review" as const },
-    { icon: "⚠️", n: pending.stuck.length, label: "trabados", focus: "stuck" as const },
-    { icon: "📥", n: inbox.length, label: "en la bandeja", focus: "inbox" as const },
+  const legend: { n: number; label: string; focus?: PendingFocus }[] = [
+    { n: seats.filter((s) => s.state === "working").length, label: "trabajando" },
+    { n: pending.asking.length, label: "preguntaron", focus: "asking" as const },
+    { n: inReview.length, label: "por aprobar", focus: "review" as const },
+    { n: pending.stuck.length, label: "trabados", focus: "stuck" as const },
+    { n: inbox.length, label: "en la bandeja", focus: "inbox" as const },
   ].filter((l) => l.n > 0 || l.label === "trabajando");
 
   // Papeles que vuelan cuando una tarjeta cambia de lugar. Se dibujan fuera de React (son efímeros).
@@ -171,7 +171,7 @@ export function Office({
         <ToolButton
           onClick={() => (document.fullscreenElement ? document.exitFullscreen() : wrapper.current?.requestFullscreen())}
           icon={Maximize2}
-          label="Pantalla completa (para un TV)"
+          label="Pantalla completa"
           iconOnly
         />
       </div>
@@ -199,17 +199,17 @@ export function Office({
                     className="office3d-chip pointer-events-auto cursor-pointer hover:border-sol"
                     onClick={() => setPanel({ kind: "pending", focus: l.focus! })}
                   >
-                    {l.icon} {l.n} {l.label}
+                    {l.n} {l.label}
                   </button>
                 ) : (
                   <span key={l.label} className="office3d-chip">
-                    {l.icon} {l.n} {l.label}
+                    {l.n} {l.label}
                   </span>
                 ),
               )}
             </div>
             <p className="pointer-events-none absolute bottom-3 left-3 hidden text-[11px] text-fg-muted sm:block">
-              Arrastra para girar · rueda o pellizco para acercar · clic en un puesto, la sala de revisión, la bandeja o un papel para actuar
+              Arrastra para girar · rueda o pellizco para acercar
             </p>
           </div>
         </div>
@@ -380,7 +380,7 @@ function SeatDetail({ seat, roleName, onOpen }: { seat: Seat; roleName: string; 
       </div>
       {list("Por aprobar", seat.approvals)}
       {list("Su cola", seat.queue)}
-      {seat.approvals.length + seat.queue.length === 0 && <p className="text-[13px] text-fg-faint">No tiene tarjetas abiertas en este tablero.</p>}
+      {seat.approvals.length + seat.queue.length === 0 && <p className="text-[13px] text-fg-faint">Sin tarjetas abiertas.</p>}
     </div>
   );
 }

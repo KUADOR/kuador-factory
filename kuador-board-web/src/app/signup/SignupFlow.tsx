@@ -90,14 +90,9 @@ export function SignupFlow({
             </Link>
           </div>
 
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-balance text-fg-strong">
-              Crea el espacio de trabajo de tu empresa
-            </h1>
-            <p className="mt-1 text-[13px] text-fg-muted">
-              Tu equipo y sus agentes de IA en un mismo tablero. Toma dos minutos.
-            </p>
-          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-balance text-fg-strong">
+            Crea el espacio de trabajo de tu empresa
+          </h1>
 
           <ol
             aria-label="Pasos"
@@ -159,7 +154,7 @@ export function SignupFlow({
                     ? plan.trialDays > 0
                       ? `Empiezas con ${plan.trialDays} días de prueba de ${plan.name}. Luego ${priceLabel(plan)} al mes; puedes cambiar de plan cuando quieras.`
                       : `${plan.name}: ${priceLabel(plan)} al mes. Mientras habilitamos el cobro en línea, el pago se activa a mano desde kuador.com.`
-                    : "Puedes cambiar de plan cuando quieras desde Espacio de trabajo → Plan."}
+                    : "Puedes cambiar de plan cuando quieras."}
                 </p>
                 <Button tone="primary" disabled={!plan} onClick={() => setStep(1)}>
                   Continuar
@@ -178,10 +173,7 @@ export function SignupFlow({
                     sendCode();
                   }}
                 >
-                  <Field
-                    label="Correo de trabajo"
-                    hint="Será tu acceso. Te enviaremos un código para comprobar que es tuyo."
-                  >
+                  <Field label="Correo de trabajo" hint="Será tu acceso.">
                     {(id) => (
                       <TextInput
                         id={id}
@@ -334,7 +326,7 @@ export function SignupFlow({
                   )}
                   <Field
                     label="Identificador del espacio"
-                    hint="Minúsculas, números o guiones. Identifica a tu empresa en el tablero."
+                    hint="Minúsculas, números o guiones."
                   >
                     {(id) => (
                       <TextInput
@@ -450,8 +442,8 @@ export function SignupFlow({
                 <p
                   role={error ? "alert" : "status"}
                   className={clsx(
-                    "mt-4 rounded-md px-3 py-2 text-[13px]",
-                    error ? "bg-danger/10 text-danger" : "bg-info/10 text-fg",
+                    "mt-4 text-[13px]",
+                    error ? "text-danger" : "text-fg-muted",
                   )}
                 >
                   {error ?? info}
@@ -470,10 +462,6 @@ export function SignupFlow({
               )}
             </p>
           )}
-          <p className="text-xs text-fg-faint">
-            Al crear el espacio se preparan el catálogo de fábrica (flujos, metodologías y roles) y
-            un agente por cada rol.
-          </p>
         </div>
 
         <aside

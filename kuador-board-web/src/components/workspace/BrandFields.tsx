@@ -47,7 +47,7 @@ export function BrandFields({ value, onChange, nameLabel = "Nombre de la empresa
   return (
     <div className="flex flex-col gap-5">
       <Field label={nameLabel}>{(id) => <TextInput id={id} required maxLength={120} value={value.name} onChange={(e) => set({ name: e.target.value })} placeholder="Clínica Andes" />}</Field>
-      <Field label="A qué se dedica" hint="Una frase. Los agentes la leen como contexto de la empresa.">
+      <Field label="A qué se dedica" hint="Los agentes la leen como contexto.">
         {(id) => <TextArea id={id} rows={3} maxLength={500} value={value.description} onChange={(e) => set({ description: e.target.value })} placeholder="Ej.: desarrollo de software a medida para pymes." />}
       </Field>
 
@@ -69,8 +69,8 @@ export function BrandFields({ value, onChange, nameLabel = "Nombre de la empresa
         <p className="text-xs text-fg-faint">
           {validHex
             ? contrast(brand.color, "#ffffff") < 1.6
-              ? "Color muy claro: en el tema claro el tablero usará una versión más oscura para que se lea."
-              : "Se usa en botones principales, selección y foco. El texto encima se elige solo para que se lea."
+              ? "Color muy claro: en el tema claro se usará una versión más oscura."
+              : "Se usa en botones principales, selección y foco."
             : "Escribe un color en formato #RRGGBB."}
         </p>
       </fieldset>

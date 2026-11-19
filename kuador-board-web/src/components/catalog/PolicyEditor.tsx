@@ -38,11 +38,7 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-xs leading-relaxed text-fg-muted">
-        Valen para todos los agentes del espacio: los que trabajan en el tablero, el PO y el Arquitecto, y los que trabajan en la PC de una persona
-        (Claude Code, Codex). Los textos admiten variables entre llaves, como <code className="font-mono">{"{persona}"}</code>. Un texto vacío vuelve
-        al de fábrica. Usa «Ver qué recibe» en Equipo de agentes para revisar el resultado en una tarjeta.
-      </p>
+      <p className="text-xs text-fg-muted">Un texto vacío vuelve al de fábrica.</p>
 
       <div role="tablist" aria-label="Secciones" className="flex flex-wrap gap-1 border-b border-line">
         {TABS.map((t) => (
@@ -61,9 +57,9 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
 
       {tab === "rules" && (
         <div className="flex flex-col gap-5">
-          <div className="rounded-md border border-line bg-sunken px-3 py-2.5">
+          <div>
             <p className="flex items-center gap-1.5 text-xs font-medium text-fg-muted">
-              <Lock className="size-3" aria-hidden /> Núcleo de seguridad (siempre va primero y no se edita)
+              <Lock className="size-3" aria-hidden /> Núcleo de seguridad · no se edita
             </p>
             <ul className="mt-1.5 list-disc pl-5 text-xs leading-relaxed text-fg">
               {core.map((r) => (
@@ -71,34 +67,34 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
               ))}
             </ul>
           </div>
-          <LinesField label="Reglas comunes" hint="Todos los agentes. Una regla por línea." value={value.rules.common} onChange={(common) => rules({ common })} rows={5} />
+          <LinesField label="Reglas comunes" hint="Una regla por línea." value={value.rules.common} onChange={(common) => rules({ common })} rows={5} />
           <LinesField
             label="Cómo preguntar"
-            hint="Qué no volver a preguntar y qué no es una pregunta. Una regla por línea."
+            hint="Una regla por línea."
             value={value.rules.questions}
             onChange={(questions) => rules({ questions })}
             rows={5}
           />
           <LinesField
             label="Agentes que trabajan en el tablero"
-            hint="Solo los que trabajan con la clave de IA de la empresa. Una regla por línea."
+            hint="Una regla por línea."
             value={value.rules.board}
             onChange={(board) => rules({ board })}
             rows={5}
           />
-          <Group title="Según la tarjeta" description="Se suman solo cuando aplican.">
+          <Group title="Según la tarjeta">
             <Text label="Épica: el plan crea sus tareas" value={value.rules.epicPlan} onChange={(epicPlan) => rules({ epicPlan })} />
             <Text label="Tarjeta demasiado grande" value={value.rules.bigCard} onChange={(bigCard) => rules({ bigCard })} />
             <Text label="Revisar el código en GitHub (QA en el tablero)" vars="{repos}, {clave}" value={value.rules.codeReview} onChange={(codeReview) => rules({ codeReview })} />
             <Text label="Devolver a la etapa anterior" vars="{columna}" value={value.rules.sendBack} onChange={(sendBack) => rules({ sendBack })} />
             <Text label="Búsqueda en Internet (roles con WebSearch)" value={value.rules.web} onChange={(web) => rules({ web })} />
           </Group>
-          <Group title="PO y Arquitecto" description="Al refinar un issue o escribir el plan.">
+          <Group title="PO y Arquitecto">
             <Text label="El documento" value={value.rules.document} onChange={(document) => rules({ document })} />
             <Text label="Repartir una épica en tareas" value={value.rules.taskSplit} onChange={(taskSplit) => rules({ taskSplit })} />
             <Text label="Cómo llenar la propuesta" value={value.rules.proposalFields} onChange={(proposalFields) => rules({ proposalFields })} rows={9} />
           </Group>
-          <Group title="Puertas que revisa un agente" description="Para el agente revisor cuando una etapa la cierra él (Configuración → Etapas).">
+          <Group title="Puertas que revisa un agente">
             <Text label="Cómo revisar la puerta" vars="{puerta}, {avanza}, {devolver}, {decidir}" value={value.rules.gateReview ?? ""} onChange={(gateReview) => rules({ gateReview })} rows={7} />
             <Text label="Con escalamiento: cuándo dejarla a una persona" vars="{aprobadores}, {sensibles}" value={value.rules.gateEscalate ?? ""} onChange={(gateEscalate) => rules({ gateEscalate })} />
             <Text label="Sin escalamiento: decide el agente" vars="{aprobadores}" value={value.rules.gateDecide ?? ""} onChange={(gateDecide) => rules({ gateDecide })} rows={2} />
@@ -110,17 +106,17 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
         <div className="grid gap-4 sm:grid-cols-2">
           <NumberField
             label="Vueltas de preguntas"
-            hint="Si después de tantas vueltas respondidas el agente sigue preguntando, avanza y deja lo abierto como pendiente."
+            hint="Después avanza y deja lo abierto como pendiente."
             value={value.limits.questionRounds}
             min={1}
             max={10}
             onChange={(questionRounds) => limits({ questionRounds })}
           />
-          <NumberField label="Comentarios que lee" hint="Los más recientes de la tarjeta." value={value.limits.commentsRead} min={1} max={100} onChange={(commentsRead) => limits({ commentsRead })} />
-          <NumberField label="Archivos que recibe" hint="Adjuntos de la tarjeta (hasta 40 MB en total)." value={value.limits.filesRead} min={1} max={30} onChange={(filesRead) => limits({ filesRead })} />
-          <NumberField label="Búsquedas web por trabajo" hint="Búsquedas y páginas leídas, en los roles con WebSearch." value={value.limits.webSearches} min={1} max={30} onChange={(webSearches) => limits({ webSearches })} />
-          <NumberField label="Vueltas del modelo con Claude" hint="Más vueltas = trabajos más largos y más costo." value={value.limits.turnsClaude} min={1} max={40} onChange={(turnsClaude) => limits({ turnsClaude })} />
-          <NumberField label="Vueltas con otros proveedores" hint="OpenAI, DeepSeek y compatibles." value={value.limits.turnsOther} min={1} max={80} onChange={(turnsOther) => limits({ turnsOther })} />
+          <NumberField label="Comentarios que lee" value={value.limits.commentsRead} min={1} max={100} onChange={(commentsRead) => limits({ commentsRead })} />
+          <NumberField label="Archivos que recibe" hint="Hasta 40 MB en total." value={value.limits.filesRead} min={1} max={30} onChange={(filesRead) => limits({ filesRead })} />
+          <NumberField label="Búsquedas web por trabajo" value={value.limits.webSearches} min={1} max={30} onChange={(webSearches) => limits({ webSearches })} />
+          <NumberField label="Vueltas del modelo con Claude" hint="Más vueltas, más costo." value={value.limits.turnsClaude} min={1} max={40} onChange={(turnsClaude) => limits({ turnsClaude })} />
+          <NumberField label="Vueltas con otros proveedores" value={value.limits.turnsOther} min={1} max={80} onChange={(turnsOther) => limits({ turnsOther })} />
           <div className="sm:col-span-2">
             <RoleTunings roles={value.roles ?? {}} onChange={tuning} />
           </div>
@@ -145,9 +141,7 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
 
       {tab === "repo" && (
         <div className="flex flex-col gap-4">
-          <p className="text-xs leading-relaxed text-fg-muted">
-            Se escriben al armar un repo y al actualizar el kit de agentes. Los cambios llegan a los repos existentes en el próximo PR del kit.
-          </p>
+          <p className="text-xs text-fg-muted">Los cambios llegan a los repos existentes en el próximo PR del kit.</p>
           <Text label="AGENTS.md" vars="{empresa}, {servidor}, {reglas}" value={value.repo.agentsMd} onChange={(agentsMd) => repo({ agentsMd })} rows={14} mono />
           <Text label="Pasos de «/pendientes»" vars="{empresa}, {servidor}, {pedido}, {cada_issue}" value={value.repo.workSteps} onChange={(workSteps) => repo({ workSteps })} rows={12} mono />
           <Text label="Subagente de cada rol" vars="{rol}, {empresa}, {herramientas_tablero}, {clave_rol}, {reglas}" value={value.repo.subagent} onChange={(subagent) => repo({ subagent })} rows={12} mono />
@@ -176,9 +170,9 @@ function Text({ label, vars, value, onChange, rows = 3, mono }: { label: string;
   );
 }
 
-function NumberField({ label, hint, value, min, max, onChange }: { label: string; hint: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
+function NumberField({ label, hint, value, min, max, onChange }: { label: string; hint?: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
   return (
-    <Field label={label} hint={`${hint} Entre ${min} y ${max}.`}>
+    <Field label={label} hint={`${hint ? `${hint} ` : ""}Entre ${min} y ${max}.`}>
       {(id) => <TextInput id={id} type="number" min={min} max={max} value={String(value)} onChange={(e) => onChange(Number(e.target.value) || 0)} className="tabular w-28" />}
     </Field>
   );
@@ -195,7 +189,7 @@ function RoleTunings({ roles, onChange }: { roles: Record<string, RoleTuning>; o
   const modelOptions = [{ value: "DEFAULT", label: "El del espacio" }, ...Object.entries(MODEL_LABEL).map(([value, label]) => ({ value, label }))];
   const effortOptions = [{ value: "DEFAULT", label: "El del modelo" }, ...Object.entries(EFFORT_LABEL).map(([value, label]) => ({ value, label }))];
   return (
-    <Group title="Modelo y esfuerzo por rol" description="Lo que usa cada rol si en el equipo nadie eligió otro modelo para su agente. Menos esfuerzo y modelos equilibrados gastan menos tokens; deja el más capaz para el diseño y lo difícil. Con un proveedor que no ofrece el modelo, se usa el del espacio.">
+    <Group title="Modelo y esfuerzo por rol" description="Si nadie eligió otro para el agente. Menos esfuerzo y modelos equilibrados gastan menos.">
       <ul className="flex flex-col divide-y divide-line rounded-md border border-line">
         {keys.map((role) => (
           <li key={role} className="grid gap-2 px-3 py-2 sm:grid-cols-[9rem_minmax(0,1fr)_minmax(0,14rem)] sm:items-center">

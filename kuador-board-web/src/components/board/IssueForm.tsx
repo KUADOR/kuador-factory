@@ -166,8 +166,7 @@ export function IssueForm({
             startInView={layout === "detail"}
             rows={layout === "detail" ? 14 : 10}
             templates={issueTemplates(software, values.type)}
-            hint={readOnly ? undefined : "Títulos, tablas y bloques de código (JSON, SQL…). Pega un JSON o celdas de una planilla y se formatean solos. Los agentes lo leen tal cual."}
-            placeholder={software ? "Como … quiero … para …\n\nDado …, cuando …, entonces …\n\nUsa «Plantilla» para empezar con secciones y un contrato JSON." : "Detalles, contacto, próximos pasos…"}
+            placeholder={software ? "Como … quiero … para …\n\nDado …, cuando …, entonces …" : "Detalles, contacto, próximos pasos…"}
           />
         )}
       </Field>
@@ -184,12 +183,9 @@ export function IssueForm({
         {(id) => <SelectInput id={id} size="sm" disabled={readOnly} filter options={memberOptions} value={values.assigneeId ?? ""} onChange={(v) => set("assigneeId", v || null)} />}
       </Field>
       {newAgent && (
-        <p className="-mt-1 flex gap-1.5 rounded-md bg-sol/10 px-2.5 py-2 text-[11px] leading-relaxed text-fg">
+        <p className="-mt-1 flex gap-1.5 text-[11px] text-fg-muted">
           <Sparkle className="mt-0.5 size-3 shrink-0 fill-sol text-sol" aria-hidden />
-          <span>
-            Al guardar, {newAgent.name} recibe el issue. Si trabaja en el tablero, empieza solo: si le falta algo te pregunta en un comentario y, al
-            terminar, lo pasa a la siguiente etapa. Si trabaja en la PC de una persona, lo toma desde /pendientes.
-          </span>
+          <span>Al guardar, {newAgent.name} recibe el issue y empieza a trabajarlo.</span>
         </p>
       )}
       <Field label="Tipo">
@@ -311,18 +307,16 @@ function StartHint({ project, members, status, onPick }: { project: Project; mem
   } else if (column?.category === "TODO") {
     const ahead = firstStageAhead(project, status);
     if (ahead) {
-      const agent = agentFor(stageOf(project, ahead.key)?.roles ?? []);
       text = (
         <>
-          En «{column.name}» espera y nadie la trabaja.{" "}
+          En «{column.name}» nadie la trabaja.{" "}
           <button type="button" className="k-link" onClick={() => onPick(ahead.key)}>
             Crearla en «{ahead.name}»
           </button>
-          {agent ? ` para que la tome ${agent.name}.` : " para que arranque el flujo."}
         </>
       );
     }
   }
   if (!text) return null;
-  return <p className="-mt-2 rounded-md bg-hover px-2.5 py-2 text-[11px] leading-relaxed text-fg-muted">{text}</p>;
+  return <p className="-mt-2 text-[11px] text-fg-muted">{text}</p>;
 }

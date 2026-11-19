@@ -35,7 +35,7 @@ export function PlansEditor({ plans }: { plans: Plan[] }) {
   return (
     <Section
       title="Planes"
-      description="Se muestran en la presentación y al crear un espacio, en este orden. Un plan inactivo deja de venderse; los espacios que ya lo tienen lo conservan."
+      description="Un plan inactivo deja de venderse; quien ya lo tiene lo conserva."
       actions={!adding && <Button icon={Plus} onClick={() => setAdding(true)}>Nuevo plan</Button>}
       flush
     >
@@ -108,7 +108,7 @@ function PlanForm({ initial, isNew = false, onDone }: { initial: Plan; isNew?: b
         </Field>
         <Field label="Moneda">{(id) => <TextInput id={id} required maxLength={3} value={p.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />}</Field>
       </div>
-      <Field label="Frase" hint="Para quién es el plan, en una línea.">
+      <Field label="Frase">
         {(id) => <TextInput id={id} required maxLength={200} value={p.tagline} onChange={(e) => set("tagline", e.target.value)} />}
       </Field>
       <Field label="Qué incluye" hint="Una línea por característica (hasta 12). Los límites de personas y tableros se muestran solos.">

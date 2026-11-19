@@ -18,7 +18,7 @@ export default async function PlatformCatalogLayout({ children }: LayoutProps<"/
     <div className="flex min-h-full flex-col">
       <PageHeader
         title="Catálogo de la plataforma"
-        description="Plantillas, metodologías, roles, piezas y servidores MCP que reciben todos los espacios. Los cambios quedan en borrador hasta publicar."
+        description="Lo que reciben todos los espacios. Los cambios quedan en borrador hasta publicar."
         actions={<PublishCatalog summary={summary} />}
       >
         <CatalogTabs base="/platform/catalog" />

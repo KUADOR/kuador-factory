@@ -30,14 +30,13 @@ export function RunnerSection({ machines, server, roleName, meId }: { machines: 
   const command = `npx @kuador-npm/runner install --server ${server}`;
   return (
     <Section
-      title="Que trabajen solos: el runner"
-      description="Un programa pequeño que se queda escuchando al tablero en tu Mac, Linux o Windows. Cuando hay trabajo para los roles que elijas, lanza tu Claude Code con tu cuenta (sin claves de API) y la tarjeta avanza aunque no estés frente a la PC. Las puertas siguen siendo de una persona."
+      title="Runner"
+      description="Lanza tu Claude Code con tu cuenta cuando hay trabajo para los roles que elijas."
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <p className="text-[13px] text-fg-muted">
-            En la terminal de la máquina (necesita Node 20 o más y Claude Code con tu sesión iniciada). Te muestra un código para aprobar aquí y te pregunta
-            qué roles atiende:
+            En la terminal (Node 20+ y Claude Code con tu sesión iniciada):
           </p>
           <div className="relative">
             <pre className="overflow-x-auto rounded-md border border-line bg-sunken px-3 py-2.5 pr-10 font-mono text-[12px] text-fg-strong">{command}</pre>
@@ -61,7 +60,7 @@ export function RunnerSection({ machines, server, roleName, meId }: { machines: 
         </div>
 
         {machines.length === 0 ? (
-          <p className="rounded-md border border-dashed border-line-strong px-4 py-3 text-[13px] text-fg-muted">Todavía no hay máquinas con runner.</p>
+          <p className="text-[13px] text-fg-muted">Todavía no hay máquinas con runner.</p>
         ) : (
           <ul className="flex flex-col divide-y divide-line rounded-md border border-line">
             {machines.map((m) => (

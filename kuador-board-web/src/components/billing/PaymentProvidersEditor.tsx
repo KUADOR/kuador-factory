@@ -23,7 +23,7 @@ export function PaymentProvidersEditor({ providers, types }: { providers: Paymen
   return (
     <Section
       title="Pasarelas de pago"
-      description="Con qué se cobran los planes. Prueba en modo sandbox y cambia a real cuando esté lista; solo las activas aparecen al pagar."
+      description="Prueba en sandbox antes de pasar a real; solo las activas aparecen al pagar."
       actions={!adding && blank && <Button icon={Plus} onClick={() => setAdding(true)}>Nueva pasarela</Button>}
       flush
     >

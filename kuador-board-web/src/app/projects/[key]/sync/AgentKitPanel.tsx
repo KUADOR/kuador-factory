@@ -32,7 +32,7 @@ export function AgentKitPanel({ projectKey, repos, error }: { projectKey: string
       const r = await proposeAgentKitAction(projectKey);
       if (r.ok) {
         setCurrent(r.data);
-        notify.ok("Kit propuesto", "Revisa y fusiona el PR en GitHub: al fusionarlo, el repo queda al día.");
+        notify.ok("Kit propuesto", "Fusiona el PR en GitHub.");
         router.refresh();
       } else notify.error("No se pudo proponer el kit", r.error);
     });
@@ -40,7 +40,6 @@ export function AgentKitPanel({ projectKey, repos, error }: { projectKey: string
   return (
     <Section
       title="Kit de agentes"
-      description="Lo que cada persona necesita para trabajar con sus agentes en este repo."
       actions={
         outdated.length > 0 ? (
           <Button tone="primary" size="sm" loading={pending} onClick={propose}>

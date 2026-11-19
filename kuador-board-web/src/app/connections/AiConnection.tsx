@@ -49,7 +49,7 @@ export function AiConnection({ status: initial, usage }: { status: WorkspaceAiSt
   if (status.providers.length === 0) {
     return (
       <Section title="IA" description="La IA con la que trabajan los agentes «en el tablero».">
-        <p className="text-[13px] text-fg-muted">Todavía no hay proveedores de IA habilitados. Escríbenos y te ayudamos a activarlos.</p>
+        <p className="text-[13px] text-fg-muted">Todavía no hay proveedores de IA habilitados.</p>
       </Section>
     );
   }
@@ -57,7 +57,7 @@ export function AiConnection({ status: initial, usage }: { status: WorkspaceAiSt
   return (
     <Section
       title="IA"
-      description="El proveedor de IA y la clave con la que trabajan tus agentes. El consumo se cobra en tu cuenta."
+      description="La clave con la que trabajan tus agentes. El consumo se cobra en tu cuenta."
     >
       <div className="flex flex-col gap-4">
         {status.configured && !editing ? (
@@ -95,11 +95,10 @@ export function AiConnection({ status: initial, usage }: { status: WorkspaceAiSt
             </div>
             {chosen && !chosen.codeExecution && (
               <p className="text-xs text-fg-muted">
-                Con {chosen.name}, los agentes leen tus archivos (PDF, Word, Excel, CSV), hacen cuentas exactas sobre tus planillas y entregan
-                documentos en PDF con las herramientas del tablero. No pueden ver imágenes ni PDF escaneados.
+                Con {chosen.name}, los agentes no ven imágenes ni PDF escaneados.
               </p>
             )}
-            {chosen?.keyHint && <p className="text-[13px] text-fg-muted">{chosen.keyHint} Es una clave de API: se paga según el uso, aparte de cualquier suscripción de chat.</p>}
+            {chosen?.keyHint && <p className="text-[13px] text-fg-muted">{chosen.keyHint} Se paga por uso, aparte de cualquier suscripción de chat.</p>}
             <Field label="Clave de API" error={error}>
               {(id) => <PasswordInput id={id} required autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-…" />}
             </Field>
@@ -124,7 +123,7 @@ export function AiConnection({ status: initial, usage }: { status: WorkspaceAiSt
         {status.configured && !editing && (
           <div className="flex flex-wrap items-end gap-3 border-t border-line pt-4">
             <div className="w-80">
-              <Field label="Modelo por defecto" hint="Cada agente puede usar otro en el equipo de su tablero.">
+              <Field label="Modelo por defecto">
                 {(id) => (
                   <SelectInput id={id} value={model} onChange={(v) => v && setModel(v)} options={status.models.map((m) => ({ value: m, label: MODEL_LABEL[m] ?? m }))} />
                 )}

@@ -72,7 +72,7 @@ export function TelegramConnection({ setup: initial }: { setup: TelegramSetup })
   return (
     <Section
       title="Telegram"
-      description="Avisos del tablero por Telegram con el bot de tu empresa: a cada persona (lo conecta en Mi cuenta → Notificaciones) y a los grupos que vincules."
+      description="Avisos a cada persona (lo conecta en Mi cuenta) y a los grupos que vincules."
     >
       <div className="flex flex-col gap-5">
         {!editing ? (
@@ -81,7 +81,7 @@ export function TelegramConnection({ setup: initial }: { setup: TelegramSetup })
               {setup.ownBot ? (
                 <>Bot de la empresa: <span className="font-medium text-fg-strong">@{setup.ownBot}</span></>
               ) : (
-                <>Usa el bot de la plataforma <span className="font-medium text-fg-strong">@{setup.platformBot}</span>. Puedes conectar el de tu empresa.</>
+                <>Bot de la plataforma: <span className="font-medium text-fg-strong">@{setup.platformBot}</span></>
               )}
             </p>
             <Button size="sm" onClick={() => setEditing(true)}>{setup.ownBot ? "Cambiar bot" : "Conectar el bot de la empresa"}</Button>
@@ -94,12 +94,12 @@ export function TelegramConnection({ setup: initial }: { setup: TelegramSetup })
             <ol className="list-decimal space-y-1 pl-5 text-[13px] text-fg-muted">
               <li>En Telegram, abre <span className="font-medium text-fg">@BotFather</span> y envía <code className="font-mono text-xs">/newbot</code>.</li>
               <li>Elige el nombre y el usuario del bot (termina en «bot»).</li>
-              <li>Copia el token que te entrega y pégalo aquí. Se guarda cifrado.</li>
+              <li>Pega aquí el token que te entrega.</li>
             </ol>
             <Field label="Token del bot" error={error}>
               {(id) => <PasswordInput id={id} required autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="123456789:AA…" />}
             </Field>
-            {bot && <p className="text-xs text-fg-faint">Al cambiar de bot, las personas y los grupos vinculados al anterior se vuelven a vincular.</p>}
+            {bot && <p className="text-xs text-fg-faint">Al cambiar de bot, personas y grupos deben volver a vincularse.</p>}
             <div className="flex justify-end gap-2">
               {bot && <Button tone="ghost" onClick={() => { setEditing(false); setError(null); }}>Cancelar</Button>}
               <Button type="submit" tone="primary" loading={pending}>Conectar bot</Button>
@@ -114,21 +114,20 @@ export function TelegramConnection({ setup: initial }: { setup: TelegramSetup })
               <Button size="sm" loading={pending && !!code} onClick={linkGroup}>Vincular grupo</Button>
             </div>
             {code && (
-              <div className="flex flex-col gap-3 rounded-md border border-line bg-sunken p-3 text-[13px]">
+              <div className="flex flex-col gap-3 text-[13px]">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <QrCode value={code.url} label={`Código QR para agregar a @${code.bot} a un grupo`} className="size-40" />
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <p className="text-fg-muted">
-                      Escanéalo con tu teléfono: Telegram te pide elegir el grupo, agrega a <span className="font-medium text-fg">@{code.bot}</span> y
-                      el grupo queda vinculado solo. Sirve una vez durante 15 minutos.
+                      Escanéalo y elige el grupo. Sirve una vez durante 15 minutos.
                     </p>
                     <a className="k-link w-fit" href={code.url} target="_blank" rel="noopener noreferrer">
                       O ábrelo en esta computadora
                     </a>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1.5 border-t border-line pt-3">
-                  <p className="text-xs text-fg-faint">Si el bot ya está en el grupo, envía este mensaje en el grupo:</p>
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs text-fg-faint">Si el bot ya está en el grupo, envía:</p>
                   <div className="flex items-center gap-2">
                     <code className="min-w-0 flex-1 truncate rounded bg-surface px-2 py-1.5 font-mono text-xs text-fg-strong">{code.command}</code>
                     <Button
@@ -143,7 +142,7 @@ export function TelegramConnection({ setup: initial }: { setup: TelegramSetup })
               </div>
             )}
             {setup.groups.length === 0 && !code ? (
-              <p className="text-[13px] text-fg-faint">Ningún grupo todavía. Un grupo recibe un aviso por evento, no uno por persona.</p>
+              <p className="text-[13px] text-fg-faint">Ningún grupo todavía.</p>
             ) : (
               <ul className="divide-y divide-line rounded-md border border-line">
                 {setup.groups.map((g) => (

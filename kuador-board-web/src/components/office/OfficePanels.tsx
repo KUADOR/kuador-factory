@@ -25,12 +25,12 @@ export interface Pending {
 
 export type PendingFocus = "review" | "asking" | "stuck" | "inbox" | "done";
 
-const SECTIONS: { key: PendingFocus; title: string; empty: string; hint: string }[] = [
-  { key: "review", title: "🖋️ Por aprobar", empty: "Nada espera aprobación.", hint: "Ábrela para aprobarla o devolverla con un motivo." },
-  { key: "asking", title: "❓ Preguntaron", empty: "Ningún agente espera respuesta.", hint: "Responde y devuélvesela al agente para que siga." },
-  { key: "stuck", title: "⚠️ Trabados", empty: "Nadie está trabado.", hint: "Revisa el motivo y reintenta." },
-  { key: "inbox", title: "📥 En la bandeja", empty: "No hay tarjetas sin responsable.", hint: "Asígnala a alguien del equipo para que arranque." },
-  { key: "done", title: "🗄️ Archivo", empty: "Todavía no se terminó nada.", hint: "Lo terminado, lo más reciente primero." },
+const SECTIONS: { key: PendingFocus; title: string; empty: string }[] = [
+  { key: "review", title: "Por aprobar", empty: "Nada espera aprobación." },
+  { key: "asking", title: "Preguntaron", empty: "Ningún agente espera respuesta." },
+  { key: "stuck", title: "Trabados", empty: "Nadie está trabado." },
+  { key: "inbox", title: "En la bandeja", empty: "No hay tarjetas sin responsable." },
+  { key: "done", title: "Archivo", empty: "Todavía no se terminó nada." },
 ];
 
 /** Los pendientes de la oficina con su acción a un clic: abrir la tarjeta o, en la bandeja, asignarla ahí mismo. */
@@ -63,7 +63,6 @@ export function PendingPanel({
             <p className="text-xs text-fg-faint">{s.empty}</p>
           ) : (
             <>
-              <p className="text-xs text-fg-muted">{s.hint}</p>
               <ul className="divide-y divide-line rounded-md border border-line">
                 {s.key === "asking" &&
                   pending.asking.map(({ issue, agent, question }) => (
@@ -166,7 +165,7 @@ export function CardPanel({
         </p>
       </div>
       {lastRun && (lastRun.summary || lastRun.error) && (
-        <div className="rounded-md border border-line bg-sunken px-3 py-2 text-xs">
+        <div className="text-xs">
           <p className="mb-0.5 font-medium text-fg-muted">Lo último de {byId.get(lastRun.agentId)?.name ?? "un agente"}</p>
           <p className={lastRun.error ? "whitespace-pre-line text-danger" : "line-clamp-6 whitespace-pre-line text-fg"}>{lastRun.error ?? lastRun.summary}</p>
         </div>
@@ -186,7 +185,7 @@ export function CardPanel({
       )}
       {canEdit && <Reply issue={issue} project={project} askedBy={askedBy} />}
       <Link href={`/projects/${project.key}?issue=${issue.key}`} className="k-link flex w-fit items-center gap-1 text-xs">
-        <ExternalLink className="size-3.5" aria-hidden /> Abrir en el tablero (descripción, documentos, historial)
+        <ExternalLink className="size-3.5" aria-hidden /> Abrir en el tablero
       </Link>
     </div>
   );
@@ -213,7 +212,7 @@ function AssignSelect({ issue, project, members, compact }: { issue: Issue; proj
         }}
         options={[
           { value: "NONE", label: compact ? "Asignar a…" : "Sin responsable" },
-          ...members.map((m) => ({ value: m.id, label: m.kind === "AGENT" ? `🤖 ${m.name}` : m.name })),
+          ...members.map((m) => ({ value: m.id, label: m.name, leading: <Avatar member={m} size="xs" /> })),
         ]}
       />
     </div>
@@ -283,7 +282,7 @@ function Reply({ issue, project, askedBy }: { issue: Issue; project: Project; as
         {askedBy ? (
           <label className="flex items-center gap-1.5 text-xs text-fg-muted">
             <input type="checkbox" checked={giveBack} onChange={(e) => setGiveBack(e.target.checked)} />
-            Devolvérsela a {askedBy.name} para que siga
+            Devolvérsela a {askedBy.name}
           </label>
         ) : (
           <span />

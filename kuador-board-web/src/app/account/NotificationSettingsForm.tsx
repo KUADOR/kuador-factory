@@ -12,10 +12,10 @@ import { QrCode } from "@/components/ui/QrCode";
 import { notify } from "@/components/ui/Toaster";
 import type { NotificationSettings, NotificationView } from "@/lib/types";
 
-const EVENTS: { key: "onAssigned" | "onGates" | "onPlans"; label: string; hint: string }[] = [
+const EVENTS: { key: "onAssigned" | "onGates" | "onPlans"; label: string; hint?: string }[] = [
   { key: "onAssigned", label: "Te asignan un issue", hint: "Incluye cuando un agente te pide una decisión." },
-  { key: "onGates", label: "Algo espera tu aprobación", hint: "Puertas como Aprobación, Revisión de PR o Release." },
-  { key: "onPlans", label: "Un reparto de tareas espera tu aprobación", hint: "Las tareas de una épica antes de arrancar." },
+  { key: "onGates", label: "Algo espera tu aprobación" },
+  { key: "onPlans", label: "Un reparto de tareas espera tu aprobación" },
 ];
 
 /** Canales y avisos de la persona. Cada cambio se guarda al momento. */
@@ -89,7 +89,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-fg-strong">Telegram</p>
             {!view.telegramAvailable ? (
-              <p className="text-xs text-fg-muted">Tu espacio todavía no tiene un bot de Telegram. Quien administra lo conecta en Conexiones → Telegram.</p>
+              <p className="text-xs text-fg-muted">Tu espacio no tiene bot de Telegram; lo conecta quien administra.</p>
             ) : s.telegramChatId != null ? (
               <p className="text-xs text-fg-muted">
                 Conectado a @{view.telegramBot}.{" "}
@@ -106,7 +106,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
                 {link && !link.expired ? (
                   <>
                     <p className="text-xs text-fg-muted">
-                      Escanéalo con la cámara de tu teléfono: se abre @{view.telegramBot} en Telegram; pulsa «Iniciar». Sirve una vez durante 15 minutos.
+                      Escanéalo y pulsa «Iniciar» en Telegram. Sirve una vez durante 15 minutos.
                     </p>
                     <QrCode value={link.url} label={`Código QR para conectar con @${view.telegramBot}`} />
                     <p className="text-xs text-fg-muted">
@@ -118,11 +118,9 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
                   </>
                 ) : (
                   <>
-                    <p className="text-xs text-fg-muted">
-                      {link?.expired
-                        ? "Telegram no confirmó la conexión. Si pulsaste «Iniciar» y el bot no te respondió, avisa a quien administra: el bot no está recibiendo mensajes."
-                        : `Conecta tu Telegram con el bot @${view.telegramBot} para recibir los avisos ahí.`}
-                    </p>
+                    {link?.expired && (
+                      <p className="text-xs text-fg-muted">Telegram no confirmó la conexión. Si el bot no te respondió, avisa a quien administra.</p>
+                    )}
                     <Button size="sm" tone="secondary" loading={pending} onClick={connectTelegram}>
                       {link?.expired ? "Generar otro código" : "Conectar Telegram"}
                     </Button>
@@ -148,7 +146,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationVie
             <li key={e.key} className="flex items-start gap-3 px-3.5 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] text-fg-strong">{e.label}</p>
-                <p className="text-xs text-fg-muted">{e.hint}</p>
+                {e.hint && <p className="text-xs text-fg-muted">{e.hint}</p>}
               </div>
               <Switch checked={s[e.key]} hideLabel label={e.label} disabled={pending} onChange={(on) => save({ [e.key]: on })} />
             </li>

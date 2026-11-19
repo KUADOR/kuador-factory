@@ -86,7 +86,7 @@ export function PlanChooser({
 
   return (
     <>
-      {notice && <p role="status" className="rounded-md bg-info/10 px-3 py-2 text-[13px] text-fg">{notice}</p>}
+      {notice && <p role="status" className="text-[13px] text-fg">{notice}</p>}
       <Section
         title={`Plan ${plan.name}`}
         description={statusText(current)}
@@ -119,8 +119,8 @@ export function PlanChooser({
           <div className="mt-4 flex max-w-md flex-col gap-2">{payButtons(plan)}</div>
         )}
         {downgraded && (
-          <p role="status" className="mt-4 rounded-md bg-warn/10 px-3 py-2 text-[13px] text-fg">
-            Mientras tanto rigen los límites de {effective.name}. Nada se borra: solo no puedes crear más de lo que ese plan permite.
+          <p role="status" className="mt-4 text-[13px] text-warn">
+            Rigen los límites de {effective.name}. Nada se borra: solo no puedes crear más.
           </p>
         )}
       </Section>
@@ -156,8 +156,8 @@ export function PlanChooser({
       </ul>
       <p className="max-w-3xl text-[13px] text-fg-muted">
         {options.length > 0
-          ? "Pagas por mes o por año; al pagar, el plan queda activo hasta la nueva fecha. Cada espacio tiene una sola prueba de un plan de pago."
-          : "Cada espacio tiene una sola prueba de un plan de pago. El pago en línea todavía no está habilitado; escríbenos desde kuador.com para activarlo."}
+          ? "Cada espacio tiene una sola prueba de un plan de pago."
+          : "Cada espacio tiene una sola prueba de un plan de pago. Para activar el pago, escríbenos desde kuador.com."}
       </p>
     </>
   );

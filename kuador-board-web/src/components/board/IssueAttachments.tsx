@@ -113,7 +113,7 @@ export function IssueAttachments({ issueKey, members }: { issueKey: string; memb
       ))}
 
       {listing.items.length === 0 && uploading.length === 0 ? (
-        <p className="text-[13px] text-fg-faint">Sin adjuntos. Propuestas, contratos o capturas que el equipo y los agentes necesiten.</p>
+        <p className="text-[13px] text-fg-faint">Sin adjuntos.</p>
       ) : (
         <ul className="flex flex-col divide-y divide-line rounded-md border border-line">
           {listing.items.map((a) => (

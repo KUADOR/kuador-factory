@@ -35,7 +35,7 @@ export default async function AccountPage() {
       />
       <div className="flex max-w-xl flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
         {notifications && (
-          <Section title="Notificaciones" description="Te avisamos solo cuando algo te necesita, por los canales que elijas.">
+          <Section title="Notificaciones">
             <NotificationSettingsForm initial={notifications} />
           </Section>
         )}

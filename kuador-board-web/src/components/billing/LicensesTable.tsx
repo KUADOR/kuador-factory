@@ -17,7 +17,7 @@ const STATUSES = (Object.keys(STATUS_LABEL) as LicenseStatus[]).map((s) => ({ va
 /** Licencia de cada espacio. Aquí se registra un pago manual (estado activo y hasta cuándo) o se extiende una prueba. */
 export function LicensesTable({ workspaces, plans }: { workspaces: WorkspaceLicense[]; plans: Plan[] }) {
   return (
-    <Section title="Espacios y licencias" description="Los espacios sin plan son instalaciones propias o anteriores a los planes: no tienen límites." flush>
+    <Section title="Espacios y licencias" description="Los espacios sin plan no tienen límites." flush>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead>

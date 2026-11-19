@@ -167,7 +167,7 @@ export function IssueDetail({
         title={`¿Eliminar ${issue.key}?`}
         message={
           <>
-            Se borra «{issue.title}» con sus comentarios. Esta acción no se puede deshacer; el historial del proyecto conserva que existió.
+            Se borra «{issue.title}» con sus comentarios. No se puede deshacer.
           </>
         }
         confirmLabel="Eliminar issue"
@@ -233,11 +233,7 @@ function IssueDocs({ issueKey, project }: { issueKey: string; project: Project }
   return (
     <div className="flex flex-col gap-3">
       {docs.length === 0 && (
-        <p className="text-xs leading-relaxed text-fg-faint">
-          {project.methodology === "ODD"
-            ? "ODD solo pide seguimiento si la tarea es sustancial; una tarea simple no necesita documentos."
-            : "Este issue aún no tiene documentos."}
-        </p>
+        <p className="text-xs text-fg-faint">Este issue aún no tiene documentos.</p>
       )}
       <ul className="flex flex-col gap-2">
         {docs.map((d) => (

@@ -38,7 +38,7 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
     <div className="flex flex-col gap-4 border-t border-line pt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-[13px] font-medium text-fg-strong">Consumo de {MONTH(usage.month)}</h3>
-        <span className="text-xs text-fg-muted">Solo agentes que trabajan en el tablero; no incluye el tiempo de ejecución de código.</span>
+        <span className="text-xs text-fg-muted">Solo agentes del tablero</span>
       </div>
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Costo estimado" value={spent != null ? usd(spent) : usage.runs === 0 ? usd(0) : "Sin precio"} />
@@ -48,7 +48,7 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
       </dl>
       {usage.cachedTokens > 0 && usage.inputTokens > 0 && (
         <p className="text-xs text-fg-muted">
-          {Math.round((usage.cachedTokens * 100) / usage.inputTokens)}% de la entrada salió del caché de prompts, que cuesta cerca del 10%.
+          {Math.round((usage.cachedTokens * 100) / usage.inputTokens)}% de la entrada desde caché (cuesta ~10 %).
         </p>
       )}
       {ratio != null && (
@@ -58,14 +58,13 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
           </div>
           <p className="text-xs text-fg-muted">
             {usd(spent ?? 0)} de {usd(usage.budgetUsd ?? 0)}
-            {ratio >= 1 ? " · tope alcanzado: los agentes no arrancan hasta el próximo mes o hasta que lo subas." : ""}
+            {ratio >= 1 ? " · tope alcanzado: los agentes no arrancan hasta que lo subas o empiece el mes." : ""}
           </p>
         </div>
       )}
       {usage.unpricedModels.length > 0 && (
         <p className="text-xs text-warn">
-          Falta el precio de {usage.unpricedModels.join(", ")}: el gasto no se puede calcular y, con un tope, los agentes del tablero se frenan por
-          precaución. Cárgalo en Plataforma → IA.
+          Falta el precio de {usage.unpricedModels.join(", ")}: con tope, los agentes se frenan. Cárgalo en Plataforma → IA.
         </p>
       )}
       {usage.byAgent.length > 0 && (
@@ -109,8 +108,7 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
       </form>
       <CardCap value={usage.cardCapUsd} onSaved={setUsage} />
       <p className="text-xs text-fg-faint">
-        Te avisamos al 80 % y al llegar a cada tope (correo, Telegram o el celular). Llegado un tope, esos agentes no toman trabajo nuevo hasta que lo
-        subas o empiece el mes.
+        Te avisamos al 80 % y al 100 % de cada tope; al llegar, esos agentes no toman trabajo nuevo.
       </p>
     </div>
   );
@@ -139,7 +137,7 @@ function CardCap({ value, onSaved }: { value: number | null; onSaved: (r: AiUsag
       }}
     >
       <div className="w-48">
-        <Field label="Tope por tarjeta (USD)" hint="Ninguna tarjeta gasta más que esto.">
+        <Field label="Tope por tarjeta (USD)">
           {(id) => <TextInput id={id} inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} placeholder="3" />}
         </Field>
       </div>

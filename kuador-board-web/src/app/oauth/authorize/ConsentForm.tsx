@@ -41,7 +41,7 @@ export function ConsentForm({
         <li>No puede entrar a la web, aprobar puertas ni administrar el espacio.</li>
         <li>Puedes desconectarlo cuando quieras desde Agentes locales.</li>
       </ul>
-      <p className="mt-4 rounded-md border border-line bg-sunken px-3 py-2 text-xs text-fg-muted">
+      <p className="mt-4 text-xs text-fg-muted">
         {client.local ? (
           <>Vuelve a un programa de este equipo (<span className="font-mono">{client.redirectHost}</span>). Si no acabas de iniciar sesión desde tu cliente de IA, cancela.</>
         ) : (

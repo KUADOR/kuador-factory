@@ -221,7 +221,7 @@ export function Column({
         </p>
       )}
       {blocked && (
-        <p className="mx-2 mb-1.5 flex items-center gap-1.5 rounded bg-hover px-2 py-1 text-[11px] text-fg-muted">
+        <p className="mx-3 mb-1.5 flex items-center gap-1.5 text-[11px] text-fg-muted">
           <Ban className="size-3 shrink-0" aria-hidden /> {blocked}
         </p>
       )}

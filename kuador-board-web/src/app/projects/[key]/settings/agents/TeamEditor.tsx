@@ -16,12 +16,12 @@ import { SidePanel } from "@/components/ui/SidePanel";
 import type { AgentMode, AgentPromptPreview, TeamAgent, WorkspaceAiStatus } from "@/lib/types";
 
 const MODE_CHOICES: { value: AgentMode; label: string; hint: string }[] = [
-  { value: "SERVER", label: "En el tablero", hint: "Trabaja con la clave de IA de la empresa cuando le asignas una tarjeta o cuando llega a su etapa; al terminar la pasa a la siguiente." },
-  { value: "LOCAL", label: "En la PC de una persona", hint: "Lo trabaja el Claude Code o Codex de alguien del equipo con /pendientes." },
+  { value: "SERVER", label: "En el tablero", hint: "Gasta la clave de IA de la empresa." },
+  { value: "LOCAL", label: "En la PC de una persona", hint: "Con el Claude Code o Codex de alguien del equipo." },
 ];
 
 
-const CODE_ONLY_LOCAL = "Escribe el código del repo: lo trabaja el Claude Code o Codex de alguien del equipo con /pendientes, donde está el repo.";
+const CODE_ONLY_LOCAL = "Escribe código: trabaja en la PC de una persona, donde está el repo.";
 
 type Role = { key: string; name: string; description: string; worksOnCode: boolean };
 
@@ -49,8 +49,8 @@ export function TeamEditor({ projectKey, software, team: initial, roles, ai }: {
   return (
     <div className="flex flex-col gap-5">
       {serverWithoutKey && (
-        <p role="status" className="rounded-md bg-warn/10 px-3 py-2 text-[13px] text-fg">
-          Hay agentes que trabajan en el tablero, pero la empresa todavía no tiene clave de IA.{" "}
+        <p role="status" className="text-[13px] text-warn">
+          Falta la clave de IA de la empresa.{" "}
           <Link href="/connections" className="k-link">Configúrala en Conexiones → IA</Link>.
         </p>
       )}
@@ -253,7 +253,7 @@ function CreateAgent({
           {(id) => <TextInput id={id} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Agente de ventas" />}
         </Field>
       </div>
-      <Field label="Especialidad" hint="Opcional: qué hace en este equipo, además del manual de su rol. Ej.: «Informes de ventas de la florería en dólares».">
+      <Field label="Especialidad" hint="Opcional. Ej.: «Informes de ventas de la florería en dólares»">
         {(id) => <TextArea id={id} rows={3} maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>
       <ChoiceCards name="agent-mode" label="Dónde trabaja" columns={2} value={effectiveMode} onChange={setMode} choices={MODE_CHOICES} disabled={onlyLocal} />
@@ -313,7 +313,7 @@ function PromptPreview({ agent, projectKey }: { agent: TeamAgent; projectKey: st
               load();
             }}
           >
-            <Field label="Tarjeta" hint="Arma el pedido para esa tarjeta sin llamar al modelo (no gasta IA).">
+            <Field label="Tarjeta" hint="No gasta IA.">
               {(id) => <TextInput id={id} value={issue} onChange={(e) => setIssue(e.target.value.toUpperCase())} className="w-40 font-mono" />}
             </Field>
             <Button type="submit" tone="primary" size="sm" loading={loading} disabled={!/^[A-Z][A-Z0-9]*-\d+$/.test(issue.trim())}>
@@ -334,7 +334,7 @@ function PromptPreview({ agent, projectKey }: { agent: TeamAgent; projectKey: st
               <PromptBlock title="Sistema (quién es y sus reglas)" text={preview.system} />
               <PromptBlock title="Mensaje (la tarjeta)" text={preview.user} />
               <p className="text-xs text-fg-faint">
-                Las reglas se editan en <Link href="/catalog/rules" className="k-link">Catálogo → Reglas de agentes</Link>; el manual de cada rol, en Catálogo → Roles.
+                Las reglas se editan en <Link href="/catalog/rules" className="k-link">Catálogo → Reglas de agentes</Link>.
               </p>
             </div>
           )}

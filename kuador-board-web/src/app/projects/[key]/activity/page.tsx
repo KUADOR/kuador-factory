@@ -35,9 +35,9 @@ export default async function ProjectActivityPage({ params }: PageProps<"/projec
 
   return (
     <div className="flex flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
-      <p className="text-[13px] text-fg-muted">Últimos 100 cambios de personas y agentes, del más reciente al más antiguo.</p>
+      <p className="text-[13px] text-fg-muted">Últimos 100 cambios.</p>
       {activity.length === 0 ? (
-        <EmptyState title="Todavía no hay actividad">Cada cambio de un issue o documento, de una persona o de un agente, queda registrado aquí.</EmptyState>
+        <EmptyState title="Todavía no hay actividad" />
       ) : (
         byDay(activity).map(([day, entries]) => (
           <section key={day} className="flex flex-col gap-3">

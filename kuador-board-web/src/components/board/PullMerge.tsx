@@ -42,7 +42,7 @@ export function PullMerge({ projectKey, issueKey }: { projectKey: string; issueK
   if (open.length === 0) return null;
 
   return (
-    <ul className="flex flex-col gap-2 rounded-md border border-line bg-sunken px-3 py-2.5">
+    <ul className="flex flex-col gap-2">
       {open.map((p) => (
         <li key={`${p.repository}#${p.number}`} className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="min-w-0 flex-1">
@@ -55,7 +55,7 @@ export function PullMerge({ projectKey, issueKey }: { projectKey: string; issueK
                 {p.note ??
                   (p.ci === "PENDING"
                     ? "Se habilita solo cuando el CI termine en verde."
-                    : "Corrige el CI (o revísalo en GitHub) antes de fusionar. Puedes aprobar sin fusionar.")}
+                    : "Corrige el CI antes de fusionar.")}
               </p>
             )}
           </div>

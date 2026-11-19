@@ -190,11 +190,10 @@ function RepositoryStep({
       <div className="flex flex-col gap-4">
         <p className="text-[13px] text-fg">
           Vinculado a <code className="font-mono text-xs">{link.location}</code>
-          {link.branch ? ` · rama ${link.branch}` : ""}. Las piezas se ven y se suman en{" "}
+          {link.branch ? ` · rama ${link.branch}` : ""}.{" "}
           <Link href={`/projects/${project.key}/settings/repository`} className="k-link">
             Piezas y repositorio
           </Link>
-          .
         </p>
         <RecognizeCta projectKey={project.key} />
       </div>
@@ -204,17 +203,15 @@ function RepositoryStep({
     // Un proyecto que ya existe: primero su repo (sin crear ni tocar nada); después el agente lo lee.
     return (
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] text-fg-muted">
-          Indica el repo del proyecto. El tablero no crea ni sobrescribe nada: al vincularlo, el agente lo lee y te propone las piezas, los documentos y las primeras tarjetas.
-        </p>
+        <p className="text-[13px] text-fg-muted">Indica el repo del proyecto. El tablero no crea ni sobrescribe nada.</p>
         <RepositoryForm projectKey={project.key} link={link} connections={github.connections} />
         {github.connections.length === 0 && (
           <p className="text-xs text-fg-faint">
-            Con la app de GitHub conectada en{" "}
+            Sin la app de GitHub en{" "}
             <Link href="/connections" className="k-link">
               Conexiones
             </Link>{" "}
-            el kit de agentes llega como Pull Request y el revisor puede leer y fusionar los PR.
+            no llega el kit de agentes por PR.
           </p>
         )}
       </div>
@@ -226,7 +223,7 @@ function RepositoryStep({
         <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} />
       ) : (
         <p className="text-[13px] text-fg-muted">
-          Para que el tablero cree los repos, conecta primero tu organización de GitHub en{" "}
+          Conecta primero tu organización de GitHub en{" "}
           <Link href="/connections" className="k-link">
             Conexiones
           </Link>
@@ -301,17 +298,8 @@ function RepositoryLocked({ project, draft }: { project: Project; draft: DraftPl
 
 function RecognizeCta({ projectKey }: { projectKey: string }) {
   return (
-    <Link
-      href={`/projects/${projectKey}/docs/draft?origen=existente`}
-      className="flex items-center gap-3 rounded-lg border border-sol/50 bg-sol/10 px-4 py-3 text-[13px] hover:bg-sol/15"
-    >
-      <span className="text-lg" aria-hidden>
-        🔎
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-medium text-fg-strong">¿El proyecto ya existía? Que el agente lo lea</span>
-        <span className="block text-xs text-fg-muted">Lee el código y arma las piezas, los documentos, el objetivo, un diagnóstico y tarjetas para empezar. Tú apruebas.</span>
-      </span>
+    <Link href={`/projects/${projectKey}/docs/draft?origen=existente`} className="k-link self-start text-[13px]">
+      ¿El proyecto ya existía? Que el agente lo lea
     </Link>
   );
 }
@@ -343,7 +331,7 @@ function AgentsStep({ connections, kit, onCheck }: { connections: RunnerToken[];
     <div className="flex flex-col gap-4">
       {connections.length > 0 ? (
         <p className="text-[13px] text-fg">
-          Ya tienes {connections.length === 1 ? "una conexión" : `${connections.length} conexiones`}: {connections.map((c) => c.name).join(", ")}. Si el repo lo creó el tablero, ya trae la conexión y el comando /pendientes.
+          Ya tienes {connections.length === 1 ? "una conexión" : `${connections.length} conexiones`}: {connections.map((c) => c.name).join(", ")}.
         </p>
       ) : (
         <>
@@ -351,7 +339,7 @@ function AgentsStep({ connections, kit, onCheck }: { connections: RunnerToken[];
           <Command>{`claude mcp add --transport http --scope user ${server} ${url}`}</Command>
           <Command>{`claude mcp login ${server}`}</Command>
           <p className="text-xs text-fg-muted">
-            Se abre el navegador para aprobar la conexión. ¿Usas Codex u otro cliente? Mira{" "}
+            ¿Codex u otro cliente? Mira{" "}
             <Link href="/local-agents" className="k-link">
               Agentes locales
             </Link>
@@ -381,7 +369,7 @@ function stepTitle(step: StepId, project: Project): string {
 
 function stepDescription(step: StepId, project: Project): string {
   return step === "firstWork" && project.kind !== "SOFTWARE"
-    ? "Pídele algo a un agente del tablero, con tus archivos: por ejemplo, un informe de ventas a partir de tu Excel."
+    ? "Pídele algo a un agente del tablero, con tus archivos."
     : STEPS[step].description;
 }
 
@@ -406,7 +394,7 @@ function FirstRequest({ project, agents, aiReady }: { project: Project; agents: 
   if (agents.length === 0) {
     return (
       <p className="text-[13px] text-fg-muted">
-        Este tablero no tiene agentes que trabajen en el tablero.{" "}
+        Este tablero no tiene agentes.{" "}
         <Link href={`/projects/${project.key}/settings/agents`} className="k-link">
           Súmalos en Configuración → Equipo de agentes
         </Link>
@@ -447,21 +435,21 @@ function FirstRequest({ project, agents, aiReady }: { project: Project; agents: 
           const assigned = await assignIssueAction(project.key, key, agentId);
           if (!assigned.ok) return setError(assigned.error);
           const name = agents.find((a) => a.id === agentId)?.name ?? "El agente";
-          notify.ok(`${name} está trabajando en ${key}`, "Te avisamos cuando entregue o si tiene una pregunta.");
+          notify.ok(`${name} está trabajando en ${key}`);
           router.push(`/projects/${project.key}?issue=${key}`);
         });
       }}
     >
       {!aiReady && (
-        <p role="status" className="rounded-md bg-warn/10 px-3 py-2 text-[13px] text-fg">
-          Primero guarda la clave de IA de la empresa (paso 1): sin ella el agente no puede empezar.
+        <p role="status" className="text-[13px] text-warn">
+          Falta la clave de IA de la empresa (paso 1): sin ella el agente no puede empezar.
         </p>
       )}
       <Field label="Para quién">
         {(id) => <SelectInput id={id} value={agentId} onChange={setAgentId} options={agents.map((a) => ({ value: a.id, label: `${a.name} · ${a.roleName}` }))} />}
       </Field>
       <Field label="Qué necesitas">{(id) => <TextInput id={id} required maxLength={255} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
-      <Field label="Detalle" hint="Cuanto más claro (periodo, moneda, qué comparar), mejor. Si falta algo, el agente te pregunta.">
+      <Field label="Detalle" hint="Si falta algo, el agente te pregunta.">
         {(id) => <TextArea id={id} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>
       <Field label="Archivos" hint="Excel, CSV, PDF o imágenes, hasta 25 MB cada uno.">
@@ -516,20 +504,18 @@ function FirstWork({ project, existing, onCreated }: { project: Project; existin
             status: column,
           });
           if (r.ok) {
-            notify.ok(`${r.data.key} creada en «${columnName}»`, "Tus agentes la atienden con /pendientes.");
+            notify.ok(`${r.data.key} creada en «${columnName}»`);
             onCreated();
           } else setError(r.error);
         });
       }}
     >
-      {existing > 0 && <p className="text-xs text-fg-muted">El proyecto ya tiene {existing} issue(s); puedes sumar otro o pasar al final.</p>}
+      {existing > 0 && <p className="text-xs text-fg-muted">El proyecto ya tiene {existing} issue(s).</p>}
       <Field label={epic ? "Épica" : "Título"}>{(id) => <TextInput id={id} required maxLength={255} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
-      <Field label="Qué se espera" hint="El PO la convierte en historia y criterios; lo que falte te lo pregunta.">
+      <Field label="Qué se espera">
         {(id) => <TextArea id={id} rows={7} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>
-      <p className="text-xs text-fg-muted">
-        Entra en «{columnName}»{project.stages.some((s) => s.column === column && s.roles.length > 0) ? ", la etapa de tus agentes: queda a tu cargo y ellos la toman con /pendientes" : ""}.
-      </p>
+      <p className="text-xs text-fg-muted">Entra en «{columnName}».</p>
       {error && (
         <p role="alert" className="text-[13px] text-danger">
           {error}
@@ -550,7 +536,7 @@ function Finish({ project, issueCount, pending }: { project: Project; issueCount
       <h2 className="text-base font-semibold text-fg-strong">{pending.length === 0 ? "El proyecto está listo" : "Casi listo"}</h2>
       {pending.length > 0 && (
         <p className="text-[13px] text-fg-muted">
-          Quedaron sin hacer: {pending.map((s) => stepTitle(s, project).charAt(0).toLowerCase() + stepTitle(s, project).slice(1)).join(", ")}. Puedes volver a este asistente cuando quieras desde Configuración.
+          Quedaron sin hacer: {pending.map((s) => stepTitle(s, project).charAt(0).toLowerCase() + stepTitle(s, project).slice(1)).join(", ")}.
         </p>
       )}
       <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-[13px] text-fg">
@@ -560,7 +546,7 @@ function Finish({ project, issueCount, pending }: { project: Project; issueCount
             <Link href={`/projects/${project.key}/docs`} className="k-link">
               Documentos
             </Link>
-            : los agentes las siguen en cada etapa.
+            .
           </li>
         )}
         {project.kind === "SOFTWARE" ? (
@@ -569,9 +555,9 @@ function Finish({ project, issueCount, pending }: { project: Project; issueCount
             {issueCount > 0 ? ": el PO empieza por tu primer trabajo." : "."}
           </li>
         ) : (
-          <li>Para pedirle algo a un agente, crea una tarjeta, adjunta lo que necesite y asígnasela: trabaja solo y te la devuelve con el resultado.</li>
+          <li>Para pedirle algo a un agente, crea una tarjeta, adjunta lo que necesite y asígnasela.</li>
         )}
-        <li>Te avisaremos cuando algo te necesite: una pregunta de un agente, una aprobación o un reparto de tareas.</li>
+        <li>Te avisaremos cuando algo te necesite.</li>
       </ol>
       <div>
         <Button href={`/projects/${project.key}`} tone="primary">

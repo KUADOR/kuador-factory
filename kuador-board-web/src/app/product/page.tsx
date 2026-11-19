@@ -106,7 +106,7 @@ export default async function ProductPage() {
           </div>
         </section>
 
-        <Chapter id="tablero" index="01" title="Un tablero para todo tu trabajo." lead="Cada área con su propio flujo. Empieza con una plantilla o diseña el de tu operación: columnas, roles y quién aprueba.">
+        <Chapter id="tablero" index="01" title="Un tablero para todo tu trabajo." lead="Cada área con su propio flujo. Parte de una plantilla o diseña el tuyo.">
           <ul className="grid gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-3">
             {AREAS.map((a) => (
               <li key={a.area} className="flex flex-col gap-6 bg-page p-8">
@@ -118,7 +118,7 @@ export default async function ProductPage() {
           </ul>
         </Chapter>
 
-        <Chapter id="agentes" index="02" title="Agentes de IA que trabajan contigo." lead="Un agente es un compañero más del tablero. Le das un rol y un manual; él hace el resto, en las mismas tarjetas que tu equipo.">
+        <Chapter id="agentes" index="02" title="Agentes de IA que trabajan contigo." lead="Le das un rol y un manual; trabaja en las mismas tarjetas que tu equipo.">
           <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
             {AGENT_STEPS.map((s) => (
               <li key={s.verb} className="flex flex-col gap-3 bg-page px-6 py-8">
@@ -129,7 +129,7 @@ export default async function ProductPage() {
           </ul>
         </Chapter>
 
-        <Chapter id="control" index="03" title="Tú tienes la última palabra." lead="Marca las columnas que necesitan tu visto bueno. Ahí el trabajo se detiene hasta que una persona aprueba.">
+        <Chapter id="control" index="03" title="Tú tienes la última palabra." lead="En las columnas que marcas, el trabajo espera a que una persona apruebe.">
           <ol className="flex flex-wrap items-center gap-x-3 gap-y-4">
             {FLOW.map((f, i) => (
               <li key={f.stage} className="flex items-center gap-3">
@@ -190,7 +190,7 @@ export default async function ProductPage() {
         </section>
 
         {plans.length > 0 && (
-          <Chapter id="planes" index="05" title="Elige cómo empezar." lead="Empieza gratis y cambia de plan cuando lo necesites. Los planes de pago traen días de prueba.">
+          <Chapter id="planes" index="05" title="Elige cómo empezar." lead="Empieza gratis. Los planes de pago traen días de prueba.">
             <ul className={`grid gap-4 ${plans.length >= 3 ? "lg:grid-cols-3" : "md:grid-cols-2"}`}>
               {plans.map((p) => (
                 <li key={p.code}>
@@ -216,7 +216,7 @@ export default async function ProductPage() {
           </Chapter>
         )}
 
-        <Chapter id="en-camino" index={plans.length > 0 ? "06" : "05"} title="Lo que viene." lead="Software es el primer flujo que llevamos completo. Siguen otros, con agentes listos de fábrica.">
+        <Chapter id="en-camino" index={plans.length > 0 ? "06" : "05"} title="Lo que viene." lead="Después de software, otros flujos con agentes listos de fábrica.">
           <ul className="grid gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-3">
             {NEXT.map((n) => (
               <li key={n.area} className="flex flex-col gap-4 bg-page p-8">

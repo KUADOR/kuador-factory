@@ -79,7 +79,7 @@ export function EpicPlan({ epic, project, roleName, onOpen }: { epic: Issue; pro
       {awaiting && canEdit && (
         <div className="flex flex-col gap-2 border-t border-line px-3.5 py-3">
           <p className="text-xs text-fg-muted">
-            Al aprobar, cada tarea pasa a «{project.columns.find((c) => c.key === epic.status)?.name}» para el agente de su rol. Puedes editar o borrar tareas antes de aprobar.
+            Al aprobar, cada tarea pasa a «{project.columns.find((c) => c.key === epic.status)?.name}» y la toma el agente de su rol.
           </p>
           {changing ? (
             <>

@@ -50,9 +50,9 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
         onChange={setKind}
         choices={[
           ...(connections.length > 0
-            ? [{ value: "GITHUB_APP" as const, label: KIND_LABEL.GITHUB_APP, hint: "Con la conexión de GitHub del espacio: sin tokens personales." }]
+            ? [{ value: "GITHUB_APP" as const, label: KIND_LABEL.GITHUB_APP, hint: "Con la conexión de GitHub del espacio." }]
             : []),
-          { value: "GITHUB", label: KIND_LABEL.GITHUB, hint: "Con un token tuyo: lee la rama principal y exporta abriendo Pull Requests." },
+          { value: "GITHUB", label: KIND_LABEL.GITHUB, hint: "Con un token tuyo." },
         ]}
       />
 
@@ -109,11 +109,7 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
         {github && (
           <Field
             label="Token de GitHub"
-            hint={
-              <>
-                Fine-grained token con acceso solo a este repositorio y permisos Contents y Pull requests (lectura y escritura). Se guarda cifrado y nunca se vuelve a mostrar.
-              </>
-            }
+            hint="Fine-grained, solo este repo, Contents y Pull requests de escritura. No se vuelve a mostrar."
           >
             {(id) => (
               <PasswordInput

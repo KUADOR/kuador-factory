@@ -126,11 +126,11 @@ export function CaptureForm({ projects, initialText, initialBoard }: { projects:
         {(id) => <SelectInput id={id} value={board} onChange={setBoard} options={projects.map((p) => ({ value: p.key, label: `${p.key} · ${p.name}` }))} />}
       </Field>
       {work ? (
-        <div className="flex items-start gap-3 rounded-md border border-line px-3.5 py-3">
+        <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-fg-strong">Que un agente la prepare</p>
             <p className="text-xs text-fg-muted">
-              {agent ? `Entra en «${workName}» y la toma quien cubre esa etapa.` : `Queda en «${project?.columns[0].name}» para más tarde.`}
+              {agent ? `Entra en «${workName}».` : `Queda en «${project?.columns[0].name}».`}
             </p>
           </div>
           <Switch checked={agent} hideLabel label="Que un agente la prepare" onChange={setAgent} />

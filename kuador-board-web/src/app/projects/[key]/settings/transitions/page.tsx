@@ -21,7 +21,7 @@ export default async function TransitionsSettingsPage({ params }: PageProps<"/pr
   return (
     <SettingsSection
       title="Reglas de transición"
-      description="Dibuja por qué etapas pasa un issue. Por ejemplo: de «En QA» solo a «Hecho» o de vuelta a «En progreso»."
+      description="Por qué etapas puede pasar un issue."
     >
       <AdminOnly>
       <TransitionsEditor project={project} />

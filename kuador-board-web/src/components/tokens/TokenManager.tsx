@@ -63,7 +63,7 @@ export function TokenManager({
         </ul>
       )}
       {secret && (
-        <div role="status" className="rounded-md border border-sol/40 bg-sol/8 p-3 text-xs">
+        <div role="status" className="text-xs">
           <p className="mb-1.5 font-medium text-fg-strong">Cópialo ahora: no se volverá a mostrar.</p>
           <div className="flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg-strong">{secret}</code>

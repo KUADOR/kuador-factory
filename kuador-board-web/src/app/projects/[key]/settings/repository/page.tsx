@@ -44,14 +44,14 @@ export default async function RepositorySettingsPage({ params }: PageProps<"/pro
         </SettingsSection>
       ) : (
         viaApp && (
-          <SettingsSection title="Piezas" description="De qué está hecho el proyecto y dónde vive cada pieza. Los agentes reciben esta lista con los comandos de cada una.">
+          <SettingsSection title="Piezas">
             <div className="rounded-lg border border-line bg-surface p-5">
               <PiecesList projectKey={project.key} pieces={pieces} templates={templates} mainRepo={link.location} />
             </div>
           </SettingsSection>
         )
       )}
-      <SettingsSection title={link.linked ? "Repositorio del proyecto" : "O vincular uno existente"} description="Donde viven los documentos. El tablero lee la rama principal y propone sus cambios como Pull Requests.">
+      <SettingsSection title={link.linked ? "Repositorio del proyecto" : "O vincular uno existente"} description="Los cambios se proponen como Pull Requests.">
         <div className="rounded-lg border border-line bg-surface p-5">
           <RepositoryForm projectKey={project.key} link={link} connections={github.connections} />
         </div>

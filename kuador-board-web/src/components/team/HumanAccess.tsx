@@ -50,9 +50,7 @@ export function HumanAccess({ memberId, email, invitation }: { memberId: string;
 
       {mode === "idle" && (
         <div className="flex flex-wrap gap-2">
-          {email ? (
-            <p className="text-xs text-fg-muted">Si olvida su contraseña, la recupera con «¿Olvidaste tu contraseña?» al iniciar sesión.</p>
-          ) : invitation ? (
+          {email ? null : invitation ? (
             <>
               <Button size="sm" tone="primary" loading={pending} onClick={() => act(() => resendInvitationAction(invitation.id), "Invitación reenviada")}>
                 Reenviar invitación
@@ -69,13 +67,13 @@ export function HumanAccess({ memberId, email, invitation }: { memberId: string;
 
       {mode === "invite" && (
         <form
-          className="flex flex-col gap-3 rounded-md border border-line bg-sunken p-3"
+          className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
             act(() => inviteAction({ memberId, email: newEmail }), "Invitación enviada");
           }}
         >
-          <Field label="Correo" hint="Le llega un enlace para elegir su contraseña. Vence en 7 días." error={error}>
+          <Field label="Correo" hint="Le llega un enlace que vence en 7 días." error={error}>
             {(id) => <TextInput id={id} size="sm" type="email" required autoFocus value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="persona@empresa.com" />}
           </Field>
           <div className="flex justify-end gap-2">

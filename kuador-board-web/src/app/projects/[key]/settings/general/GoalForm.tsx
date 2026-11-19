@@ -35,7 +35,7 @@ export function GoalForm({ projectKey, initial }: { projectKey: string; initial:
         <Target className="size-4 text-sol-text" aria-hidden /> Objetivo del tablero
       </label>
       <p className="-mt-1 text-xs leading-relaxed text-fg-muted">
-        Una o dos frases: para qué existe y qué es lo más importante para el negocio. Los agentes lo leen con cada tarjeta.{" "}
+        Para qué existe y qué es lo más importante, en una o dos frases.{" "}
         <Link href={`/projects/${projectKey}/docs/draft`} className="k-link">
           Proponerlo con IA
         </Link>
@@ -46,7 +46,7 @@ export function GoalForm({ projectKey, initial }: { projectKey: string; initial:
         maxLength={1000}
         value={goal}
         onChange={(e) => setGoal(e.target.value)}
-        placeholder="Ej.: Que la clínica agende citas en línea antes de marzo; lo más importante es que sea simple para pacientes mayores."
+        placeholder="Ej.: Que la clínica agende citas en línea antes de marzo."
       />
       <div className="flex items-center justify-between gap-3">
         <span className="tabular text-xs text-fg-faint">{goal.length}/1000</span>

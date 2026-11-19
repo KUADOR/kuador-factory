@@ -26,7 +26,7 @@ export default async function CapturePage({ searchParams }: Props) {
   const shared = [title, text, url].filter((x) => typeof x === "string" && x.trim()).join("\n").trim();
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <PageHeader title="Capturar una idea" description="Escríbela o díctala: entra al tablero y, si quieres, un agente la prepara." />
+      <PageHeader title="Capturar una idea" />
       <CaptureForm projects={projects} initialText={shared} initialBoard={board ?? null} />
     </div>
   );

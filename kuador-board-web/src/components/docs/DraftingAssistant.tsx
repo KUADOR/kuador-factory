@@ -143,12 +143,12 @@ export function DraftingAssistant({
     if (!r.ok) return notify.error("No se pudo guardar", r.error);
     if (existing) {
       const parts = [`${r.data.saved.length} documentos`, `${r.data.pieces ?? 0} piezas`, `${r.data.cards?.length ?? 0} tarjetas`];
-      notify.ok(`Guardados: ${parts.join(", ")} y el objetivo`, r.data.pullRequests?.length ? `El kit de agentes va por PR: ${r.data.pullRequests.length} para aprobar en GitHub.` : undefined);
+      notify.ok(`Guardados: ${parts.join(", ")} y el objetivo`, r.data.pullRequests?.length ? `${r.data.pullRequests.length} PR del kit para aprobar en GitHub.` : undefined);
       if (kitPr && r.data.kitNote) notify.error("Sin PR del kit de agentes", r.data.kitNote);
       router.push(`/projects/${projectKey}`);
       return;
     }
-    notify.ok(software ? `Guardados ${r.data.saved.length} documentos y el objetivo` : "Objetivo guardado", "Los agentes los leen desde su próxima tarjeta.");
+    notify.ok(software ? `Guardados ${r.data.saved.length} documentos y el objetivo` : "Objetivo guardado");
     router.push(returnTo ?? (software ? `/projects/${projectKey}/docs` : `/projects/${projectKey}/settings/general`));
   };
 
@@ -189,14 +189,14 @@ export function DraftingAssistant({
             disabled={!plan.serverReady}
             icon={Cloud}
             title="En el servidor"
-            hint={plan.serverReady ? "Al instante, con la clave de IA de la empresa." : "El espacio no tiene clave de IA (Conexiones → IA)."}
+            hint={plan.serverReady ? "Gasta la clave de IA de la empresa." : "Sin clave de IA: agrégala en Conexiones → IA."}
             onPick={() => setLocal(false)}
           />
           <ModeCard
             active={local}
             icon={Laptop}
             title="En mi computador"
-            hint={machineOnline ? "Tu runner con tu suscripción: no gasta la clave." : "Necesita tu runner prendido (Agentes locales)."}
+            hint={machineOnline ? "Usa tu suscripción, no la clave." : "Necesita tu runner prendido."}
             onPick={() => setLocal(true)}
           />
         </div>
@@ -205,12 +205,12 @@ export function DraftingAssistant({
       {/* ¿Nuevo o ya existe? Lo que existe se lee del código; lo nuevo nace de la idea. */}
       {software && !docs && (
         <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="El proyecto">
-          <ModeCard active={!existing} icon={Sparkles} title="Proyecto nuevo" hint="Parte de tu idea: preguntas, borradores y pulido." onPick={() => setOrigin("new")} />
+          <ModeCard active={!existing} icon={Sparkles} title="Proyecto nuevo" hint="Parte de tu idea." onPick={() => setOrigin("new")} />
           <ModeCard
             active={existing}
             icon={FolderGit2}
             title="Ya existe"
-            hint="Para mantenerlo, mejorarlo o sumarle funciones: el agente lee el repo y arma el tablero."
+            hint="El agente lee el repo y arma el tablero."
             onPick={() => setOrigin("existing")}
           />
         </div>
@@ -221,22 +221,18 @@ export function DraftingAssistant({
           <h2 className="text-[14px] font-semibold text-fg-strong">1 · Leer el proyecto</h2>
           {plan.repositories.length === 0 ? (
             <p className="text-[13px] text-fg-muted">
-              Primero vincula el repositorio del proyecto en{" "}
+              Primero vincula el repositorio en{" "}
               <Link href={`/projects/${projectKey}/settings/repository`} className="k-link">
                 Piezas y repositorio
               </Link>
-              : el agente lo lee sin cambiar nada.
+              .
             </p>
           ) : (
             <>
-              <p className="-mt-1 text-xs text-fg-muted">
-                Lee {plan.repositories.map((r) => r).join(", ")} solo leyendo: README, stack, Dockerfile, CI, documentación y estructura. Arma las piezas, los documentos, el
-                objetivo, un diagnóstico y tarjetas para empezar. Nada se guarda hasta que apruebes.
-              </p>
+              <p className="-mt-1 text-xs text-fg-muted">Lee {plan.repositories.map((r) => r).join(", ")} sin cambiar nada. Nada se guarda hasta que apruebes.</p>
               {local && (
-                <p className="rounded-md border border-line bg-page px-3 py-2 text-xs text-fg-muted">
-                  Tu runner lo lee completo en la carpeta que vinculaste en tu computador:{" "}
-                  <code className="font-mono text-[11px] text-fg">kuador-runner link {projectKey} &lt;carpeta del repo&gt;</code>
+                <p className="text-xs text-fg-muted">
+                  Lee la carpeta vinculada con <code className="font-mono text-[11px] text-fg">kuador-runner link {projectKey} &lt;carpeta del repo&gt;</code>
                 </p>
               )}
               <div className="flex items-start gap-2">
@@ -244,7 +240,7 @@ export function DraftingAssistant({
                   rows={3}
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
-                  placeholder="Opcional: qué quieres hacer ahora. «Sumar recordatorios por WhatsApp y ordenar las pruebas.»"
+                  placeholder="Opcional: qué quieres hacer ahora"
                   aria-label="Qué quieres hacer"
                 />
                 <DictateButton onText={(t) => setIdea((v) => (v ? `${v} ${t}` : t))} />
@@ -262,7 +258,7 @@ export function DraftingAssistant({
       {!existing && (
       <section className={clsx("flex flex-col gap-3 rounded-lg border bg-surface p-4", stage === 1 ? "border-sol/50" : "border-line")}>
         <h2 className="text-[14px] font-semibold text-fg-strong">1 · La idea central</h2>
-        <p className="-mt-2 text-xs text-fg-muted">De qué se trata, para quién y qué es lo más importante. Dos o tres frases bastan; puedes dictarla.</p>
+        <p className="-mt-2 text-xs text-fg-muted">De qué se trata y para quién, en dos o tres frases.</p>
         <div className="flex items-start gap-2">
           <TextArea
             rows={4}
@@ -291,7 +287,7 @@ export function DraftingAssistant({
       {questions && (
         <section className={clsx("flex flex-col gap-4 rounded-lg border bg-surface p-4", stage === 2 ? "border-sol/50" : "border-line")}>
           <h2 className="text-[14px] font-semibold text-fg-strong">2 · Unas preguntas</h2>
-          {questions.length === 0 && <p className="text-[13px] text-fg-muted">Con tu idea alcanza: no hace falta preguntar nada.</p>}
+          {questions.length === 0 && <p className="text-[13px] text-fg-muted">No hace falta preguntar nada.</p>}
           {questions.map((q) => (
             <div key={q.id} className="flex flex-col gap-2">
               <p className="text-[13px] font-medium text-fg-strong">{q.text}</p>
@@ -366,7 +362,7 @@ export function DraftingAssistant({
           ) : tab === "FINDINGS" ? (
             <div className="flex flex-col gap-4">
               <div>
-                <p className="mb-1.5 text-[13px] font-medium text-fg-strong">Lo que vio en el código</p>
+                <p className="mb-1.5 text-[13px] font-medium text-fg-strong">Diagnóstico</p>
                 {findings.length === 0 ? (
                   <p className="text-xs text-fg-muted">No encontró nada para señalar.</p>
                 ) : (
@@ -378,7 +374,7 @@ export function DraftingAssistant({
                 )}
               </div>
               <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1.5 text-[13px] font-medium text-fg-strong">Tarjetas para empezar · elige las que quieras</legend>
+                <legend className="mb-1.5 text-[13px] font-medium text-fg-strong">Tarjetas para empezar</legend>
                 {cards.length === 0 && <p className="text-xs text-fg-muted">No propuso tarjetas.</p>}
                 {cards.map((c, i) => (
                   <label key={c.title} className={clsx("flex items-start gap-2.5 rounded-md border px-3 py-2.5 text-[13px]", c.chosen ? "border-sol/60 bg-sol/10" : "border-line")}>
@@ -429,7 +425,7 @@ export function DraftingAssistant({
               ))}
             </div>
             <div className="flex items-start gap-2">
-              <TextInput value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Pídele un cambio: «agrega que también lo usan las enfermeras»" aria-label="Cambio" />
+              <TextInput value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Pídele un cambio" aria-label="Cambio" />
               <DictateButton onText={(t) => setInstruction((v) => (v ? `${v} ${t}` : t))} />
               <Button type="submit" loading={busy != null} disabled={!instruction.trim()}>
                 Aplicar
@@ -439,13 +435,13 @@ export function DraftingAssistant({
           )}
 
           {existing && (
-            <label className="flex items-start gap-2.5 rounded-md border border-line px-3 py-2.5 text-[13px]">
+            <label className="flex items-start gap-2.5 text-[13px]">
               <input type="checkbox" className="mt-0.5" checked={kitPr} onChange={(e) => setKitPr(e.target.checked)} />
               <span>
                 <span className="flex items-center gap-1.5 font-medium text-fg-strong">
                   <GitPullRequest className="size-3.5" aria-hidden /> Proponer el kit de agentes por Pull Request
                 </span>
-                <span className="block text-xs text-fg-muted">AGENTS.md y la configuración de Claude Code llegan como un PR para que lo apruebes: nunca directo a tu rama principal.</span>
+                <span className="block text-xs text-fg-muted">AGENTS.md y la configuración de Claude Code, nunca directo a la rama principal.</span>
               </span>
             </label>
           )}
@@ -457,9 +453,6 @@ export function DraftingAssistant({
             <Button tone="ghost" disabled={busy != null} onClick={existing ? recognize : draft}>
               {existing ? "Volver a leer" : "Volver a redactar"}
             </Button>
-            <span className="text-xs text-fg-faint">
-              {existing ? "Las piezas, los documentos y las tarjetas elegidas quedan en el tablero." : software ? "Quedan como versión 1 en Documentos; puedes cambiarlos cuando quieras." : ""}
-            </span>
           </div>
         </section>
       )}

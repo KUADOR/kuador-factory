@@ -17,27 +17,18 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <KuadorBrand />
         </div>
         <div className="rounded-lg border border-line bg-surface p-6 shadow-float">
-          <h1 className="text-lg font-semibold tracking-tight text-fg-strong">Entrar</h1>
-          <p className="mt-1 mb-6 text-[13px] text-fg-muted">
-            Con el correo que te dio tu espacio de trabajo.
-          </p>
+          <h1 className="mb-6 text-lg font-semibold tracking-tight text-fg-strong">Entrar</h1>
           <LoginForm next={safeNext(typeof next === "string" ? next : undefined)} />
           <Link href="/reset-password" className="k-link mt-4 inline-block text-xs">
             ¿Olvidaste tu contraseña?
           </Link>
         </div>
-        <div className="mt-4 rounded-lg border border-line bg-surface px-6 py-4">
-          <p className="text-[13px] font-medium text-fg-strong">
-            ¿Tu empresa todavía no usa el tablero?
-          </p>
-          <p className="mt-0.5 text-xs text-fg-muted">
-            Crea su espacio de trabajo con su logo y sus colores. Verificamos tu correo con un
-            código.
-          </p>
-          <Link href="/signup" className="k-link mt-2 inline-block text-[13px]">
+        <p className="mt-4 px-6 text-[13px] text-fg-muted">
+          ¿Tu empresa no usa el tablero?{" "}
+          <Link href="/signup" className="k-link">
             Crear espacio de trabajo
           </Link>
-        </div>
+        </p>
       </div>
     </main>
   );

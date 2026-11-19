@@ -159,7 +159,7 @@ export function DocEditor({
                 maxLength={200}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Qué cambió (opcional), ej. «Agrega principio de privacidad»"
+                placeholder="Qué cambió (opcional)"
                 aria-label="Nota de la versión"
               />
             </div>

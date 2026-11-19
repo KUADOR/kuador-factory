@@ -94,7 +94,7 @@ export function PushDeviceRow({ view, onChange }: { view: NotificationView; onCh
             ? `Llegan a este dispositivo${view.pushDevices > 1 ? ` y a ${view.pushDevices - 1} más` : ""}.`
             : view.pushDevices > 0
               ? `Llegan a ${view.pushDevices} dispositivo(s) tuyos; este no.`
-              : "Avisos al instante en el celular o la computadora, como cualquier app.";
+              : "Desactivadas.";
 
   return (
     <li className="flex items-start gap-3 px-3.5 py-3">

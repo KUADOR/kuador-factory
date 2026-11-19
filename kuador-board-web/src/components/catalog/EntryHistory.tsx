@@ -59,7 +59,7 @@ export function EntryHistory({ type, entryKey, current, onRestored }: { type: Ca
   }, [type, entryKey]);
 
   if (revisions == null) return <p className="text-xs text-fg-faint">Cargando historial…</p>;
-  if (revisions.length <= 1) return <p className="text-xs text-fg-faint">Todavía no hay versiones anteriores: aparecen al guardar cambios.</p>;
+  if (revisions.length <= 1) return <p className="text-xs text-fg-faint">Sin versiones anteriores.</p>;
 
   return (
     <div className="flex flex-col gap-3">
@@ -100,7 +100,6 @@ export function EntryHistory({ type, entryKey, current, onRestored }: { type: Ca
                       if (!window.confirm("¿Volver a esta versión? La actual queda en el historial: puedes regresar cuando quieras.")) return;
                       const res = await restoreCatalogRevisionAction(type, entryKey, r.id);
                       if (res.ok) {
-                        notify.ok("Listo: volviste a esa versión", "Los agentes la usan desde su próxima tarjeta.");
                         onRestored();
                       } else notify.error("No se pudo volver", res.error);
                     })

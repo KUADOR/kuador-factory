@@ -306,8 +306,8 @@ export function Board({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {openKey && !openIssue && (
-        <p role="status" className="mx-6 mt-3 flex items-center gap-2 rounded-md bg-warn/10 px-3 py-2 text-[13px] text-fg">
-          No encontré {openKey} en este tablero (puede haberse borrado o estar en otro proyecto).
+        <p role="status" className="mx-6 mt-3 flex items-center gap-2 text-[13px] text-warn">
+          No encontré {openKey} en este tablero.
           <button type="button" onClick={() => showIssue(null)} className="k-link ml-auto text-xs">
             Cerrar
           </button>

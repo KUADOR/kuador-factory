@@ -32,7 +32,7 @@ export function PublishCatalog({ summary }: { summary: PlatformCatalogSummary })
               notify.error("No se pudo publicar", r.error);
               return;
             }
-            notify.ok(`Versión ${r.data.version} publicada`, "Los espacios la reciben en unos segundos; se respeta lo que cada equipo modificó.");
+            notify.ok(`Versión ${r.data.version} publicada`, "Se respeta lo que cada equipo modificó.");
             router.refresh();
           })
         }

@@ -160,9 +160,9 @@ function AgentAutomation({ role, status, runs }: { role: AgentRole | undefined; 
       <h3 className="text-xs font-medium text-fg-muted">Automatización</h3>
       <p className="text-[13px] leading-relaxed text-fg">
         {!automated
-          ? "Su rol no tiene automatización: se le pueden asignar issues, pero no trabaja solo."
+          ? "Su rol no trabaja solo."
           : status.enabled
-            ? `Trabaja cuando le asignan un issue o llega a su etapa (modelo ${status.model}).`
+            ? `Activa · modelo ${status.model}`
             : `Desactivada: ${status.reason}`}
       </p>
       {runs.length > 0 && (
@@ -240,8 +240,8 @@ function AddMember({ roles, projects, onDone }: { roles: AgentRole[]; projects: 
         value={kind}
         onChange={setKind}
         choices={[
-          { value: "AGENT", label: "Agente", hint: "Con un rol del catálogo." },
-          { value: "HUMAN", label: "Persona", hint: "La invitas por correo o le das acceso después." },
+          { value: "AGENT", label: "Agente" },
+          { value: "HUMAN", label: "Persona" },
         ]}
       />
       <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === "AGENT" ? "Agente Mobile · Flutter" : "Diana Pérez"} />}</Field>
@@ -250,14 +250,14 @@ function AddMember({ roles, projects, onDone }: { roles: AgentRole[]; projects: 
           {(id) => <SelectInput id={id} options={roles.map((r) => ({ value: r.key, label: r.name }))} value={role} onChange={setRole} />}
         </Field>
       ) : (
-        <Field label="Rol" hint="Mayúsculas, números o guion bajo, ej. CLIENTE o QA_LEAD.">
+        <Field label="Rol" hint="Mayúsculas, números o guion bajo.">
           {(id) => (
             <TextInput id={id} required pattern="[A-Za-z][A-Za-z0-9_]{1,39}" value={humanRole} onChange={(e) => setHumanRole(e.target.value.toUpperCase())} placeholder="CLIENTE" className="font-mono uppercase" />
           )}
         </Field>
       )}
       {kind === "HUMAN" && (
-        <Field label="Correo para invitar" hint="Opcional. Le llega un enlace para elegir su contraseña; vence en 7 días.">
+        <Field label="Correo para invitar" hint="Opcional. Le llega un enlace que vence en 7 días.">
           {(id) => <TextInput id={id} type="email" maxLength={254} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="persona@empresa.com" />}
         </Field>
       )}
@@ -268,14 +268,14 @@ function AddMember({ roles, projects, onDone }: { roles: AgentRole[]; projects: 
           <ChipPicker
             ariaLabel="Tableros que verá"
             placeholder="Sumar tablero…"
-            empty="Ninguno: lo sumas después desde cada tablero."
+            empty="Ninguno"
             value={boards}
             onChange={setBoards}
             options={projects.map((p) => ({ value: p.key, label: `${p.key} · ${p.name}` }))}
           />
         </div>
       )}
-      <Field label="Descripción" hint={kind === "AGENT" ? "Su especialidad: se suma a las instrucciones del rol. Vacía = la del rol." : undefined}>
+      <Field label="Descripción" hint={kind === "AGENT" ? "Vacía = la del rol." : undefined}>
         {(id) => <TextArea id={id} rows={4} maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>
       <fieldset className="flex flex-col gap-1.5">

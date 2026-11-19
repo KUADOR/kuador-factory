@@ -19,7 +19,7 @@ export default async function DecisionsPage() {
   }
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <PageHeader title="Mis decisiones" description="Lo que espera por ti en todos tus tableros. Lo demás lo siguen los agentes." />
+      <PageHeader title="Mis decisiones" description="Lo que espera por ti en todos tus tableros." />
       <DecisionsView decisions={decisions} />
     </div>
   );

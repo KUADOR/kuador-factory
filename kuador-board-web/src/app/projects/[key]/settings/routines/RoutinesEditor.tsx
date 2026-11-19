@@ -84,10 +84,6 @@ export function RoutinesEditor({
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-line-strong px-6 py-10 text-center">
           <CalendarClock className="size-6 text-fg-faint" aria-hidden />
           <p className="text-[14px] font-medium text-fg-strong">Todavía no hay rutinas</p>
-          <p className="max-w-md text-[13px] text-fg-muted">
-            Por ejemplo: «Cada lunes 08:00, seguimiento de prospectos que no respondieron» para el agente de ventas, o «Cada viernes, borrador de las
-            publicaciones de la semana» para Marketing.
-          </p>
         </div>
       ) : (
         <ul className="flex flex-col gap-2.5">
@@ -226,10 +222,10 @@ function RoutineForm({
         onSave({ ...v, description: v.description?.trim() || null });
       }}
     >
-      <Field label="Título de la tarjeta" hint="Puedes poner {fecha} y se cambia por el día (p. ej. «Informe semanal · {fecha}»).">
+      <Field label="Título de la tarjeta" hint="{fecha} se cambia por el día.">
         {(id) => <TextInput id={id} required maxLength={200} value={v.title} onChange={(e) => set("title", e.target.value)} placeholder="Seguimiento de prospectos · {fecha}" />}
       </Field>
-      <Field label="Qué hay que hacer" hint="Lo lee quien la reciba (persona o agente).">
+      <Field label="Qué hay que hacer">
         {(id) => <TextArea id={id} rows={4} value={v.description ?? ""} onChange={(e) => set("description", e.target.value)} />}
       </Field>
       <Field label="Cada cuánto">
@@ -289,14 +285,14 @@ function RoutineForm({
           />
         )}
       </Field>
-      <Field label="Para quién" hint="Si es un agente, la trabaja solo; si es una persona, le llega como asignada.">
+      <Field label="Para quién" hint="Si es un agente, la trabaja solo.">
         {(id) => (
           <SelectInput<string>
             id={id}
             value={v.assigneeId}
             placeholder="Sin asignar"
             onChange={(a) => set("assigneeId", a ?? null)}
-            options={assignees.map((a) => ({ value: a.id, label: `${a.agent ? "🤖 " : ""}${a.name}` }))}
+            options={assignees.map((a) => ({ value: a.id, label: `${a.name}${a.agent ? " · agente" : ""}` }))}
           />
         )}
       </Field>
@@ -315,7 +311,7 @@ function WebhookInfo({ url, secret }: { url: string; secret: string }) {
   const curl = `curl -X POST ${url} \\\n  -H "X-Kuador-Secret: ${secret}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"text": "Nuevo prospecto: Clínica Norte"}'`;
   return (
     <div className="flex flex-col gap-3 text-[13px]">
-      <p className="text-fg-muted">Guárdalo ahora: el secreto se muestra una sola vez. Cada llamada crea la tarjeta y agrega el texto que llegue a su descripción.</p>
+      <p className="text-fg-muted">Guárdalo ahora: el secreto se muestra una sola vez.</p>
       <div className="relative">
         <pre className="overflow-x-auto rounded-md border border-line bg-sunken px-3 py-2.5 pr-10 font-mono text-[12px] whitespace-pre text-fg-strong">{curl}</pre>
         <span className="absolute top-1.5 right-1.5">

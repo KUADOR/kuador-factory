@@ -8,7 +8,7 @@ const STATUS: Record<Payment["status"], string> = { PAID: "Pagado", CREATED: "Si
 /** Últimos pagos del espacio. El recibo de cada pago confirmado llega por correo a los dueños y a quien pagó. */
 export function PaymentHistory({ payments, plans }: { payments: Payment[]; plans: Plan[] }) {
   return (
-    <Section title="Pagos" description="Cada pago confirmado envía su recibo por correo a los dueños del espacio y a quien pagó." flush>
+    <Section title="Pagos" description="El recibo llega por correo a los dueños y a quien pagó." flush>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-sm">
           <thead>

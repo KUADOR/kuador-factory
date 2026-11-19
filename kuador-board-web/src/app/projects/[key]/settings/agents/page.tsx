@@ -22,10 +22,7 @@ export default async function TeamSettingsPage({ params }: PageProps<"/projects/
   }
   const [team, roles, ai, project] = data;
   return (
-    <SettingsSection
-      title="Equipo de agentes"
-      description="Quién trabaja en este tablero: en el tablero con la IA de la empresa, o en la PC de una persona."
-    >
+    <SettingsSection title="Equipo de agentes">
       <TeamEditor
         projectKey={key}
         software={project.kind === "SOFTWARE"}

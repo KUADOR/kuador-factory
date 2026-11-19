@@ -76,8 +76,8 @@ export function TransitionsEditor({ project }: { project: Project }) {
         <Switch checked={restricted} onChange={setRestricted} label="Fijar el flujo de trabajo de este proyecto" />
         <p className="text-xs text-fg-muted">
           {restricted
-            ? "Solo se permiten los pasos que dibujes. Valen para personas y agentes."
-            : "Ahora cualquier issue puede ir a cualquier columna. Actívalo para definir qué pasos están permitidos."}
+            ? "Solo se permiten los pasos que dibujes, para personas y agentes."
+            : "Cualquier issue puede ir a cualquier columna."}
         </p>
       </div>
 
@@ -89,10 +89,10 @@ export function TransitionsEditor({ project }: { project: Project }) {
                 <MousePointerClick className="size-4 shrink-0 text-fg-muted" aria-hidden />
                 {selectedColumn ? (
                   <span>
-                    Desde <strong className="font-semibold text-fg-strong">{selectedColumn.name}</strong>: haz clic en las etapas a las que puede pasar. Clic otra vez para quitar.
+                    Desde <strong className="font-semibold text-fg-strong">{selectedColumn.name}</strong>: elige a dónde puede pasar.
                   </span>
                 ) : (
-                  <span>Haz clic en una etapa para elegir a dónde puede pasar un issue desde ahí.</span>
+                  <span>Elige una etapa de origen.</span>
                 )}
               </p>
               <div className="flex flex-wrap items-center gap-1">

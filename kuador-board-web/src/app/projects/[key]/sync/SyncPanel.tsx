@@ -78,9 +78,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
             </div>
           ))}
         </dl>
-        <p className="min-w-60 flex-1 text-xs leading-relaxed text-fg-muted">
-          «Sincronizar lo seguro» importa lo que ya se fusionó en la rama principal y lleva los cambios del tablero a un Pull Request. Los conflictos nunca se resuelven solos.
-        </p>
+        <p className="min-w-60 flex-1 text-xs leading-relaxed text-fg-muted">Los conflictos nunca se resuelven solos.</p>
         <Button
           tone="primary"
           size="sm"
@@ -111,7 +109,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
           {status.openPullRequests.map((pr) => (
             <li key={pr.number} className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface px-4 py-2.5 text-[13px] text-fg">
               <GitPullRequest className="size-4 text-info" aria-hidden />
-              PR #{pr.number} abierto con {pr.documents} documento(s), esperando revisión y fusión en GitHub.
+              PR #{pr.number} abierto con {pr.documents} documento(s).
               <a href={pr.url} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 text-info hover:underline">
                 Ver en GitHub <ExternalLink className="size-3.5" aria-hidden />
               </a>
@@ -121,7 +119,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
       )}
 
       {message && (
-        <p role="status" className={`flex flex-wrap items-center gap-2 rounded-md px-4 py-2.5 text-[13px] ${message.ok ? "bg-ok/10 text-ok" : "bg-danger/10 text-danger"}`}>
+        <p role="status" className={`flex flex-wrap items-center gap-2 text-[13px] ${message.ok ? "text-ok" : "text-danger"}`}>
           {message.text}
           {message.url && (
             <a href={message.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline">
@@ -131,7 +129,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
         </p>
       )}
 
-      <Section title="En el tablero" description="Cada documento del tablero y cómo está respecto del archivo en el repositorio." flush>
+      <Section title="En el tablero" flush>
         {status.entries.length === 0 ? (
           <p className="px-5 py-4 text-[13px] text-fg-faint">Aún no hay documentos en el tablero.</p>
         ) : (
@@ -157,7 +155,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
         )}
       </Section>
 
-      <Section title="Solo en el repositorio" description="Documentos que el repositorio tiene y el tablero todavía no. Al importarlos se asocian a un issue." flush>
+      <Section title="Solo en el repositorio" description="Al importarlos se asocian a un issue." flush>
         {status.untracked.length === 0 ? (
           <p className="px-5 py-4 text-[13px] text-fg-faint">No hay documentos del repositorio pendientes de importar.</p>
         ) : (
@@ -190,7 +188,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
 }
 
 function exportedMessage(e: Exported): { ok: true; text: string; url?: string | null } {
-  return { ok: true, text: `${e.documents} documento(s) en el PR #${e.pullRequest}; se sincronizan al fusionarlo en GitHub.`, url: e.pullRequestUrl };
+  return { ok: true, text: `${e.documents} documento(s) en el PR #${e.pullRequest}`, url: e.pullRequestUrl };
 }
 
 function EntryRow({
@@ -365,7 +363,7 @@ function CompareModal({
         <p className="text-[13px] leading-relaxed text-fg">
           <Badge tone="info" className="font-mono">− main</Badge> <Badge tone="ok" className="font-mono">+ tablero v{comparison.document.version}</Badge>{" "}
           {conflict
-            ? "Cambió en ambos lados. Si te quedas con el repo, la versión del tablero sigue en su historial. Si te quedas con el tablero, se abre un PR que reemplaza el archivo; en GitHub se revisa antes de fusionar."
+            ? "Cambió en ambos lados. Si eliges el tablero, se abre un PR que reemplaza el archivo."
             : "Diferencias entre el repo y el tablero."}
         </p>
         {diff ? (

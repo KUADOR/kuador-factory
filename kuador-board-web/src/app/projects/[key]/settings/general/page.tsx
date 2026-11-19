@@ -33,10 +33,10 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
   const [project, templates, issues, me, goal] = data;
   const template = templates.find((t) => t.key === project.templateKey);
   const facts = [
-    { label: "Clave", value: <span className="font-mono">{project.key}</span>, hint: `Prefijo de sus issues (${project.key}-1, ${project.key}-2…). No se cambia.` },
-    { label: "Tipo", value: PROJECT_KIND_LABEL[project.kind], hint: project.kind === "SOFTWARE" ? "Con metodología, documentos y repositorio." : "Solo tablero." },
-    { label: "Plantilla de origen", value: template?.name ?? project.templateKey, hint: "Sus columnas se copiaron al crear el proyecto; cambiar la plantilla no lo afecta." },
-    { label: "Issues", value: <span className="tabular font-mono">{issues.length}</span>, hint: `${project.columns.length} columnas en el flujo.` },
+    { label: "Clave", value: <span className="font-mono">{project.key}</span>, hint: "No se cambia." },
+    { label: "Tipo", value: PROJECT_KIND_LABEL[project.kind], hint: "" },
+    { label: "Plantilla de origen", value: template?.name ?? project.templateKey, hint: "" },
+    { label: "Issues", value: <span className="tabular font-mono">{issues.length}</span>, hint: `${project.columns.length} columnas` },
   ];
   return (
     <SettingsSection title="General">
@@ -47,7 +47,7 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
           <div key={f.label} className="bg-surface px-5 py-3.5">
             <dt className="text-xs text-fg-muted">{f.label}</dt>
             <dd className="mt-0.5 text-[13px] font-medium text-fg-strong">{f.value}</dd>
-            <dd className="mt-0.5 text-xs text-fg-faint">{f.hint}</dd>
+            {f.hint && <dd className="mt-0.5 text-xs text-fg-faint">{f.hint}</dd>}
           </div>
         ))}
       </dl>

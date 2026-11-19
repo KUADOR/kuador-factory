@@ -29,13 +29,7 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/pr
         <h2 className="text-base font-semibold text-fg-strong">
           {!software ? "Objetivo del tablero" : origen === "existente" ? "Leer el proyecto" : "Documentos base"}
         </h2>
-        <p className="mt-1 text-[13px] text-fg-muted">
-          {software
-            ? origen === "existente"
-              ? "El agente lee el código sin cambiar nada y propone piezas, documentos, objetivo y tarjetas."
-              : "Escribe la idea, responde unas preguntas y pule los borradores. Al aprobar queda también el objetivo."
-            : "Cuenta qué quieres lograr: los agentes lo leen con cada tarjeta."}
-        </p>
+        {software && origen === "existente" && <p className="mt-1 text-[13px] text-fg-muted">El agente lee el código sin cambiar nada.</p>}
       </div>
       <DraftingAssistant projectKey={key} plan={plan} machineOnline={machines.some((m) => m.memberId === me.id && m.online && !m.paused)}
         origin={origen === "existente" ? "existing" : undefined}

@@ -21,7 +21,7 @@ export default async function MethodologySettingsPage({ params }: PageProps<"/pr
   const [project, methodologies] = data;
   if (project.kind !== "SOFTWARE") notFound();
   return (
-    <SettingsSection title="Metodología" description="Qué documentos pide el proyecto y qué escribe cada agente. Cambiarla no borra documentos.">
+    <SettingsSection title="Metodología" description="Cambiarla no borra documentos.">
       <div className="rounded-lg border border-line bg-surface p-5">
         <MethodologyPicker project={project} methodologies={methodologies} />
       </div>

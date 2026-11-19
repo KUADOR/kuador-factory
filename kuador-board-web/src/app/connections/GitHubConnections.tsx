@@ -40,7 +40,7 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
   const [pending, start] = useTransition();
 
   useEffect(() => {
-    if (done === "app") notify.ok("App de GitHub registrada", "Ahora conecta la organización donde vivirán los repos.");
+    if (done === "app") notify.ok("App de GitHub registrada", "Ahora conecta una organización.");
     else if (done) notify.ok(`Conectado a ${done}`);
   }, [done]);
 
@@ -54,14 +54,14 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
   return (
     <div className="flex max-w-3xl flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       {error && (
-        <p role="alert" className="rounded-md border border-danger/40 bg-danger/8 px-4 py-3 text-[13px] text-fg">
+        <p role="alert" className="text-[13px] text-danger">
           {error}
         </p>
       )}
 
       <Section
         title="GitHub"
-        description="Crea repos, protege ramas y sincroniza documentos con una app de GitHub. Sin tokens personales."
+        description="Crea repos, protege ramas y sincroniza documentos con una app de GitHub."
       >
         {!overview.app ? (
           overview.canRegister ? (
@@ -79,10 +79,10 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
               }}
             >
               <p className="text-[13px] leading-relaxed text-fg-muted">
-                La plataforma todavía no tiene su app de GitHub. Se registra una sola vez: GitHub te muestra la app con los permisos justos (repos, contenido, Pull Requests y flujos de CI), la confirmas y su clave queda cifrada aquí.
+                La plataforma todavía no tiene su app de GitHub. Se registra una sola vez.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Nombre de la app" hint="Único en GitHub. Lo ven las organizaciones que la instalan.">
+                <Field label="Nombre de la app" hint="Único en GitHub.">
                   {(id) => <TextInput id={id} required minLength={3} maxLength={34} value={appName} onChange={(e) => setAppName(e.target.value)} />}
                 </Field>
                 <Field label="Organización dueña" hint="Vacío = tu cuenta personal.">
@@ -98,7 +98,7 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
               <ManifestPost form={manifest} />
             </form>
           ) : (
-            <p className="text-[13px] text-fg-muted">La plataforma todavía no tiene su app de GitHub. La registra una vez quien opera la plataforma.</p>
+            <p className="text-[13px] text-fg-muted">La plataforma todavía no tiene su app de GitHub. La registra quien opera la plataforma.</p>
           )
         ) : (
           <div className="flex flex-col gap-4">
@@ -120,7 +120,7 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
                     <span className="min-w-0 flex-1">
                       <span className="font-medium text-fg-strong">{c.account}</span>
                       <span className="block text-xs text-fg-faint">
-                        {c.accountType === "Organization" ? "Organización" : "Cuenta personal: vincula repos existentes, no crea repos nuevos"} · desde{" "}
+                        {c.accountType === "Organization" ? "Organización" : "Cuenta personal · no crea repos nuevos"} · desde{" "}
                         {dateFormat.format(new Date(c.linkedAt))}
                       </span>
                     </span>
@@ -152,7 +152,7 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
         open={removing != null}
         onCancel={() => setRemoving(null)}
         title={`¿Quitar ${removing?.account}?`}
-        message="El espacio deja de usar esa organización. La app sigue instalada en GitHub: para quitarla del todo, desinstálala allá. Los proyectos vinculados con ella dejarán de sincronizar."
+        message="Los proyectos vinculados dejarán de sincronizar. La app sigue instalada en GitHub hasta que la desinstales allá."
         confirmLabel="Quitar"
         pending={pending}
         onConfirm={() =>

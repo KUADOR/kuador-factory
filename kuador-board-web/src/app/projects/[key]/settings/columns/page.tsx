@@ -22,10 +22,7 @@ export default async function ColumnsSettingsPage({ params }: PageProps<"/projec
   const counts: Record<string, number> = {};
   issues.forEach((i) => (counts[i.status] = (counts[i.status] ?? 0) + 1));
   return (
-    <SettingsSection
-      title="Columnas"
-      description="También puedes editarlas desde el tablero. La categoría dice si una columna es de inicio, de trabajo en curso o final."
-    >
+    <SettingsSection title="Columnas">
       <div className="rounded-lg border border-line bg-surface p-5">
         <AdminOnly>
         <WorkflowEditor project={project} counts={counts} />

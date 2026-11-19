@@ -32,9 +32,7 @@ export default async function SyncPage({ params }: Props) {
   if (notReady) {
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
-        <EmptyState title={notReady} action={<Button href={`/projects/${project.key}/settings`} tone="primary" size="sm">Ir a configuración</Button>}>
-          La sincronización compara los documentos del tablero con los archivos del repositorio según las rutas de la metodología.
-        </EmptyState>
+        <EmptyState title={notReady} action={<Button href={`/projects/${project.key}/settings`} tone="primary" size="sm">Ir a configuración</Button>} />
       </div>
     );
   }
@@ -56,8 +54,7 @@ export default async function SyncPage({ params }: Props) {
   return (
     <div className="flex flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       <p className="text-[13px] text-fg-muted">
-        Vinculado a <code className="font-mono text-xs break-all text-fg">{where}</code>.{" "}
-        Cada dev sigue trabajando con git como siempre: lo que el tablero exporta llega como Pull Request y lo que se fusiona en la rama principal se importa aquí.
+        Vinculado a <code className="font-mono text-xs break-all text-fg">{where}</code>.
       </p>
       <SyncPanel projectKey={project.key} status={status} issues={issues} />
       {kit && <AgentKitPanel projectKey={project.key} repos={kit.repos} error={kit.error} />}

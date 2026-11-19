@@ -40,8 +40,7 @@ export default async function InvitationPage({
               </h1>
               <p className="mt-1 mb-6 text-[13px] text-fg-muted">
                 Hola {preview.memberName}. Entrarás con{" "}
-                <span className="font-medium text-fg-strong">{preview.email}</span>; elige tu
-                contraseña.
+                <span className="font-medium text-fg-strong">{preview.email}</span>.
               </p>
               <AcceptForm token={token} />
             </>

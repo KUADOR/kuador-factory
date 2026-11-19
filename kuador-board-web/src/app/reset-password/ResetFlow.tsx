@@ -34,7 +34,6 @@ export function ResetFlow({ token }: { token: string | null }) {
 
       {step === "email" && (
         <form className="mt-6 flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); send(); }}>
-          <p className="-mt-4 text-[13px] text-fg-muted">Te enviaremos un enlace y un código para elegir una contraseña nueva.</p>
           <Field label="Correo">
             {(id) => <TextInput id={id} type="email" required autoFocus autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
           </Field>
@@ -61,7 +60,7 @@ export function ResetFlow({ token }: { token: string | null }) {
           {!token && (
             <>
               <p className="-mt-4 text-[13px] text-fg-muted">
-                Si {email} tiene cuenta, le llegó un correo. Abre el enlace o escribe aquí el código (revisa también el spam).
+                Si {email} tiene cuenta, le llegó un enlace y un código. Revisa también el spam.
               </p>
               <Field label="Código">
                 {(id) => (
@@ -103,7 +102,7 @@ export function ResetFlow({ token }: { token: string | null }) {
         </div>
       )}
 
-      {error && <p role="alert" className="mt-4 rounded-md bg-danger/10 px-3 py-2 text-[13px] text-danger">{error}</p>}
+      {error && <p role="alert" className="mt-4 text-[13px] text-danger">{error}</p>}
       {step !== "done" && (
         <Link href="/login" className="k-link mt-4 inline-block text-xs">
           Volver a entrar

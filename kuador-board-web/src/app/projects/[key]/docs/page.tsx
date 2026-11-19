@@ -49,9 +49,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
   if (!methodology) {
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
-        <EmptyState title="Este proyecto aún no tiene metodología" action={<Button href={settings} tone="primary" size="sm">Elegir metodología</Button>}>
-          La metodología (SDD, ODD, Libre o una propia del catálogo) decide qué documentos pide el proyecto, dónde viven en el repositorio y qué escribe cada agente.
-        </EmptyState>
+        <EmptyState title="Este proyecto aún no tiene metodología" action={<Button href={settings} tone="primary" size="sm">Elegir metodología</Button>} />
       </div>
     );
   }
@@ -79,10 +77,9 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
 
       <Section
         title="Del proyecto"
-        description="Contexto que leen todas las personas y agentes antes de trabajar."
         actions={
           <Button href={`/projects/${project.key}/docs/draft`} tone={projectRules.some((r) => !projectDocs.some((d) => d.kind === r.kind)) ? "primary" : "secondary"} size="sm">
-            ✨ Redactar con IA
+            Redactar con IA
           </Button>
         }
         flush
@@ -120,7 +117,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
 
       <Section
         title="De los issues"
-        description={`Se crean desde la pestaña Documentos de cada issue: ${issueRules.map((r) => r.label).join(", ") || "esta metodología no pide documentos por issue"}.`}
+        description={issueRules.map((r) => r.label).join(", ") || "Esta metodología no pide documentos por issue."}
         flush
       >
         {byIssue.size === 0 ? (

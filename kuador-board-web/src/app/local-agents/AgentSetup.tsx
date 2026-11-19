@@ -14,9 +14,9 @@ import { notify } from "@/components/ui/Toaster";
 import type { AgentClient, AgentKit, McpServer, RunnerToken } from "@/lib/types";
 
 const CLIENTS: { value: AgentClient; label: string; hint: string }[] = [
-  { value: "claude-code", label: "Claude Code", hint: "Un subagente por rol y el comando /pendientes." },
-  { value: "codex", label: "Codex", hint: "Inicia sesión con codex mcp login y sigue el AGENTS.md." },
-  { value: "mcp", label: "Otro cliente MCP", hint: "Cursor, OpenCode, Cline… Con OAuth o con un token." },
+  { value: "claude-code", label: "Claude Code", hint: "Subagentes por rol y /pendientes." },
+  { value: "codex", label: "Codex", hint: "Sigue el AGENTS.md del repo." },
+  { value: "mcp", label: "Otro cliente MCP", hint: "Cursor, OpenCode, Cline…" },
 ];
 
 /** Bloque de comando o archivo con botón de copiar. */
@@ -63,14 +63,12 @@ function Connect({ client, kit }: { client: AgentClient; kit: AgentKit }) {
     return (
       <>
         <Step n={1} title="Agrega el tablero a Claude Code">
-          <p className={muted}>Si el repo lo creó el tablero, ya trae .mcp.json (Claude Code te pide aprobarlo la primera vez). Si no:</p>
+          <p className={muted}>Si el repo no lo creó el tablero:</p>
           <Code label="comando">{`claude mcp add --transport http --scope user ${server} ${url}`}</Code>
         </Step>
         <Step n={2} title="Inicia sesión">
           <Code label="comando">{`claude mcp login ${server}`}</Code>
-          <p className={muted}>
-            Se abre el navegador, entras con tu cuenta del tablero y apruebas. Para usar tu plan y no una API key, abre Claude Code sin ANTHROPIC_API_KEY definida.
-          </p>
+          <p className={muted}>Sin ANTHROPIC_API_KEY definida, para usar tu plan y no una API key.</p>
         </Step>
       </>
     );
@@ -79,12 +77,11 @@ function Connect({ client, kit }: { client: AgentClient; kit: AgentKit }) {
     return (
       <>
         <Step n={1} title="Agrega el tablero a Codex">
-          <p className={muted}>Si el repo lo creó el tablero, ya trae .codex/config.toml (Codex lo lee si marcas el proyecto como de confianza). Si no:</p>
+          <p className={muted}>Si el repo no lo creó el tablero:</p>
           <Code label="comando">{`codex mcp add ${server} --url ${url}`}</Code>
         </Step>
         <Step n={2} title="Inicia sesión">
           <Code label="comando">{`codex mcp login ${server}`}</Code>
-          <p className={muted}>Se abre el navegador, entras con tu cuenta del tablero y apruebas.</p>
         </Step>
       </>
     );
@@ -92,7 +89,7 @@ function Connect({ client, kit }: { client: AgentClient; kit: AgentKit }) {
   return (
     <Step n={1} title="Agrega el servidor en tu cliente">
       <p className={muted}>
-        Es un servidor MCP por HTTP en <code className={mono}>{url}</code>. Si tu cliente inicia sesión con OAuth, basta con la URL: te pedirá entrar con tu cuenta del tablero. Si no, crea un token abajo y envíalo en la cabecera <code className={mono}>Authorization: Bearer</code>.
+        Servidor MCP por HTTP: <code className={mono}>{url}</code>. Sin OAuth, crea un token abajo y envíalo en <code className={mono}>Authorization: Bearer</code>.
       </p>
     </Step>
   );
@@ -106,7 +103,7 @@ function Work({ client, kit }: { client: AgentClient; kit: AgentKit }) {
       <Step n={1} title="Pide tus pendientes">
         <Code label="comando">{"/pendientes"}</Code>
         <p className={muted}>
-          En un repo con el kit, <code className={mono}>/pendientes</code> reparte cada issue al subagente de su rol. En cualquier otra carpeta, el mismo pedido llega desde el tablero como <code className={mono}>/mcp__{server}__pendientes</code>. Filtra con un proyecto (<code className={mono}>MED</code>) o un rol (<code className={mono}>QA</code>).
+          Fuera de un repo con el kit: <code className={mono}>/mcp__{server}__pendientes</code>
         </p>
       </Step>
     );
@@ -114,7 +111,6 @@ function Work({ client, kit }: { client: AgentClient; kit: AgentKit }) {
   return (
     <Step n={1} title="Pide tus pendientes">
       <Code label="pedido">{"Trabaja mis pendientes del tablero"}</Code>
-      <p className={muted}>El AGENTS.md del repo le explica el flujo; si tu cliente usa prompts de MCP, también tiene el prompt «pendientes».</p>
     </Step>
   );
 }
@@ -156,7 +152,7 @@ export function AgentSetup({
 
   return (
     <div className="flex max-w-3xl flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
-      <Section title="1 · Conecta tu cliente de IA" description={`Tu cliente entra al tablero como los agentes del equipo, en nombre de ${personName}, y solo atiende los issues que supervisas.`}>
+      <Section title="1 · Conecta tu cliente de IA" description={`Trabaja en nombre de ${personName} y solo los issues que supervisas.`}>
         <div className="flex flex-col gap-5">
           <ChoiceCards
             name="agent-client"
@@ -174,21 +170,13 @@ export function AgentSetup({
         </div>
       </Section>
 
-      <Section title="2 · Trabaja tus pendientes">
+      <Section title="2 · Trabaja tus pendientes" description="Consume los límites de tu cuenta en ese cliente.">
         <ol className="flex flex-col gap-5">
           <Work client={client} kit={kit} />
-          <Step n={2} title="Qué atiende">
-            <p className={muted}>
-              Los issues que supervisas: los que asignaste a un agente o llevaste a una etapa que cubren agentes (por ejemplo, al aprobar una puerta). Cada issue lo trabaja el rol que lo cubre, firmado por ese agente, y termina entregado, devuelto o con una pregunta para ti. Las puertas siguen siendo de las personas. Todo cuenta para los límites de tu cuenta en ese cliente.
-            </p>
-          </Step>
         </ol>
       </Section>
 
-      <Section
-        title="3 · Tus conexiones"
-        description="Los equipos donde iniciaste sesión con un cliente de IA. Desconecta los que ya no uses."
-      >
+      <Section title="3 · Tus conexiones">
         <TokenManager
           tokens={tokens}
           create={createRunnerTokenAction}
@@ -203,7 +191,7 @@ export function AgentSetup({
           }}
           onIssued={(secret) => (
             <div className="mt-3 flex flex-col gap-1.5">
-              <p className="text-fg">Guárdalo en tu shell (por ejemplo en ~/.zshrc), nunca en el repositorio, y úsalo como cabecera:</p>
+              <p className="text-fg">Guárdalo en tu shell (~/.zshrc), nunca en el repositorio:</p>
               <Code label="comando">{`export ${tokenVar}=${secret}`}</Code>
               <Code label="comando">{`claude mcp add --transport http --scope user ${server} ${url} --header "Authorization: Bearer \$${tokenVar}"`}</Code>
             </div>
@@ -215,12 +203,12 @@ export function AgentSetup({
         <summary className="cursor-pointer list-none px-5 py-4 text-[13px] font-medium text-fg-strong">
           Kit para un repo que no creó el tablero
           <span className="mt-0.5 block text-xs font-normal text-fg-muted">
-            Los repos que crea el tablero ya lo traen y se actualizan por PR desde Sincronizar. Para otros, copia estos archivos en la raíz: no llevan secretos.
+            Copia estos archivos en la raíz del repo. No llevan secretos.
           </span>
         </summary>
         <div className="flex flex-col gap-4 border-t border-line px-5 py-4">
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-fg-muted">Servidores MCP del catálogo que se suman al del tablero</p>
+            <p className="text-xs font-medium text-fg-muted">Servidores MCP adicionales</p>
             <ul className="flex flex-col divide-y divide-line rounded-md border border-line">
               {servers.map((s) => (
                 <li key={s.key} className="flex items-start gap-3 px-3 py-2.5">

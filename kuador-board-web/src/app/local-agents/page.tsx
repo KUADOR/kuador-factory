@@ -37,7 +37,7 @@ export default async function LocalAgentsPage() {
       <PageHeader
         title="Agentes locales"
         width="narrow"
-        description="Conecta el Claude Code o Codex de cada persona con el tablero, y déjalos trabajando solos con el runner."
+        description="Conecta Claude Code o Codex al tablero y déjalos trabajando solos."
       />
       <div className="max-w-3xl px-4 pt-5 sm:px-6 sm:pt-6">
         <RunnerSection

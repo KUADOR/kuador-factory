@@ -22,7 +22,7 @@ export default async function StagesSettingsPage({ params }: PageProps<"/project
   const [project, roles, members] = data;
   const humanRoles = [...new Set(["OWNER", ...members.filter((m) => m.kind === "HUMAN").map((m) => m.role)])];
   return (
-    <SettingsSection title="Etapas y responsables" description="Quién toma el trabajo en cada columna y quién cierra cada puerta: una persona, o el agente revisor, que deja a una persona lo dudoso.">
+    <SettingsSection title="Etapas y responsables" description="Quién toma el trabajo en cada columna y quién cierra cada puerta.">
       <AdminOnly>
       <StagesEditor
         project={project}

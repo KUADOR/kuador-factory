@@ -78,7 +78,7 @@ export function PeopleEditor({ projectKey, people: initial }: { projectKey: stri
           </Field>
         </div>
       )}
-      {!canAdminister && <p className="text-[13px] text-fg-faint">Para sumar o quitar personas, pídeselo a quien administra el espacio.</p>}
+      {!canAdminister && <p className="text-[13px] text-fg-faint">Sumar o quitar personas es de quien administra el espacio.</p>}
     </div>
   );
 }

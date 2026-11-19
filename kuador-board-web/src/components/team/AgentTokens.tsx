@@ -12,7 +12,7 @@ export function AgentTokens({ memberId, tokens }: { memberId: string; tokens: Ag
       create={(name) => createAgentTokenAction(memberId, name)}
       revoke={revokeAgentTokenAction}
       copy={{
-        empty: "Sin tokens: este agente aún no puede usar la API.",
+        empty: "Sin tokens.",
         namePlaceholder: "Nombre del token, ej. integración CI",
         create: "Crear token",
         revokeTitle: (name) => `¿Revocar «${name}»?`,

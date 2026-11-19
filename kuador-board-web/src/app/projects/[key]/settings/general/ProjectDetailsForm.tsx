@@ -32,7 +32,7 @@ export function ProjectDetailsForm({ project }: { project: Project }) {
       }}
     >
       <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
-      <Field label="Descripción" hint="Contexto breve para personas y agentes.">
+      <Field label="Descripción">
         {(id) => <TextArea id={id} rows={3} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>
       {error && <p role="alert" className="text-[13px] text-danger">{error}</p>}

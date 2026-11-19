@@ -1,3 +1,4 @@
+import { Bot, User } from "lucide-react";
 import { clsx } from "clsx";
 
 import { WorkingLine } from "@/components/agents/WorkingLine";
@@ -67,8 +68,8 @@ export function IssueCard({
         <span className="tabular font-mono text-[11px] text-fg-muted">{issue.key}</span>
         <span className="ml-auto flex items-center gap-1.5">
           {issue.reviewBy && (
-            <span title={issue.reviewBy === "PERSON" ? "Sus puertas las revisa siempre una persona" : "Sus puertas las revisa el agente"} className="text-[11px]">
-              {issue.reviewBy === "PERSON" ? "👤" : "🤖"}
+            <span title={issue.reviewBy === "PERSON" ? "Sus puertas las revisa siempre una persona" : "Sus puertas las revisa el agente"} className="text-fg-muted">
+              {issue.reviewBy === "PERSON" ? <User className="size-3" aria-hidden /> : <Bot className="size-3" aria-hidden />}
             </span>
           )}
           <PriorityIcon priority={issue.priority} />

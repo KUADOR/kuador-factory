@@ -17,7 +17,7 @@ export function ReminderSettings({ days }: { days: number[] }) {
   return (
     <Section
       title="Avisos de vencimiento"
-      description="Cuántos días antes del vencimiento se avisa a cada empresa, por correo y Telegram."
+      description="Se avisa a cada empresa por correo y Telegram."
     >
       <form
         className="flex flex-wrap items-end gap-3"

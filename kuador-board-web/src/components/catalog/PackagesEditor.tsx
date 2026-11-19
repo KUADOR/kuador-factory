@@ -22,7 +22,6 @@ export function PackagesEditor({ packages, templates }: { packages: CatalogPacka
   return (
     <Section
       title="Paquetes por industria"
-      description="Con qué tablero arranca cada empresa según a qué se dedica."
       actions={!adding && <Button icon={Plus} onClick={() => setAdding(true)}>Nuevo paquete</Button>}
       flush
     >
@@ -87,7 +86,7 @@ function PackageForm({ initial, templates, isNew = false, onDone }: { initial: C
         </Field>
         <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={60} value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} />}</Field>
       </div>
-      <Field label="Para quién es" hint="Una frase; la lee la empresa al registrarse.">
+      <Field label="Para quién es" hint="La lee la empresa al registrarse.">
         {(id) => <TextArea id={id} rows={2} maxLength={300} value={p.description} onChange={(e) => setP({ ...p, description: e.target.value })} />}
       </Field>
       <div className="flex flex-col gap-1.5">
@@ -102,7 +101,7 @@ function PackageForm({ initial, templates, isNew = false, onDone }: { initial: C
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Tablero inicial" hint="Con qué tablero arranca un espacio nuevo.">
+        <Field label="Tablero inicial">
           {(id) => (
             <SelectInput
               id={id}

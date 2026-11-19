@@ -121,13 +121,13 @@ function SetupSummary({ result }: { result: SetupResult }) {
             </p>
           )}
           {r.warnings.map((w) => (
-            <p key={w} className="flex gap-2 rounded-md border border-warn/40 bg-warn/8 px-3 py-2 text-xs text-fg">
+            <p key={w} className="flex gap-2 text-xs text-fg">
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warn" aria-hidden /> {w}
             </p>
           ))}
         </div>
       ))}
-      {result.documents > 0 && <p className="text-xs text-fg-muted">{result.documents} documento(s) de la metodología quedaron en el repo del proyecto, sincronizados.</p>}
+      {result.documents > 0 && <p className="text-xs text-fg-muted">{result.documents} documento(s) de la metodología quedaron en el repo del proyecto.</p>}
     </div>
   );
 }
@@ -200,8 +200,8 @@ export function PiecesSetupForm({
         value={layout}
         onChange={setLayout}
         choices={[
-          { value: "MONOREPO", label: "Monorepo", hint: "Un repo con cada pieza en su carpeta. Simple para un equipo y pocas piezas." },
-          { value: "MULTI_REPO", label: "Un repo por pieza", hint: "Cada pieza en su repo (microservicios, microfrontends). Los documentos viven en el repo del proyecto." },
+          { value: "MONOREPO", label: "Monorepo", hint: "Un repo con cada pieza en su carpeta." },
+          { value: "MULTI_REPO", label: "Un repo por pieza", hint: "Cada pieza en su repo." },
         ]}
       />
       <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
@@ -229,7 +229,7 @@ export function PiecesSetupForm({
           </Button>
         </div>
         {pieces.length === 0 ? (
-          <p className="text-xs text-fg-faint">Sin piezas: el proyecto nace vacío con sus bases y las piezas se suman después.</p>
+          <p className="text-xs text-fg-faint">Sin piezas: se suman después.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {pieces.map((p, i) => (
@@ -247,7 +247,7 @@ export function PiecesSetupForm({
       </div>
 
       <Switch checked={privateRepo} onChange={setPrivateRepo} label="Repos privados" />
-      {privateRepo && <p className="-mt-3 text-xs text-fg-muted">En el plan gratuito de GitHub, las ramas de repos privados no se pueden proteger: el tablero lo intentará y te avisará.</p>}
+      {privateRepo && <p className="-mt-3 text-xs text-fg-muted">En el plan gratuito de GitHub, las ramas de repos privados no se pueden proteger.</p>}
       {error && (
         <p role="alert" className="text-[13px] text-danger">
           {error}
@@ -378,7 +378,7 @@ function PieceItem({ projectKey, piece }: { projectKey: string; piece: ProjectPi
           </Button>
         )}
       </div>
-      {!editing && piece.notes && <p className="rounded bg-hover px-2.5 py-1.5 text-xs whitespace-pre-line text-fg-muted">📝 {piece.notes}</p>}
+      {!editing && piece.notes && <p className="text-xs whitespace-pre-line text-fg-muted">{piece.notes}</p>}
       {editing && (
         <form
           className="flex flex-col gap-3 rounded-md border border-line bg-sunken p-3"
@@ -387,7 +387,7 @@ function PieceItem({ projectKey, piece }: { projectKey: string; piece: ProjectPi
             save();
           }}
         >
-          <Field label="Stack y versiones" hint="Lo que de verdad usa la pieza; los agentes trabajan con esto. Ej.: «Java 21 · Spring Boot 3.5 · PostgreSQL 16».">
+          <Field label="Stack y versiones" hint="Ej.: «Java 21 · Spring Boot 3.5 · PostgreSQL 16»">
             {(id) => <TextInput id={id} required maxLength={120} value={draft.stack} onChange={(e) => setDraft({ ...draft, stack: e.target.value })} />}
           </Field>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -395,15 +395,10 @@ function PieceItem({ projectKey, piece }: { projectKey: string; piece: ProjectPi
             <Field label="Probar">{(id) => <TextInput id={id} maxLength={300} value={draft.test} onChange={(e) => setDraft({ ...draft, test: e.target.value })} className="font-mono text-xs" />}</Field>
             <Field label="Levantar">{(id) => <TextInput id={id} maxLength={300} value={draft.run} onChange={(e) => setDraft({ ...draft, run: e.target.value })} className="font-mono text-xs" />}</Field>
           </div>
-          <Field
-            label="Notas para los agentes"
-            hint="Versiones, convenciones o lo que no deben hacer. Ej.: «Bajamos de Java 25 a 21: nada de APIs de Java 22+. Spring Boot 3.5, no 4.»"
-          >
+          <Field label="Notas para los agentes" hint="Versiones, convenciones o lo que no deben hacer.">
             {(id) => <TextArea id={id} rows={4} maxLength={4000} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />}
           </Field>
-          <p className="text-xs text-fg-faint">
-            Cambia lo que leen los agentes en el tablero y por MCP. El código y el README del repo no se tocan: actualízalos en el repo (o pídeselo a un agente).
-          </p>
+          <p className="text-xs text-fg-faint">El código y el README del repo no se tocan.</p>
           {error && <p className="text-[13px] text-danger">{error}</p>}
           <div className="flex justify-end gap-2">
             <Button tone="ghost" size="sm" onClick={() => setEditing(false)}>

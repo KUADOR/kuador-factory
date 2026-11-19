@@ -145,11 +145,19 @@ public class ProductOwnerAgent {
             String chosen = key.isPresent() ? tx.execute(s -> keys.modelForAgent(agent.get().id())).orElse(null) : null;
             String effort = key.isPresent() ? tx.execute(s -> keys.effortForAgent(agent.get().id())).orElse(null) : null;
             ProductOwnerModel.Result result = model.propose(key.get(), chosen, effort, context);
-            PoProposal proposal = validate(result.proposal());
-            if (context.splitsIntoTasks() && proposal.tasks().isEmpty()) {
-                throw new AgentModelException("El plan de la épica llegó sin tareas; reintenta para que reparta el trabajo.");
+            String summary;
+            try {
+                summary = applyProposal(agent.get(), requester.get(), context, result);
+            } catch (SplitRejected e) {
+                // El reparto no pasó las reglas del tablero (p. ej. una tarea para un rol que no escribe código): se le
+                // devuelve el motivo al modelo una vez para que lo corrija, en vez de dejar la épica trabada.
+                log.info("{} rehace el reparto de {}: {}", agent.get().name(), event.issueKey(), e.getMessage());
+                PoContext retry = context.withNote("Tablero", "Tu reparto anterior no se pudo crear: " + e.getMessage() + " Corrígelo y vuelve a repartir.");
+                ProductOwnerModel.Result second = model.propose(key.get(), chosen, effort, retry);
+                summary = applyProposal(agent.get(), requester.get(), retry, second);
+                result = new ProductOwnerModel.Result(second.proposal(), second.model(), result.inputTokens() + second.inputTokens(),
+                        result.outputTokens() + second.outputTokens());
             }
-            String summary = tx.execute(s -> apply(agent.get(), requester.get(), context, proposal));
             finish(run.succeeded(result.model(), result.inputTokens(), result.outputTokens(), summary, now()));
         } catch (AgentModelException e) {
             log.warn("{} no pudo trabajar {}: {}", agent.get().name(), event.issueKey(), e.getMessage());
@@ -158,6 +166,21 @@ public class ProductOwnerAgent {
             log.error("Error inesperado de {} en {}", agent.get().name(), event.issueKey(), e);
             finish(run.failed("Error inesperado: " + e.getMessage(), now()));
         }
+    }
+
+    /** El reparto de la propuesta no se pudo crear: el modelo puede corregirlo. */
+    static final class SplitRejected extends AgentModelException {
+        SplitRejected(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    private String applyProposal(MemberView agent, MemberView requester, PoContext context, ProductOwnerModel.Result result) {
+        PoProposal proposal = validate(result.proposal());
+        if (context.splitsIntoTasks() && proposal.tasks().isEmpty()) {
+            throw new AgentModelException("El plan de la épica llegó sin tareas; reintenta para que reparta el trabajo.");
+        }
+        return tx.execute(s -> apply(agent, requester, context, proposal));
     }
 
     PoContext buildContext(MemberView agent, AgentRole role, String issueKey) {
@@ -211,7 +234,9 @@ public class ProductOwnerAgent {
     /** En una épica que después de esta etapa se trabaja, los roles con que se reparte; si no, ninguno. */
     private List<String> taskRoles(IssueApi.IssueContext issue, ProjectView project) {
         if (!"EPIC".equals(issue.type()) || !project.epicSplitsInto(issue.status())) return List.of();
-        return catalog.roles().stream().map(r -> r.key() + ": " + r.name()).toList();
+        // Solo los roles que escriben en el repo: una tarea de arquitecto o de PO nunca abriría su rama ni su PR.
+        List<AgentRole> coders = catalog.roles().stream().filter(AgentRole::worksOnCode).toList();
+        return (coders.isEmpty() ? catalog.roles() : coders).stream().map(r -> r.key() + ": " + r.name()).toList();
     }
 
     /** Acciones deterministas a partir de la propuesta. Devuelve el resumen para el registro. */
@@ -235,7 +260,7 @@ public class ProductOwnerAgent {
             try {
                 created = issues.createEpicTasks(key, planned, agent.id());
             } catch (ec.kuador.board.shared.error.DomainException e) {
-                throw new AgentModelException("No pude crear las tareas del plan: " + e.getMessage(), e);
+                throw new SplitRejected("No pude crear las tareas del plan: " + e.getMessage(), e);
             }
             StringBuilder note = new StringBuilder("🧩 Repartí la épica en ").append(created.size()).append(" tarea(s); arrancan cuando apruebes el reparto:");
             for (int i = 0; i < created.size(); i++) {

@@ -90,7 +90,8 @@ public final class PoPrompt {
     private static String taskInstruction(PoContext c) {
         if (!c.splitsIntoTasks()) return "No repartas el issue en tareas: deja `tasks` como lista vacía.\n";
         StringBuilder out = new StringBuilder("\n").append(c.guide().taskSplit().isBlank() ? "Reparte la épica en `tasks`." : c.guide().taskSplit().strip())
-                .append(" Va en `tasks`. Roles posibles:\n");
+                .append(" Va en `tasks`. Cada tarea es de uno de estos roles, que escriben en el repo (abren su rama y su PR): el contrato, el modelo de datos")
+                .append(" y los ADR van en el plan y, si deben quedar en el repo, son la tarea 1 de backend. Roles posibles:\n");
         c.taskRoles().forEach(r -> out.append("- ").append(r).append('\n'));
         return out.toString();
     }

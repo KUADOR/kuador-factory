@@ -45,6 +45,14 @@ public record PoContext(
                 projectDocs, issue, epic, comments, docTask, existingDocContent, List.of());
     }
 
+    /** El mismo contexto con una nota más al final de los comentarios (p. ej. por qué falló el reparto anterior). */
+    public PoContext withNote(String author, String body) {
+        List<Comment> more = new java.util.ArrayList<>(comments);
+        more.add(new Comment(author, true, body));
+        return new PoContext(agentName, agentDescription, roleInstructions, projectKey, projectName, projectKind, methodologyName, methodologySummary,
+                methodologyRules, projectDocs, issue, epic, List.copyOf(more), docTask, existingDocContent, taskRoles, guide);
+    }
+
     public boolean splitsIntoTasks() {
         return !taskRoles.isEmpty();
     }

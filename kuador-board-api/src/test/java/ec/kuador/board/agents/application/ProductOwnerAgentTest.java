@@ -82,6 +82,10 @@ class ProductOwnerAgentTest {
             public Optional<IssueContext> context(String k) { return Optional.ofNullable(issueStore.get(k)); }
             public void addComment(String k, UUID author, String body) { comments.add(author + "|" + body); }
             public List<IssueRef> createEpicTasks(String epic, List<PlannedTask> tasks, UUID actor) {
+                // Como el servicio real: una tarea para un rol que no escribe código se rechaza.
+                if (tasks.stream().anyMatch(t -> "ARCHITECT".equals(t.role()))) {
+                    throw new ec.kuador.board.shared.error.DomainException("La tarea 1 es para ARCHITECT, que no escribe en el repo.");
+                }
                 planned.addAll(tasks);
                 List<IssueRef> refs = new ArrayList<>();
                 for (int i = 0; i < tasks.size(); i++) refs.add(new IssueRef("KUA-" + (20 + i), "KUA", 20 + i, tasks.get(i).title()));
@@ -201,6 +205,30 @@ class ProductOwnerAgentTest {
         assertThat(planned.get(1).dependsOn()).containsExactly(1);
         assertThat(comments.getLast()).contains("Repartí la épica en 2 tarea(s)").contains("KUA-20 API de pacientes (BACKEND)");
         assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);
+    }
+
+    @Test
+    void aSplitWithATaskForTheArchitectIsRedoneOnceWithTheReason() {
+        projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
+        issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "Esqueleto", null, "EPIC", "DESIGN", "HIGH", 8, List.of(), null, PO, PERSON,
+                List.of()));
+        modelBehaviour = c -> {
+            boolean corrected = c.comments().stream().anyMatch(x -> x.body().contains("no se pudo crear"));
+            String role = corrected ? "BACKEND" : "ARCHITECT";
+            return new ProductOwnerModel.Result(new PoProposal("Plan.", "Como equipo quiero el esqueleto", List.of("Dado…"), List.of(), List.of(), 8,
+                    PoProposal.Complexity.SUBSTANTIAL, "# Plan", List.of(new PoProposal.PlannedTask("Contrato OpenAPI y ADR", role, "Contrato primero", List.of()))),
+                    "m", 100, 10);
+        };
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(seen.getFirst().taskRoles()).as("al modelo solo se le ofrecen roles que escriben código")
+                .anyMatch(r -> r.startsWith("BACKEND")).noneMatch(r -> r.startsWith("ARCHITECT") || r.startsWith("PRODUCT_OWNER"));
+        assertThat(seen).hasSize(2);
+        assertThat(seen.get(1).comments().getLast().body()).contains("ARCHITECT", "Corrígelo");
+        assertThat(planned).extracting(IssueApi.PlannedTask::role).containsExactly("BACKEND");
+        assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);
+        assertThat(onlyRun().inputTokens()).as("cuenta las dos llamadas").isEqualTo(200);
     }
 
     @Test

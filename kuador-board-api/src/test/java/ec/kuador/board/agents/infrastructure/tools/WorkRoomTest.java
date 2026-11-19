@@ -47,10 +47,10 @@ public class WorkRoomTest {
 
     static byte[] pdf(String text) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        com.lowagie.text.Document doc = new com.lowagie.text.Document();
-        com.lowagie.text.pdf.PdfWriter.getInstance(doc, out);
+        org.openpdf.text.Document doc = new org.openpdf.text.Document();
+        org.openpdf.text.pdf.PdfWriter.getInstance(doc, out);
         doc.open();
-        doc.add(new com.lowagie.text.Paragraph(text));
+        doc.add(new org.openpdf.text.Paragraph(text));
         doc.close();
         return out.toByteArray();
     }

@@ -63,9 +63,12 @@ jobs:
           owner="$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
           echo "owner=$owner" >> "$GITHUB_OUTPUT"
           git fetch --no-tags --quiet origin main
+          # develop debe tener todo lo que se hizo en main. Los merge commits de cada release (develop → main) no
+          # cuentan: solo traen lo que develop ya tiene. Lo que falta son commits propios de main (un hotfix).
           contains_main() {
-            git merge-base --is-ancestor origin/main HEAD || {
-              echo "::error::develop no contiene todo main (falta traer un hotfix). Fusiona main en develop y vuelve a intentar."; exit 1; }
+            missing="$(git rev-list --no-merges origin/main ^HEAD)"
+            [ -z "$missing" ] || {
+              echo "::error::develop no contiene todo main (falta traer un hotfix: $(echo "$missing" | head -3 | xargs)). Fusiona main en develop y vuelve a intentar."; exit 1; }
           }
           short() { git rev-parse --short=7 "$1"; }
 

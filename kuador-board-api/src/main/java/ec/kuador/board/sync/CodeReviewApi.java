@@ -52,4 +52,9 @@ public interface CodeReviewApi {
 
     /** Fusiona el PR si su último commit sigue siendo {@code headSha}; devuelve el commit en la rama principal. */
     String merge(String projectKey, String repository, int number, String headSha, String title);
+
+    /** Si el PR se puede fusionar sin conflictos: vacío mientras GitHub lo calcula, falso si hay conflictos. */
+    default java.util.Optional<Boolean> mergeable(String projectKey, String repository, int number) {
+        return java.util.Optional.empty();
+    }
 }

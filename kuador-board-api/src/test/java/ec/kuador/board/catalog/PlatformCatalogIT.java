@@ -100,7 +100,7 @@ class PlatformCatalogIT {
         assertThat(call("GET", "/api/platform/catalog", null, untouched).get("_status").asInt()).isEqualTo(403);
 
         JsonNode summary = call("GET", "/api/platform/catalog", null, admin).get("body");
-        assertThat(summary.get("version").asInt()).isEqualTo(9);
+        assertThat(summary.get("version").asInt()).isEqualTo(10);
         assertThat(summary.get("pending").asInt()).isZero();
         JsonNode analyst = call("GET", "/api/platform/catalog/roles", null, admin).get("body").valueStream()
                 .filter(e -> e.get("key").asString().equals("ANALYST")).findFirst().orElseThrow();

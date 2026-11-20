@@ -153,8 +153,8 @@ construye **una sola vez**, en `develop`; producción recibe esa misma imagen, y
 
 | Rama o evento | Qué corre | Imágenes | Despliega |
 |---|---|---|---|
-| PR de una rama de trabajo → `develop` | Pruebas (API, web, runner) y escaneos | No | No |
-| Push a `develop` (al fusionar) | Pruebas, escaneos, construcción, escaneo de imagen y publicación | `sha-<commit>` y `develop` | Pruebas (entorno `staging`) |
+| PR de una rama de trabajo → `develop` | Pruebas (API, web, runner en Linux) y escaneos; con todo en verde deja la marca `ci/arbol-probado` | No | No |
+| Push a `develop` (al fusionar) | Construcción, escaneo de imagen, publicación y runner en Windows. Pruebas y escaneos de código solo si el PR no probó ya el mismo código (sin marca, o `develop` avanzó entre medio) | `sha-<commit>` y `develop` | Pruebas (entorno `staging`) |
 | PR `develop` → `main` | Nada si develop ya publicó imágenes probadas de ese commit (solo lo verifica); si no, pruebas y escaneos | No | No |
 | Push a `main` (al fusionar el PR) | Solo valida: mismo código que develop e imagen existente | Reetiqueta la de develop: `latest` y `sha-<commit de main>` | Producción (entorno `production`) |
 | `hotfix/*` → `main` | Como no hay imagen de develop, el pipeline completo | `sha-<commit>` y `latest` | Producción |
@@ -166,6 +166,8 @@ trabajo `branches` falla y no despliega nada si no se cumplen):
 - A `main` solo llegan PRs desde `develop` o `hotfix/*`.
 - Fusiona `develop` → `main` con **merge commit** (no squash ni rebase): así `main` reconoce el commit probado
   (el segundo padre) y promueve su imagen. Con otro tipo de merge, corre el pipeline completo.
+- Fusiona también los PR a `develop` con **merge commit**: así `develop` encuentra la marca del PR y no repite sus
+  pruebas. Los PR de Dependabot no pueden dejar la marca (su token es de solo lectura): `develop` los prueba de nuevo.
 
 **Escaneos** (frenan solo lo grave; versiones fijadas por digest en `ci.yml`):
 

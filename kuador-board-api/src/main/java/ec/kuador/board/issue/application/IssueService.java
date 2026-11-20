@@ -138,6 +138,19 @@ public class IssueService implements IssueApi {
 
     @Override
     @Transactional(readOnly = true)
+    public List<BoardCard> boardCards(String projectKey) {
+        ProjectView project = project(projectKey);
+        List<BoardCard> out = new java.util.ArrayList<>();
+        for (ColumnDef c : project.columns()) {
+            for (Issue i : issues.findColumn(project.key(), c.key())) {
+                out.add(new BoardCard(i.key(), i.title(), i.type().name(), c.name(), c.category().name(), i.parentKey(), i.storyPoints(), i.updatedAt()));
+            }
+        }
+        return out;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public boolean isClosed(String issueKey) {
         Optional<Issue> issue = issues.findByKey(issueKey);
         if (issue.isEmpty()) return true;

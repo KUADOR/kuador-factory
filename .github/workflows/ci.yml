@@ -3,7 +3,8 @@ name: CI
 # Flujo de ramas (docs/despliegue.md § Ramas y pipeline):
 #   rama de trabajo → PR a develop: pruebas y escaneos, sin imágenes.
 #   develop: pruebas, escaneos, imágenes con su SHA (escaneadas), publicación y despliegue a pruebas.
-#   develop → main (PR, merge commit): solo se valida que sea el mismo código y se promueve la imagen ya probada.
+#   develop → main (PR, merge commit): el PR no repite pruebas si develop ya publicó imágenes probadas de ese commit;
+#   al fusionar solo se valida que sea el mismo código y se promueve la imagen ya probada.
 #   hotfix/* → main: como no hay imagen de develop, corre el pipeline completo; después vuelve a develop.
 # El plan gratuito de GitHub no protege ramas en repos privados: estas reglas las hace cumplir el trabajo «branches».
 on:
@@ -45,7 +46,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Log in to GHCR
-        if: github.event_name == 'push' && github.ref_name == 'main'
+        if: (github.event_name == 'push' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.base_ref == 'main')
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
@@ -76,6 +77,20 @@ jobs:
             if [ "$BASE" = "develop" ]; then contains_main; fi
             if [ "$BASE" = "main" ] && [ "$HEAD_BRANCH" != "develop" ] && [[ "$HEAD_BRANCH" != hotfix/* ]]; then
               echo "::error::A main solo llegan develop o hotfix/*: lleva «$HEAD_BRANCH» a develop."; exit 1
+            fi
+            # PR develop → main: si develop ya probó este commit (sus imágenes solo se publican cuando pasan pruebas y
+            # escaneos) y la fusión no cambia el código, no se repite nada. HEAD es la fusión de prueba; HEAD^2, develop.
+            if [ "$BASE" = "main" ] && [ "$HEAD_BRANCH" = "develop" ]; then
+              tested=true
+              [ "$(git rev-parse "HEAD^{tree}")" = "$(git rev-parse "HEAD^2^{tree}")" ] || tested=false
+              for app in kuador-board-api kuador-board-web; do
+                docker buildx imagetools inspect "ghcr.io/$owner/$app:sha-$(short HEAD^2)" >/dev/null 2>&1 || tested=false
+              done
+              if [ "$tested" = true ]; then
+                echo "develop ya probó sha-$(short HEAD^2): el PR no repite pruebas ni escaneos."
+                echo "mode=release" >> "$GITHUB_OUTPUT"; exit 0
+              fi
+              echo "::warning::develop todavía no tiene imágenes probadas de sha-$(short HEAD^2) (¿su CI sigue corriendo?): se corren las pruebas."
             fi
             echo "mode=test" >> "$GITHUB_OUTPUT"; exit 0
           fi
@@ -110,7 +125,7 @@ jobs:
 
   api:
     needs: branches
-    if: needs.branches.outputs.mode != 'promote'
+    if: needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -134,7 +149,7 @@ jobs:
 
   web:
     needs: branches
-    if: needs.branches.outputs.mode != 'promote'
+    if: needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -152,7 +167,7 @@ jobs:
   # cuestan 10 veces más y la cuenta no tiene esos runners: el trabajo se quedaba esperando hasta cancelarse).
   runner:
     needs: branches
-    if: needs.branches.outputs.mode != 'promote'
+    if: needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release'
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -172,7 +187,7 @@ jobs:
   # Frena solo lo grave: un secreto, un hallazgo ERROR de Semgrep o una falla crítica/alta con arreglo.
   security:
     needs: branches
-    if: needs.branches.outputs.mode != 'promote'
+    if: needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

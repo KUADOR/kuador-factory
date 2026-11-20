@@ -20,7 +20,7 @@ import { useAccess } from "@/components/shell/AccessContext";
 import { Badge } from "@/components/ui/Section";
 import { decisionsChanged } from "@/components/shell/useDecisionsCount";
 import { notify } from "@/components/ui/Toaster";
-import type { AgentMode, AgentRun, Issue, Me, Member, Project } from "@/lib/types";
+import type { ActionResult, AgentMode, AgentRun, Issue, Me, Member, Project } from "@/lib/types";
 
 import { nextStep, type NextStep, type StepAction } from "./nextStep";
 import { nextColumn, roleList, stageOf } from "./stages";
@@ -246,3 +246,38 @@ function ReviewByPicker({
   );
 }
 
+
+/** Una acción de la etapa que se puede hacer desde la caja de comentarios: lo escrito viaja como comentario (o motivo). */
+export type QuickAction = {
+  label: string;
+  tone: "primary" | "danger" | "secondary";
+  icon: typeof Check;
+  /** Rechazar exige un motivo: el texto de la caja. */
+  needsNote?: boolean;
+  done: string;
+  run: (note: string | null) => Promise<ActionResult<unknown>>;
+};
+
+/**
+ * Aprobar, rechazar o entregar sin subir hasta la barra de la etapa: las mismas reglas que {@link StageBar}, para ponerlas
+ * junto al botón «Comentar».
+ */
+export function quickActions({ issue, project, me, canEdit, workingAgent }: { issue: Issue; project: Project; me: Me; canEdit: boolean; workingAgent?: Member }): QuickAction[] {
+  const stage = stageOf(project, issue.status);
+  const next = nextColumn(project, issue.status);
+  if (!stage || !next) return [];
+  const isHuman = me.kind === "HUMAN";
+  if (stage.gate) {
+    const canApprove = isHuman && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
+    if (!canApprove) return [];
+    return [
+      { label: `Aprobar y pasar a ${next.name}`, tone: "primary", icon: Check, done: `${issue.key} aprobado`, run: (note) => reviewIssueAction(project.key, issue.key, true, note) },
+      { label: "Rechazar", tone: "danger", icon: Undo2, needsNote: true, done: `${issue.key} devuelto`, run: (note) => reviewIssueAction(project.key, issue.key, false, note) },
+    ];
+  }
+  const mine = issue.assigneeId === me.id;
+  if (canEdit && !workingAgent && (mine || (isHuman && !!issue.assigneeId))) {
+    return [{ label: `Entregar a ${next.name}`, tone: "primary", icon: ArrowRight, done: `${issue.key} pasó a ${next.name}`, run: (note) => deliverIssueAction(project.key, issue.key, note) }];
+  }
+  return [];
+}

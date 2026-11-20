@@ -178,7 +178,16 @@ class AttachmentIT {
         assertThat(issue.get("attachments").findValuesAsString("name")).contains("Propuesta final.md", "logo.png");
         assertThat(tool(runner, "read_attachment", Map.of("key", key, "id", proposal.body().get("id").asString())).get("content").asString())
                 .contains("Plan anual");
-        assertThat(toolError(runner, "read_attachment", Map.of("key", key, "id", imageId))).contains("no es de texto");
+        // La imagen le llega como imagen (el modelo la ve); lo que no es texto, PDF ni imagen, no.
+        JsonNode seen = call("POST", "/mcp", Map.of("jsonrpc", "2.0", "id", 1, "method", "tools/call", "params",
+                Map.of("name", "read_attachment", "arguments", Map.of("key", key, "id", imageId))), runner).body().get("result");
+        assertThat(seen.get("content").get(1).get("type").asString()).isEqualTo("image");
+        assertThat(seen.get("content").get(1).get("mimeType").asString()).isEqualTo("image/png");
+        assertThat(java.util.Base64.getDecoder().decode(seen.get("content").get(1).get("data").asString())).isEqualTo(png);
+        assertThat(issue.get("attachmentsGuide").asString()).contains("read_attachment");
+        String binId = upload(key, "datos.bin", "application/octet-stream", new byte[] {1, 2, 3}, owner).body().get("id").asString();
+        assertThat(toolError(runner, "read_attachment", Map.of("key", key, "id", binId))).contains("no se puede leer desde aquí");
+        call("DELETE", "/api/attachments/" + binId, null, owner);
 
         assertThat(call("DELETE", "/api/attachments/" + imageId, null, owner).status()).isEqualTo(204);
         assertThat(call("GET", "/api/attachments/" + imageId + "/content", null, owner).status()).isEqualTo(404);

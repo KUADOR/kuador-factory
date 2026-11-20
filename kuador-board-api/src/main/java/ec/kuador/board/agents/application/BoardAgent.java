@@ -261,12 +261,15 @@ public class BoardAgent {
         List<String> skipped = new ArrayList<>();
         long total = 0;
         if (attachments.available()) {
-            for (AttachmentApi.AttachmentInfo info : attachments.list(issueKey)) {
+            // Los de la tarjeta primero; después los de su épica (el brief de la campaña, el diagrama de la solución...).
+            List<AttachmentApi.AttachmentInfo> cardFiles = new ArrayList<>(attachments.list(issueKey));
+            if (card.parentKey() != null) cardFiles.addAll(attachments.list(card.parentKey()));
+            for (AttachmentApi.AttachmentInfo info : cardFiles) {
                 if (files.size() >= policy.limits().filesRead() || total + info.sizeBytes() > MAX_INPUT_BYTES) {
                     skipped.add(info.fileName());
                     continue;
                 }
-                Optional<AttachmentApi.FileContent> content = attachments.content(issueKey, info.id());
+                Optional<AttachmentApi.FileContent> content = attachments.content(info.issueKey(), info.id());
                 if (content.isEmpty()) continue;
                 total += info.sizeBytes();
                 files.add(new BoardAgentModel.InputFile(content.get().fileName(), content.get().contentType(), content.get().content()));

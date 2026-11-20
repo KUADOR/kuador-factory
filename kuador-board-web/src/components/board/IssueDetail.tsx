@@ -38,7 +38,8 @@ import type { Activity, AgentRun, Comment, DocumentMeta, Issue, Me, Member, Meth
 import { EpicPlan } from "./EpicPlan";
 import { IssueAttachments } from "./IssueAttachments";
 import { IssueForm, valuesOf } from "./IssueForm";
-import { StageBar } from "./StageBar";
+import { quickActions, StageBar, type QuickAction } from "./StageBar";
+import { decisionsChanged } from "@/components/shell/useDecisionsCount";
 
 const dateFormat = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeStyle: "short" });
 
@@ -159,7 +160,7 @@ export function IssueDetail({
             <dd className="text-fg">{dateFormat.format(new Date(issue.updatedAt))}</dd>
           </dl>
         }
-        below={<IssueTabs issueKey={issue.key} members={known} project={project} />}
+        below={<IssueTabs issueKey={issue.key} members={known} project={project} actions={quickActions({ issue, project, me, canEdit, workingAgent })} />}
       />
       <ConfirmDialog
         open={confirming}
@@ -187,7 +188,7 @@ export function IssueDetail({
   );
 }
 
-function IssueTabs({ issueKey, members, project }: { issueKey: string; members: Member[]; project: Project }) {
+function IssueTabs({ issueKey, members, project, actions }: { issueKey: string; members: Member[]; project: Project; actions: QuickAction[] }) {
   const [tab, setTab] = useState<"comments" | "files" | "history" | "docs">("comments");
   // Documentos solo en proyectos de software con metodología.
   const withDocs = project.kind === "SOFTWARE" && project.methodology != null;
@@ -198,7 +199,7 @@ function IssueTabs({ issueKey, members, project }: { issueKey: string; members: 
         value={tab}
         onChange={setTab}
         items={[
-          { value: "comments", label: "Comentarios", content: <Comments issueKey={issueKey} members={members} /> },
+          { value: "comments", label: "Comentarios", content: <Comments issueKey={issueKey} members={members} actions={actions} /> },
           { value: "files", label: "Adjuntos", content: <IssueAttachments issueKey={issueKey} members={members} /> },
           { value: "history", label: "Historial", content: <IssueHistory issueKey={issueKey} members={members} project={project} /> },
           ...(withDocs ? [{ value: "docs" as const, label: "Documentos", content: <IssueDocs issueKey={issueKey} project={project} /> }] : []),
@@ -330,7 +331,7 @@ function IssueHistory({ issueKey, members, project }: { issueKey: string; member
   );
 }
 
-function Comments({ issueKey, members }: { issueKey: string; members: Member[] }) {
+function Comments({ issueKey, members, actions = [] }: { issueKey: string; members: Member[]; actions?: QuickAction[] }) {
   const live = useLiveVersion(issueKey);
   const byId = new Map(members.map((m) => [m.id, m]));
   const [comments, setComments] = useState<Comment[] | null>(null);
@@ -350,6 +351,20 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
       } else {
         setError(result.error);
       }
+    });
+  }
+
+  /** Aprobar, rechazar o entregar desde aquí: lo escrito en la caja viaja como comentario (o como motivo del rechazo). */
+  function runAction(a: QuickAction) {
+    if (pending || (a.needsNote && !body.trim())) return;
+    startTransition(async () => {
+      const result = await a.run(body.trim() || null);
+      if (result.ok) {
+        setBody("");
+        setError(null);
+        notify.ok(a.done);
+        decisionsChanged();
+      } else setError(result.error);
     });
   }
 
@@ -396,11 +411,24 @@ function Comments({ issueKey, members }: { issueKey: string; members: Member[] }
           placeholder="Escribe un comentario… (Markdown, ⌘/Ctrl + Enter para enviar)"
           aria-label="Nuevo comentario"
         />
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {error && <p className="mr-auto text-xs text-danger">{error}</p>}
-          <Button size="sm" tone="primary" onClick={send} loading={pending} disabled={!body.trim()}>
+          <Button size="sm" tone={actions.length > 0 ? "secondary" : "primary"} onClick={send} loading={pending} disabled={!body.trim()}>
             Comentar
           </Button>
+          {actions.map((a) => (
+            <Button
+              key={a.label}
+              size="sm"
+              tone={a.tone}
+              icon={a.icon}
+              disabled={pending || (a.needsNote && !body.trim())}
+              title={a.needsNote && !body.trim() ? "Escribe arriba el motivo" : body.trim() ? "Lo escrito va como comentario" : undefined}
+              onClick={() => runAction(a)}
+            >
+              {a.label}
+            </Button>
+          ))}
         </div>
       </div>
     </section>

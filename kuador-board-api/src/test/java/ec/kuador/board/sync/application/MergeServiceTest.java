@@ -8,14 +8,18 @@ import ec.kuador.board.shared.error.ConflictException;
 import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.shared.error.ForbiddenException;
 import ec.kuador.board.sync.CodeReviewApi;
+import ec.kuador.board.sync.PullMerged;
 import ec.kuador.board.testing.IssueApiStub;
+import ec.kuador.board.testing.TestTenant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /** «Aprobar y fusionar»: solo quien aprueba la puerta, solo el PR de la tarjeta, solo con el CI en verde y el commit revisado. */
+@ExtendWith(TestTenant.class)
 class MergeServiceTest {
 
     private static final UUID OWNER = UUID.randomUUID();
@@ -23,6 +27,7 @@ class MergeServiceTest {
 
     private final List<String> comments = new ArrayList<>();
     private final List<String> merged = new ArrayList<>();
+    private final List<Object> events = new ArrayList<>();
     private List<CodeReviewApi.Check> checks = List.of(new CodeReviewApi.Check("api", "completed", "success", ""));
     private String approved;
     /** Lo que dice la conexión con GitHub cuando no puede leer el CI (sin permiso de Checks). */
@@ -67,7 +72,7 @@ class MergeServiceTest {
                 return "f00dcafe99";
             }
         };
-        return new MergeService(issues, code);
+        return new MergeService(issues, code, events::add);
     }
 
     @Test
@@ -77,6 +82,11 @@ class MergeServiceTest {
         assertThat(merged).containsExactly("acme/kua#7@a1b2c3d4|KUA-12: KUA-12 Corrige IVA (#7)");
         assertThat(m.status()).isEqualTo("RELEASE");
         assertThat(approved).isEqualTo("KUA-12");
+        assertThat(events).singleElement().isInstanceOfSatisfying(PullMerged.class, e -> {
+            assertThat(e.repository()).isEqualTo("acme/kua");
+            assertThat(e.number()).isEqualTo(7);
+            assertThat(e.actorId()).isEqualTo(OWNER);
+        });
         assertThat(comments).anyMatch(c -> c.contains("Fusioné acme/kua #7") && c.contains("f00dcaf"));
     }
 

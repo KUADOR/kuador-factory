@@ -166,6 +166,10 @@ trabajo `branches` falla y no despliega nada si no se cumplen):
 - A `main` solo llegan PRs desde `develop` o `hotfix/*`.
 - Fusiona `develop` → `main` con **merge commit** (no squash ni rebase): así `main` reconoce el commit probado
   (el segundo padre) y promueve su imagen. Con otro tipo de merge, corre el pipeline completo.
+- El tablero fusiona con el método que el repo permite (squash si está habilitado). En este repo **desactiva
+  «Allow squash merging»** (GitHub → Settings → General → Pull Requests) para que el tablero y GitHub usen merge commit.
+- Después de cada fusión hecha por el tablero, los demás PR hacia la misma rama que quedaron en conflicto devuelven su
+  tarjeta a Desarrollo (si esperaba en una puerta) o reciben un comentario (si se está trabajando).
 - Fusiona también los PR a `develop` con **merge commit**: así `develop` encuentra la marca del PR y no repite sus
   pruebas. Los PR de Dependabot no pueden dejar la marca (su token es de solo lectura): `develop` los prueba de nuevo.
 

@@ -9,7 +9,7 @@ import { start } from "./daemon.js";
 import { prompter } from "./prompt.js";
 import { install as installService, openBrowser, osName, restart, uninstall as uninstallService } from "./service.js";
 import { detect, TOOLS } from "./tools.js";
-import { isRepo } from "./workdir.js";
+import { cleanup, freeBytes, gb, isRepo, pruneDocker } from "./workdir.js";
 
 const HELP = `Kuador runner ${VERSION}: deja trabajando a los agentes del tablero en esta máquina.
 
@@ -17,6 +17,8 @@ const HELP = `Kuador runner ${VERSION}: deja trabajando a los agentes del tabler
   roles                    Cambia los roles que atiende esta máquina
   link <TABLERO> <carpeta> Vincula el repo de un tablero de software en esta máquina
   status                   Qué está haciendo ahora
+  clean [--now]            Libera disco: borra lo que dejan las compilaciones y las carpetas de tarjetas ya subidas
+                           (--now: aunque se hayan usado hace poco)
   pause | resume           Deja de tomar tarjetas nuevas / vuelve a tomarlas
   start                    Lo ejecuta en primer plano (el servicio usa esto)
   uninstall                Quita el servicio y la conexión de esta máquina
@@ -39,6 +41,8 @@ export async function main(argv) {
       return link(rest[0], rest[1]);
     case "status":
       return status();
+    case "clean":
+      return clean(rest.includes("--now"));
     case "pause":
       ensureDirs();
       writeFileSync(PAUSE, new Date().toISOString());
@@ -223,4 +227,17 @@ function uninstall() {
   const config = load();
   rmSync(HOME + "/runner.json", { force: true });
   console.log("Listo: quité el servicio y la conexión de esta máquina." + (config ? " En el tablero, «Agentes locales», puedes quitarla de la lista." : ""));
+}
+
+// ---- Disco ----
+
+/** Limpieza a mano: lo mismo que hace el runner cada 6 horas (con --now, sin esperar los días sin uso). */
+async function clean(now) {
+  const config = requireConfig();
+  const before = freeBytes();
+  const active = new Set((readState()?.jobs ?? []).map((j) => j.issue));
+  console.log(active.size ? `Limpiando (sin tocar lo que está en curso: ${[...active].join(", ")})…` : "Limpiando…");
+  const r = cleanup(config, active, { keepDays: now ? 0 : undefined, log: (m) => console.log(m) });
+  if (await pruneDocker(config)) console.log("Docker: imágenes huérfanas y caché de construcción vieja borradas.");
+  console.log(`Listo: ${r.removed.length} carpeta(s) de tarjetas borradas; ${gb(Math.max(r.freed, freeBytes() - before))} liberados. Libres: ${gb(freeBytes())}.`);
 }

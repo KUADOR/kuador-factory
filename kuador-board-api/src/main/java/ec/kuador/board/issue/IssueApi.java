@@ -177,4 +177,13 @@ public interface IssueApi {
     default Progress escalate(String issueKey, String analysis, UUID agentId) {
         throw new UnsupportedOperationException();
     }
+
+    /** Una tarjeta del tablero, con lo justo para resumir el avance: columna (nombre y categoría) y épica. */
+    record BoardCard(String key, String title, String type, String statusName, String category, String parentKey, Integer storyPoints,
+            Instant updatedAt) {}
+
+    /** Todas las tarjetas de un tablero, en el orden de sus columnas. */
+    default List<BoardCard> boardCards(String projectKey) {
+        throw new UnsupportedOperationException("boardCards");
+    }
 }

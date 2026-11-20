@@ -872,6 +872,23 @@ export interface AgentsStatus {
 }
 
 /** `status`: el código HTTP de la API cuando falló (p. ej. 409 si algo ya existe). */
+/** Chat del tablero: una vuelta de la conversación (la web la guarda; el API no). */
+export interface ChatTurn {
+  role: "user" | "assistant";
+  text: string;
+  epics?: SuggestedEpic[];
+}
+
+export interface SuggestedEpic {
+  title: string;
+  description: string;
+}
+
+export interface ChatAnswer {
+  text: string;
+  epics: SuggestedEpic[];
+}
+
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string; status?: number };
 
 /** Conexión de agentes locales de una persona (token que solo abre el servidor MCP del tablero). */

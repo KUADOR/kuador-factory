@@ -13,6 +13,7 @@ import type {
   CatalogRevision,
   DraftInput,
   DraftJob,
+  ChatAnswer,
   DraftStep,
   RunnerMachine,
   PieceUpdate,
@@ -175,6 +176,14 @@ export async function routineWebhookAction(projectKey: string, id: string): Prom
 
 export async function draftAskAction(projectKey: string, step: DraftStep, input: DraftInput, local: boolean): Promise<ActionResult<DraftJob>> {
   return run(() => boardApi.draftAsk(projectKey, step, input, local));
+}
+
+export async function askBoardChatAction(
+  projectKey: string,
+  question: string,
+  history: { role: string; text: string }[],
+): Promise<ActionResult<ChatAnswer>> {
+  return run(() => boardApi.askBoardChat(projectKey, question, history));
 }
 
 export async function draftJobAction(id: string): Promise<ActionResult<DraftJob>> {

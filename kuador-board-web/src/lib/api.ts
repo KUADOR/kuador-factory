@@ -5,6 +5,7 @@ import { headers as incomingHeaders } from "next/headers";
 import { getSessionToken } from "./session";
 import type {
   PieceUpdate,
+  ChatAnswer,
   AgentPromptPreview,
   Account,
   Activity,
@@ -195,6 +196,8 @@ export const boardApi = {
   draftPlan: (key: string) => request<DraftPlan>(`/api/projects/${encodeURIComponent(key)}/drafting`),
   draftAsk: (key: string, step: DraftStep, input: DraftInput, local: boolean) =>
     request<DraftJob>(`/api/projects/${encodeURIComponent(key)}/drafting/${step}?local=${local}`, json("POST", input)),
+  askBoardChat: (key: string, question: string, history: { role: string; text: string }[]) =>
+    request<ChatAnswer>(`/api/projects/${encodeURIComponent(key)}/chat`, json("POST", { question, history })),
   draftJob: (id: string) => request<DraftJob>(`/api/drafting/jobs/${encodeURIComponent(id)}`),
   draftApprove: (key: string, approval: DraftApproval) =>
     request<DraftApproved>(`/api/projects/${encodeURIComponent(key)}/drafting/approve`, json("POST", approval)),

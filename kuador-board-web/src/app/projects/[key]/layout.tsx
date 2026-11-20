@@ -1,4 +1,5 @@
 import { LiveUpdates } from "@/components/live/LiveUpdates";
+import { BoardChat } from "@/components/project/BoardChat";
 import { ProjectTabs } from "@/components/project/ProjectTabs";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { boardApi } from "@/lib/api";
@@ -39,6 +40,11 @@ export default async function ProjectLayout({ params, children }: LayoutProps<"/
         </PageHeader>
         {children}
       </div>
+      <BoardChat
+        projectKey={project.key}
+        firstColumn={project.columns[0]?.key ?? ""}
+        epics={project.issueTypes.some((t) => t.type === "EPIC")}
+      />
     </LiveUpdates>
   );
 }

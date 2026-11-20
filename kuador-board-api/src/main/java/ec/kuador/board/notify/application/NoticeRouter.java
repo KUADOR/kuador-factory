@@ -1,5 +1,6 @@
 package ec.kuador.board.notify.application;
 
+import ec.kuador.board.agents.GateReviewed;
 import ec.kuador.board.catalog.StageDef;
 import ec.kuador.board.issue.IssueApi;
 import ec.kuador.board.issue.IssueApi.IssueContext;
@@ -28,7 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Decide a quién avisar, después del commit y en otro hilo (un SMTP lento no frena el tablero). Solo lo que necesita
  * a una persona: le asignaron un issue, un issue espera su aprobación en una puerta o un reparto de tareas espera que
- * lo apruebe. Nunca avisa a quien hizo el cambio.
+ * lo apruebe, o un agente revisor decidió una puerta. Nunca avisa a quien hizo el cambio.
  */
 @Component
 class NoticeRouter {
@@ -88,6 +89,8 @@ class NoticeRouter {
             Optional<StageDef> stage = project.stage(e.toStatus());
             String column = project.column(e.toStatus()).map(c -> c.name()).orElse(e.toStatus());
             if (stage.isPresent() && stage.get().gate()) {
+                // La revisa un agente: avisa él con su decisión (o, si escala, la asignación a una persona).
+                if (issues.agentReviews(e.issueKey())) return;
                 String body = "«" + issue.title() + "» llegó a «" + column + "». Apruébalo o recházalo con un motivo desde el tablero.";
                 for (UUID person : approvers(project, stage.get(), e.issueKey(), e.actorId())) {
                     notifications.enqueue(e.workspaceId(), person, NoticeKind.GATE, e.issueKey() + " · espera tu aprobación en «" + column + "»", body,
@@ -111,6 +114,30 @@ class NoticeRouter {
                 notifications.enqueueGroups(e.workspaceId(), NoticeKind.PLAN, e.issueKey() + " · el reparto de " + waiting.size() + " tareas espera aprobación",
                         body, link(e.projectKey(), e.issueKey()));
             }
+        });
+    }
+
+    /**
+     * Lo que decidió un agente revisor en una puerta: a quien supervisa la tarjeta (o a los dueños) y a los grupos. Así
+     * una puerta en automático no pasa en silencio: se sabe qué se aprobó, qué se fusionó y qué se devolvió y por qué.
+     */
+    @Async
+    @TransactionalEventListener(fallbackExecution = true)
+    void on(GateReviewed e) {
+        safely(e.workspaceId(), () -> {
+            IssueContext issue = issues.context(e.issueKey()).orElse(null);
+            if (issue == null) return;
+            String what = switch (e.verdict()) {
+                case GateReviewed.MERGED -> "aprobó y fusionó";
+                case GateReviewed.RETURNED -> "devolvió";
+                default -> "aprobó";
+            };
+            String subject = e.issueKey() + " · " + e.agentName() + " " + what + " en «" + e.gateName() + "»";
+            String body = "«" + issue.title() + "»\n\n" + excerpt(e.summary());
+            for (UUID person : supervisorOrOwners(e.projectKey(), e.issueKey(), null)) {
+                notifications.enqueue(e.workspaceId(), person, NoticeKind.REVIEW, subject, body, link(e.projectKey(), e.issueKey()));
+            }
+            notifications.enqueueGroups(e.workspaceId(), NoticeKind.REVIEW, subject, body, link(e.projectKey(), e.issueKey()));
         });
     }
 

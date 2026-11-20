@@ -8,7 +8,7 @@ public record TelegramGroup(UUID id, UUID workspaceId, long chatId, String title
     public boolean wants(NoticeKind kind) {
         return switch (kind) {
             case ASSIGNED -> onAssigned;
-            case GATE -> onGates;
+            case GATE, REVIEW -> onGates;
             case PLAN -> onPlans;
             case BILLING, BUDGET -> false;
             case TEST -> true;

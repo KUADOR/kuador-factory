@@ -6,6 +6,8 @@ public enum NoticeKind {
     ASSIGNED,
     /** Un issue espera su aprobación en una puerta. */
     GATE,
+    /** Un agente revisor cerró una puerta: la aprobó (y fusionó) o la devolvió. Sigue la preferencia de las puertas. */
+    REVIEW,
     /** El reparto de tareas de una épica espera su aprobación. */
     PLAN,
     /** Cobros: el plan vence pronto, venció o llegó un pago (recibo). Siempre se envía. */

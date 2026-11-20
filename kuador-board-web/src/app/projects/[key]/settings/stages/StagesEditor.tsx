@@ -268,7 +268,17 @@ function ReviewFields({
       {mode !== "PERSON" && (
         <div className="mt-1 flex flex-col gap-2">
           <p className="text-xs text-fg-muted">
-            Al guardar se suma al equipo el <strong>Agente Revisor de PR</strong>. El merge sigue siendo de una persona.
+            Al guardar se suma al equipo el <strong>Agente Revisor de PR</strong>.
+          </p>
+          <Switch
+            checked={!!review.merge}
+            onChange={(merge) => onChange({ ...review, mode, merge })}
+            label="Al aprobar, fusionar el PR"
+          />
+          <p className="text-xs text-fg-faint">
+            {review.merge
+              ? "El tablero fusiona lo que el agente revisó. Con conflictos la devuelve; lo dudoso te lo deja a ti."
+              : "El agente aprueba o devuelve; el merge lo hace una persona."}
           </p>
           {mode === "AGENT_ESCALATE" && (
             <>

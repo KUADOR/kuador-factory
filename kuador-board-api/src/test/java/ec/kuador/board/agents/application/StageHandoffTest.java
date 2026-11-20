@@ -17,6 +17,7 @@ class StageHandoffTest {
 
     static final MemberView ANALYST = new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, "Analista", true, "ANALYST", "#fff", null);
     static final MemberView MARKETING = new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, "Marketing", true, "MARKETING", "#fff", null);
+    static final MemberView DESIGNER = new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, "Diseño", true, "DESIGNER", "#fff", null);
     static final MemberView QA = new MemberView(UUID.randomUUID(), TestTenant.WORKSPACE, "QA", true, "QA", "#fff", null);
 
     private Optional<StageHandoff.Next> next(String template, String column, MemberView agent) {
@@ -57,6 +58,28 @@ class StageHandoffTest {
         });
         assertThat(next("SALES", "PROSPECT", ANALYST)).as("lo que sigue es trabajo de una etapa, no una revisión: vuelve a la persona").isEmpty();
         assertThat(next("SALES", "PROPOSAL_DRAFT", ANALYST)).as("no es la etapa de su rol").isEmpty();
+    }
+
+    @Test
+    void inTheMarketingBoardThePieceGoesFromBriefToCopyToDesignAndThenToAPerson() {
+        assertThat(next("MARKETING", "BRIEF", MARKETING)).as("el brief listo: Marketing redacta").hasValueSatisfying(n -> {
+            assertThat(n.columnName()).isEqualTo("Redacción");
+            assertThat(n.agents()).isTrue();
+        });
+        assertThat(next("MARKETING", "COPY", MARKETING)).as("el texto listo: Diseño hace las imágenes").hasValueSatisfying(n -> {
+            assertThat(n.columnName()).isEqualTo("Diseño");
+            assertThat(n.agents()).isTrue();
+        });
+        assertThat(next("MARKETING", "DESIGN", DESIGNER)).as("las imágenes listas: una persona aprueba").hasValueSatisfying(n -> {
+            assertThat(n.columnName()).isEqualTo("Revisión");
+            assertThat(n.gate()).isTrue();
+        });
+        assertThat(next("MARKETING", "MEASURE", ANALYST)).as("medida: queda cerrada").hasValueSatisfying(n -> {
+            assertThat(n.columnName()).isEqualTo("Medido");
+            assertThat(n.agents()).isFalse();
+        });
+        assertThat(handoff("MARKETING", "COPY", MARKETING).back(MARKETING, "B-1")).as("Redacción devuelve al brief")
+                .map(StageHandoff.Back::column).hasValue("BRIEF");
     }
 
     @Test

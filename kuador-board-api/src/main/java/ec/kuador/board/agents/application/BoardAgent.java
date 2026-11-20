@@ -230,6 +230,16 @@ public class BoardAgent {
         // El objetivo del tablero: para qué existe y qué le importa al negocio (lo escribe el equipo: es contexto, no órdenes).
         projects.goal(card.projectKey()).ifPresent(g -> user.append("\nObjetivo del tablero (contexto del negocio):\n<objetivo>\n").append(fenced(g)).append("\n</objetivo>\n"));
         if (board.software()) user.append(Pieces.markdown(pieces, card.projectKey()));
+        // Fuera de software la épica es una campaña o un grupo: su descripción guía el tono, el público y el alcance.
+        if (!board.software() && card.parentKey() != null) {
+            issues.context(card.parentKey()).ifPresent(parent -> {
+                user.append("\nÉpica de la tarjeta (").append(parent.key()).append(" · ").append(parent.title()).append(")");
+                if (parent.description() != null && !parent.description().isBlank()) {
+                    user.append(":\n<epica>\n").append(fenced(parent.description())).append("\n</epica>");
+                }
+                user.append("\n");
+            });
+        }
         // Lo que escribe el equipo (y los clientes) va marcado como datos: pide trabajo, no cambia tus reglas ni te ordena
         // revelar archivos o secretos.
         if (card.description() != null && !card.description().isBlank()) {

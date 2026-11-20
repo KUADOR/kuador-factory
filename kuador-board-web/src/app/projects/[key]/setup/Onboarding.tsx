@@ -444,13 +444,19 @@ function stepDescription(step: StepId, project: Project): string {
  */
 function FirstRequest({ project, agents, aiReady }: { project: Project; agents: TeamAgent[]; aiReady: boolean }) {
   const router = useRouter();
-  const analyst = agents.find((a) => a.role === "ANALYST") ?? agents[0];
-  const [agentId, setAgentId] = useState<string | null>(analyst?.id ?? null);
-  const [title, setTitle] = useState(analyst?.role === "ANALYST" ? "Informe de ventas del último mes" : "");
+  // En Marketing el primer pedido es una pieza: entra en el Brief y sigue sola a Redacción y Diseño hasta tu revisión.
+  const marketing = project.templateKey === "MARKETING";
+  const first = (marketing && agents.find((a) => a.role === "MARKETING")) || agents.find((a) => a.role === "ANALYST") || agents[0];
+  const [agentId, setAgentId] = useState<string | null>(first?.id ?? null);
+  const [title, setTitle] = useState(
+    first?.role === "MARKETING" ? "Post de LinkedIn para presentar lo que hacemos" : first?.role === "ANALYST" ? "Informe de ventas del último mes" : "",
+  );
   const [description, setDescription] = useState(
-    analyst?.role === "ANALYST"
-      ? "Con el Excel adjunto, arma un informe en PDF de las ventas diarias del último mes: total del mes, promedio por día, los mejores y peores días, los productos que más se vendieron y una comparación con el mes anterior si los datos lo permiten."
-      : "",
+    first?.role === "MARKETING"
+      ? "Un post para LinkedIn que presente nuestro producto a quienes podrían comprarlo: qué problema resuelve, para quién y una llamada a pedir una demo. Con una imagen de 1200×627. Adjunto el logo y capturas del producto."
+      : first?.role === "ANALYST"
+        ? "Con el Excel adjunto, arma un informe en PDF de las ventas diarias del último mes: total del mes, promedio por día, los mejores y peores días, los productos que más se vendieron y una comparación con el mes anterior si los datos lo permiten."
+        : "",
   );
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -484,7 +490,7 @@ function FirstRequest({ project, agents, aiReady }: { project: Project; agents: 
             assigneeId: null,
             parentKey: null,
             labels: [],
-            status: project.columns[0].key,
+            status: marketing ? startColumn(project) : project.columns[0].key,
           });
           if (!created.ok) return setError(created.error);
           const key = created.data.key;

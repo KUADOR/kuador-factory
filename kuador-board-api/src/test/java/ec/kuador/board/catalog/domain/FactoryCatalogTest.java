@@ -17,7 +17,7 @@ class FactoryCatalogTest {
 
     @Test
     void bringsTheExpectedDefaults() {
-        assertThat(factory.workflowTemplates()).extracting(t -> t.key()).containsExactly("SOFTWARE", "SOFTWARE_FACTORY", "SALES", "TASKS");
+        assertThat(factory.workflowTemplates()).extracting(t -> t.key()).containsExactly("SOFTWARE", "SOFTWARE_FACTORY", "SALES", "MARKETING", "TASKS");
         assertThat(factory.methodologies()).extracting(Methodology::key).containsExactly("SDD", "ODD", "FREE");
         assertThat(factory.roles()).extracting(AgentRole::key)
                 .contains("PRODUCT_OWNER", "ARCHITECT", "BACKEND", "FRONTEND", "QA", "DEVOPS", "RELEASE", "MARKETING");
@@ -50,7 +50,7 @@ class FactoryCatalogTest {
         assertThat(t.stages()).allSatisfy(s -> assertThat(roles).containsAll(s.roles()));
         assertThat(t.transitions()).isNotEmpty();
         assertThat(factory.addedAfter(2)).filteredOn(e -> e.getKey() == CatalogType.WORKFLOW_TEMPLATE)
-                .extracting(e -> e.getValue()).containsExactly("SOFTWARE_FACTORY");
+                .extracting(e -> e.getValue()).containsExactly("SOFTWARE_FACTORY", "MARKETING");
     }
 
     @Test
@@ -67,7 +67,10 @@ class FactoryCatalogTest {
         assertThat(factory.addedAfter(6)).extracting(e -> e.getValue()).contains("API_SPRING_3", "MONOLITH_SPRING", "MONOLITH_LARAVEL", "MONOLITH_NEXTJS");
         assertThat(factory.componentTemplates()).filteredOn(c -> c.kind() == ec.kuador.board.catalog.ComponentTemplate.Kind.MONOLITH).hasSize(6);
         // La versión 9 suma la app móvil Flutter: el job «ci» lo exige la rama protegida y lo trae el CI del tablero.
-        assertThat(factory.addedAfter(8)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("COMPONENT_TEMPLATE:MOBILE_FLUTTER");
+        assertThat(factory.addedAfter(8)).extracting(e -> e.getKey().name() + ":" + e.getValue()).first().isEqualTo("COMPONENT_TEMPLATE:MOBILE_FLUTTER");
+        // La versión 10 suma la plantilla Marketing y el agente de Diseño que hace sus imágenes.
+        assertThat(factory.addedAfter(9)).extracting(e -> e.getKey().name() + ":" + e.getValue())
+                .containsExactly("WORKFLOW_TEMPLATE:MARKETING", "AGENT_ROLE:DESIGNER");
         assertThat(factory.componentTemplates()).filteredOn(c -> c.key().equals("MOBILE_FLUTTER")).singleElement().satisfies(c -> {
             assertThat(c.kind()).isEqualTo(ec.kuador.board.catalog.ComponentTemplate.Kind.MOBILE);
             assertThat(c.commands().test()).isEqualTo("flutter analyze && flutter test");

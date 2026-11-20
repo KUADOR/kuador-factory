@@ -6,7 +6,7 @@ import { ensureDirs, LOGS, PAUSE, requireConfig, save, SECRETS, WORK, writeState
 import { keepAwake, osName } from "./service.js";
 import { forget, remember, resumable } from "./sessions.js";
 import { ask, launch, outcome } from "./tools.js";
-import { cleanup, isRepo, prepare } from "./workdir.js";
+import { cleanup, freeBytes, gb, isRepo, minFree, prepare, pruneDocker, slim } from "./workdir.js";
 
 const HEARTBEAT_MS = 30_000;
 const RENEW_MS = 60_000;
@@ -38,6 +38,8 @@ export async function start() {
   let pumping = false;
   let timer = null;
   let stopping = false;
+  let diskFull = false;
+  let squeezedAt = 0;
 
   const state = () =>
     writeState({
@@ -47,6 +49,7 @@ export async function start() {
       pausedUntil: pausedUntil > Date.now() ? new Date(pausedUntil).toISOString() : null,
       capacity: machine.capacity,
       roles: machine.roles,
+      diskFull,
       jobs: [...jobs.values()].map((j) => ({ issue: j.claim.issueKey, title: j.claim.title, role: j.claim.roleName, since: j.started })),
     });
 
@@ -74,7 +77,22 @@ export async function start() {
     }
   };
 
-  const canTake = () => !stopping && !machine.paused && !existsSync(PAUSE) && Date.now() >= pausedUntil && jobs.size < machine.capacity;
+  /** Con poco disco primero se limpia; si aun así no alcanza, no se toma trabajo hasta que haya espacio. */
+  const roomOnDisk = () => {
+    if (freeBytes() >= minFree(config)) return (diskFull = false), true;
+    if (Date.now() - squeezedAt < 10 * 60_000) return false;
+    squeezedAt = Date.now();
+    const r = cleanup(config, new Set(jobs.keys()), { keepDays: 0, log });
+    if (r.freed) log(`Poco disco: se liberaron ${gb(r.freed)}.`);
+    const free = freeBytes();
+    if (free >= minFree(config)) return (diskFull = false), true;
+    if (!diskFull) log(`Disco casi lleno (${gb(free)} libres, mínimo ${gb(minFree(config))}): no se toman tarjetas hasta liberar espacio.`);
+    diskFull = true;
+    return false;
+  };
+
+  const canTake = () =>
+    !stopping && !machine.paused && !existsSync(PAUSE) && Date.now() >= pausedUntil && jobs.size < machine.capacity && roomOnDisk();
 
   /** Varios avisos juntos cuentan como uno; con más trabajo en curso se espera un poco más (así se reparte con el equipo). */
   const schedule = () => {
@@ -127,7 +145,7 @@ export async function start() {
     const started = new Date().toISOString();
     let work;
     try {
-      work = prepare(config, claim);
+      work = prepare(config, claim, log);
     } catch (e) {
       log(`${claim.issueKey}: no se pudo preparar la carpeta de trabajo: ${e.message}`);
       client.release(config.machineId, claim.issueKey, "FAILED", `No se pudo preparar la carpeta: ${e.message}`).catch(() => {});
@@ -182,6 +200,14 @@ export async function start() {
       stream.end();
       rmSync(join(SECRETS, `${claim.issueKey}.json`), { force: true });
       jobs.delete(claim.issueKey);
+      // Lo que la compilación dejó (node_modules, build, target...) se borra al terminar; el código y la rama quedan.
+      try {
+        const freed = slim(work.dir);
+        if (freed > 100 * 1024 ** 2) log(`${claim.issueKey}: se liberaron ${gb(freed)} de compilación.`);
+      } catch (e) {
+        log(`${claim.issueKey}: no se pudo limpiar la compilación (${e.message}).`);
+      }
+      pruneDocker(config).catch(() => {});
       if (!job.lost && !stopping) {
         const r = job.timedOut ? { outcome: "TIMEOUT", message: `Pasó el tiempo máximo de ${config.timeoutMinutes ?? 60} minutos.` } : outcome(result);
         // La conversación queda para la próxima vuelta de esta tarjeta con este rol.
@@ -242,7 +268,12 @@ export async function start() {
   }
   setInterval(() => heartbeat(), HEARTBEAT_MS);
   setInterval(schedule, FALLBACK_MS);
-  setInterval(() => cleanup(config, new Set(jobs.keys())), 6 * 3600_000);
+  const sweep = () => {
+    const r = cleanup(config, new Set(jobs.keys()), { log });
+    if (r.freed || r.removed.length) log(`Limpieza: ${r.removed.length} carpeta(s) de tarjetas borradas, ${gb(r.freed)} liberados.`);
+  };
+  sweep();
+  setInterval(sweep, 6 * 3600_000);
   listen();
   schedule();
 }

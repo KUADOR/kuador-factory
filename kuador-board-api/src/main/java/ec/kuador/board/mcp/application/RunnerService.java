@@ -77,7 +77,7 @@ public class RunnerService {
     /** Lo que el runner necesita para lanzar el cliente de IA con esa tarjeta. */
     public record Claim(String issueKey, String projectKey, String projectKind, String title, String role, String roleName, boolean worksOnCode,
             UUID agentId, String agentName, String model, String effort, String prompt, String instructions, List<String> allowedTools,
-            String mcpServer, String mcpUrl, long leaseSeconds, String runToken, int reworkCount, String resumePrompt) {}
+            String mcpServer, String mcpUrl, long leaseSeconds, String runToken, int reworkCount, String resumePrompt, List<String> repositories) {}
 
     private final RunnerStore store;
     private final RunnerHub hub;
@@ -102,6 +102,27 @@ public class RunnerService {
     void setZone(String zone) {
         this.zone = java.time.ZoneId.of(zone);
     }
+    private ec.kuador.board.sync.RepositoriesApi repositories;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setRepositories(ec.kuador.board.sync.RepositoriesApi repositories) {
+        this.repositories = repositories;
+    }
+
+    /**
+     * Los repositorios del tablero («owner/repo»): el runner hace su copia de trabajo desde uno que ya tenga (o lo clona
+     * una sola vez), en vez de que el agente clone el repo en cada tarjeta.
+     */
+    private List<String> repositoriesOf(ProjectView project) {
+        if (!project.software() || repositories == null) return List.of();
+        try {
+            return repositories.pieces(project.key()).stream().map(ec.kuador.board.sync.RepositoriesApi.Piece::repository)
+                    .filter(r -> r != null && !r.isBlank()).distinct().toList();
+        } catch (RuntimeException e) {
+            return List.of();
+        }
+    }
+
     /** Cuándo vio el reparto por primera vez cada tarjeta libre (para la preferencia de la épica). */
     private final Map<String, Instant> firstSeen = new ConcurrentHashMap<>();
 
@@ -283,7 +304,7 @@ public class RunnerService {
         AgentKit.Connection c = kit.connection();
         return new Claim(item.key(), item.projectKey(), project.kind().name(), item.title(), r.key(), r.name(), r.worksOnCode(), agent.id(), agent.name(),
                 profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds(), runToken,
-                item.reworkCount(), resume);
+                item.reworkCount(), resume, repositoriesOf(project));
     }
 
     // ---- Trabajos de IA de la persona (sin tarjeta) ----

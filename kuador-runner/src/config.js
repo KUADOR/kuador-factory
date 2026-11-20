@@ -9,6 +9,8 @@ export const STATE = join(HOME, "state.json");
 export const PAUSE = join(HOME, "paused");
 export const LOGS = join(HOME, "logs");
 export const WORK = join(HOME, "work");
+/** Los clones que hace el runner cuando un tablero no tiene su repo vinculado: uno por repositorio, no por tarjeta. */
+export const REPOS = join(HOME, "repos");
 export const SECRETS = join(HOME, "mcp");
 export const APP = join(HOME, "app");
 

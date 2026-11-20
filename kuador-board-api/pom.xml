@@ -19,11 +19,11 @@
 
     <properties>
         <java.version>25</java.version>
-        <spring-modulith.version>2.1.1</spring-modulith.version>
-        <springdoc.version>3.1.1</springdoc.version>
-        <anthropic.version>3.3.0</anthropic.version>
+        <spring-modulith.version>2.1.2</spring-modulith.version>
+        <springdoc.version>3.2.0</springdoc.version>
+        <anthropic.version>3.9.0</anthropic.version>
         <testcontainers.version>2.0.5</testcontainers.version>
-        <awssdk.version>2.46.7</awssdk.version>
+        <awssdk.version>2.59.1</awssdk.version>
     </properties>
 
     <dependencyManagement>
@@ -120,27 +120,27 @@
         <dependency>
             <groupId>org.dhatim</groupId>
             <artifactId>fastexcel-reader</artifactId>
-            <version>0.19.0</version>
+            <version>0.20.2</version>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <version>2.3.232</version>
+            <version>2.5.252</version>
         </dependency>
         <dependency>
             <groupId>com.github.librepdf</groupId>
             <artifactId>openpdf</artifactId>
-            <version>2.2.2</version>
+            <version>3.0.5</version>
         </dependency>
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
-            <version>3.0.7</version>
+            <version>3.0.8</version>
         </dependency>
         <dependency>
             <groupId>org.dhatim</groupId>
             <artifactId>fastexcel</artifactId>
-            <version>0.19.0</version>
+            <version>0.20.2</version>
             <scope>test</scope>
         </dependency>
         <!-- Catálogo de fábrica (catalog/defaults.yaml) -->
@@ -182,7 +182,7 @@
             <dependency>
             <groupId>com.icegreen</groupId>
             <artifactId>greenmail-junit5</artifactId>
-            <version>2.1.14</version>
+            <version>2.1.15</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

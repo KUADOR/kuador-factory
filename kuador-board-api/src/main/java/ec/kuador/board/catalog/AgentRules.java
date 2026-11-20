@@ -30,16 +30,22 @@ public final class AgentRules {
 
     /** Nombre del idioma («es» → «español»). */
     /**
-     * Reglas de todo proyecto de software (agentes del tablero y locales): las piezas mandan sobre el stack y el
-     * documento de Despliegue se mantiene vivo en el mismo PR que cambia cómo se despliega.
+     * Reglas de todo proyecto de software (agentes del tablero y locales): las piezas mandan sobre el stack y cada PR que
+     * cambia cómo se despliega deja su nota en un archivo propio ({@link #DEPLOYMENT_CHANGES}); el release las pasa al
+     * documento de Despliegue. Antes cada PR sumaba una fila al final de la misma tabla y los PR en paralelo chocaban.
      */
+    /** Carpeta de las notas de despliegue por tarjeta (una por PR, sin tocar el documento común). */
+    public static final String DEPLOYMENT_CHANGES = "docs/deployment/changes/";
+
     public static List<String> softwareProject(boolean hasDeployment) {
         List<String> rules = new java.util.ArrayList<>();
         rules.add("El stack lo definen las piezas del proyecto («pieces»): si un documento dice otra cosa, manda la pieza; dilo en tu entrega para que se corrija.");
         rules.add(hasDeployment
                 ? "Si tu trabajo agrega o cambia un servicio, una dependencia (p. ej. Keycloak, Grafana), una variable, un secreto, un puerto, un dominio o un"
-                        + " paso de despliegue, actualiza «Despliegue» (docs/deployment.md) en el mismo PR y suma una fila en su sección «Cambios» con la clave"
-                        + " de la tarjeta. Nunca escribas valores de secretos. Si haces el plan, di en él si cambia el despliegue."
+                        + " paso de despliegue, no edites «Despliegue» (docs/deployment.md): en el mismo PR crea " + DEPLOYMENT_CHANGES + "<clave de la tarjeta>.md"
+                        + " (p. ej. KUA-12.md) con qué cambia y qué hay que hacer al desplegar en cada entorno. Así los PR en paralelo no chocan. Nunca"
+                        + " escribas valores de secretos. Si haces el plan, di en él si cambia el despliegue. Si preparas el release, antes del PR de develop a"
+                        + " main pasa esas notas a «Despliegue» (en sus secciones y una fila por tarjeta en «Cambios») y borra los archivos, en un PR a develop."
                 : "Si tu trabajo cambia cómo se despliega el proyecto (servicios, dependencias, variables, secretos), dilo en tu entrega: el proyecto todavía"
                         + " no tiene documento de Despliegue.");
         return List.copyOf(rules);

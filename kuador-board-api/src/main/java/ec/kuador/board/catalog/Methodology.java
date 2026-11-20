@@ -42,8 +42,8 @@ public record Methodology(
 
     /**
      * Despliegue: documento vivo del proyecto, en cualquier metodología. Dice dónde y cómo se despliega cada entorno
-     * (develop → pruebas, main → producción), con sus dependencias, variables y secretos, y se actualiza en el mismo PR
-     * que cambia el despliegue (p. ej. sumar Grafana o Keycloak). Vive en el código y no en el catálogo para que llegue
+     * (develop → pruebas, main → producción), con sus dependencias, variables y secretos. Cada PR que cambia el despliegue
+     * (p. ej. sumar Grafana o Keycloak) deja su nota en {@link AgentRules#DEPLOYMENT_CHANGES} y el release las pasa aquí. Vive en el código y no en el catálogo para que llegue
      * también a los espacios que ya existían.
      */
     public static final DocumentDef DEPLOYMENT = new DocumentDef(DEPLOYMENT_KIND, "Despliegue", DocumentDef.Scope.PROJECT, false,
@@ -51,7 +51,8 @@ public record Methodology(
             "docs/deployment.md", """
                     # Despliegue de {project}
 
-                    Documento vivo: se actualiza en el mismo Pull Request que cambia cómo se despliega.
+                    Documento vivo. Cada Pull Request que cambia cómo se despliega deja su nota en `docs/deployment/changes/<tarjeta>.md`;
+                    al preparar cada release esas notas se pasan aquí (y a «Cambios») y se borran.
 
                     ## Entornos
 
@@ -118,8 +119,9 @@ public record Methodology(
             "DEVOPS", DocumentDef.Condition.ALWAYS,
             "Documento vivo del despliegue. Básate en las piezas del proyecto y en lo que dice la persona sobre su infraestructura; lo que no sepas,"
                     + " márcalo [POR DEFINIR]. develop despliega a pruebas y main a producción. Nunca escribas valores de secretos: solo sus nombres y"
-                    + " dónde viven. Si tu trabajo agrega o cambia un servicio, una dependencia, una variable, un secreto, un puerto, un dominio o un paso"
-                    + " de despliegue, actualiza este documento en el mismo PR y suma una fila en «Cambios» con la clave de la tarjeta.");
+                    + " dónde viven. Al redactarlo o actualizarlo, incorpora las notas pendientes de " + AgentRules.DEPLOYMENT_CHANGES + " (una fila por"
+                    + " tarjeta en «Cambios»). Un cambio de una tarjeta no edita este documento: deja su nota en " + AgentRules.DEPLOYMENT_CHANGES
+                    + "<clave>.md, para que los PR en paralelo no choquen.");
 
     private static Optional<DocumentDef> builtIn(String kind) {
         return DEPLOYMENT_KIND.equals(kind) ? Optional.of(DEPLOYMENT) : Optional.empty();

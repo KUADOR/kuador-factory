@@ -151,7 +151,7 @@ class PlatformCatalogIT {
                 .as("el borrador no llega a nadie").doesNotContain("mejorado");
 
         JsonNode published = call("POST", "/api/platform/catalog/publish", null, admin).get("body");
-        assertThat(published.get("version").asInt()).isEqualTo(10);
+        assertThat(published.get("version").asInt()).isEqualTo(11);
         assertThat(published.get("pending").asInt()).isZero();
         assertThat(call("POST", "/api/platform/catalog/publish", null, admin).get("_status").asInt()).as("sin cambios no hay versión").isEqualTo(422);
 

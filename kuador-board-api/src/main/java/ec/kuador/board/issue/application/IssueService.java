@@ -771,6 +771,12 @@ public class IssueService implements IssueApi {
     // ---- Puertas que revisa un agente ----
 
     /** La tarjeta está en una puerta que, para ella, revisa un agente, y hay un agente con ese rol en el espacio. */
+    @Override
+    @Transactional(readOnly = true)
+    public boolean agentReviews(String issueKey) {
+        return issues.findByKey(issueKey).map(i -> agentReviewed(i, project(i.projectKey()))).orElse(false);
+    }
+
     private boolean agentReviewed(Issue i, ProjectView project) {
         Optional<StageDef> stage = project.stage(i.status());
         if (stage.isEmpty() || !stage.get().gate() || stage.get().reviewFor(i.reviewBy()) == StageDef.ReviewMode.PERSON) return false;
@@ -845,7 +851,7 @@ public class IssueService implements IssueApi {
         String next = project.nextAfter(issue.status()).map(ColumnDef::key).orElse(null);
         return Optional.of(new GateReview(mode.name(), columnName(project, issue.status()), back == null ? null : columnName(project, back),
                 next == null ? null : columnName(project, next), stage.get().agentReview().sensitive(), stage.get().agentReview().maxChangedLines(),
-                approverNames(project, stage.get())));
+                approverNames(project, stage.get()), stage.get().review() != null && stage.get().review().merges()));
     }
 
     @Override

@@ -47,15 +47,27 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
      * Revisión de la puerta por un agente. {@code reviewerRole}: el rol del agente (nulo = {@link #DEFAULT_REVIEWER});
      * {@code sensitive}: rutas que siempre escalan a una persona (patrones glob, p. ej. {@code **}{@code /db/migration/**});
      * {@code maxChangedLines}: más líneas cambiadas que esto escala (nulo o 0 = sin límite). Las dos últimas valen en
-     * {@link ReviewMode#AGENT_ESCALATE}.
+     * {@link ReviewMode#AGENT_ESCALATE}. {@code merge}: cuando el agente aprueba, el tablero fusiona los PR de la tarjeta
+     * (exactamente los commits que revisó); si no puede, la devuelve (conflictos) o la deja a una persona.
      */
-    public record AgentReview(ReviewMode mode, String reviewerRole, List<String> sensitive, Integer maxChangedLines) {
+    public record AgentReview(ReviewMode mode, String reviewerRole, List<String> sensitive, Integer maxChangedLines, Boolean merge) {
 
         public AgentReview {
             mode = mode == null ? ReviewMode.PERSON : mode;
             reviewerRole = reviewerRole == null || reviewerRole.isBlank() ? DEFAULT_REVIEWER : reviewerRole.strip();
             sensitive = sensitive == null ? List.of() : sensitive.stream().filter(x -> x != null && !x.isBlank()).map(String::strip).distinct().toList();
             maxChangedLines = maxChangedLines == null || maxChangedLines <= 0 ? null : maxChangedLines;
+            // Puertas guardadas antes de este campo no lo traen (null): no fusionan.
+            merge = Boolean.TRUE.equals(merge);
+        }
+
+        public AgentReview(ReviewMode mode, String reviewerRole, List<String> sensitive, Integer maxChangedLines) {
+            this(mode, reviewerRole, sensitive, maxChangedLines, false);
+        }
+
+        /** Si al aprobar el agente se fusionan los PR de la tarjeta. */
+        public boolean merges() {
+            return Boolean.TRUE.equals(merge);
         }
 
         /** Si un archivo cambiado cae en una ruta sensible. */

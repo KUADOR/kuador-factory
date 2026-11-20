@@ -58,6 +58,8 @@ export interface AgentReview {
   sensitive: string[];
   /** Más líneas cambiadas que esto pasa a una persona; null = sin límite. */
   maxChangedLines: number | null;
+  /** Al aprobar el agente, el tablero fusiona los PR de la tarjeta. */
+  merge?: boolean;
 }
 
 export interface WorkflowTemplate extends CatalogEntry {

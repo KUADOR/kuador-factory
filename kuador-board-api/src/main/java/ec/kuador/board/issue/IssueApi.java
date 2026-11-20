@@ -124,11 +124,25 @@ public interface IssueApi {
      * los nombres de la puerta, de a dónde se devuelve y a dónde avanza, las rutas sensibles, el límite de líneas y quién
      * aprueba si se escala. Vacío si no le toca.
      */
-    record GateReview(String mode, String gateName, String backName, String nextName, List<String> sensitive, Integer maxChangedLines, String approvers) {
+    /** {@code merge}: al aprobar, el tablero fusiona los PR de la tarjeta. */
+    record GateReview(String mode, String gateName, String backName, String nextName, List<String> sensitive, Integer maxChangedLines, String approvers,
+            boolean merge) {
+
+        public GateReview(String mode, String gateName, String backName, String nextName, List<String> sensitive, Integer maxChangedLines, String approvers) {
+            this(mode, gateName, backName, nextName, sensitive, maxChangedLines, approvers, false);
+        }
 
         public boolean escalates() {
             return "AGENT_ESCALATE".equals(mode);
         }
+    }
+
+    /**
+     * Si la tarjeta está en una puerta que cierra un agente revisor (y existe ese agente): el aviso de «espera tu
+     * aprobación» sobra; avisa el revisor con su decisión o, si escala, la asignación a una persona.
+     */
+    default boolean agentReviews(String issueKey) {
+        return false;
     }
 
     default Optional<GateReview> gateReview(String issueKey, UUID agentId) {

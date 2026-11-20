@@ -207,9 +207,10 @@ class AttachmentIT {
         assertThat(call("DELETE", "/api/projects/TMP?confirm=tmp", null, owner).status()).isEqualTo(204);
 
         assertThat(call("GET", "/api/projects/TMP", null, owner).status()).isEqualTo(404);
-        assertThat(call("GET", "/api/attachments/" + file + "/content", null, owner).status()).isEqualTo(404);
+        // Los adjuntos se borran en segundo plano: se espera a que terminen antes de pedir el archivo.
         for (int i = 0; i < 50 && count("select count(*) from attachment where issue_key = ?", key) > 0; i++) Thread.sleep(200);
         assertThat(count("select count(*) from attachment where issue_key = ?", key)).as("adjuntos del tablero").isZero();
+        assertThat(call("GET", "/api/attachments/" + file + "/content", null, owner).status()).isEqualTo(404);
         for (int i = 0; i < 50 && count("select count(*) from activity where project_key = ?", "TMP") > 0; i++) Thread.sleep(200);
         assertThat(count("select count(*) from activity where project_key = ?", "TMP")).as("actividad del tablero").isZero();
         assertThat(count("select count(*) from issue where project_key = ?", "TMP")).isZero();

@@ -1043,6 +1043,27 @@ public class IssueService implements IssueApi {
         return progress(move(issueKey, to.key(), Integer.MAX_VALUE, actorId));
     }
 
+    @Override
+    @Transactional
+    public Optional<String> returnForConflict(String issueKey, String note, UUID actorId) {
+        Optional<Issue> found = issues.findByKey(issueKey);
+        if (found.isEmpty() || note == null || note.isBlank()) return Optional.empty();
+        Issue issue = found.get();
+        ProjectView project = project(issue.projectKey());
+        if (project.column(issue.status()).map(c -> c.category() == ec.kuador.board.catalog.ColumnCategory.DONE).orElse(true)) return Optional.empty();
+        String body = "⚠️ **Conflicto con la rama destino**: " + note.strip();
+        if (lastComment(issue).map(c -> c.body().endsWith(body)).orElse(false)) return Optional.empty();
+        Optional<StageDef> gate = project.stage(issue.status()).filter(StageDef::gate);
+        Optional<String> back = gate.flatMap(g -> Optional.ofNullable(g.rejectTo()).or(() -> previousColumn(project, issue.status())));
+        if (back.isEmpty()) {
+            saveComment(issue, actorId, body, now());
+            return Optional.empty();
+        }
+        saveComment(issue, actorId, "**Devuelto a " + columnName(project, back.get()) + "**. " + body, now());
+        move(issueKey, back.get(), Integer.MAX_VALUE, actorId);
+        return back.map(k -> columnName(project, k));
+    }
+
     private Progress progress(Issue issue) {
         String name = projects.find(issue.projectKey()).map(p -> columnName(p, issue.status())).orElse(issue.status());
         return new Progress(issue.key(), issue.status(), name, issue.assigneeId());

@@ -345,6 +345,10 @@ public class BoardAgent {
      */
     private String approveAndMerge(MemberView agent, String projectKey, String issueKey, IssueApi.GateReview gate, ReviewCheck check, String text) {
         GateMerge.Result merged = GateMerge.merge(code, projectKey, issueKey, check.pulls());
+        // Lo fusionado puede dejar en conflicto otros PR: el vigilante de conflictos los revisa.
+        for (CodeReviewApi.PullDetail d : merged.merged()) {
+            events.publishEvent(new ec.kuador.board.sync.PullMerged(TenantContext.require(), projectKey, d.pull().repository(), d.pull().number(), agent.id()));
+        }
         return switch (merged.outcome()) {
             case MERGED -> {
                 tx.executeWithoutResult(s -> issues.reviewAs(issueKey, true,

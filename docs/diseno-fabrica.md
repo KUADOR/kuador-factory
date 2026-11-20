@@ -48,7 +48,7 @@ Backlog → Refinamiento → Aprobación → Diseño → Desarrollo → QA → R
 | Diseño *(opcional; SDD)* | Agente Arquitecto | `plan.md` validado contra la constitución. Decide Backend, Frontend o subtareas → Desarrollo |
 | Desarrollo | Agente Backend / Frontend | Rama `feature/KUA-8-…` con pruebas → QA |
 | QA | Agente QA | OK → el dev abre el PR a `develop` → Revisión PR · Falla → Desarrollo con evidencia |
-| **Revisión PR** | **Persona por defecto** (manual). En automático la revisa el Agente Revisor de PR y, con «Al aprobar, fusionar el PR», el tablero fusiona lo revisado (CI en verde, mismo commit); con conflictos la devuelve a Desarrollo y lo dudoso o sensible lo deja a una persona. Cada decisión se avisa (Telegram, correo, push) | Merge a `develop` |
+| **Revisión PR** | **Persona por defecto** (manual). En automático la revisa el Agente Revisor de PR y, con «Al aprobar, fusionar el PR», el tablero fusiona lo revisado (CI en verde, mismo commit); con conflictos la devuelve a Desarrollo y lo dudoso o sensible lo deja a una persona. Cada decisión se avisa (Telegram, correo, push). Tras cada fusión, los PR que quedaron en conflicto vuelven a Desarrollo | Merge a `develop` (método que permite el repo) |
 | **Release** | Agente Release prepara el PR `develop → main` y las notas; **persona aprueba** | Merge a `main` |
 
 Decisiones: PR a `develop` **configurable, humano por defecto**. Paso a `main` con **Agente Release y

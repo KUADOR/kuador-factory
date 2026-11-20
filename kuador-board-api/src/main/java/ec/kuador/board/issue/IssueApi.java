@@ -116,6 +116,15 @@ public interface IssueApi {
     /** Entrega el issue a una columna más adelante (p. ej. la revisión de un tablero sin etapas de trabajo). */
     Progress deliverTo(String issueKey, String column, String comment, UUID agentId);
 
+    /**
+     * El PR de la tarjeta quedó en conflicto después de fusionar otro: si espera en una puerta, vuelve a donde esa puerta
+     * rechaza (para que su autor actualice la rama); si se está trabajando, solo se comenta. No repite el aviso si el
+     * último comentario ya lo dice. Devuelve la columna a la que volvió, o vacío si solo se comentó (o nada).
+     */
+    default Optional<String> returnForConflict(String issueKey, String note, UUID actorId) {
+        return Optional.empty();
+    }
+
     /** Devuelve el issue a una columna anterior con el motivo. */
     Progress sendBack(String issueKey, String column, String reason, UUID actorId);
 

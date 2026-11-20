@@ -458,8 +458,9 @@ MCP · 5 desarrollo y QA · 6 release.
   pruebas, main → producción), infraestructura, dependencias (Keycloak, Grafana…), variables y secretos (solo
   nombres), paso a paso, CI/CD, respaldos y un registro de cambios. Se redacta con IA a partir de lo que
   cuentas de tu infraestructura (VPS con Dokploy, VPS vacía…) desde el asistente o *Documentos*, y al
-  actualizarlo la IA parte de la versión vigente. Los agentes lo actualizan en el mismo PR que cambia el
-  despliegue y anotan la tarjeta en «Cambios»; el plan del arquitecto dice si cambia. En un proyecto que ya
+  actualizarlo la IA parte de la versión vigente. Un PR que cambia el despliegue no edita el documento: deja
+  su nota en `docs/deployment/changes/<tarjeta>.md` (así los PR en paralelo no chocan) y el release pasa esas
+  notas al documento y a «Cambios»; el plan del arquitecto dice si cambia. En un proyecto que ya
   existe sale de lo que se ve en el repo (Dockerfile, compose, workflows, `.env.example`).
 - **Primera experiencia fuera de software**: el asistente de inicio de un tablero que no es de software
   pide la clave de IA, los avisos y un *primer pedido* (qué necesitas, archivos y para qué agente, en un

@@ -155,7 +155,7 @@ construye **una sola vez**, en `develop`; producción recibe esa misma imagen, y
 |---|---|---|---|
 | PR de una rama de trabajo → `develop` | Pruebas (API, web, runner) y escaneos | No | No |
 | Push a `develop` (al fusionar) | Pruebas, escaneos, construcción, escaneo de imagen y publicación | `sha-<commit>` y `develop` | Pruebas (entorno `staging`) |
-| PR `develop` → `main` | Pruebas y escaneos | No | No |
+| PR `develop` → `main` | Nada si develop ya publicó imágenes probadas de ese commit (solo lo verifica); si no, pruebas y escaneos | No | No |
 | Push a `main` (al fusionar el PR) | Solo valida: mismo código que develop e imagen existente | Reetiqueta la de develop: `latest` y `sha-<commit de main>` | Producción (entorno `production`) |
 | `hotfix/*` → `main` | Como no hay imagen de develop, el pipeline completo | `sha-<commit>` y `latest` | Producción |
 

@@ -40,6 +40,7 @@ test("reconoce el mismo repositorio escrito de distintas formas", () => {
   assert.equal(repoSlug("KUADOR/kuador-medical"), "kuador/kuador-medical");
   assert.equal(repoSlug("https://github.com/KUADOR/kuador-medical.git"), "kuador/kuador-medical");
   assert.equal(repoSlug("git@github.com:KUADOR/kuador-medical.git"), "kuador/kuador-medical");
+  assert.equal(repoSlug("C:\\Users\\ana\\KUADOR\\kuador-medical.git"), "kuador/kuador-medical");
   assert.equal(repoSlug(""), null);
 });
 

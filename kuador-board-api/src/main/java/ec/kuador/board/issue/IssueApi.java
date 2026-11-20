@@ -116,6 +116,15 @@ public interface IssueApi {
     /** Entrega el issue a una columna más adelante (p. ej. la revisión de un tablero sin etapas de trabajo). */
     Progress deliverTo(String issueKey, String column, String comment, UUID agentId);
 
+    /**
+     * El PR de la tarjeta quedó en conflicto después de fusionar otro: si espera en una puerta, vuelve a donde esa puerta
+     * rechaza (para que su autor actualice la rama); si se está trabajando, solo se comenta. No repite el aviso si el
+     * último comentario ya lo dice. Devuelve la columna a la que volvió, o vacío si solo se comentó (o nada).
+     */
+    default Optional<String> returnForConflict(String issueKey, String note, UUID actorId) {
+        return Optional.empty();
+    }
+
     /** Devuelve el issue a una columna anterior con el motivo. */
     Progress sendBack(String issueKey, String column, String reason, UUID actorId);
 
@@ -124,11 +133,25 @@ public interface IssueApi {
      * los nombres de la puerta, de a dónde se devuelve y a dónde avanza, las rutas sensibles, el límite de líneas y quién
      * aprueba si se escala. Vacío si no le toca.
      */
-    record GateReview(String mode, String gateName, String backName, String nextName, List<String> sensitive, Integer maxChangedLines, String approvers) {
+    /** {@code merge}: al aprobar, el tablero fusiona los PR de la tarjeta. */
+    record GateReview(String mode, String gateName, String backName, String nextName, List<String> sensitive, Integer maxChangedLines, String approvers,
+            boolean merge) {
+
+        public GateReview(String mode, String gateName, String backName, String nextName, List<String> sensitive, Integer maxChangedLines, String approvers) {
+            this(mode, gateName, backName, nextName, sensitive, maxChangedLines, approvers, false);
+        }
 
         public boolean escalates() {
             return "AGENT_ESCALATE".equals(mode);
         }
+    }
+
+    /**
+     * Si la tarjeta está en una puerta que cierra un agente revisor (y existe ese agente): el aviso de «espera tu
+     * aprobación» sobra; avisa el revisor con su decisión o, si escala, la asignación a una persona.
+     */
+    default boolean agentReviews(String issueKey) {
+        return false;
     }
 
     default Optional<GateReview> gateReview(String issueKey, UUID agentId) {

@@ -23,10 +23,12 @@ public class MergeService {
 
     private final IssueApi issues;
     private final CodeReviewApi code;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
-    MergeService(IssueApi issues, CodeReviewApi code) {
+    MergeService(IssueApi issues, CodeReviewApi code, org.springframework.context.ApplicationEventPublisher events) {
         this.issues = issues;
         this.code = code;
+        this.events = events;
     }
 
     public record Merged(String repository, int number, String commit, String status) {}
@@ -84,6 +86,9 @@ public class MergeService {
             }
         }
         String commit = code.merge(card.projectKey(), repository, number, pr.headSha(), issueKey + ": " + pr.pull().title() + " (#" + number + ")");
+        // Otros PR hacia la misma rama pueden haber quedado en conflicto: el vigilante de conflictos los revisa.
+        events.publishEvent(new ec.kuador.board.sync.PullMerged(ec.kuador.board.shared.tenant.TenantContext.require(), card.projectKey(),
+                pr.pull().repository(), number, actorId));
         String shortSha = commit.length() >= 7 ? commit.substring(0, 7) : commit;
         issues.addComment(issueKey, actorId, "🔀 Fusioné " + repository + " #" + number + " en la rama principal (" + shortSha + ").");
         String status = card.status();

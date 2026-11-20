@@ -29,8 +29,17 @@ public interface CodeHost {
     }
 
     /**
-     * Fusiona el PR (squash) solo si su último commit sigue siendo {@code headSha}: si llegó otro después de revisarlo,
-     * GitHub lo rechaza. Devuelve el commit resultante en la rama principal.
+     * Fusiona el PR solo si su último commit sigue siendo {@code headSha}: si llegó otro después de revisarlo, GitHub lo
+     * rechaza. Usa el método que el repo permite (squash si está habilitado; si no, merge commit; si no, rebase): así la
+     * regla vive en la configuración del repo y vale igual para quien fusiona en GitHub. Devuelve el commit resultante.
      */
     String merge(Access access, int number, String headSha, String title);
+
+    /**
+     * Si el PR se puede fusionar sin conflictos con su rama destino: vacío mientras GitHub todavía lo calcula (o si el
+     * host no lo informa), falso si hay conflictos.
+     */
+    default Optional<Boolean> mergeable(Access access, int number) {
+        return Optional.empty();
+    }
 }

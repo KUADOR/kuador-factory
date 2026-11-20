@@ -48,6 +48,13 @@ public class BoardAgent {
     private static final long MAX_INPUT_BYTES = 40L * 1024 * 1024;
     /** Herramienta del rol (Catálogo → Roles) para ejecutar código en el tablero: cálculos, gráficos, PDF, Excel. */
     public static final String CODE_EXECUTION = "CodeExecution";
+    /** Puerta que fusiona al aprobar: nadie más mira el código antes de que entre, así que el revisor exige más. */
+    static final String MERGE_ON_APPROVE = "En esta puerta, al aprobar, el tablero fusiona el PR sin que lo vea una persona: apruébalo solo si "
+            + "lo fusionarías tú. Exige código limpio y mantenible según la documentación del proyecto (AGENTS.md, arquitectura, guías) y "
+            + "los patrones que ya usa el repo: duplicación, complejidad sin justificar, nombres que no dicen lo que hacen, errores sin "
+            + "manejar, pruebas que no prueban el comportamiento o cambios fuera del alcance son motivo para devolver, con la corrección "
+            + "concreta. Lo que cambia producto, seguridad, datos personales o pagos, o lo que no puedes verificar, déjalo a una persona.";
+
     /** Historia suelta en la etapa que reparte: puede quedar entera o pasar a épica al repartirla. */
     static final String STORY_SPLIT = "Esta tarjeta es una historia sin épica. Si es un cambio chico, entrégala entera para que la construya un solo rol."
             + " Si el plan la divide en varias tareas, créalas con create_tasks: la historia pasa a ser épica (no le pidas a una persona que la convierta).";
@@ -68,10 +75,13 @@ public class BoardAgent {
     private final StageHandoff handoff;
     private final CodeReviewApi code;
     private final ec.kuador.board.sync.RepositoriesApi pieces;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     BoardAgent(AgentRunRepository runs, AiProviders providers, BoardTeam team, WorkspaceAi ai, IssueApi issues, ProjectApi projects, MemberApi members,
             CatalogApi catalog, AttachmentApi attachments, WorkspaceApi workspace, PlatformTransactionManager txManager, Clock clock,
-            io.micrometer.core.instrument.MeterRegistry metrics, CodeReviewApi code, ec.kuador.board.sync.RepositoriesApi repositories) {
+            io.micrometer.core.instrument.MeterRegistry metrics, CodeReviewApi code, ec.kuador.board.sync.RepositoriesApi repositories,
+            org.springframework.context.ApplicationEventPublisher events) {
+        this.events = events;
         this.code = code;
         this.pieces = repositories;
         this.runs = runs;
@@ -210,6 +220,7 @@ public class BoardAgent {
                             ? AgentRules.fill(rules.gateEscalate(), Map.of("aprobadores", g.approvers(),
                                     "sensibles", g.sensitive().isEmpty() ? "ninguna configurada" : String.join(", ", g.sensitive())))
                             : AgentRules.fill(rules.gateDecide(), Map.of("aprobadores", g.approvers())))));
+            if (g.merge()) all.add(MERGE_ON_APPROVE);
         } else {
             user.append(handoff.next(agent, issueKey)
                     .map(n -> "Al entregar, la tarjeta pasa a «" + n.columnName() + "»" + (n.gate() ? ", donde una persona la revisa y aprueba" : "") + ".\n")
@@ -296,6 +307,7 @@ public class BoardAgent {
         return switch (result.outcome()) {
             case SENT_BACK -> {
                 tx.executeWithoutResult(s -> issues.reviewAs(issueKey, false, text, agent.id()));
+                reviewed(agent, projectKey, issueKey, gate, ec.kuador.board.agents.GateReviewed.RETURNED, text);
                 yield "devolvió a " + nz(gate.backName(), "la etapa anterior");
             }
             case QUESTION -> {
@@ -311,20 +323,77 @@ public class BoardAgent {
                 ReviewCheck check = projectKey == null ? ReviewCheck.ok() : checkPulls(projectKey, issueKey, gate);
                 if (check.reject() != null) {
                     tx.executeWithoutResult(s -> issues.reviewAs(issueKey, false, check.reject() + "\n\nMi revisión:\n" + text, agent.id()));
+                    reviewed(agent, projectKey, issueKey, gate, ec.kuador.board.agents.GateReviewed.RETURNED, check.reject());
                     yield "devolvió a " + nz(gate.backName(), "la etapa anterior") + " (CI)";
                 }
-                if (check.escalate() != null && (gate.escalates() || check.always())) {
+                // Si la puerta fusiona, lo sensible o demasiado grande lo decide siempre una persona (aunque el modo no escale).
+                if (check.escalate() != null && (gate.escalates() || check.always() || gate.merge())) {
                     tx.executeWithoutResult(s -> issues.escalate(issueKey, "La aprobaría, pero " + check.escalate() + "\n\nMi revisión:\n" + text, agent.id()));
                     yield "dejó la puerta a una persona (" + check.escalate() + ")";
                 }
+                if (gate.merge() && !check.pulls().isEmpty()) yield approveAndMerge(agent, projectKey, issueKey, gate, check, text);
                 tx.executeWithoutResult(s -> issues.reviewAs(issueKey, true, "🔎 Revisión del agente:\n" + text + check.note(), agent.id()));
+                reviewed(agent, projectKey, issueKey, gate, ec.kuador.board.agents.GateReviewed.APPROVED, text);
                 yield "aprobó · pasó a " + nz(gate.nextName(), "la siguiente columna");
             }
         };
     }
 
-    /** Lo que el tablero comprueba antes de aprobar: {@code reject} devuelve, {@code escalate} deja a una persona, {@code note} se suma al comentario. */
-    record ReviewCheck(String reject, String escalate, String note, boolean always) {
+    /**
+     * La puerta fusiona al aprobar: el tablero fusiona los commits revisados. Con conflictos, la tarjeta vuelve a quien la
+     * desarrolló para que actualice su rama; si llegaron commits sin revisar o GitHub falla, decide una persona.
+     */
+    private String approveAndMerge(MemberView agent, String projectKey, String issueKey, IssueApi.GateReview gate, ReviewCheck check, String text) {
+        GateMerge.Result merged = GateMerge.merge(code, projectKey, issueKey, check.pulls());
+        // Lo fusionado puede dejar en conflicto otros PR: el vigilante de conflictos los revisa.
+        for (CodeReviewApi.PullDetail d : merged.merged()) {
+            events.publishEvent(new ec.kuador.board.sync.PullMerged(TenantContext.require(), projectKey, d.pull().repository(), d.pull().number(), agent.id()));
+        }
+        return switch (merged.outcome()) {
+            case MERGED -> {
+                tx.executeWithoutResult(s -> issues.reviewAs(issueKey, true,
+                        "🔎 Revisión del agente:\n" + text + check.note() + "\n\n🔀 Fusioné " + merged.detail() + ".", agent.id()));
+                reviewed(agent, projectKey, issueKey, gate, ec.kuador.board.agents.GateReviewed.MERGED, "Fusioné " + merged.detail() + ".\n\n" + text);
+                yield "aprobó y fusionó · pasó a " + nz(gate.nextName(), "la siguiente columna");
+            }
+            case CONFLICT -> {
+                String why = "La aprobaría, pero el PR tiene conflictos con su rama destino (otro cambio se fusionó antes). Actualiza tu rama "
+                        + "con la rama destino, resuelve los conflictos conservando los dos cambios, verifica que el CI quede en verde y vuelve a "
+                        + "entregar.\n\n" + merged.detail();
+                tx.executeWithoutResult(s -> issues.reviewAs(issueKey, false, why + "\n\nMi revisión:\n" + text, agent.id()));
+                reviewed(agent, projectKey, issueKey, gate, ec.kuador.board.agents.GateReviewed.RETURNED, why);
+                yield "devolvió a " + nz(gate.backName(), "la etapa anterior") + " (conflictos)";
+            }
+            case MOVED, FAILED -> {
+                String why = merged.outcome() == GateMerge.Outcome.MOVED
+                        ? "la aprobé, pero llegaron commits nuevos después de mi revisión y no los fusiono sin revisar"
+                        : "la aprobé, pero no pude fusionar";
+                tx.executeWithoutResult(s -> issues.escalate(issueKey, "Decide tú: " + why + " (" + merged.detail() + ").\n\nMi revisión:\n" + text, agent.id()));
+                yield "dejó la puerta a una persona (no pudo fusionar)";
+            }
+        };
+    }
+
+    /** Avisa la decisión del revisor (Telegram, correo, push). Un aviso que falla no cambia la decisión. */
+    private void reviewed(MemberView agent, String projectKey, String issueKey, IssueApi.GateReview gate, String verdict, String summary) {
+        if (projectKey == null) return;
+        try {
+            events.publishEvent(new ec.kuador.board.agents.GateReviewed(TenantContext.require(), projectKey, issueKey, agent.name(), gate.gateName(),
+                    verdict, summary));
+        } catch (RuntimeException e) {
+            log.warn("No se pudo avisar la revisión de {}: {}", issueKey, e.getMessage());
+        }
+    }
+
+    /**
+     * Lo que el tablero comprueba antes de aprobar: {@code reject} devuelve, {@code escalate} deja a una persona, {@code note} se suma al
+     * comentario. {@code pulls}: los PR abiertos revisados (con su commit), para fusionarlos si la puerta lo pide.
+     */
+    record ReviewCheck(String reject, String escalate, String note, boolean always, List<CodeReviewApi.PullDetail> pulls) {
+        ReviewCheck(String reject, String escalate, String note, boolean always) {
+            this(reject, escalate, note, always, List.of());
+        }
+
         ReviewCheck(String reject, String escalate, String note) {
             this(reject, escalate, note, false);
         }
@@ -388,7 +457,7 @@ public class BoardAgent {
         if (gate.maxChangedLines() != null && lines > gate.maxChangedLines()) {
             return new ReviewCheck(null, "cambia " + lines + " líneas (el límite para aprobar solo es " + gate.maxChangedLines() + ").", "");
         }
-        return new ReviewCheck(null, null, note);
+        return new ReviewCheck(null, null, note, false, List.copyOf(pulls));
     }
 
     private List<String> repositories(String projectKey) {

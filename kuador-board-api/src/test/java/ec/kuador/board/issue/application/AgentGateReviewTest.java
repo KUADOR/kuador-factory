@@ -130,6 +130,24 @@ class AgentGateReviewTest {
     }
 
     @Test
+    void aConflictReturnsAWaitingCardOnceAndOnlyCommentsOneInProgress() {
+        Issue pr = issueIn("IN_REVIEW");
+
+        assertThat(service.returnForConflict(pr.key(), "el PR acme/kua #7 quedó en conflicto.", OWNER)).isPresent();
+        assertThat(service.get(pr.key()).status()).as("vuelve a donde la puerta rechaza").isEqualTo("IN_PROGRESS");
+        assertThat(comments(pr)).anyMatch(c -> c.startsWith("**Devuelto a") && c.contains("Conflicto con la rama destino") && c.contains("#7"));
+
+        int before = comments(pr).size();
+        assertThat(service.returnForConflict(pr.key(), "el PR acme/kua #7 quedó en conflicto.", OWNER)).isEmpty();
+        assertThat(comments(pr)).as("no repite el mismo aviso").hasSize(before);
+
+        assertThat(service.returnForConflict(pr.key(), "el PR acme/kua #7 quedó en conflicto tras fusionar el #9.", OWNER))
+                .as("en curso: solo se comenta").isEmpty();
+        assertThat(comments(pr)).hasSize(before + 1);
+        assertThat(service.get(pr.key()).status()).isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
     void onlyWhoApprovesAPersonGateCanHandItToTheAgent() {
         Issue plan = issueIn("TODO");
         assertThatThrownBy(() -> service.setReviewBy(plan.key(), "AGENT", DEV)).as("saltaría a quien aprueba")

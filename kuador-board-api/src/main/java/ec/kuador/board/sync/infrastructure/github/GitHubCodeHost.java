@@ -67,10 +67,27 @@ class GitHubCodeHost implements CodeHost {
 
     @Override
     public String merge(Access access, int number, String headSha, String title) {
-        JsonNode r = client(access).put("/repos/" + access.repository() + "/pulls/" + number + "/merge",
-                java.util.Map.of("merge_method", "squash", "sha", headSha, "commit_title", title));
+        GitHubClient client = client(access);
+        JsonNode r = client.put("/repos/" + access.repository() + "/pulls/" + number + "/merge",
+                java.util.Map.of("merge_method", mergeMethod(client.get("/repos/" + access.repository())), "sha", headSha, "commit_title", title));
         if (!r.path("merged").asBoolean(false)) throw new ec.kuador.board.shared.error.ConflictException("GitHub no fusionó el PR: " + r.path("message").asString("sin motivo"));
         return r.path("sha").asString("");
+    }
+
+    /** El método que el repo permite, en este orden de preferencia. Un repo sin esos datos (permiso limitado) queda en squash. */
+    static String mergeMethod(JsonNode repo) {
+        if (repo.path("allow_squash_merge").asBoolean(true)) return "squash";
+        if (repo.path("allow_merge_commit").asBoolean(false)) return "merge";
+        if (repo.path("allow_rebase_merge").asBoolean(false)) return "rebase";
+        return "squash";
+    }
+
+    @Override
+    public Optional<Boolean> mergeable(Access access, int number) {
+        return client(access).find("/repos/" + access.repository() + "/pulls/" + number)
+                .map(pr -> pr.path("mergeable"))
+                .filter(m -> m.isBoolean())
+                .map(JsonNode::asBoolean);
     }
 
     @Override

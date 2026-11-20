@@ -2,7 +2,8 @@ name: CI
 
 # Flujo de ramas (docs/despliegue.md § Ramas y pipeline):
 #   rama de trabajo → PR a develop: pruebas y escaneos, sin imágenes.
-#   develop: pruebas, escaneos, imágenes con su SHA (escaneadas), publicación y despliegue a pruebas.
+#   develop: imágenes con su SHA (escaneadas), publicación y despliegue a pruebas; pruebas y escaneos de código solo si el
+#   PR no los pasó ya con el mismo código (marca «ci/arbol-probado»). El runner en Windows solo se prueba aquí.
 #   develop → main (PR, merge commit): el PR no repite pruebas si develop ya publicó imágenes probadas de ese commit;
 #   al fusionar solo se valida que sea el mismo código y se promueve la imagen ya probada.
 #   hotfix/* → main: como no hay imagen de develop, corre el pipeline completo; después vuelve a develop.
@@ -36,8 +37,12 @@ jobs:
     permissions:
       contents: read
       packages: read
+      statuses: read
     outputs:
       mode: ${{ steps.mode.outputs.mode }}
+      tree: ${{ steps.mode.outputs.tree }}
+      tested: ${{ steps.mode.outputs.tested }}
+      runner_os: ${{ steps.mode.outputs.runner_os }}
       tag: ${{ steps.mode.outputs.tag }}
       source: ${{ steps.mode.outputs.source }}
       owner: ${{ steps.mode.outputs.owner }}
@@ -59,10 +64,14 @@ jobs:
           BASE: ${{ github.base_ref }}
           HEAD_BRANCH: ${{ github.head_ref }}
           BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           owner="$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
           echo "owner=$owner" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse "HEAD^{tree}")" >> "$GITHUB_OUTPUT"
+          # Windows cuenta el doble de minutos: el runner se prueba ahí solo en develop y en un hotfix a main.
+          echo 'runner_os=["ubuntu-latest","windows-latest"]' >> "$GITHUB_OUTPUT"
           git fetch --no-tags --quiet origin main
           # develop debe tener todo lo que se hizo en main. Los merge commits de cada release (develop → main) no
           # cuentan: solo traen lo que develop ya tiene. Lo que falta son commits propios de main (un hotfix).
@@ -92,11 +101,26 @@ jobs:
               fi
               echo "::warning::develop todavía no tiene imágenes probadas de sha-$(short HEAD^2) (¿su CI sigue corriendo?): se corren las pruebas."
             fi
+            echo 'runner_os=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
             echo "mode=test" >> "$GITHUB_OUTPUT"; exit 0
           fi
 
           if [ "$BRANCH" = "develop" ]; then
             contains_main
+            # Si el PR ya probó exactamente este código (su fusión de prueba dejó el mismo árbol que este merge), no se
+            # repiten pruebas ni escaneos de código: solo se construyen y escanean las imágenes y se prueba Windows.
+            # El PR deja la marca «ci/arbol-probado» en su último commit (trabajo «tested»).
+            tested=false
+            if git rev-parse --verify --quiet HEAD^2 >/dev/null; then
+              marks="$(gh api "repos/$GITHUB_REPOSITORY/commits/$(git rev-parse HEAD^2)/statuses" \
+                --jq '.[] | select(.context == "ci/arbol-probado" and .state == "success") | .description' || true)"
+              if echo "$marks" | grep -qx "$(git rev-parse "HEAD^{tree}")"; then tested=true; fi
+            fi
+            echo "tested=$tested" >> "$GITHUB_OUTPUT"
+            if [ "$tested" = true ]; then
+              echo "El PR ya probó este mismo código: no se repiten las pruebas."
+              echo 'runner_os=["windows-latest"]' >> "$GITHUB_OUTPUT"
+            fi
             echo "mode=integrate" >> "$GITHUB_OUTPUT"; echo "tag=sha-$(short HEAD)" >> "$GITHUB_OUTPUT"; exit 0
           fi
 
@@ -125,7 +149,9 @@ jobs:
 
   api:
     needs: branches
-    if: needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release'
+    if: >
+      needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release' &&
+      needs.branches.outputs.tested != 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -149,7 +175,9 @@ jobs:
 
   web:
     needs: branches
-    if: needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release'
+    if: >
+      needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release' &&
+      needs.branches.outputs.tested != 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -163,14 +191,14 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
 
-  # El runner (npx @kuador-npm/runner): sin dependencias. Linux y Windows aquí; macOS no (en un repo privado sus minutos
-  # cuestan 10 veces más y la cuenta no tiene esos runners: el trabajo se quedaba esperando hasta cancelarse).
+  # El runner (npx @kuador-npm/runner): sin dependencias. Linux en los PR; Windows en develop (y Linux si el PR no lo
+  # probó ya). macOS no (en un repo privado sus minutos cuestan 10 veces más y la cuenta no tiene esos runners).
   runner:
     needs: branches
     if: needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release'
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ${{ fromJSON(needs.branches.outputs.runner_os) }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -187,7 +215,9 @@ jobs:
   # Frena solo lo grave: un secreto, un hallazgo ERROR de Semgrep o una falla crítica/alta con arreglo.
   security:
     needs: branches
-    if: needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release'
+    if: >
+      needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release' &&
+      needs.branches.outputs.tested != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -204,6 +234,26 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE":/repo "$TRIVY"
           fs /repo --skip-dirs /repo/kuador-board-api --scanners vuln --severity CRITICAL,HIGH --ignore-unfixed
           --exit-code 1 --no-progress
+
+  # PR a develop con todo en verde: deja en su último commit la marca del árbol probado, para que el push a develop no
+  # repita estas pruebas si el merge da el mismo código. En PRs de Dependabot el token no puede escribir: sin marca,
+  # develop prueba de nuevo.
+  tested:
+    needs: [branches, api, web, runner, security]
+    if: github.event_name == 'pull_request' && github.base_ref == 'develop' && needs.branches.outputs.mode == 'test'
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Marcar el árbol probado
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          TREE: ${{ needs.branches.outputs.tree }}
+        run: >
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=success -f context=ci/arbol-probado
+          -f description="$TREE" >/dev/null
+          || echo "::warning::No se pudo dejar la marca: develop volverá a correr las pruebas."
 
   # Construye las dos imágenes (develop, o main sin imagen probada), en paralelo con las pruebas, y las escanea: el
   # sistema base y las librerías que de verdad van a producción. Deja las capas en la caché; no publica nada.
@@ -236,7 +286,10 @@ jobs:
   # caché que dejó «image», así que aquí solo se arman y se suben.
   publish:
     needs: [branches, api, web, runner, security, image]
-    if: needs.branches.outputs.mode == 'integrate' || needs.branches.outputs.mode == 'full'
+    # api, web y security pueden venir saltados (el PR ya probó este código); fallados o cancelados, nunca.
+    if: >
+      !cancelled() && (needs.branches.outputs.mode == 'integrate' || needs.branches.outputs.mode == 'full') &&
+      !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     permissions:
       contents: read

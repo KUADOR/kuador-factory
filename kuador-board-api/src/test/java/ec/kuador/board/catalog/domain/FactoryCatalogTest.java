@@ -85,7 +85,10 @@ class FactoryCatalogTest {
         String rendered = DocumentTemplate.render(Methodology.DEPLOYMENT.template(), "Clínica", null, null, LocalDate.of(2026, 11, 19));
         assertThat(rendered).startsWith("# Despliegue de Clínica").contains("| Pruebas | develop |", "| Producción | main |", "| 2026-11-19 | Primera versión |")
                 .doesNotContain("{project}", "{date}");
-        assertThat(Methodology.DEPLOYMENT.agentInstructions()).contains("mismo PR", "Nunca escribas valores de secretos");
+        assertThat(Methodology.DEPLOYMENT.agentInstructions()).contains("docs/deployment/changes/", "Nunca escribas valores de secretos");
+        // Cada PR deja su nota en un archivo propio: sumar filas a la misma tabla hacía chocar a los PR en paralelo.
+        assertThat(ec.kuador.board.catalog.AgentRules.softwareProject(true)).anySatisfy(r -> assertThat(r)
+                .contains("docs/deployment/changes/<clave de la tarjeta>.md", "no edites «Despliegue»", "Si preparas el release"));
     }
 
     @Test

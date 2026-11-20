@@ -771,6 +771,12 @@ public class IssueService implements IssueApi {
     // ---- Puertas que revisa un agente ----
 
     /** La tarjeta está en una puerta que, para ella, revisa un agente, y hay un agente con ese rol en el espacio. */
+    @Override
+    @Transactional(readOnly = true)
+    public boolean agentReviews(String issueKey) {
+        return issues.findByKey(issueKey).map(i -> agentReviewed(i, project(i.projectKey()))).orElse(false);
+    }
+
     private boolean agentReviewed(Issue i, ProjectView project) {
         Optional<StageDef> stage = project.stage(i.status());
         if (stage.isEmpty() || !stage.get().gate() || stage.get().reviewFor(i.reviewBy()) == StageDef.ReviewMode.PERSON) return false;
@@ -845,7 +851,7 @@ public class IssueService implements IssueApi {
         String next = project.nextAfter(issue.status()).map(ColumnDef::key).orElse(null);
         return Optional.of(new GateReview(mode.name(), columnName(project, issue.status()), back == null ? null : columnName(project, back),
                 next == null ? null : columnName(project, next), stage.get().agentReview().sensitive(), stage.get().agentReview().maxChangedLines(),
-                approverNames(project, stage.get())));
+                approverNames(project, stage.get()), stage.get().review() != null && stage.get().review().merges()));
     }
 
     @Override
@@ -1035,6 +1041,27 @@ public class IssueService implements IssueApi {
         if (reason == null || reason.isBlank()) throw new DomainException("Para devolver un issue, explica qué hay que corregir.");
         saveComment(issue, actorId, "**Devuelto a " + to.name() + "** por " + actor.name() + ": " + reason.strip(), now());
         return progress(move(issueKey, to.key(), Integer.MAX_VALUE, actorId));
+    }
+
+    @Override
+    @Transactional
+    public Optional<String> returnForConflict(String issueKey, String note, UUID actorId) {
+        Optional<Issue> found = issues.findByKey(issueKey);
+        if (found.isEmpty() || note == null || note.isBlank()) return Optional.empty();
+        Issue issue = found.get();
+        ProjectView project = project(issue.projectKey());
+        if (project.column(issue.status()).map(c -> c.category() == ec.kuador.board.catalog.ColumnCategory.DONE).orElse(true)) return Optional.empty();
+        String body = "⚠️ **Conflicto con la rama destino**: " + note.strip();
+        if (lastComment(issue).map(c -> c.body().endsWith(body)).orElse(false)) return Optional.empty();
+        Optional<StageDef> gate = project.stage(issue.status()).filter(StageDef::gate);
+        Optional<String> back = gate.flatMap(g -> Optional.ofNullable(g.rejectTo()).or(() -> previousColumn(project, issue.status())));
+        if (back.isEmpty()) {
+            saveComment(issue, actorId, body, now());
+            return Optional.empty();
+        }
+        saveComment(issue, actorId, "**Devuelto a " + columnName(project, back.get()) + "**. " + body, now());
+        move(issueKey, back.get(), Integer.MAX_VALUE, actorId);
+        return back.map(k -> columnName(project, k));
     }
 
     private Progress progress(Issue issue) {

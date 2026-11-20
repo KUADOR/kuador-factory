@@ -24,7 +24,8 @@ export function isRepo(path) {
 
 /** «KUADOR/kuador-medical», «https://github.com/KUADOR/kuador-medical.git» o «git@github.com:KUADOR/kuador-medical» → «kuador/kuador-medical». */
 export function repoSlug(remote) {
-  const m = String(remote ?? "").trim().match(/([^/:\s]+)\/([^/\s]+?)(?:\.git)?\/?$/);
+  // En Windows un remoto local viene con barras invertidas (C:\repos\KUADOR\kuador-medical.git).
+  const m = String(remote ?? "").trim().replaceAll("\\", "/").match(/([^/:\s]+)\/([^/\s]+?)(?:\.git)?\/?$/);
   return m ? `${m[1]}/${m[2]}`.toLowerCase() : null;
 }
 
@@ -79,7 +80,20 @@ export function prepare(config, claim, log) {
 
 function size(path) {
   const r = spawnSync("du", ["-sk", path], { encoding: "utf8", timeout: 120_000 });
-  return r.status === 0 ? Number(r.stdout.split(/\s/)[0]) * 1024 : 0;
+  if (r.status === 0) return Number(r.stdout.split(/\s/)[0]) * 1024;
+  // Sin «du» (Windows): se suma a mano.
+  let total = 0;
+  const walk = (p) => {
+    try {
+      const st = statSync(p);
+      if (!st.isDirectory()) return void (total += st.size);
+      for (const n of readdirSync(p)) walk(join(p, n));
+    } catch {
+      // Un archivo que no se puede leer no cuenta.
+    }
+  };
+  walk(path);
+  return total;
 }
 
 /** Los repos (copias o clones) dentro de una carpeta de tarjeta: ella misma o un clon que el agente hizo adentro. */

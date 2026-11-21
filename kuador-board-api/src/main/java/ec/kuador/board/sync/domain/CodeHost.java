@@ -42,4 +42,12 @@ public interface CodeHost {
     default Optional<Boolean> mergeable(Access access, int number) {
         return Optional.empty();
     }
+
+    /**
+     * Trae a la rama del PR lo nuevo de su rama destino (un merge commit, como el botón «Update branch» de GitHub). Falso si
+     * no se pudo: hay conflictos, no hay nada nuevo que traer o el host no lo permite.
+     */
+    default boolean updateBranch(Access access, int number) {
+        return false;
+    }
 }

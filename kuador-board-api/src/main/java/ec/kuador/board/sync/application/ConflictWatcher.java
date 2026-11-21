@@ -23,7 +23,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Después de cada fusión hecha por el tablero, revisa los demás PR abiertos hacia la misma rama: el que quedó en
- * conflicto vuelve a quien lo desarrolló (o se le avisa, si todavía lo trabaja). Es una regla fija, sin IA: así un
+ * conflicto vuelve a quien lo desarrolló (o se le avisa, si todavía lo trabaja); el que solo quedó atrasado se actualiza
+ * si nadie trabaja en su rama. Es una regla fija, sin IA: así un
  * conflicto se resuelve apenas aparece y no cuando una persona intenta fusionar y GitHub lo rechaza.
  * GitHub calcula si un PR se puede fusionar en segundo plano: se pregunta varias veces hasta tener respuesta.
  */
@@ -72,6 +73,7 @@ class ConflictWatcher {
                 if (mergeable.isEmpty()) continue;
                 pending.remove(p);
                 if (!mergeable.get()) conflicted(e, p);
+                else refresh(e, p);
             }
         }
         if (!pending.isEmpty()) log.info("GitHub no terminó de calcular si {} PR de {} tienen conflictos.", pending.size(), e.repository());
@@ -86,6 +88,22 @@ class ConflictWatcher {
             if (!ours) continue;
             tx.execute(s -> issues.returnForConflict(key, note, e.actorId()))
                     .ifPresent(column -> log.info("{} volvió a «{}» por conflictos en {} #{}.", key, column, p.repository(), p.number()));
+        }
+    }
+
+    /**
+     * El PR quedó atrasado pero sin conflictos: si nadie trabaja en su rama (todas sus tarjetas esperan en una puerta o en
+     * una etapa que no escribe código, como QA), se le trae lo nuevo de la rama destino. Así su CI prueba el código ya
+     * combinado y un choque que no es de texto (dos cambios que juntos no compilan) aparece antes de fusionar. Las que
+     * están en desarrollo no se tocan: su autor trae los cambios cuando sube los suyos.
+     */
+    private void refresh(PullMerged e, CodeReviewApi.PullSummary p) {
+        List<String> ours = cardKeys(p).stream()
+                .filter(key -> Boolean.TRUE.equals(tx.execute(s -> issues.context(key).map(c -> c.projectKey().equals(e.projectKey())).orElse(false))))
+                .toList();
+        if (ours.isEmpty() || !ours.stream().allMatch(key -> Boolean.TRUE.equals(tx.execute(s -> issues.branchIdle(key))))) return;
+        if (code.updateBranch(e.projectKey(), p.repository(), p.number())) {
+            log.info("Actualicé la rama de {} #{} ({}) con «{}».", p.repository(), p.number(), String.join(", ", ours), p.baseBranch());
         }
     }
 

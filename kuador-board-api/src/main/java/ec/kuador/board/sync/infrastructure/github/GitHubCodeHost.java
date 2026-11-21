@@ -91,6 +91,17 @@ class GitHubCodeHost implements CodeHost {
     }
 
     @Override
+    public boolean updateBranch(Access access, int number) {
+        try {
+            client(access).put("/repos/" + access.repository() + "/pulls/" + number + "/update-branch", java.util.Map.of());
+            return true;
+        } catch (RuntimeException e) {
+            // 422: conflictos o la rama ya está al día. Un error aquí no frena nada: el PR sigue como estaba.
+            return false;
+        }
+    }
+
+    @Override
     public Optional<PullDetail> pull(Access access, int number) {
         GitHubClient client = client(access);
         String repo = access.repository();

@@ -1077,6 +1077,20 @@ public class IssueService implements IssueApi {
         return back.map(k -> columnName(project, k));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean branchIdle(String issueKey) {
+        Optional<Issue> found = issues.findByKey(issueKey);
+        if (found.isEmpty()) return false;
+        ProjectView project = project(found.get().projectKey());
+        String status = found.get().status();
+        if (project.column(status).map(c -> c.category() == ec.kuador.board.catalog.ColumnCategory.DONE).orElse(true)) return false;
+        // Una columna sin etapa o que cubre cualquiera puede tener a alguien programando: no se toca.
+        return project.stage(status)
+                .map(st -> st.gate() || (!st.roles().isEmpty() && st.roles().stream().noneMatch(this::writesCode)))
+                .orElse(false);
+    }
+
     private Progress progress(Issue issue) {
         String name = projects.find(issue.projectKey()).map(p -> columnName(p, issue.status())).orElse(issue.status());
         return new Progress(issue.key(), issue.status(), name, issue.assigneeId());

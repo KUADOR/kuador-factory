@@ -275,6 +275,8 @@ public class BoardTools {
                     "Una rama y un PR por tarea: trabaja en «feature/" + c.key() + "-…» desde develop y abre el PR hacia develop con la clave " + c.key() + " en el título.",
                     "Si otros agentes trabajan en paralelo en el mismo repo, usa un git worktree propio para tu rama (git worktree add ../<repo>-" + c.key()
                             + " -b <rama> origin/develop) y bórralo al terminar.",
+                    "Si la rama ya existe en GitHub (te devolvieron la tarjeta), trae sus commits antes de seguir (git pull --no-rebase): el "
+                            + "tablero pudo haberla actualizado con develop mientras esperaba revisión.",
                     "Haz solo lo de esta tarea; lo demás lo cubren las otras tareas de la épica."));
             m.put("task", task);
         });

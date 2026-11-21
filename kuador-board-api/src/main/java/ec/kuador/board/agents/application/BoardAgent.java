@@ -429,7 +429,7 @@ public class BoardAgent {
 
     /**
      * La puerta fusiona al aprobar: el tablero fusiona los commits revisados. Con conflictos, la tarjeta vuelve a quien la
-     * desarrolló para que actualice su rama; si llegaron commits sin revisar o GitHub falla, decide una persona.
+     * desarrolló para que actualice su rama; si llegaron commits sin revisar, espera su CI y se revisa otra vez; si GitHub falla, decide una persona.
      */
     private String approveAndMerge(MemberView agent, String projectKey, String issueKey, IssueApi.GateReview gate, ReviewCheck check, String text) {
         GateMerge.Result merged = GateMerge.merge(code, projectKey, issueKey, check.pulls());
@@ -452,11 +452,15 @@ public class BoardAgent {
                 reviewed(agent, projectKey, issueKey, gate, ec.kuador.board.agents.GateReviewed.RETURNED, why);
                 yield "devolvió a " + nz(gate.backName(), "la etapa anterior") + " (conflictos)";
             }
-            case MOVED, FAILED -> {
-                String why = merged.outcome() == GateMerge.Outcome.MOVED
-                        ? "la aprobé, pero llegaron commits nuevos después de mi revisión y no los fusiono sin revisar"
-                        : "la aprobé, pero no pude fusionar";
-                tx.executeWithoutResult(s -> issues.escalate(issueKey, "Decide tú: " + why + " (" + merged.detail() + ").\n\nMi revisión:\n" + text, agent.id()));
+            // Llegaron commits después de la revisión (p. ej. el tablero actualizó la rama con develop): no se fusiona sin
+            // revisar, pero tampoco se molesta a una persona. La tarjeta espera el CI de lo nuevo y el revisor la mira otra vez.
+            case MOVED -> {
+                tx.executeWithoutResult(s -> ciWaits.wait(issueKey, projectKey, agent.id(), null, clock.instant()));
+                yield "llegaron commits nuevos después de revisar (" + merged.detail() + "): la reviso otra vez cuando termine el CI";
+            }
+            case FAILED -> {
+                tx.executeWithoutResult(s -> issues.escalate(issueKey, "Decide tú: la aprobé, pero no pude fusionar (" + merged.detail() + ").\n\nMi revisión:\n"
+                        + text, agent.id()));
                 yield "dejó la puerta a una persona (no pudo fusionar)";
             }
         };

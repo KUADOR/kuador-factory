@@ -266,7 +266,11 @@ public class BoardAgent {
             // Los de la tarjeta primero; después los de su épica (el brief de la campaña, el diagrama de la solución...).
             List<AttachmentApi.AttachmentInfo> cardFiles = new ArrayList<>(attachments.list(issueKey));
             if (card.parentKey() != null) cardFiles.addAll(attachments.list(card.parentKey()));
+            java.util.Set<java.util.UUID> agents = new java.util.HashSet<>();
             for (AttachmentApi.AttachmentInfo info : cardFiles) {
+                if (info.uploadedBy() != null && members.find(info.uploadedBy()).map(MemberView::agent).orElse(false)) agents.add(info.uploadedBy());
+            }
+            for (AttachmentApi.AttachmentInfo info : inputOrder(cardFiles, agents)) {
                 if (files.size() >= policy.limits().filesRead() || total + info.sizeBytes() > MAX_INPUT_BYTES) {
                     skipped.add(info.fileName());
                     continue;
@@ -304,6 +308,28 @@ public class BoardAgent {
                 new BoardAgentModel.Limits(l.turnsClaude(), l.turnsOther(), l.webSearches()),
                 codeExecution, effort);
     }
+
+    /**
+     * Qué archivos de la tarjeta (y de su épica) recibe el agente primero, porque entran unos pocos: de cada nombre, solo
+     * la versión más reciente (un plan corregido reemplaza al anterior); primero lo que subieron personas (el pedido: la
+     * captura, el logo), después los documentos de texto (briefs y planes de la etapa anterior) y al final lo demás, del más
+     * nuevo al más viejo. Una tarjeta con muchas imágenes de una entrega anterior no tapa el plan nuevo.
+     */
+    static List<AttachmentApi.AttachmentInfo> inputOrder(List<AttachmentApi.AttachmentInfo> files, java.util.Set<java.util.UUID> agentIds) {
+        Map<String, AttachmentApi.AttachmentInfo> latest = new java.util.LinkedHashMap<>();
+        for (AttachmentApi.AttachmentInfo f : files) {
+            latest.merge(f.issueKey() + "/" + f.fileName(), f, (a, b) -> b.createdAt().isAfter(a.createdAt()) ? b : a);
+        }
+        java.util.function.ToIntFunction<AttachmentApi.AttachmentInfo> tier = f -> {
+            if (f.uploadedBy() == null || !agentIds.contains(f.uploadedBy())) return 0;
+            return TEXT_FILE.matcher(f.fileName()).matches() ? 1 : 2;
+        };
+        return latest.values().stream()
+                .sorted(java.util.Comparator.comparingInt(tier).thenComparing(AttachmentApi.AttachmentInfo::createdAt, java.util.Comparator.reverseOrder()))
+                .toList();
+    }
+
+    private static final java.util.regex.Pattern TEXT_FILE = java.util.regex.Pattern.compile("(?i).+\\.(md|txt|csv|json|ya?ml)$");
 
     private static String nz(String s, String fallback) {
         return s == null || s.isBlank() ? fallback : s;

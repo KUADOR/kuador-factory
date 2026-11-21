@@ -294,12 +294,13 @@ public class RunnerService {
         String prompt = """
                 Trabaja el issue %1$s («%2$s») del tablero %3$s como el agente «%4$s» (usa `agent: %5$s` en todas las herramientas del tablero).
                 Ya está tomado a nombre de %6$s: empieza por `role_manual` y `get_issue`, haz el trabajo de tu etapa y termina con `deliver`, `send_back` o `ask_human`.
+                Si la tarjeta o su épica tienen adjuntos, léelos con `read_attachment` antes de trabajar: son parte del pedido.
                 Trabaja solo este issue y responde al final con un resumen de una o dos líneas."""
                 .formatted(item.key(), item.title(), project.name(), r.name(), r.key(), agent.name());
         // Si la máquina ya trabajó esta tarjeta con este rol, retoma esa conversación (ya tiene el contexto) y solo mira
         // qué cambió: el ahorro grande de tokens está en no releer todo en cada vuelta.
         String resume = """
-                Volviste a %1$s («%2$s»), que ahora está en «%3$s». Ya conoces la tarjeta: no releas todo. Llama a `get_issue` y mira solo lo nuevo desde tu                 última entrega (comentarios, el motivo de la devolución, documentos cambiados) y corrige eso. Termina con `deliver`, `send_back` o `ask_human`                 (usa `agent: %4$s`) y responde con un resumen de una o dos líneas."""
+                Volviste a %1$s («%2$s»), que ahora está en «%3$s». Ya conoces la tarjeta: no releas todo. Llama a `get_issue` y mira solo lo nuevo desde tu                 última entrega (comentarios, el motivo de la devolución, documentos cambiados, adjuntos nuevos) y corrige eso. Termina con `deliver`, `send_back` o `ask_human`                 (usa `agent: %4$s`) y responde con un resumen de una o dos líneas."""
                 .formatted(item.key(), item.title(), item.statusName(), r.key());
         AgentKit.Connection c = kit.connection();
         return new Claim(item.key(), item.projectKey(), project.kind().name(), item.title(), r.key(), r.name(), r.worksOnCode(), agent.id(), agent.name(),

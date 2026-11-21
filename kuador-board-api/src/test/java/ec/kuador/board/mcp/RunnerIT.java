@@ -60,6 +60,7 @@ class RunnerIT {
     @Autowired AuthService auth;
     @Autowired MemberService members;
     @Autowired RunnerService runners;
+    @Autowired ec.kuador.board.issue.BranchSyncApi syncs;
     @Autowired JdbcClient jdbc;
     @LocalServerPort int port;
 
@@ -236,5 +237,70 @@ class RunnerIT {
         assertThat(left.size()).as("quien administra ve las del equipo").isEqualTo(1);
         assertThat(left.get(0).get("person").asString()).isEqualTo("Luis");
         assertThat(call("GET", "/api/runner/machines", null, luis).body().get(0).get("name").asString()).isEqualTo("PC de Luis");
+    }
+
+    @Test
+    void aConflictedBranchIsUpdatedByTheRunnerWithoutMovingTheCard() throws Exception {
+        signup.requestCode("eva@sync.test");
+        Workspace w = signup.complete(signup.verifyCode("eva@sync.test", INBOX.get("eva@sync.test")),
+                new SignupService.Company("Sync", null, null, null, null, null), "Eva", "clave-de-eva-123", "FACTORY");
+        String eva = auth.login("eva@sync.test", "clave-de-eva-123").token();
+        UUID evaId = UUID.fromString(call("GET", "/api/auth/me", null, eva).body().get("id").asString());
+        call("POST", "/api/projects", Map.of("key", "SYN", "name", "Sync", "templateKey", "SOFTWARE_FACTORY"), eva);
+        String card = call("POST", "/api/projects/SYN/issues", Map.of("title", "Reportes", "type", "TASK"), eva).body().get("key").asString();
+        // Espera en la puerta de revisión de PR cuando otra fusión deja su PR en conflicto.
+        jdbc.sql("update issue set status = 'PR_REVIEW' where workspace_id = ? and issue_key = ?").params(w.id(), card).update();
+        var conflict = new ec.kuador.board.issue.BranchSyncApi.Conflict("acme/syn", 12, "feature/" + card.toLowerCase() + "-reportes", "develop");
+        assertThat(TenantContext.call(w.id(), () -> syncs.request(card, conflict, "el PR acme/syn #12 quedó en conflicto con «develop».", evaId))).isTrue();
+        assertThat(call("GET", "/api/issues/" + card + "/comments", null, eva).body().toString()).contains("Con conflictos", "se queda aquí");
+
+        String runner = pair(eva, "MacBook de Eva");
+        UUID machine = register(runner, "MacBook de Eva", List.of("BACKEND", "FRONTEND"), 1);
+        Reply first = claim(runner, machine);
+        assertThat(first.status()).isEqualTo(200);
+        JsonNode c = first.body();
+        assertThat(c.get("issueKey").asString()).isEqualTo(card);
+        assertThat(c.get("prompt").asString()).contains("acme/syn #12", "git merge origin/develop", "feature/" + card.toLowerCase() + "-reportes", "nunca --force");
+        assertThat(c.get("resumePrompt").asString()).isEqualTo(c.get("prompt").asString());
+        assertThat(c.get("allowedTools").toString()).as("sin herramientas del tablero").doesNotContain("mcp__");
+        assertThat(c.get("repositories").toString()).contains("acme/syn");
+        assertThat(call("GET", "/api/issues/" + card, null, eva).body().get("status").asString()).as("no se mueve").isEqualTo("PR_REVIEW");
+
+        // Se corta una vez: el pedido sigue y lo vuelve a tomar.
+        call("POST", "/api/runner/leases/" + card + "/release", Map.of("machineId", machine, "outcome", "FAILED", "message", "sin red"), runner);
+        assertThat(TenantContext.call(w.id(), () -> syncs.pending(card))).get().extracting(x -> x.attempts()).isEqualTo(1);
+        assertThat(claim(runner, machine).body().get("issueKey").asString()).isEqualTo(card);
+
+        // Termina bien (sin GitHub conectado no se puede preguntar: se da por resuelto y lo frena la fusión si no lo estaba).
+        call("POST", "/api/runner/leases/" + card + "/release", Map.of("machineId", machine, "outcome", "DONE", "message", "ErrorCode.java: las dos entradas"),
+                runner);
+        assertThat(TenantContext.call(w.id(), () -> syncs.pending(card))).isEmpty();
+        assertThat(call("GET", "/api/issues/" + card + "/comments", null, eva).body().toString()).contains("Rama actualizada", "ErrorCode.java");
+        assertThat(call("GET", "/api/issues/" + card, null, eva).body().get("status").asString()).isEqualTo("PR_REVIEW");
+        assertThat(claim(runner, machine).status()).as("nada más que hacer").isEqualTo(204);
+    }
+
+    @Test
+    void aBranchThatCannotBeUpdatedGoesBackToDevelopment() throws Exception {
+        signup.requestCode("teo@sync.test");
+        Workspace w = signup.complete(signup.verifyCode("teo@sync.test", INBOX.get("teo@sync.test")),
+                new SignupService.Company("Sync dos", null, null, null, null, null), "Teo", "clave-de-teo-123", "FACTORY");
+        String teo = auth.login("teo@sync.test", "clave-de-teo-123").token();
+        UUID teoId = UUID.fromString(call("GET", "/api/auth/me", null, teo).body().get("id").asString());
+        call("POST", "/api/projects", Map.of("key", "SYD", "name", "Sync dos", "templateKey", "SOFTWARE_FACTORY"), teo);
+        String card = call("POST", "/api/projects/SYD/issues", Map.of("title", "Pagos", "type", "TASK"), teo).body().get("key").asString();
+        jdbc.sql("update issue set status = 'PR_REVIEW' where workspace_id = ? and issue_key = ?").params(w.id(), card).update();
+        var conflict = new ec.kuador.board.issue.BranchSyncApi.Conflict("acme/syd", 3, "feature/" + card.toLowerCase(), "develop");
+        TenantContext.run(w.id(), () -> syncs.request(card, conflict, "el PR acme/syd #3 quedó en conflicto.", teoId));
+        String runner = pair(teo, "PC de Teo");
+        UUID machine = register(runner, "PC de Teo", List.of("BACKEND", "FRONTEND"), 1);
+        for (int i = 0; i < 2; i++) {
+            assertThat(claim(runner, machine).body().get("issueKey").asString()).isEqualTo(card);
+            Reply rel = call("POST", "/api/runner/leases/" + card + "/release", Map.of("machineId", machine, "outcome", "TIMEOUT", "message", "pasó el tiempo"), runner);
+            assertThat(rel.status()).as(String.valueOf(rel.body())).isEqualTo(204);
+        }
+        assertThat(TenantContext.call(w.id(), () -> syncs.pending(card))).isEmpty();
+        assertThat(call("GET", "/api/issues/" + card, null, teo).body().get("status").asString()).as("vuelve como antes").isNotEqualTo("PR_REVIEW");
+        assertThat(call("GET", "/api/issues/" + card + "/comments", null, teo).body().toString()).contains("no pudo actualizar la rama");
     }
 }

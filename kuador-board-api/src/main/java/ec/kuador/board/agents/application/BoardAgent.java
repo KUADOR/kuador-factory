@@ -77,13 +77,15 @@ public class BoardAgent {
     private final ec.kuador.board.sync.RepositoriesApi pieces;
     private final org.springframework.context.ApplicationEventPublisher events;
     private final GateCiWaits ciWaits;
+    private final ec.kuador.board.issue.BranchSyncApi syncs;
 
     BoardAgent(AgentRunRepository runs, AiProviders providers, BoardTeam team, WorkspaceAi ai, IssueApi issues, ProjectApi projects, MemberApi members,
             CatalogApi catalog, AttachmentApi attachments, WorkspaceApi workspace, PlatformTransactionManager txManager, Clock clock,
             io.micrometer.core.instrument.MeterRegistry metrics, CodeReviewApi code, ec.kuador.board.sync.RepositoriesApi repositories,
-            org.springframework.context.ApplicationEventPublisher events, GateCiWaits ciWaits) {
+            org.springframework.context.ApplicationEventPublisher events, GateCiWaits ciWaits, ec.kuador.board.issue.BranchSyncApi syncs) {
         this.events = events;
         this.ciWaits = ciWaits;
+        this.syncs = syncs;
         this.code = code;
         this.pieces = repositories;
         this.runs = runs;
@@ -359,6 +361,11 @@ public class BoardAgent {
         }
         java.time.Instant now = clock.instant();
         java.time.Instant since = tx.execute(s -> ciWaits.since(issueKey).orElse(now));
+        // Con la rama en conflicto, el runner la está actualizando: se revisa cuando termine (lo avisa BranchSynced).
+        if (Boolean.TRUE.equals(tx.execute(s -> syncs.pending(issueKey).isPresent()))) {
+            tx.executeWithoutResult(s -> ciWaits.done(issueKey));
+            return Optional.of("Espero que el runner actualice la rama de " + issueKey + " (conflictos) para revisar.");
+        }
         // GitHub fuera de la transacción.
         GateCi.State state = GateCi.of(code, event.projectKey(), issueKey);
         GateCi.Decision decision = GateCi.decide(state, since, now);

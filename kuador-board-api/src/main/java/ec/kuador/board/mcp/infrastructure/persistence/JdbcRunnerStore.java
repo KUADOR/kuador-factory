@@ -16,7 +16,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 class JdbcRunnerStore implements RunnerStore {
 
-    private static final String LEASE_COLUMNS = "id, workspace_id, issue_key, epic_key, status, machine_id, member_id, agent_id, started_at, expires_at, released_at, outcome, run_token_id";
+    private static final String LEASE_COLUMNS = "id, workspace_id, issue_key, epic_key, status, machine_id, member_id, agent_id, started_at, expires_at, released_at, outcome, run_token_id, kind";
     private static final String MACHINE_COLUMNS = "id, workspace_id, member_id, name, os, tool, roles, capacity, paused, version, last_seen, created_at, daily_minutes";
 
     private final JdbcClient jdbc;
@@ -81,11 +81,11 @@ class JdbcRunnerStore implements RunnerStore {
     @Override
     public boolean insertLease(Lease l) {
         return jdbc.sql("""
-                insert into runner_lease (id, workspace_id, issue_key, epic_key, status, machine_id, member_id, agent_id, started_at, expires_at)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                insert into runner_lease (id, workspace_id, issue_key, epic_key, status, machine_id, member_id, agent_id, started_at, expires_at, kind)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 on conflict (workspace_id, issue_key) where released_at is null do nothing""")
                 .params(l.id(), l.workspaceId(), l.issueKey(), l.epicKey(), l.status(), l.machineId(), l.memberId(), l.agentId(),
-                        Timestamp.from(l.startedAt()), Timestamp.from(l.expiresAt()))
+                        Timestamp.from(l.startedAt()), Timestamp.from(l.expiresAt()), l.kind() == null ? Lease.WORK : l.kind())
                 .update() == 1;
     }
 
@@ -146,6 +146,7 @@ class JdbcRunnerStore implements RunnerStore {
         Timestamp released = rs.getTimestamp(11);
         return new Lease(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3), rs.getString(4), rs.getString(5),
                 rs.getObject(6, UUID.class), rs.getObject(7, UUID.class), rs.getObject(8, UUID.class), rs.getTimestamp(9).toInstant(),
-                rs.getTimestamp(10).toInstant(), released == null ? null : released.toInstant(), rs.getString(12), rs.getObject(13, UUID.class));
+                rs.getTimestamp(10).toInstant(), released == null ? null : released.toInstant(), rs.getString(12), rs.getObject(13, UUID.class),
+                rs.getString(14));
     }
 }

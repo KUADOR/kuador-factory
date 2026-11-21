@@ -76,12 +76,14 @@ public class BoardAgent {
     private final CodeReviewApi code;
     private final ec.kuador.board.sync.RepositoriesApi pieces;
     private final org.springframework.context.ApplicationEventPublisher events;
+    private final GateCiWaits ciWaits;
 
     BoardAgent(AgentRunRepository runs, AiProviders providers, BoardTeam team, WorkspaceAi ai, IssueApi issues, ProjectApi projects, MemberApi members,
             CatalogApi catalog, AttachmentApi attachments, WorkspaceApi workspace, PlatformTransactionManager txManager, Clock clock,
             io.micrometer.core.instrument.MeterRegistry metrics, CodeReviewApi code, ec.kuador.board.sync.RepositoriesApi repositories,
-            org.springframework.context.ApplicationEventPublisher events) {
+            org.springframework.context.ApplicationEventPublisher events, GateCiWaits ciWaits) {
         this.events = events;
+        this.ciWaits = ciWaits;
         this.code = code;
         this.pieces = repositories;
         this.runs = runs;
@@ -146,6 +148,12 @@ public class BoardAgent {
             String why = "Los agentes de este espacio ya trabajaron muchas tarjetas en la última hora. Vuelve a asignarme la tarjeta en un rato.";
             tx.executeWithoutResult(s -> returnCard(agent.get(), requester.get(), event.issueKey(), failed(true, why)));
             finish(run.skipped(why, clock.instant()));
+            return;
+        }
+        // En una puerta con PR, el revisor trabaja con el CI terminado: mientras corre, la tarjeta espera sin gastar tokens.
+        Optional<String> waited = awaitCi(agent.get(), requester.get(), event);
+        if (waited.isPresent()) {
+            finish(run.skipped(waited.get(), clock.instant()));
             return;
         }
         try {
@@ -338,6 +346,45 @@ public class BoardAgent {
     // ---- Puertas que revisa un agente ----
 
     /**
+     * Antes de revisar una puerta, el CI de los PR de la tarjeta (ver {@link GateCi}): si corre, la tarjeta queda esperando
+     * (la despierta {@link GateCiWatcher}); en rojo, vuelve a quien la desarrolló sin llamar al modelo; si lleva demasiado
+     * esperando, decide una persona. Devuelve por qué no se revisa ahora, o vacío para seguir con la revisión.
+     */
+    Optional<String> awaitCi(MemberView agent, MemberView requester, IssueAssigned event) {
+        String issueKey = event.issueKey();
+        Optional<IssueApi.GateReview> gate = tx.execute(s -> issues.gateReview(issueKey, agent.id()));
+        if (gate == null || gate.isEmpty() || event.projectKey() == null) {
+            tx.executeWithoutResult(s -> ciWaits.done(issueKey));
+            return Optional.empty();
+        }
+        java.time.Instant now = clock.instant();
+        java.time.Instant since = tx.execute(s -> ciWaits.since(issueKey).orElse(now));
+        // GitHub fuera de la transacción.
+        GateCi.State state = GateCi.of(code, event.projectKey(), issueKey);
+        GateCi.Decision decision = GateCi.decide(state, since, now);
+        if (decision == GateCi.Decision.WAIT) {
+            tx.executeWithoutResult(s -> ciWaits.wait(issueKey, event.projectKey(), agent.id(), requester.id(), now));
+            return Optional.of("Espero que termine el CI (" + state.detail() + ") para revisar " + issueKey + ".");
+        }
+        tx.executeWithoutResult(s -> ciWaits.done(issueKey));
+        return switch (decision) {
+            case RETURN -> {
+                String why = "El CI no está en verde: " + state.detail() + ". Corrígelo, verifica que quede en verde y vuelve a entregar.";
+                tx.executeWithoutResult(s -> issues.reviewAs(issueKey, false, why, agent.id()));
+                reviewed(agent, event.projectKey(), issueKey, gate.get(), ec.kuador.board.agents.GateReviewed.RETURNED, why);
+                yield Optional.of("Devolví " + issueKey + " a " + nz(gate.get().backName(), "la etapa anterior") + " sin revisar: CI en rojo.");
+            }
+            case ESCALATE -> {
+                String why = "El CI lleva más de " + GateCi.MAX_WAIT.toMinutes() + " minutos sin terminar (" + state.detail()
+                        + "). Revisa qué pasa en GitHub: cuando termine, apruébala tú o vuelve a asignármela.";
+                tx.executeWithoutResult(s -> issues.escalate(issueKey, why, agent.id()));
+                yield Optional.of("Dejé " + issueKey + " a una persona: el CI no terminó en " + GateCi.MAX_WAIT.toMinutes() + " minutos.");
+            }
+            default -> Optional.empty();
+        };
+    }
+
+    /**
      * El agente revisor terminó: aprueba (si el tablero lo confirma), devuelve o deja la decisión a una persona. Antes de
      * aprobar, el tablero comprueba lo que no depende del criterio del modelo: el CI del PR y, con escalamiento, las rutas
      * sensibles y el tamaño del cambio.
@@ -476,7 +523,8 @@ public class BoardAgent {
                 else if (result == null || !PASSED.contains(result)) unknown.add(pr + ": " + c.name() + " (" + (c.status() == null ? "sin resultado" : c.status()) + ")");
             }
             for (CodeReviewApi.ChangedFile f : d.files()) {
-                lines += f.additions() + f.deletions();
+                // Lockfiles y código generado no cuentan para el tamaño: nadie los revisa línea por línea.
+                if (!GateCi.generated(f.path())) lines += f.additions() + f.deletions();
                 if (gate.sensitive().stream().anyMatch(g -> new ec.kuador.board.catalog.StageDef.AgentReview(null, null, List.of(g), null).sensitive(f.path()))) {
                     sensitive.add(f.path());
                 }
@@ -485,7 +533,7 @@ public class BoardAgent {
         if (!failed.isEmpty()) return new ReviewCheck("El CI no está en verde: " + String.join(", ", failed) + ".", null, "");
         String commits = pulls.stream().map(d -> d.pull().repository() + " #" + d.pull().number() + " @ "
                 + (d.headSha() == null || d.headSha().length() < 7 ? "?" : d.headSha().substring(0, 7))).collect(java.util.stream.Collectors.joining(", "));
-        String note = "\n\n✅ CI en verde · " + lines + " líneas cambiadas en " + pulls.size() + " PR · revisado: " + commits
+        String note = "\n\n✅ CI en verde · " + lines + " líneas cambiadas (sin contar generados) en " + pulls.size() + " PR · revisado: " + commits
                 + ". Si llegan commits nuevos, esta aprobación no los cubre.";
         // Sin CI en verde o sin ver todos los archivos, el agente no aprueba solo en ningún modo.
         if (!unknown.isEmpty()) return new ReviewCheck(null, "el CI no tiene resultado en verde: " + String.join(", ", unknown) + ".", "", true);
@@ -496,7 +544,7 @@ public class BoardAgent {
             return new ReviewCheck(null, "toca rutas sensibles: " + String.join(", ", sensitive.stream().limit(10).toList()) + ".", "");
         }
         if (gate.maxChangedLines() != null && lines > gate.maxChangedLines()) {
-            return new ReviewCheck(null, "cambia " + lines + " líneas (el límite para aprobar solo es " + gate.maxChangedLines() + ").", "");
+            return new ReviewCheck(null, "cambia " + lines + " líneas sin contar archivos generados (el límite para aprobar solo es " + gate.maxChangedLines() + ").", "");
         }
         return new ReviewCheck(null, null, note, false, List.copyOf(pulls));
     }

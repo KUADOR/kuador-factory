@@ -100,6 +100,10 @@ public class McpProtocol {
         });
         try {
             Object result = tools.call(name, args, personId, client);
+            if (result instanceof ToolImage img) {
+                return Map.of("content", List.of(text(json.writerWithDefaultPrettyPrinter().writeValueAsString(img.meta())),
+                        Map.of("type", "image", "data", img.data(), "mimeType", img.mimeType())), "isError", false);
+            }
             return Map.of("content", List.of(text(json.writerWithDefaultPrettyPrinter().writeValueAsString(result))), "isError", false);
         } catch (ToolException | DomainException | ForbiddenException | NotFoundException | ConflictException e) {
             return Map.of("content", List.of(text(e.getMessage())), "isError", true);

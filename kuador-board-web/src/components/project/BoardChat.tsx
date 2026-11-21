@@ -55,7 +55,10 @@ export function BoardChat({
   const [created, setCreated] = useState<Record<string, string>>({});
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [turns, pending, open]);
+  // Con llaves: en Chrome reciente scrollIntoView devuelve una promesa, y un efecto no puede devolver nada más que su limpieza.
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [turns, pending, open]);
 
   function ask(text: string) {
     const question = text.trim();

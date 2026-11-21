@@ -18,9 +18,20 @@ public interface RunnerStore {
         }
     }
 
-    /** {@code runTokenId}: la credencial de esta ejecución (se revoca al cerrar el préstamo). */
+    /**
+     * {@code runTokenId}: la credencial de esta ejecución (se revoca al cerrar el préstamo). {@code kind}: WORK (el trabajo de la
+     * etapa) o SYNC (actualizar la rama de un PR en conflicto, sin mover la tarjeta).
+     */
     record Lease(UUID id, UUID workspaceId, String issueKey, String epicKey, String status, UUID machineId, UUID memberId, UUID agentId,
-            Instant startedAt, Instant expiresAt, Instant releasedAt, String outcome, UUID runTokenId) {}
+            Instant startedAt, Instant expiresAt, Instant releasedAt, String outcome, UUID runTokenId, String kind) {
+
+        public static final String WORK = "WORK";
+        public static final String SYNC = "SYNC";
+
+        public boolean sync() {
+            return SYNC.equals(kind);
+        }
+    }
 
     // ---- Máquinas ----
 

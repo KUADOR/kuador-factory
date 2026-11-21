@@ -108,7 +108,9 @@ public class BoardAgent {
     private void handle(IssueAssigned event) {
         if (event.toAssigneeId() == null) return;
         Optional<MemberView> agent = tx.execute(s -> members.find(event.toAssigneeId())).filter(MemberView::agent);
-        if (agent.isEmpty() || agent.get().id().equals(event.actorId())) return;
+        // Un agente que se reasigna una tarjeta que ya tenía no arranca otra vez. Pero si la tarjeta llegó libre a otra etapa
+        // que él también cubre (en Marketing: Brief → Redacción), la cadena se la asigna en su nombre y es trabajo nuevo.
+        if (agent.isEmpty() || (agent.get().id().equals(event.actorId()) && agent.get().id().equals(event.fromAssigneeId()))) return;
         AgentTeamStore.Profile profile = tx.execute(s -> team.profile(agent.get().id()));
         if (profile.mode() != AgentMode.SERVER) return; // trabaja desde la PC de una persona (/pendientes)
 

@@ -36,7 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * permite): recuerda lo que ya vio por el Message-ID de cada correo.
  */
 @Service
-public class MailInboxService {
+public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
 
     private static final Logger log = LoggerFactory.getLogger(MailInboxService.class);
     /** Correos que se convierten en tarjetas por bandeja y por vuelta: el resto sigue en la próxima. */
@@ -144,6 +144,21 @@ public class MailInboxService {
         Row r = find(id);
         board(r.projectKey());
         return check(r);
+    }
+
+    @Override
+    public void receive(String projectKey, String connection, UUID createdBy) {
+        String board = projectKey.toUpperCase(Locale.ROOT);
+        String conn = connection.strip().toUpperCase(Locale.ROOT);
+        UUID ws = TenantContext.require();
+        boolean exists = jdbc.sql("select count(*) from mail_inbox where workspace_id = ? and project_key = ? and conn_key = ?").params(ws, board, conn)
+                .query(Long.class).single() > 0;
+        if (exists || connections.mailboxes().stream().noneMatch(m -> m.key().equals(conn))) return;
+        Instant now = clock.instant();
+        jdbc.sql("insert into mail_inbox (id, workspace_id, project_key, conn_key, only_attachments, enabled, created_by, since, created_at) "
+                + "values (?, ?, ?, ?, false, true, ?, ?, ?)")
+                .params(UUID.randomUUID(), ws, board, conn, createdBy, Timestamp.from(now), Timestamp.from(now)).update();
+        connections.useOnBoard(conn, board);
     }
 
     // ---- Cada minuto ----

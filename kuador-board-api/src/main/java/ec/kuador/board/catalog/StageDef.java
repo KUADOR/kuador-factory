@@ -23,12 +23,17 @@ import java.util.regex.Pattern;
  *       aprueba (persona o agente revisor); en una etapa de trabajo, quien entrega.
  *   <li>{@code requires}: lo que la tarjeta debe tener para salir de aquí (un adjunto, un documento, un dato lleno). Lo
  *       hace cumplir el tablero, no el criterio de nadie.
+ *   <li>{@code instructions}: qué hace el agente en esta etapa, en las palabras del negocio (qué mirar, qué sistema usar,
+ *       qué hacer si algo no coincide). La escribe quien configura el tablero: es una orden del equipo, no un dato.
  *   <li>{@code autoPlan}: en una etapa de trabajo, el reparto de tareas de una épica arranca solo al llegar aquí (sin
  *       esperar que una persona lo apruebe). El spec ya pasó por su puerta; el reparto se puede corregir después.
  * </ul>
  */
 public record StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan,
-        List<String> checklist, List<Requirement> requires) {
+        List<String> checklist, List<Requirement> requires,
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String instructions) {
+
+    public static final int MAX_INSTRUCTIONS = 3_000;
 
     private static final Pattern ROLE = Pattern.compile("^[A-Z][A-Z0-9_]{1,39}$");
     private static final Pattern FIELD = Pattern.compile("^[a-z][a-z0-9_]{0,29}$");
@@ -98,6 +103,17 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
         // Etapas guardadas antes de estos campos no los traen (null): quedan vacíos.
         checklist = checklist == null ? List.of() : checklist.stream().filter(x -> x != null && !x.isBlank()).map(String::strip).distinct().toList();
         requires = requires == null ? List.of() : requires.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        instructions = instructions == null || instructions.isBlank() ? null : instructions.strip();
+    }
+
+    public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan,
+            List<String> checklist, List<Requirement> requires) {
+        this(column, roles, gate, approvers, rejectTo, review, autoPlan, checklist, requires, null);
+    }
+
+    /** La misma etapa con otras instrucciones. */
+    public StageDef withInstructions(String text) {
+        return new StageDef(column, roles, gate, approvers, rejectTo, review, autoPlan, checklist, requires, text);
     }
 
     public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan) {
@@ -168,6 +184,9 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
                 }
             }
             if (s.checklist().size() > 12) throw new DomainException("Hasta 12 puntos en la lista de verificación de " + s.column() + ".");
+            if (s.instructions() != null && s.instructions().length() > MAX_INSTRUCTIONS) {
+                throw new DomainException("Las instrucciones de " + s.column() + " tienen hasta " + MAX_INSTRUCTIONS + " caracteres.");
+            }
             for (String item : s.checklist()) if (item.length() > 200) throw new DomainException("Un punto de la lista de verificación de " + s.column() + " es demasiado largo (máximo 200).");
             if (s.requires().size() > 8) throw new DomainException("Hasta 8 requisitos por etapa (" + s.column() + ").");
             for (Requirement r : s.requires()) {

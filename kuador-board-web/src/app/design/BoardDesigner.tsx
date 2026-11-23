@@ -15,21 +15,34 @@ import type { BoardDesign } from "@/lib/types";
  * La persona cuenta a qué se dedica su empresa y qué trabajo quiere ordenar; la IA propone los pasos, quién hace cada
  * uno, dónde aprueba una persona y qué datos lleva cada tarjeta. Nada se crea hasta que ella lo acepta.
  */
-export function BoardDesigner({ roles, aiReady }: { roles: { key: string; name: string }[]; aiReady: boolean }) {
+export function BoardDesigner({
+  roles,
+  systems = [],
+  aiReady,
+}: {
+  roles: { key: string; name: string }[];
+  /** Los sistemas conectados, para nombrarlos en la propuesta. */
+  systems?: { key: string; name: string }[];
+  aiReady: boolean;
+}) {
   const router = useRouter();
   const [description, setDescription] = useState("");
   const [design, setDesign] = useState<BoardDesign | null>(null);
   const [key, setKey] = useState("");
   const [name, setName] = useState("");
+  // Las acciones que cambian datos que la persona deja habilitar al crear (vienen todas marcadas: las propuso para el trabajo).
+  const [writes, setWrites] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const roleName = (k: string) => roles.find((r) => r.key === k)?.name ?? k;
+  const systemName = (k: string) => systems.find((x) => x.key === k)?.name ?? k;
 
   const propose = () =>
     start(async () => {
       const r = await designBoardAction(description);
       if (!r.ok) return setError(r.error);
       setDesign(r.data);
+      setWrites(r.data.writes ?? []);
       setKey(r.data.key);
       setName(r.data.name);
       setError(null);
@@ -38,7 +51,7 @@ export function BoardDesigner({ roles, aiReady }: { roles: { key: string; name: 
   const create = () =>
     start(async () => {
       if (!design) return;
-      const r = await createDesignedBoardAction(design, key, name);
+      const r = await createDesignedBoardAction({ ...design, writes }, key, name);
       if (!r.ok) return setError(r.error);
       router.push(`/projects/${r.data.key}/setup`);
     });
@@ -99,12 +112,50 @@ export function BoardDesigner({ roles, aiReady }: { roles: { key: string; name: 
                   {stage?.gate ? "Aprueba una persona" : stage && stage.roles.length > 0 ? stage.roles.map(roleName).join(", ") : i === 0 ? "Entra el pedido" : i === t.columns.length - 1 ? "Terminado" : "Una persona"}
                 </span>
               </div>
+              {stage?.instructions && <p className="pl-7 text-xs whitespace-pre-line text-fg">{stage.instructions}</p>}
+              {i === 0 && design.mailbox && (
+                <p className="pl-7 text-xs text-fg-muted">Los correos que lleguen a «{systemName(design.mailbox)}» entran aquí solos, como tarjetas.</p>
+              )}
               {(stage?.checklist ?? []).length > 0 && <p className="pl-7 text-xs text-fg-muted">Comprueba: {(stage?.checklist ?? []).join(" · ")}</p>}
               {(stage?.requires ?? []).some((r) => r.kind === "ATTACHMENT") && <p className="pl-7 text-xs text-fg-muted">Entrega un archivo.</p>}
             </li>
           );
         })}
       </ol>
+      {(design.connections ?? []).length > 0 && (
+        <p className="text-[13px] text-fg">
+          Usa: <span className="font-medium text-fg-strong">{design.connections.map(systemName).join(", ")}</span>.
+        </p>
+      )}
+      {(design.writes ?? []).length > 0 && (
+        <fieldset className="flex flex-col gap-1.5 rounded-lg border border-line px-4 py-3">
+          <legend className="px-1 text-xs font-medium text-fg-muted">Acciones que los agentes podrán hacer por su cuenta</legend>
+          {design.writes.map((w) => (
+            <label key={w} className="flex cursor-pointer items-center gap-2 text-[13px] text-fg">
+              <input type="checkbox" checked={writes.includes(w)} onChange={(e) => setWrites((all) => (e.target.checked ? [...all, w] : all.filter((x) => x !== w)))} />
+              <span className="font-mono text-xs">{w.split(":")[1]}</span> <span className="text-fg-muted">en {systemName(w.split(":")[0])}</span>
+            </label>
+          ))}
+          <span className="text-xs text-fg-faint">Si la desmarcas, el agente deja el borrador y la hace una persona. Se puede cambiar después en Conexiones.</span>
+        </fieldset>
+      )}
+      {(design.missing ?? []).length > 0 && (
+        <div className="rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 text-[13px] text-fg">
+          <p className="font-medium text-fg-strong">Falta conectar</p>
+          <ul className="mt-1 list-disc pl-5">
+            {design.missing.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-fg-muted">
+            Puedes crear el tablero igual y conectarlo después en{" "}
+            <Link href="/connections" className="k-link">
+              Conexiones
+            </Link>
+            .
+          </p>
+        </div>
+      )}
       {card && (
         <p className="text-[13px] text-fg">
           Cada tarjeta es un <span className="font-medium text-fg-strong">{card.label.toLowerCase()}</span>

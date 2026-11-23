@@ -350,6 +350,7 @@ public class BoardTools {
             m.put("roles", s.roles());
             m.put("gate", s.gate());
             if (s.gate()) m.put("approvers", s.approvers().isEmpty() ? List.of("cualquier persona") : s.approvers());
+            if (s.instructions() != null) m.put("instructions", s.instructions());
             if (!s.checklist().isEmpty()) m.put("checklist", s.checklist());
             if (!s.requires().isEmpty()) {
                 m.put("requiredToLeave", s.requires().stream().map(r -> r.kind().name().toLowerCase(Locale.ROOT) + (r.ref() == null ? "" : ":" + r.ref())).toList());

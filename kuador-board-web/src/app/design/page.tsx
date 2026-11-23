@@ -15,15 +15,19 @@ export default async function DesignPage() {
   await requireAdmin();
   let data;
   try {
-    data = await Promise.all([boardApi.catalog("roles"), boardApi.workspaceAi().catch(() => null)]);
+    data = await Promise.all([boardApi.catalog("roles"), boardApi.workspaceAi().catch(() => null), boardApi.connections().catch(() => [])]);
   } catch (e) {
     return failPage(e);
   }
-  const [roles, ai] = data;
+  const [roles, ai, connections] = data;
   return (
     <div className="mx-auto w-full max-w-2xl">
       <PageHeader title="Armar un tablero" />
-      <BoardDesigner roles={roles.map((r) => ({ key: r.key, name: r.name }))} aiReady={!!ai?.configured} />
+      <BoardDesigner
+        roles={roles.map((r) => ({ key: r.key, name: r.name }))}
+        systems={connections.map((c) => ({ key: c.key, name: c.name }))}
+        aiReady={!!ai?.configured}
+      />
     </div>
   );
 }

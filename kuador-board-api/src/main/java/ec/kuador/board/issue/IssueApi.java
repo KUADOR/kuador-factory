@@ -51,6 +51,14 @@ public interface IssueApi {
 
     Optional<IssueContext> context(String issueKey);
 
+    /**
+     * Llena datos propios de la tarjeta (por su nombre o su clave: «Proveedor» o «proveedor»). Los demás se conservan.
+     * Un agente solo cambia las tarjetas que tomó. Devuelve los datos como quedaron.
+     */
+    default java.util.Map<String, String> setCardFields(String issueKey, java.util.Map<String, String> values, UUID actorId) {
+        throw new UnsupportedOperationException("setCardFields");
+    }
+
     /** Los datos propios de la tarjeta con el nombre que les puso el tablero («Monto» → «1250.50»), en su orden. */
     default java.util.Map<String, String> cardFields(String issueKey) {
         return java.util.Map.of();

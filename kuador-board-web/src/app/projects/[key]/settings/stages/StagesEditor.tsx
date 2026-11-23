@@ -196,10 +196,10 @@ export function StagesEditor({
                     maxLength={3000}
                     value={s.instructions ?? ""}
                     aria-label={`Qué hace el agente en ${c.name}`}
-                    placeholder={"Lee la factura adjunta y busca su pedido en el ERP.\nSi todo coincide, regístrala en el ERP.\nSi algo no cuadra, no la registres: pregunta a una persona explicando el desfase."}
+                    placeholder={"Lee la factura adjunta y busca su pedido en el ERP.\nSi todo coincide, regístrala en el ERP y pásala a «Ingresada».\nSi algo no cuadra, no la registres: pásala a «Desfase por resolver» explicando el desfase."}
                     onChange={(e) => set(c.key, { instructions: e.target.value })}
                   />
-                  <span className="font-normal text-fg-faint">En tus palabras: qué mirar, qué sistema usar y qué hacer si algo no cuadra.</span>
+                  <span className="font-normal text-fg-faint">En tus palabras: qué mirar, qué sistema usar y qué hacer si algo no cuadra. Puedes decir a qué paso va la tarjeta según el resultado (sin saltarse una aprobación).</span>
                 </label>
               )}
               {(s.gate || s.roles.length > 0 || (s.checklist ?? []).length > 0 || (s.requires ?? []).length > 0) && (

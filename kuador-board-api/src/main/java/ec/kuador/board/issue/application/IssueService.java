@@ -88,6 +88,27 @@ public class IssueService implements IssueApi {
     }
 
     @Override
+    @Transactional
+    public java.util.Map<String, String> setCardFields(String issueKey, java.util.Map<String, String> values, UUID actorId) {
+        Issue issue = load(issueKey);
+        MemberView actor = requireMember(actorId);
+        if (actor.agent() && !actorId.equals(issue.assigneeId())) throw new ForbiddenException("Un agente solo cambia los datos de las tarjetas que tomó.");
+        List<ec.kuador.board.catalog.FieldDef> defs = project(issue.projectKey()).fieldsOf(issue.type());
+        if (defs.isEmpty()) throw new DomainException("Esta tarjeta no tiene datos propios.");
+        java.util.Map<String, String> merged = new java.util.LinkedHashMap<>(issue.fields());
+        for (var e : (values == null ? java.util.Map.<String, String>of() : values).entrySet()) {
+            String name = e.getKey() == null ? "" : e.getKey().strip();
+            ec.kuador.board.catalog.FieldDef f = defs.stream().filter(d -> d.key().equalsIgnoreCase(name) || d.label().equalsIgnoreCase(name)).findFirst()
+                    .orElseThrow(() -> new DomainException("La tarjeta no tiene el dato «" + name + "». Tiene: "
+                            + String.join(", ", defs.stream().map(ec.kuador.board.catalog.FieldDef::label).toList()) + "."));
+            merged.put(f.key(), e.getValue() == null ? "" : e.getValue().strip());
+        }
+        edit(issueKey, new IssueDetails(issue.title(), issue.description(), issue.type(), issue.priority(), issue.storyPoints(), issue.assigneeId(),
+                issue.parentKey(), issue.labels(), merged), actorId);
+        return cardFields(issueKey);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public java.util.Map<String, String> cardFields(String issueKey) {
         java.util.Map<String, String> out = new java.util.LinkedHashMap<>();

@@ -29,6 +29,11 @@ public interface McpClient {
 
     /** Los correos nuevos de un buzón (ver {@link ec.kuador.board.connections.ConnectionsApi#recentMail}). */
     default List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recentMail(String url, String secret, String folder, java.time.Instant since, int max) {
+        return recentMail(url, secret, folder, since, max, java.util.Set.of());
+    }
+
+    default List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recentMail(String url, String secret, String folder, java.time.Instant since, int max,
+            java.util.Set<String> known) {
         throw new McpException("Esta conexión no es un buzón de correo.");
     }
 

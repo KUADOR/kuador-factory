@@ -38,7 +38,8 @@ class GmailTools extends NativeConnector {
     }
 
     @Override
-    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String token, String carpeta, java.time.Instant since, int max) {
+    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String token, String carpeta, java.time.Instant since, int max,
+            java.util.Set<String> known) {
         String folder = carpeta == null || carpeta.isBlank() ? "in:inbox" : FOLDERS.getOrDefault(carpeta.strip().toLowerCase(Locale.ROOT), null);
         if (folder == null) {
             if (!carpeta.matches("[\\p{L}\\p{N} _/\\-]{1,100}")) throw new McpException("Carpeta no válida.");
@@ -49,6 +50,17 @@ class GmailTools extends NativeConnector {
         List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> out = new ArrayList<>();
         for (JsonNode ref : found.path("messages")) {
             String id = ref.path("id").asString("");
+            if (known.contains(id)) {
+                out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(id, null, "", "", since, "", List.of(), false));
+                continue;
+            }
+            JsonNode meta = get(token, "/users/me/messages/" + enc(id) + "?format=metadata&metadataHeaders=Message-ID");
+            String messageId = headers(meta.path("payload")).get("message-id");
+            if (messageId != null && known.contains(messageId)) {
+                java.time.Instant at = java.time.Instant.ofEpochMilli(meta.path("internalDate").asLong(since.toEpochMilli()));
+                out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(id, messageId, "", "", at, "", List.of(), false));
+                continue;
+            }
             JsonNode m = get(token, "/users/me/messages/" + enc(id) + "?format=full");
             java.time.Instant received = java.time.Instant.ofEpochMilli(m.path("internalDate").asLong(since.toEpochMilli()));
             if (received.isBefore(since)) continue;
@@ -74,7 +86,8 @@ class GmailTools extends NativeConnector {
             }
             body = body.strip();
             out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(id, h.get("message-id"), h.getOrDefault("from", ""), h.getOrDefault("subject", ""), received,
-                    body.length() > MAX_BODY_TEXT ? body.substring(0, MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files));
+                    body.length() > MAX_BODY_TEXT ? body.substring(0, MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files,
+                    ec.kuador.board.connections.ConnectionsApi.IncomingMail.automatic(h)));
         }
         out.sort(java.util.Comparator.comparing(ec.kuador.board.connections.ConnectionsApi.IncomingMail::receivedAt));
         return out;

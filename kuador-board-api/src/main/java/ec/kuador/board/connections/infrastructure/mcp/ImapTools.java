@@ -108,7 +108,8 @@ class ImapTools implements BuiltInConnector {
     }
 
     @Override
-    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String secret, String carpeta, java.time.Instant since, int max) {
+    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String secret, String carpeta, java.time.Instant since, int max,
+            java.util.Set<String> known) {
         MailAccount account = account(secret);
         Store store = store(account);
         try {
@@ -126,6 +127,14 @@ class ImapTools implements BuiltInConnector {
                     if (out.size() >= max) break;
                     Date when = m.getReceivedDate() != null ? m.getReceivedDate() : m.getSentDate();
                     if (when == null || when.toInstant().isBefore(since)) continue;
+                    String uidId = ((UIDFolder) folder).getUID(m) + ":" + folder.getFullName();
+                    String[] mids = m.getHeader("Message-ID");
+                    String mid = mids == null || mids.length == 0 ? null : mids[0].strip();
+                    if (known.contains(uidId) || (mid != null && known.contains(mid))) {
+                        // Ya procesado: sin descargar su texto ni sus adjuntos otra vez.
+                        out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(uidId, mid, "", "", when.toInstant(), "", List.of(), false));
+                        continue;
+                    }
                     List<ec.kuador.board.connections.ConnectionsApi.MailFile> files = new ArrayList<>();
                     for (Map.Entry<String, Part> f : files(m, "", new ArrayList<>())) {
                         if (files.size() >= NativeConnector.MAX_FILES) break;
@@ -143,7 +152,8 @@ class ImapTools implements BuiltInConnector {
                     String[] ids = m.getHeader("Message-ID");
                     out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(((UIDFolder) folder).getUID(m) + ":" + folder.getFullName(),
                             ids == null || ids.length == 0 ? null : ids[0].strip(), addresses(m.getFrom()), m.getSubject() == null ? "" : m.getSubject(), when.toInstant(),
-                            body.length() > NativeConnector.MAX_BODY_TEXT ? body.substring(0, NativeConnector.MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files));
+                            body.length() > NativeConnector.MAX_BODY_TEXT ? body.substring(0, NativeConnector.MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files,
+                            ec.kuador.board.connections.ConnectionsApi.IncomingMail.automatic(headers(m))));
                 }
                 return out;
             } finally {
@@ -389,6 +399,16 @@ class ImapTools implements BuiltInConnector {
             for (int i = 0; i < mp.getCount(); i++) files(mp.getBodyPart(i), path.isEmpty() ? String.valueOf(i + 1) : path + "." + (i + 1), out);
         } else if (isFile(p)) {
             out.add(Map.entry(path.isEmpty() ? "1" : path, p));
+        }
+        return out;
+    }
+
+    /** Las cabeceras que dicen si el correo es automático, en minúsculas. */
+    private static Map<String, String> headers(Message m) throws MessagingException {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (String name : List.of("Auto-Submitted", "Precedence", "X-Kuador-Mail", "X-Autoreply", "X-Autorespond")) {
+            String[] v = m.getHeader(name);
+            if (v != null && v.length > 0) out.put(name.toLowerCase(Locale.ROOT), v[0]);
         }
         return out;
     }

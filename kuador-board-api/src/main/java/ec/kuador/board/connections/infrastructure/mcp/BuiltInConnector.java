@@ -21,7 +21,8 @@ interface BuiltInConnector {
     }
 
     /** Los correos que llegaron a una carpeta desde {@code since}, del más antiguo al más nuevo, con sus adjuntos. */
-    default List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String secret, String folder, java.time.Instant since, int max) {
+    default List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String secret, String folder, java.time.Instant since, int max,
+            java.util.Set<String> known) {
         throw new ec.kuador.board.connections.domain.McpClient.McpException("Esta conexión no es un buzón de correo.");
     }
 }

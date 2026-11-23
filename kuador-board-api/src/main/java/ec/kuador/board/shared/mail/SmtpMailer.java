@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
@@ -38,11 +37,19 @@ public class SmtpMailer implements Mailer {
             log.warn("[SOLO DESARROLLO] Sin SMTP configurado. Correo para {} — {}\n{}", to, subject, text);
             return;
         }
-        SimpleMailMessage m = new SimpleMailMessage();
-        m.setFrom(from);
-        m.setTo(to);
-        m.setSubject(subject);
-        m.setText(text);
+        // Correo automático (RFC 3834): ningún buzón conectado al tablero lo vuelve tarjeta, ni responde fuera de oficina.
+        jakarta.mail.internet.MimeMessage m = smtp.createMimeMessage();
+        try {
+            org.springframework.mail.javamail.MimeMessageHelper h = new org.springframework.mail.javamail.MimeMessageHelper(m, "UTF-8");
+            h.setFrom(from);
+            h.setTo(to);
+            h.setSubject(subject);
+            m.setHeader("Auto-Submitted", "auto-generated");
+            m.setHeader("X-Kuador-Mail", "aviso");
+            h.setText(text);
+        } catch (jakarta.mail.MessagingException e) {
+            throw new Mailer.MailUnavailableException();
+        }
         try {
             smtp.send(m);
         } catch (MailException e) {

@@ -110,6 +110,10 @@ class ImapToolsTest {
             assertThat(new String(f.content(), 0, 4, java.nio.charset.StandardCharsets.US_ASCII)).isEqualTo("%PDF");
         });
         assertThat(client.recentMail(url, secret, null, java.time.Instant.now().plusSeconds(600), 10)).as("nada desde después").isEmpty();
+        var again = client.recentMail(url, secret, null, java.time.Instant.now().minusSeconds(600), 10, java.util.Set.of("<abc@cartones.example>"));
+        assertThat(again.getFirst().files()).as("lo ya procesado no se descarga otra vez").isEmpty();
+        assertThat(again.getFirst().body()).isEmpty();
+        assertThat(again.get(1).subject()).isEqualTo("Hola");
     }
 
     @Test

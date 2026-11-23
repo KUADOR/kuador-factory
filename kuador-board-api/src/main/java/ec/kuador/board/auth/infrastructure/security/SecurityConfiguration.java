@@ -127,6 +127,8 @@ class SecurityConfiguration {
                         // El dashboard: cómo va la empresa y su ajuste, quien administra; «mi trabajo», cada persona.
                         .requestMatchers("/api/insights/company", "/api/insights/settings").access(HUMAN_ADMIN)
                         .requestMatchers("/api/insights/**").hasRole("HUMAN")
+                        // Conexiones del negocio (sistemas de la empresa que usan los agentes): solo quien administra.
+                        .requestMatchers("/api/connections", "/api/connections/**", "/api/projects/*/connections").access(HUMAN_ADMIN)
                         // La auditoría del espacio: solo quien administra.
                         .requestMatchers("/api/workspace/audit", "/api/workspace/audit/**").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/workspace", "/api/workspace/languages", "/api/members/*/access").access(HUMAN_ADMIN)

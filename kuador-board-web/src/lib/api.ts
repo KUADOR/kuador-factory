@@ -4,6 +4,7 @@ import { headers as incomingHeaders } from "next/headers";
 
 import { getSessionToken } from "./session";
 import type {
+  BusinessConnection,
   Capability,
   PieceUpdate,
   ChatAnswer,
@@ -340,6 +341,15 @@ export const boardApi = {
 
   updateProject: (key: string, input: { name: string; description: string | null }) =>
     request<Project>(`/api/projects/${encodeURIComponent(key)}`, json("PUT", input)),
+  connections: () => request<BusinessConnection[]>("/api/connections"),
+  saveConnection: (key: string, body: { name: string; url: string; header: string | null; secret: string | null }) =>
+    request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}`, json("PUT", body)),
+  refreshConnection: (key: string) => request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/refresh`, { method: "POST" }),
+  setConnectionWrites: (key: string, tools: string[]) =>
+    request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/writes`, json("PUT", { tools })),
+  setConnectionBoards: (key: string, boards: { projectKey: string; roles: string[] }[]) =>
+    request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/boards`, json("PUT", { boards })),
+  deleteConnection: (key: string) => request<void>(`/api/connections/${encodeURIComponent(key)}`, { method: "DELETE" }),
   setCapabilities: (key: string, capabilities: Capability[]) =>
     request<Project>(`/api/projects/${encodeURIComponent(key)}/capabilities`, json("PUT", { capabilities })),
   setStages: (key: string, stages: StageDef[], maxRework: number) =>

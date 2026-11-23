@@ -8,6 +8,7 @@ import { ApiError, boardApi } from "@/lib/api";
 import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
+  BusinessConnection,
   Capability,
   Routine,
   RoutineInput,
@@ -833,6 +834,29 @@ export async function setThemeAction(mode: ThemeMode): Promise<void> {
 }
 
 // ---- Etapas (Fase 1) ----
+
+export async function saveConnectionAction(
+  key: string,
+  body: { name: string; url: string; header: string | null; secret: string | null },
+): Promise<ActionResult<BusinessConnection>> {
+  return run(() => boardApi.saveConnection(key, body), "/connections");
+}
+
+export async function refreshConnectionAction(key: string): Promise<ActionResult<BusinessConnection>> {
+  return run(() => boardApi.refreshConnection(key), "/connections");
+}
+
+export async function setConnectionWritesAction(key: string, tools: string[]): Promise<ActionResult<BusinessConnection>> {
+  return run(() => boardApi.setConnectionWrites(key, tools), "/connections");
+}
+
+export async function setConnectionBoardsAction(key: string, boards: { projectKey: string; roles: string[] }[]): Promise<ActionResult<BusinessConnection>> {
+  return run(() => boardApi.setConnectionBoards(key, boards), "/connections");
+}
+
+export async function deleteConnectionAction(key: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteConnection(key), "/connections");
+}
 
 export async function setCapabilitiesAction(key: string, capabilities: Capability[]): Promise<ActionResult<Project>> {
   return run(() => boardApi.setCapabilities(key, capabilities), `/projects/${key}`);

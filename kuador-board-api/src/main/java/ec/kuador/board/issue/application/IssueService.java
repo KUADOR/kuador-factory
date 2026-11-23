@@ -301,6 +301,7 @@ public class IssueService implements IssueApi {
     public List<IssueRef> createEpicTasks(String epicKey, List<PlannedTask> tasks, UUID actorId) {
         Issue epic = load(epicKey);
         ProjectView project = project(epic.projectKey());
+        if (!project.splits()) throw new DomainException("Este tablero no reparte el trabajo en tareas (se enciende en Configuración → General).");
         boolean promote = epic.type() != IssueType.EPIC;
         if (promote && !splittable(epic, project)) {
             throw new DomainException(epicKey + " no es una épica: las tareas del plan se crean en una épica (o en una historia sin épica, que pasa a serlo).");

@@ -1223,3 +1223,23 @@ export interface DraftJob {
   } | null;
   error: string | null;
 }
+
+/** Un sistema de la empresa conectado para los agentes (correo, agenda, ERP…). La credencial nunca vuelve de la API. */
+export interface BusinessConnection {
+  key: string;
+  name: string;
+  url: string;
+  header: string | null;
+  hasSecret: boolean;
+  tools: BusinessTool[];
+  checkedAt: string | null;
+  boards: { projectKey: string; roles: string[] }[];
+}
+
+/** `readOnly`: solo lee; `allowed`: los agentes la pueden usar (las que escriben, solo si se habilitaron). */
+export interface BusinessTool {
+  name: string;
+  description: string;
+  readOnly: boolean;
+  allowed: boolean;
+}

@@ -1,4 +1,4 @@
-package ec.kuador.board.agents.infrastructure.tools;
+package ec.kuador.board.shared.files;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,14 +13,14 @@ import java.util.zip.ZipFile;
  * puede inflarse a gigas («bomba zip») y tumbar el servidor; se rechaza antes de leerlo. Cuenta los bytes reales al
  * descomprimir (no confía en los tamaños que declara el zip).
  */
-final class ZipGuard {
+public final class ZipGuard {
 
-    static final long MAX_UNZIPPED = 150L * 1024 * 1024;
+    public static final long MAX_UNZIPPED = 150L * 1024 * 1024;
     private static final int MAX_ENTRIES = 5_000;
 
     private ZipGuard() {}
 
-    static void check(byte[] content) throws IOException {
+    public static void check(byte[] content) throws IOException {
         Path tmp = Files.createTempFile("adjunto-", ".zip");
         try {
             Files.write(tmp, content);

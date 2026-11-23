@@ -36,6 +36,8 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
   Outlook o Gmail) se conectan con «Pide iniciar sesión»: el tablero descubre el servidor de autorización, se registra
   solo si se lo permiten (si no, se pega el identificador de una aplicación ya registrada, con la dirección de retorno
   `BOARD_WEB_URL/connections/oauth/callback`), usa PKCE y renueva el acceso solo.
+  Los archivos que devuelve una herramienta (el adjunto de un correo, una factura en PDF o XML) llegan al agente como
+  texto, vengan como recurso de MCP o en base64 dentro de un JSON (`ToolFiles`); las imágenes y planillas se avisan.
 - **Armar un tablero con IA** (`/design`, `BoardDesigner`): la persona cuenta a qué se dedica su empresa y la IA propone
   pasos, roles, aprobaciones y datos de la tarjeta; se valida como cualquier plantilla y nada se crea hasta aceptarlo.
 - **Catálogo para cualquier negocio**: rol **Revisor** (revisa cualquier trabajo en una puerta) y **Manual de

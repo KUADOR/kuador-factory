@@ -30,7 +30,9 @@ import tools.jackson.databind.json.JsonMapper;
 class HttpMcpClient implements McpClient {
 
     private static final String PROTOCOL = "2025-06-18";
-    private static final int MAX_BODY = 2_000_000;
+    /** Un adjunto viaja dentro de la respuesta (en base64 ocupa un tercio más): hasta unos 20 MB de archivo. */
+    private static final int MAX_BODY = 30_000_000;
+    private static final int MAX_LINKS = 5;
     private static final int MAX_TOOLS = 200;
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
@@ -73,14 +75,59 @@ class HttpMcpClient implements McpClient {
         params.put("arguments", arguments == null ? Map.of() : arguments);
         JsonNode result = session.request("tools/call", params);
         StringBuilder text = new StringBuilder();
+        int links = 0;
         for (JsonNode c : result.path("content")) {
-            if ("text".equals(c.path("type").asString(""))) text.append(c.path("text").asString("")).append('\n');
-            else text.append("[contenido de tipo ").append(c.path("type").asString("desconocido")).append(", no se muestra]\n");
+            switch (c.path("type").asString("")) {
+                case "text" -> text.append(ToolFiles.unwrap(c.path("text").asString("")));
+                // Un archivo dentro de la respuesta (el adjunto de un correo, una factura): se entrega su texto.
+                case "resource" -> text.append(file(c.path("resource")));
+                case "image", "audio" -> text.append(ToolFiles.read(c.path("name").asString(c.path("type").asString()), c.path("mimeType").asString(""),
+                        decode(c.path("data").asString(""))));
+                // Un archivo que el servidor deja para leer aparte: se pide y se entrega su texto.
+                case "resource_link" -> {
+                    if (++links > MAX_LINKS) {
+                        text.append("[Archivo «").append(c.path("name").asString(c.path("uri").asString(""))).append("»: no se leyó, son demasiados en una respuesta.]");
+                    } else {
+                        try {
+                            JsonNode read = session.request("resources/read", Map.of("uri", c.path("uri").asString("")));
+                            for (JsonNode r : read.path("contents")) text.append(file(r, c.path("name").asString(null))).append('\n');
+                        } catch (McpException e) {
+                            text.append("[Archivo «").append(c.path("name").asString(c.path("uri").asString(""))).append("»: no se pudo leer (").append(e.getMessage()).append(")]");
+                        }
+                    }
+                }
+                default -> text.append("[contenido de tipo ").append(c.path("type").asString("desconocido")).append(", no se muestra]");
+            }
+            text.append('\n');
         }
         if (text.isEmpty() && result.has("structuredContent")) text.append(result.get("structuredContent").toString());
         String out = text.toString().strip();
         if (result.path("isError").asBoolean(false)) throw new McpException(out.isBlank() ? "La herramienta respondió con un error." : clip(out, 2000));
         return out.isBlank() ? "(sin contenido)" : out;
+    }
+
+    private static String file(JsonNode resource) {
+        return file(resource, null);
+    }
+
+    /** El contenido de un recurso de MCP ({@code text} o {@code blob} en base64) como texto para el agente. */
+    private static String file(JsonNode resource, String name) {
+        String uri = resource.path("uri").asString("");
+        String label = name != null && !name.isBlank() ? name : resource.path("name").isString() ? resource.path("name").asString()
+                : uri.contains("/") ? uri.substring(uri.lastIndexOf('/') + 1) : uri;
+        String type = resource.path("mimeType").asString("");
+        if (resource.path("text").isString()) return ToolFiles.read(label, type.isBlank() ? "text/plain" : type, resource.path("text").asString().getBytes(StandardCharsets.UTF_8));
+        if (resource.path("blob").isString()) return ToolFiles.read(label, type, decode(resource.path("blob").asString()));
+        return "[Archivo «" + label + "»: llegó vacío.]";
+    }
+
+    private static byte[] decode(String base64) {
+        try {
+            String compact = base64.replaceAll("\\s", "");
+            return compact.contains("-") || compact.contains("_") ? java.util.Base64.getUrlDecoder().decode(compact) : java.util.Base64.getDecoder().decode(compact);
+        } catch (IllegalArgumentException e) {
+            return new byte[0];
+        }
     }
 
     private Session open(String url, String header, String secret) {

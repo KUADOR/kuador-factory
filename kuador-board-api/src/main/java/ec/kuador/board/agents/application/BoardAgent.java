@@ -73,6 +73,8 @@ public class BoardAgent {
     private final Clock clock;
     private final io.micrometer.core.instrument.MeterRegistry metrics;
     private final StageHandoff handoff;
+    /** El paso que eligió el agente para la tarjeta que trabaja (con choose_next_step), hasta que entrega. */
+    private final Map<String, StageHandoff.Next> chosenNext = new java.util.concurrent.ConcurrentHashMap<>();
     private final CodeReviewApi code;
     private final ec.kuador.board.sync.RepositoriesApi pieces;
     private final org.springframework.context.ApplicationEventPublisher events;
@@ -354,6 +356,38 @@ public class BoardAgent {
                 all.add(AgentRules.fill(CONNECTIONS_RULE, Map.of("sistemas",
                         String.join(", ", business.stream().map(ec.kuador.board.connections.ConnectionsApi.Tool::connectionName).distinct().toList()))));
             }
+        }
+        // Los datos propios de la tarjeta (proveedor, monto…): el agente los llena con lo que encontró.
+        List<ec.kuador.board.catalog.FieldDef> fieldDefs = gate.isPresent() ? List.of() : board.fieldsOf(ec.kuador.board.catalog.IssueType.valueOf(card.type()));
+        if (!fieldDefs.isEmpty()) {
+            Map<String, Object> props = new java.util.LinkedHashMap<>();
+            for (ec.kuador.board.catalog.FieldDef f : fieldDefs) {
+                props.put(f.label(), Map.of("type", "string", "description", f.kind().name() + (f.options().isEmpty() ? "" : ": una de " + String.join(", ", f.options()))));
+            }
+            tools.add(new BoardAgentModel.BoardTool("set_card_fields", "Llena los datos de la tarjeta («" + String.join("», «", fieldDefs.stream().map(ec.kuador.board.catalog.FieldDef::label).toList())
+                    + "») con lo que encontraste. Solo los que sepas; los demás se conservan. Montos y números sin símbolos; fechas AAAA-MM-DD.",
+                    Map.of("type", "object", "properties", props), args -> {
+                        Map<String, String> values = new java.util.LinkedHashMap<>();
+                        args.forEach((k, v) -> { if (v != null) values.put(k, String.valueOf(v)); });
+                        return "Datos de la tarjeta: " + tx.execute(s -> issues.setCardFields(card.key(), values, agent.id()));
+                    }));
+        }
+        // Según su resultado, el agente puede mandar la tarjeta a otro paso (p. ej. «Ingresada» si todo coincide o «Desfase» si no).
+        chosenNext.remove(card.key());
+        List<StageHandoff.Next> choices = gate.isPresent() ? List.of() : tx.execute(s -> handoff.choices(agent, issueKey));
+        if (choices.size() >= 2) {
+            List<String> names = choices.stream().map(StageHandoff.Next::columnName).toList();
+            tools.add(new BoardAgentModel.BoardTool("choose_next_step", "Elige a qué paso pasa la tarjeta cuando entregues, si según tu resultado no es «"
+                    + names.getFirst() + "». Llámalo antes de deliver.",
+                    Map.of("type", "object", "required", List.of("step"), "properties", Map.of("step", Map.of("type", "string", "enum", names))), args -> {
+                        String wanted = String.valueOf(args.getOrDefault("step", "")).strip();
+                        StageHandoff.Next n = choices.stream().filter(c -> c.columnName().equalsIgnoreCase(wanted) || c.column().equalsIgnoreCase(wanted)).findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException("Ese paso no está entre los posibles: " + String.join(", ", names) + "."));
+                        chosenNext.put(card.key(), n);
+                        return "Al entregar, la tarjeta pasará a «" + n.columnName() + "».";
+                    }));
+            all.add("Al entregar, la tarjeta pasa a «" + names.getFirst() + "». Si según tu resultado corresponde otro paso (" + String.join(", ", names.subList(1, names.size()))
+                    + "), elígelo con choose_next_step antes de entregar.");
         }
         Optional<StageHandoff.Back> back = gate.isPresent() ? Optional.empty() : handoff.back(agent, issueKey);
         back.ifPresent(b -> all.add(AgentRules.fill(rules.sendBack(), Map.of("columna", b.columnName()))));
@@ -798,6 +832,9 @@ public class BoardAgent {
         String files = attached.isEmpty() ? "" : " · " + attached.size() + " archivo(s)";
         // Terminó su etapa sin preguntas: la tarjeta pasa sola a la siguiente (y al agente que la cubre).
         Optional<StageHandoff.Next> next = question || !notAttached.isEmpty() ? Optional.empty() : handoff.next(agent, issueKey);
+        // Si eligió otro paso según su resultado, va ahí (siempre dentro de lo permitido al elegir).
+        StageHandoff.Next chosen = chosenNext.remove(issueKey);
+        if (next.isPresent() && chosen != null) next = Optional.of(chosen);
         if (next.isPresent()) {
             comment.append("\n\n").append(StageHandoff.closing(next.get(), requester.name(), catalog.agentPolicy().messages()));
             handoff.deliver(agent, requester, issueKey, next.get(), comment.toString());

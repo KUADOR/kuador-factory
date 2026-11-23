@@ -90,4 +90,13 @@ class StageHandoffTest {
         assertThat(handoff("SALES", "RESEARCH", ANALYST).back(ANALYST, "B-1")).as("la primera etapa de trabajo: no hay a dónde devolver").isEmpty();
         assertThat(handoff("SALES", "PROPOSAL_DRAFT", MARKETING).back(MARKETING, "B-1")).map(StageHandoff.Back::columnName).hasValue("Investigación");
     }
+
+    @Test
+    void anAgentCanChooseTheNextStepByItsResultButNeverSkipAnApproval() {
+        assertThat(handoff("SALES", "RESEARCH", ANALYST).choices(ANALYST, "B-1")).extracting(StageHandoff.Next::columnName)
+                .as("hasta la primera aprobación, incluida; nunca más allá").containsExactly("Contactado", "Preparar propuesta", "Revisión de propuesta");
+        assertThat(handoff("SALES", "RESEARCH", ANALYST).choices(ANALYST, "B-1").getLast().gate()).isTrue();
+        assertThat(handoff("SALES", "PROPOSAL_DRAFT", ANALYST).choices(ANALYST, "B-1")).as("no es la etapa de su rol").isEmpty();
+        assertThat(handoff("SALES", "PROPOSAL_REVIEW", MARKETING).choices(MARKETING, "B-1")).as("en una puerta no elige").isEmpty();
+    }
 }

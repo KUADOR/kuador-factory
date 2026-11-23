@@ -79,6 +79,13 @@ class MailInboxIT {
                     return MAILBOX.stream().filter(m -> !m.receivedAt().isBefore(since)).limit(max).toList();
                 }
 
+                public List<Summary> summaries() {
+                    return List.of(new Summary("CORREO", "Correo de facturas", true, List.of(), List.of()));
+                }
+
+                public void enableWrites(String connection, List<String> tools) {
+                }
+
                 public void useOnBoard(String connection, String projectKey) {
                     USED_ON.add(connection + "@" + projectKey);
                 }

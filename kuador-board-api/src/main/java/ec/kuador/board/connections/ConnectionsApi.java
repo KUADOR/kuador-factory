@@ -27,6 +27,15 @@ public interface ConnectionsApi {
 
     List<Mailbox> mailboxes();
 
+    /** Un sistema conectado, para proponer tableros que lo usen: qué consulta y qué podría cambiar. */
+    record Summary(String key, String name, boolean mailbox, List<Tool> reads, List<Tool> writes) {}
+
+    /** Los sistemas conectados del espacio (sin los que esperan iniciar sesión). */
+    List<Summary> summaries();
+
+    /** Habilita herramientas que escriben (se suman a las ya habilitadas). */
+    void enableWrites(String connection, List<String> tools);
+
     /**
      * Los correos que llegaron a una carpeta desde {@code since}, del más antiguo al más nuevo (hasta {@code max}), con
      * su texto y sus adjuntos. {@code folder} nulo = la bandeja de entrada.

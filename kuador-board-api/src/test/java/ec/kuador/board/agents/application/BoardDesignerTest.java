@@ -78,4 +78,36 @@ class BoardDesignerTest {
         assertThatThrownBy(() -> designer.design("{\"name\":\"x\",\"steps\":[{\"name\":\"Uno\"}]}", ROLES)).isInstanceOf(DomainException.class)
                 .hasMessageContaining("incompleta");
     }
+
+    @Test
+    void anInvoiceBoardUsesTheConnectedMailboxAndErpAndSaysWhatEachAgentDoes() {
+        var tool = (java.util.function.BiFunction<String, String, ec.kuador.board.connections.ConnectionsApi.Tool>) (conn, name) ->
+                new ec.kuador.board.connections.ConnectionsApi.Tool(conn.toLowerCase() + "__" + name, conn, conn, name, "", java.util.Map.of(), !name.startsWith("registrar"));
+        var systems = List.of(
+                new ec.kuador.board.connections.ConnectionsApi.Summary("CORREO_FACTURAS", "Correo de facturas", true, List.of(tool.apply("CORREO_FACTURAS", "leer_adjunto")),
+                        List.of()),
+                new ec.kuador.board.connections.ConnectionsApi.Summary("ERP", "ERP de compras", false, List.of(tool.apply("ERP", "obtener_pedido_compra")),
+                        List.of(tool.apply("ERP", "registrar_factura_proveedor"))));
+        BoardDesigner.Design d = designer.design("""
+                {"name":"Facturas de proveedores","key":"FAC","goal":"Que cada factura quede ingresada si coincide con su pedido.","summary":"…",
+                 "workItem":"Factura","uses":["ERP","CORREO_FACTURAS","INVENTADO"],"mailbox":"correo_facturas",
+                 "writes":["ERP:registrar_factura_proveedor","ERP:borrar_todo","CRM:registrar"],"missing":["La lista de precios acordados"],
+                 "fields":[{"label":"Proveedor","kind":"TEXT"}],
+                 "steps":[
+                   {"name":"Factura recibida","category":"TODO"},
+                   {"name":"Leer la factura","category":"IN_PROGRESS","roles":["ANALYST"],"instructions":"Lee el PDF adjunto y llena proveedor, número y total."},
+                   {"name":"Cruzar y registrar","category":"IN_PROGRESS","roles":["ANALYST"],
+                    "instructions":"Consulta el pedido con obtener_pedido_compra. Si todo coincide, regístrala con registrar_factura_proveedor. Si no, pregunta a una persona."},
+                   {"name":"Revisión","category":"IN_PROGRESS","gate":true,"instructions":"esto no va en una puerta"},
+                   {"name":"Ingresada","category":"DONE"}]}
+                """, ROLES, systems);
+
+        assertThat(d.connections()).as("solo sistemas que existen").containsExactly("ERP", "CORREO_FACTURAS");
+        assertThat(d.mailbox()).isEqualTo("CORREO_FACTURAS");
+        assertThat(d.writes()).as("solo acciones reales que cambian datos").containsExactly("ERP:registrar_factura_proveedor");
+        assertThat(d.missing()).containsExactly("La lista de precios acordados");
+        assertThat(d.template().stages()).filteredOn(st -> st.column().equals("CRUZAR_Y_REGISTRAR")).singleElement()
+                .satisfies(st -> assertThat(st.instructions()).contains("registrar_factura_proveedor", "pregunta a una persona"));
+        assertThat(d.template().stages()).filteredOn(StageDef::gate).singleElement().satisfies(st -> assertThat(st.instructions()).isNull());
+    }
 }

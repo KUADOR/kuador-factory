@@ -59,7 +59,13 @@ class OAuthSessions {
 
     /** {@code extra}: parámetros propios del sistema para el inicio de sesión (nulo = los de {@code previous}, si los había). */
     Started start(String mcpUrl, String clientId, String clientSecret, String scope, Map<String, String> extra, String previous, UUID memberId) {
-        OAuthClient.Discovery found = call(() -> oauth.discover(mcpUrl));
+        return start(mcpUrl, null, clientId, clientSecret, scope, extra, previous, memberId);
+    }
+
+    /** {@code known}: dónde se inicia sesión cuando ya se sabe (conector propio); nulo = se le pregunta al servidor MCP. */
+    Started start(String mcpUrl, OAuthClient.Discovery known, String clientId, String clientSecret, String scope, Map<String, String> extra, String previous,
+            UUID memberId) {
+        OAuthClient.Discovery found = known != null ? known : call(() -> oauth.discover(mcpUrl));
         Map<String, String> old = previous == null ? Map.of() : read(previous);
         OAuthClient.Client client;
         if (clientId != null && !clientId.isBlank()) {
@@ -81,7 +87,8 @@ class OAuthSessions {
         s.put("token", found.tokenEndpoint());
         s.put("client", client.id());
         if (client.secret() != null) s.put("clientSecret", client.secret());
-        s.put("resource", found.resource());
+        // Sin recurso: el sistema no lo admite en el pedido (Microsoft); los permisos ya dicen a qué se entra.
+        if (found.resource() != null) s.put("resource", found.resource());
         if (!wanted.isBlank()) s.put("scope", wanted);
         s.put("state", sha256Hex(state));
         s.put("verifier", verifier);
@@ -97,7 +104,7 @@ class OAuthSessions {
         query.put("state", state);
         query.put("code_challenge", challenge(verifier));
         query.put("code_challenge_method", "S256");
-        query.put("resource", found.resource());
+        if (found.resource() != null) query.put("resource", found.resource());
         if (!wanted.isBlank()) query.put("scope", wanted);
         params.forEach(query::putIfAbsent);
         StringBuilder url = new StringBuilder(found.authorizationEndpoint()).append(found.authorizationEndpoint().contains("?") ? '&' : '?');

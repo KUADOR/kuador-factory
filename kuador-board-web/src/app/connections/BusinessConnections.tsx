@@ -180,6 +180,7 @@ export function BusinessConnections({
               <p className="text-[13px] text-fg-muted">
                 {draft.connector.name} pide una aplicación registrada a nombre de la empresa. Regístrala en {draft.connector.name} con la dirección de retorno{" "}
                 <span className="font-mono text-xs">{typeof window === "undefined" ? "" : window.location.origin}/connections/oauth/callback</span> y pega aquí sus datos.
+                {draft.connector.note ? ` ${draft.connector.note}` : ""}
               </p>
             )}
             {!draft.login && (

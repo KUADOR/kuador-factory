@@ -1281,6 +1281,8 @@ export interface Connector {
   category: string;
   url: string;
   ready: boolean;
+  /** Qué debe saber quien registra su propia aplicación en ese sistema. */
+  note: string | null;
 }
 
 /** Lo que se envía para iniciar sesión en un sistema. `connector`: clave del directorio (su dirección y permisos salen de ahí). */

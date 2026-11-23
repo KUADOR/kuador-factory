@@ -57,6 +57,15 @@ class ConnectionServiceTest {
             assertThat(service.startLogin("GMAIL", "Gmail", "https://gmailmcp.googleapis.com/mcp/v1", null, null, null, ADMIN))
                     .as("al volver a iniciar sesión se conserva lo que pide el conector").contains("access_type=offline", "client_id=app-kuador");
 
+            // Outlook es un conector propio: sus direcciones de inicio de sesión son fijas y Microsoft no admite «resource».
+            int asked = oauth.discoveries;
+            String outlook = service.startLogin(null, null, null, "app-de-la-exportadora", "s", null, "OUTLOOK", ADMIN);
+            assertThat(outlook).startsWith("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?").contains("client_id=app-de-la-exportadora",
+                    "scope=offline_access+User.Read+Mail.ReadWrite+Mail.Send", "code_challenge_method=S256").doesNotContain("resource=");
+            assertThat(service.startLogin("OUTLOOK", "Outlook", "https://graph.microsoft.com/v1.0", null, null, null, ADMIN))
+                    .as("volver a iniciar sesión reconoce el conector por su dirección y conserva la aplicación").contains("login.microsoftonline.com", "client_id=app-de-la-exportadora");
+            assertThat(oauth.discoveries).as("no se le pregunta nada a un servidor MCP").isEqualTo(asked);
+
             // Sin aplicación de la plataforma, quien conecta pega la suya.
             assertThatThrownBy(() -> service.startLogin(null, null, null, null, null, null, "SLACK", ADMIN)).isInstanceOf(DomainException.class)
                     .hasMessageContaining("registra un cliente");
@@ -170,6 +179,7 @@ class ConnectionServiceTest {
     private static final class FakeOAuth implements OAuthClient {
         String registration = "https://login.example/register";
         int registrations;
+        int discoveries;
         int refreshes;
         int issued;
         boolean refreshFails;
@@ -179,6 +189,7 @@ class ConnectionServiceTest {
 
         @Override
         public Discovery discover(String mcpUrl) {
+            discoveries++;
             return new Discovery("https://login.example/authorize", "https://login.example/token", registration, mcpUrl, List.of("mail.read", "offline_access"));
         }
 

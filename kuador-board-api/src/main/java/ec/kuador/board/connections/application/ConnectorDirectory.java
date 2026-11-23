@@ -21,16 +21,20 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
 @Component
 public class ConnectorDirectory {
 
-    /** Un conector del directorio. {@code provider}: de quién es la aplicación registrada que usa (nulo si se registra solo). */
+    /**
+     * Un conector del directorio. {@code provider}: de quién es la aplicación registrada que usa (nulo si se registra
+     * solo). {@code authorization} y {@code token}: direcciones fijas del inicio de sesión, para los conectores propios
+     * del tablero (no hay servidor MCP al que preguntárselas). {@code note}: qué debe saber quien registra su aplicación.
+     */
     public record Connector(String key, String name, String description, String category, String url, boolean selfRegisters, String provider,
-            String scope, Map<String, String> params) {
+            String scope, Map<String, String> params, String authorization, String token, String note) {
         public Connector {
             params = params == null ? Map.of() : Map.copyOf(params);
         }
     }
 
     /** Lo que ve quien conecta. {@code ready}: se conecta solo con iniciar sesión, sin pegar ningún identificador. */
-    public record Entry(String key, String name, String description, String category, String url, boolean ready) {}
+    public record Entry(String key, String name, String description, String category, String url, boolean ready, String note) {}
 
     record Client(String id, String secret) {}
 
@@ -55,11 +59,18 @@ public class ConnectorDirectory {
     }
 
     public List<Entry> entries() {
-        return connectors.stream().map(c -> new Entry(c.key(), c.name(), c.description(), c.category(), c.url(), c.selfRegisters() || client(c).isPresent())).toList();
+        return connectors.stream().map(c -> new Entry(c.key(), c.name(), c.description(), c.category(), c.url(), c.selfRegisters() || client(c).isPresent(), c.note())).toList();
     }
 
     Optional<Connector> find(String key) {
         return key == null || key.isBlank() ? Optional.empty() : connectors.stream().filter(c -> c.key().equalsIgnoreCase(key.strip())).findFirst();
+    }
+
+    /** El conector al que pertenece una dirección: así una conexión ya hecha se reconoce al volver a iniciar sesión. */
+    Optional<Connector> byUrl(String url) {
+        if (url == null) return Optional.empty();
+        String wanted = url.strip().replaceAll("/+$", "");
+        return connectors.stream().filter(c -> c.url().replaceAll("/+$", "").equals(wanted)).findFirst();
     }
 
     /** La aplicación de la plataforma registrada con el proveedor del conector, si se configuró. */

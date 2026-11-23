@@ -3,7 +3,19 @@
 # tablero se registre solo (selfRegisters: false), el proveedor cuya aplicación registrada usa (provider), que se
 # configura una vez para toda la plataforma con BOARD_CONNECTORS_<PROVIDER>_CLIENT_ID y _CLIENT_SECRET.
 # scope: permisos que se piden (vacío = los que sugiere el servidor). params: parámetros extra del inicio de sesión.
+# authorization y token: solo en los conectores propios del tablero (no hay servidor MCP que las publique).
 connectors:
+  - key: OUTLOOK
+    name: Outlook
+    description: Correo de Microsoft 365. Buscar y leer correos y adjuntos, responder y enviar.
+    category: Correo
+    url: https://graph.microsoft.com/v1.0
+    selfRegisters: false
+    provider: MICROSOFT
+    scope: offline_access User.Read Mail.ReadWrite Mail.Send
+    authorization: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+    token: https://login.microsoftonline.com/common/oauth2/v2.0/token
+    note: En Microsoft Entra, regístrala para «cuentas de cualquier directorio organizativo» y como aplicación web.
   - key: GMAIL
     name: Gmail
     description: Buscar y leer correos y adjuntos, y preparar borradores.

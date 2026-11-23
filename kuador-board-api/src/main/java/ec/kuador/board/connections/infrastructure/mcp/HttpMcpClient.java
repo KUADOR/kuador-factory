@@ -39,13 +39,22 @@ class HttpMcpClient implements McpClient {
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();
     private final boolean allowPrivate;
+    /** Conectores propios (sin servidor MCP del fabricante): se atienden aquí mismo, con las mismas reglas. */
+    private final OutlookTools outlook;
 
-    HttpMcpClient(@Value("${board.connections.allow-private:false}") boolean allowPrivate) {
+    @org.springframework.beans.factory.annotation.Autowired
+    HttpMcpClient(@Value("${board.connections.allow-private:false}") boolean allowPrivate, OutlookTools outlook) {
         this.allowPrivate = allowPrivate;
+        this.outlook = outlook;
+    }
+
+    HttpMcpClient(boolean allowPrivate) {
+        this(allowPrivate, new OutlookTools("https://graph.microsoft.com/v1.0"));
     }
 
     @Override
     public List<Connection.ToolDef> listTools(String url, String header, String secret) {
+        if (outlook.handles(url)) return outlook.tools(secret);
         Session session = open(url, header, secret);
         List<Connection.ToolDef> tools = new ArrayList<>();
         String cursor = null;
@@ -69,6 +78,7 @@ class HttpMcpClient implements McpClient {
 
     @Override
     public String callTool(String url, String header, String secret, String tool, Map<String, Object> arguments) {
+        if (outlook.handles(url)) return outlook.call(secret, tool, arguments);
         Session session = open(url, header, secret);
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("name", tool);

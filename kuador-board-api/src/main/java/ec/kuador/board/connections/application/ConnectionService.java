@@ -124,13 +124,19 @@ public class ConnectionService implements ConnectionsApi {
     @Transactional
     public String startLogin(String key, String name, String url, String clientId, String clientSecret, String scope, String connector, UUID memberId) {
         java.util.Map<String, String> extra = null;
-        if (connector != null && !connector.isBlank()) {
-            ConnectorDirectory.Connector known = directory.find(connector).orElseThrow(() -> new NotFoundException("No existe el conector " + connector + "."));
+        ec.kuador.board.connections.domain.OAuthClient.Discovery where = null;
+        ConnectorDirectory.Connector known = connector != null && !connector.isBlank()
+                ? directory.find(connector).orElseThrow(() -> new NotFoundException("No existe el conector " + connector + "."))
+                : directory.byUrl(url).orElse(null);
+        if (known != null) {
             url = known.url();
             if (name == null || name.isBlank()) name = known.name();
             if (key == null || key.isBlank()) key = known.key();
             if (scope == null || scope.isBlank()) scope = known.scope();
             extra = known.params();
+            if (known.authorization() != null && known.token() != null) {
+                where = new ec.kuador.board.connections.domain.OAuthClient.Discovery(known.authorization(), known.token(), null, null, List.of());
+            }
             if (clientId == null || clientId.isBlank()) {
                 ConnectorDirectory.Client app = directory.client(known).orElse(null);
                 if (app != null) {
@@ -147,7 +153,7 @@ public class ConnectionService implements ConnectionsApi {
         Connection draft = new Connection(k, name, url, null, null, same ? previous.tools() : List.of(), same ? previous.allowedWrites() : Set.of(),
                 same ? previous.checkedAt() : null, null);
         SafeUrls.requirePublicHttps(draft.url(), allowPrivate);
-        OAuthSessions.Started started = sessions.start(draft.url(), clientId, clientSecret, scope, extra, same ? previous.oauth() : null, memberId);
+        OAuthSessions.Started started = sessions.start(draft.url(), where, clientId, clientSecret, scope, extra, same ? previous.oauth() : null, memberId);
         store.save(ws, draft.withOauth(started.session()));
         return started.authorizationUrl();
     }

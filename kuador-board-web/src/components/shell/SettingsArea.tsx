@@ -21,13 +21,19 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
           items: [
             { href: "/workspace", label: "Empresa e idiomas", exact: true },
             { href: "/team", label: "Equipo", exact: true },
-            { href: "/team/org", label: "Organigrama" },
             ...(isOwner(me) ? [{ href: "/workspace/plan", label: "Plan" }] : []),
           ],
         },
         { title: "Integraciones", items: [{ href: "/connections", label: "Conexiones" }, ...localAgents] },
-        { title: "Seguridad", items: [{ href: "/audit", label: "Auditoría" }] },
-        { title: "Avanzado", items: [{ href: "/catalog", label: "Catálogo" }] },
+        // Lo que casi nadie toca a diario.
+        {
+          title: "Avanzado",
+          items: [
+            { href: "/team/org", label: "Organigrama" },
+            { href: "/audit", label: "Auditoría" },
+            { href: "/catalog", label: "Catálogo" },
+          ],
+        },
       ]
     : [
         { title: "Espacio", items: [{ href: "/team", label: "Equipo", exact: true }, { href: "/team/org", label: "Organigrama" }] },

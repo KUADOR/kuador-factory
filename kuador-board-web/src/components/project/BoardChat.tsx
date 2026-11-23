@@ -12,6 +12,8 @@ import { notify } from "@/components/ui/Toaster";
 import type { ChatTurn, SuggestedEpic } from "@/lib/types";
 
 const STARTERS = ["¿Dónde nos quedamos?", "¿Qué épicas nos sugieres para avanzar?"];
+/** En tableros sin épicas (los que no son de software), sin jerga. */
+const PLAIN_STARTERS = ["¿Dónde nos quedamos?", "¿Qué conviene hacer para avanzar?"];
 
 /** Lo que se manda como historial: las últimas vueltas, sin las épicas. */
 const HISTORY = 6;
@@ -112,7 +114,7 @@ export function BoardChat({
         }}
         aria-label="Abrir el chat del tablero"
         title="¿Dónde nos quedamos?"
-        className="fixed right-4 bottom-4 z-40 flex size-12 items-center justify-center rounded-full bg-sol text-on-sol shadow-lg transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 lg:bottom-4 flex size-12 items-center justify-center rounded-full bg-sol text-on-sol shadow-lg transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         <MessageCircle className="size-5" aria-hidden />
       </button>
@@ -122,7 +124,7 @@ export function BoardChat({
   return (
     <section
       aria-label="Chat del tablero"
-      className="fixed right-4 bottom-4 z-40 flex h-[min(560px,calc(100dvh-2rem))] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
+      className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 lg:bottom-4 flex h-[min(560px,calc(100dvh-7rem))] lg:h-[min(560px,calc(100dvh-2rem))] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
     >
       <header className="flex items-center gap-2 border-b border-line px-3 py-2">
         <MessageCircle className="size-4 text-sol-text" aria-hidden />
@@ -153,7 +155,7 @@ export function BoardChat({
             <p className="text-fg-muted">
               Pregúntame en qué va el tablero, qué falta o qué conviene abrir.
             </p>
-            {STARTERS.map((s) => (
+            {(epics ? STARTERS : PLAIN_STARTERS).map((s) => (
               <button
                 key={s}
                 type="button"

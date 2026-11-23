@@ -31,7 +31,7 @@ export function SetupBanner({ projectKey, pending }: { projectKey: string; pendi
   return (
     <div className="mx-4 mt-3 flex items-center gap-3 rounded-md border border-line bg-surface py-1.5 pr-1.5 pl-3 text-[13px] sm:mx-6 sm:mt-4 sm:py-2.5 sm:pl-4">
       <span className="min-w-0 truncate text-fg">
-        Faltan {pending} paso{pending === 1 ? "" : "s"}<span className="hidden sm:inline"> para dejar el proyecto listo</span>.
+        Faltan {pending} paso{pending === 1 ? "" : "s"}<span className="hidden sm:inline"> para dejar el tablero listo</span>.
       </span>
       <Link href={`/projects/${projectKey}/setup`} className="k-link shrink-0">
         <span className="sm:hidden">Terminar</span>

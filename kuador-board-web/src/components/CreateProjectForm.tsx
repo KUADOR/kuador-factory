@@ -1,5 +1,6 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -12,6 +13,15 @@ import { Field, TextInput } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Section";
 import type { WorkflowTemplate } from "@/lib/types";
 
+/** «Atención de pacientes» → ATE: las primeras letras del nombre, sin tildes. */
+function keyFrom(name: string) {
+  const letters = name.normalize("NFD").replace(/[^A-Za-z0-9 ]/g, "").toUpperCase();
+  const words = letters.split(/\s+/).filter((w) => /^[A-Z]/.test(w));
+  if (words.length === 0) return "";
+  const key = words.length >= 3 ? words.slice(0, 4).map((w) => w[0]).join("") : words[0].slice(0, 3);
+  return key.length >= 2 ? key : (words[0] + "XX").slice(0, 3);
+}
+
 /** Las plantillas vienen del catálogo del espacio: cada una trae columnas y tipos de trabajo. */
 export function CreateProjectForm({ templates: all, recommended = [], onCancel }: { templates: WorkflowTemplate[]; recommended?: string[]; onCancel: () => void }) {
   // Las plantillas del paquete de la empresa van primero, en su orden.
@@ -20,6 +30,8 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
   const router = useRouter();
   const { canAdminister } = useAccess();
   const [key, setKey] = useState("");
+  // La clave se propone sola a partir del nombre, hasta que la persona la escribe.
+  const [keyTouched, setKeyTouched] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [templateKey, setTemplateKey] = useState(recommended.find((k) => templates.some((t) => t.key === k)) ?? templates.find((t) => t.kind === "SOFTWARE")?.key ?? templates[0]?.key ?? "");
@@ -44,7 +56,32 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
         });
       }}
     >
-      <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3">
+      {canAdminister && (
+        <Link href="/design" className="flex items-center gap-3 rounded-lg border border-sol/40 bg-sol/10 px-4 py-3 hover:bg-sol/15">
+          <Sparkles className="size-5 shrink-0 text-sol-text" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-medium text-fg-strong">Armarlo con IA para mi negocio</span>
+            <span className="block text-xs text-fg-muted">Cuenta a qué se dedica tu empresa y te proponemos los pasos, los responsables y las aprobaciones.</span>
+          </span>
+        </Link>
+      )}
+      <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
+        <Field label="Nombre">
+          {(id) => (
+            <TextInput
+              id={id}
+              required
+              autoFocus
+              maxLength={120}
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (!keyTouched) setKey(keyFrom(e.target.value));
+              }}
+              placeholder="Atención de pacientes"
+            />
+          )}
+        </Field>
         <Field label="Clave" hint="Prefijo de las tarjetas.">
           {(id) => (
             <TextInput
@@ -54,24 +91,19 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
               pattern="[A-Za-z][A-Za-z0-9]{1,9}"
               title="2 a 10 letras o números, empezando por letra"
               value={key}
-              onChange={(e) => setKey(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setKeyTouched(true);
+                setKey(e.target.value.toUpperCase());
+              }}
               placeholder="ATE"
-              className="font-mono uppercase"
-              autoFocus
             />
           )}
         </Field>
-        <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Atención de pacientes" />}</Field>
       </div>
       <Field label="Descripción" hint="Opcional.">{(id) => <TextInput id={id} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} />}</Field>
       <div className="flex flex-col gap-2">
         <span className="flex items-center justify-between gap-3 text-xs font-medium text-fg-muted">
-          Plantilla de flujo
-          {canAdminister && (
-            <Link href="/design" className="k-link font-normal">
-              Armarlo con IA para mi negocio
-            </Link>
-          )}
+          O elige una plantilla
         </span>
         <ChoiceCards
           name="template"
@@ -118,7 +150,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
           Cancelar
         </Button>
         <Button type="submit" tone="primary" loading={pending}>
-          Crear proyecto
+          Crear tablero
         </Button>
       </div>
     </form>

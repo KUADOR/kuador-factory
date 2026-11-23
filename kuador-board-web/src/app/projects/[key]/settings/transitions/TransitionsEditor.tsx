@@ -73,7 +73,7 @@ export function TransitionsEditor({ project }: { project: Project }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1 rounded-lg border border-line bg-surface px-5 py-4">
-        <Switch checked={restricted} onChange={setRestricted} label="Fijar el flujo de trabajo de este proyecto" />
+        <Switch checked={restricted} onChange={setRestricted} label="Fijar el flujo de trabajo de este tablero" />
         <p className="text-xs text-fg-muted">
           {restricted
             ? "Solo se permiten los pasos que dibujes, para personas y agentes."

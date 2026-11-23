@@ -17,7 +17,7 @@ import type { AgentMode, AgentPromptPreview, TeamAgent, WorkspaceAiStatus } from
 
 const MODE_CHOICES: { value: AgentMode; label: string; hint: string }[] = [
   { value: "SERVER", label: "En el tablero", hint: "Gasta la clave de IA de la empresa." },
-  { value: "LOCAL", label: "En la PC de una persona", hint: "Con el Claude Code o Codex de alguien del equipo." },
+  { value: "LOCAL", label: "Con el asistente de IA de una persona", hint: "En su computadora, con Claude u otro asistente conectado al tablero." },
 ];
 
 

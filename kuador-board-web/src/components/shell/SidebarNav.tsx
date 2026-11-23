@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   House,
-  Activity,
   Inbox,
   Lightbulb,
   LogOut,
@@ -113,10 +112,6 @@ export function SidebarNav({
               </span>
             )}
           </NavLink>
-          <NavLink href="/pulse" active={path === "/pulse"}>
-            <Activity className="size-4 shrink-0" aria-hidden />
-            Pulso del día
-          </NavLink>
           {editor && (
             <NavLink href="/capture" active={path === "/capture"}>
               <Lightbulb className="size-4 shrink-0" aria-hidden />
@@ -153,7 +148,7 @@ export function SidebarNav({
             </NavLink>
           ))}
           {projects.length === 0 && (
-            <p className="px-2.5 py-1 text-xs text-fg-faint">Aún no hay proyectos.</p>
+            <p className="px-2.5 py-1 text-xs text-fg-faint">Aún no hay tableros.</p>
           )}
         </div>
 

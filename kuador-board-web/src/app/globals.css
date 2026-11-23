@@ -388,3 +388,23 @@ textarea {
     animation: none;
   }
 }
+
+/*
+ * En pantallas táctiles, los campos de texto van a 16px: con menos, iOS amplía la página al enfocar un campo y no la
+ * vuelve a su tamaño (el menú queda fuera de la vista). Sin capa, para ganarle al tema de PrimeReact.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select,
+  .p-inputtext,
+  .p-textarea,
+  .p-select-label,
+  .p-multiselect-label,
+  .p-autocomplete-input,
+  .p-inputnumber-input,
+  .p-password-input,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+}

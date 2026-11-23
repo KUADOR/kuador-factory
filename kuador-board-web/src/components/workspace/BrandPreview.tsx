@@ -28,7 +28,7 @@ export function BrandPreview({ value }: { value: BrandDraft }) {
               </>
             )}
           </div>
-          <span className="mt-2 rounded bg-selected px-1.5 py-1 font-medium text-fg-strong shadow-[0_0_0_1px_var(--k-line)]">Proyecto</span>
+          <span className="mt-2 rounded bg-selected px-1.5 py-1 font-medium text-fg-strong shadow-[0_0_0_1px_var(--k-line)]">Tablero</span>
           <span className="px-1.5 text-fg-muted">Equipo</span>
           <span className="px-1.5 text-fg-muted">Catálogo</span>
         </div>

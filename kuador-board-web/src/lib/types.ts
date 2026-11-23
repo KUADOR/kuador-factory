@@ -1285,6 +1285,31 @@ export interface Connector {
   note: string | null;
 }
 
+/** Dónde está un correo según su dominio: con qué conector se conecta y, si es IMAP, sus servidores. `sure` falso: se adivinaron. */
+export interface MailDetection {
+  email: string;
+  connector: "OUTLOOK" | "GMAIL" | "IMAP";
+  provider: string;
+  imapHost: string | null;
+  imapPort: number | null;
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpSsl: boolean | null;
+  sure: boolean;
+}
+
+/** Un buzón por IMAP y SMTP. `password` vacía al editar: se conserva la guardada. */
+export interface MailConnectionInput {
+  name: string;
+  email: string;
+  password: string;
+  imapHost: string;
+  imapPort: number;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSsl: boolean;
+}
+
 /** Lo que se envía para iniciar sesión en un sistema. `connector`: clave del directorio (su dirección y permisos salen de ahí). */
 export interface ConnectionLogin {
   name: string | null;

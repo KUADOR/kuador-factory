@@ -95,6 +95,15 @@ board:
   secrets-key: ${BOARD_SECRETS_KEY:}
   github:
     api-url: ${BOARD_GITHUB_API_URL:https://api.github.com}
+  # Aplicaciones de la plataforma registradas con cada proveedor: con ellas, Gmail y Outlook se conectan con un clic
+  # (Conexiones → Sistemas de la empresa). Sin ellas, cada empresa pega la suya. Ver docs/despliegue.md.
+  connectors:
+    google:
+      client-id: ${BOARD_CONNECTORS_GOOGLE_CLIENT_ID:}
+      client-secret: ${BOARD_CONNECTORS_GOOGLE_CLIENT_SECRET:}
+    microsoft:
+      client-id: ${BOARD_CONNECTORS_MICROSOFT_CLIENT_ID:}
+      client-secret: ${BOARD_CONNECTORS_MICROSOFT_CLIENT_SECRET:}
   platform:
     # Correos (separados por coma) de quienes administran la plataforma: planes y licencias de todos los espacios.
     admins: ${BOARD_PLATFORM_ADMINS:}

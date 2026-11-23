@@ -68,7 +68,7 @@ class OutlookToolsTest {
         });
         graph.start();
         url = "http://127.0.0.1:" + graph.getAddress().getPort() + "/v1.0";
-        client = new HttpMcpClient(true, new OutlookTools(url));
+        client = new HttpMcpClient(true, List.of(new OutlookTools(url)));
     }
 
     @AfterEach

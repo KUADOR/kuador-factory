@@ -95,6 +95,17 @@ BOARD_PUSH_VAPID_PUBLIC_KEY=
 BOARD_PUSH_VAPID_PRIVATE_KEY=
 BOARD_PUSH_SUBJECT=mailto:soporte@kuador.com
 
+# Gmail y Outlook de un clic (Conexiones → Sistemas de la empresa). Sin estas variables, cada empresa pega su propia
+# aplicación al conectar. En las dos, la dirección de retorno es https://go.kuador.com/connections/oauth/callback.
+# Google Cloud: habilitar la API de Gmail; pantalla de consentimiento externa con el permiso gmail.modify (mientras
+# esté «en prueba», solo entran los usuarios de prueba y la sesión vence a los 7 días); cliente OAuth «Aplicación web».
+BOARD_CONNECTORS_GOOGLE_CLIENT_ID=
+BOARD_CONNECTORS_GOOGLE_CLIENT_SECRET=
+# Microsoft Entra: registro para «cuentas de cualquier directorio organizativo y cuentas Microsoft personales»,
+# plataforma web, permisos delegados de Microsoft Graph offline_access, User.Read, Mail.ReadWrite y Mail.Send.
+BOARD_CONNECTORS_MICROSOFT_CLIENT_ID=
+BOARD_CONNECTORS_MICROSOFT_CLIENT_SECRET=
+
 # Documentación de la API apagada en producción.
 SPRINGDOC_API_DOCS_ENABLED=false
 SPRINGDOC_SWAGGER_UI_ENABLED=false

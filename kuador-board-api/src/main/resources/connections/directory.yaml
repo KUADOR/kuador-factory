@@ -3,11 +3,11 @@
 # tablero se registre solo (selfRegisters: false), el proveedor cuya aplicación registrada usa (provider), que se
 # configura una vez para toda la plataforma con BOARD_CONNECTORS_<PROVIDER>_CLIENT_ID y _CLIENT_SECRET.
 # scope: permisos que se piden (vacío = los que sugiere el servidor). params: parámetros extra del inicio de sesión.
-# authorization y token: solo en los conectores propios del tablero (no hay servidor MCP que las publique).
+# authorization y token: solo en los conectores propios del tablero (Outlook y Gmail): no hay servidor MCP que las publique.
 connectors:
   - key: OUTLOOK
     name: Outlook
-    description: Correo de Microsoft 365. Buscar y leer correos y adjuntos, responder y enviar.
+    description: Correo de Microsoft 365 u Outlook.com. Buscar y leer correos y adjuntos, responder y enviar.
     category: Correo
     url: https://graph.microsoft.com/v1.0
     selfRegisters: false
@@ -15,16 +15,19 @@ connectors:
     scope: offline_access User.Read Mail.ReadWrite Mail.Send
     authorization: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
     token: https://login.microsoftonline.com/common/oauth2/v2.0/token
-    note: En Microsoft Entra, regístrala para «cuentas de cualquier directorio organizativo» y como aplicación web.
+    note: En Microsoft Entra, regístrala para «cuentas de cualquier directorio organizativo y cuentas Microsoft personales», como aplicación web.
   - key: GMAIL
     name: Gmail
-    description: Buscar y leer correos y adjuntos, y preparar borradores.
+    description: Buscar y leer correos y adjuntos, responder y enviar.
     category: Correo
-    url: https://gmailmcp.googleapis.com/mcp/v1
+    url: https://gmail.googleapis.com/gmail/v1
     selfRegisters: false
     provider: GOOGLE
-    scope: https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose
+    scope: https://www.googleapis.com/auth/gmail.modify
     params: {access_type: offline, prompt: consent}
+    authorization: https://accounts.google.com/o/oauth2/v2/auth
+    token: https://oauth2.googleapis.com/token
+    note: En Google Cloud, crea un cliente OAuth de «Aplicación web» y habilita la API de Gmail.
   - key: GOOGLE_CALENDAR
     name: Google Calendar
     description: Consultar la agenda y crear o mover citas.

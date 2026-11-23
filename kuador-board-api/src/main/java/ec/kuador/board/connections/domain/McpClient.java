@@ -13,6 +13,13 @@ public interface McpClient {
         }
     }
 
+    /** El servidor no aceptó la credencial: falta, venció o se revocó. */
+    class UnauthorizedException extends McpException {
+        public UnauthorizedException(String message) {
+            super(message);
+        }
+    }
+
     List<Connection.ToolDef> listTools(String url, String header, String secret);
 
     /** El texto que devuelve la herramienta. Si la herramienta informa un error, lanza {@link McpException} con él. */

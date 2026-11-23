@@ -32,7 +32,19 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
   empresa (correo, agenda, ERP). El tablero hace de intermediario: la credencial va cifrada y nunca sale del servidor,
   sirve con cualquier proveedor de IA, y los agentes locales las usan con `business_tools` / `use_business_tool`. Lo que
   solo lee se ofrece; lo que escribe, solo si quien administra lo habilitó. Solo HTTPS hacia Internet
-  (`board.connections.allow-private=true` para desarrollo local). Todavía no hay servidores que pidan OAuth.
+  (`board.connections.allow-private=true` para desarrollo local). Los servidores que piden iniciar sesión (OAuth, p. ej.
+  Outlook o Gmail) se conectan con «Pide iniciar sesión»: el tablero descubre el servidor de autorización, se registra
+  solo si se lo permiten (si no, se pega el identificador de una aplicación ya registrada, con la dirección de retorno
+  `BOARD_WEB_URL/connections/oauth/callback`), usa PKCE y renueva el acceso solo.
+  Los archivos que devuelve una herramienta (el adjunto de un correo, una factura en PDF o XML) llegan al agente como
+  texto, vengan como recurso de MCP o en base64 dentro de un JSON (`ToolFiles`); las imágenes y planillas se avisan.
+  **Directorio de conectores** (`connections/directory.yaml`): los sistemas conocidos (Gmail, Google Calendar y Drive,
+  Notion, Stripe, Slack…) se eligen de una lista. Los que no dejan que el tablero se registre solo (Google, Slack,
+  HubSpot, Asana, Box) usan una aplicación registrada una vez para toda la plataforma:
+  `BOARD_CONNECTORS_<PROVEEDOR>_CLIENT_ID` y `_CLIENT_SECRET` (p. ej. `BOARD_CONNECTORS_GOOGLE_CLIENT_ID`); sin ella,
+  quien conecta pega la de su empresa. **Outlook** es un conector propio (`OutlookTools`): Microsoft no publica un
+  servidor MCP de correo, así que el tablero habla con Microsoft Graph y ofrece buscar y leer correos y adjuntos,
+  responder, enviar y marcar leído (`BOARD_CONNECTORS_MICROSOFT_CLIENT_ID` / `_CLIENT_SECRET`, aplicación multiinquilino).
 - **Armar un tablero con IA** (`/design`, `BoardDesigner`): la persona cuenta a qué se dedica su empresa y la IA propone
   pasos, roles, aprobaciones y datos de la tarjeta; se valida como cualquier plantilla y nada se crea hasta aceptarlo.
 - **Catálogo para cualquier negocio**: rol **Revisor** (revisa cualquier trabajo en una puerta) y **Manual de

@@ -1,0 +1,127 @@
+# Directorio de conectores: sistemas conocidos que se conectan eligiéndolos de una lista, sin pegar direcciones.
+# Cada uno es el servidor MCP público del propio fabricante. Para agregar uno: su dirección y, si no deja que el
+# tablero se registre solo (selfRegisters: false), el proveedor cuya aplicación registrada usa (provider), que se
+# configura una vez para toda la plataforma con BOARD_CONNECTORS_<PROVIDER>_CLIENT_ID y _CLIENT_SECRET.
+# scope: permisos que se piden (vacío = los que sugiere el servidor). params: parámetros extra del inicio de sesión.
+# authorization y token: solo en los conectores propios del tablero (no hay servidor MCP que las publique).
+connectors:
+  - key: OUTLOOK
+    name: Outlook
+    description: Correo de Microsoft 365. Buscar y leer correos y adjuntos, responder y enviar.
+    category: Correo
+    url: https://graph.microsoft.com/v1.0
+    selfRegisters: false
+    provider: MICROSOFT
+    scope: offline_access User.Read Mail.ReadWrite Mail.Send
+    authorization: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+    token: https://login.microsoftonline.com/common/oauth2/v2.0/token
+    note: En Microsoft Entra, regístrala para «cuentas de cualquier directorio organizativo» y como aplicación web.
+  - key: GMAIL
+    name: Gmail
+    description: Buscar y leer correos y adjuntos, y preparar borradores.
+    category: Correo
+    url: https://gmailmcp.googleapis.com/mcp/v1
+    selfRegisters: false
+    provider: GOOGLE
+    scope: https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose
+    params: {access_type: offline, prompt: consent}
+  - key: GOOGLE_CALENDAR
+    name: Google Calendar
+    description: Consultar la agenda y crear o mover citas.
+    category: Agenda
+    url: https://calendarmcp.googleapis.com/mcp/v1
+    selfRegisters: false
+    provider: GOOGLE
+    scope: https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events
+    params: {access_type: offline, prompt: consent}
+  - key: GOOGLE_DRIVE
+    name: Google Drive
+    description: Buscar y leer archivos de la empresa.
+    category: Archivos
+    url: https://drivemcp.googleapis.com/mcp/v1
+    selfRegisters: false
+    provider: GOOGLE
+    scope: https://www.googleapis.com/auth/drive.readonly
+    params: {access_type: offline, prompt: consent}
+  - key: SLACK
+    name: Slack
+    description: Leer y escribir en los canales del equipo.
+    category: Mensajes
+    url: https://mcp.slack.com/mcp
+    selfRegisters: false
+    provider: SLACK
+  - key: NOTION
+    name: Notion
+    description: Páginas, bases de datos y notas del equipo.
+    category: Documentos
+    url: https://mcp.notion.com/mcp
+    selfRegisters: true
+  - key: AIRTABLE
+    name: Airtable
+    description: Registros de las bases (pedidos, inventario, clientes).
+    category: Datos
+    url: https://mcp.airtable.com/mcp
+    selfRegisters: true
+  - key: HUBSPOT
+    name: HubSpot
+    description: Contactos, empresas y negocios del CRM.
+    category: Ventas
+    url: https://mcp.hubspot.com
+    selfRegisters: false
+    provider: HUBSPOT
+  - key: STRIPE
+    name: Stripe
+    description: Cobros, clientes, facturas y suscripciones.
+    category: Pagos
+    url: https://mcp.stripe.com
+    selfRegisters: true
+  - key: PAYPAL
+    name: PayPal
+    description: Pagos, facturas y transacciones.
+    category: Pagos
+    url: https://mcp.paypal.com/mcp
+    selfRegisters: true
+  - key: MONDAY
+    name: monday.com
+    description: Tableros, elementos y actualizaciones.
+    category: Gestión
+    url: https://mcp.monday.com/mcp
+    selfRegisters: true
+  - key: ASANA
+    name: Asana
+    description: Tareas y proyectos.
+    category: Gestión
+    url: https://mcp.asana.com/v2/mcp
+    selfRegisters: false
+    provider: ASANA
+  - key: ATLASSIAN
+    name: Jira y Confluence
+    description: Incidencias de Jira y páginas de Confluence.
+    category: Gestión
+    url: https://mcp.atlassian.com/v2/mcp
+    selfRegisters: true
+  - key: LINEAR
+    name: Linear
+    description: Incidencias y proyectos.
+    category: Gestión
+    url: https://mcp.linear.app/mcp
+    selfRegisters: true
+  - key: INTERCOM
+    name: Intercom
+    description: Conversaciones y contactos de atención al cliente.
+    category: Atención
+    url: https://mcp.intercom.com/mcp
+    selfRegisters: true
+  - key: CANVA
+    name: Canva
+    description: Diseños y plantillas de la marca.
+    category: Diseño
+    url: https://mcp.canva.com/mcp
+    selfRegisters: true
+  - key: BOX
+    name: Box
+    description: Archivos y carpetas de la empresa.
+    category: Archivos
+    url: https://mcp.box.com
+    selfRegisters: false
+    provider: BOX

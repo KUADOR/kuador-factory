@@ -188,6 +188,20 @@ export function StagesEditor({
                   )}
                 </div>
               )}
+              {!s.gate && s.roles.length > 0 && (
+                <label className="flex flex-col gap-1 border-t border-line pt-3 text-xs font-medium text-fg-muted lg:col-span-3">
+                  Qué hace el agente en este paso
+                  <TextArea
+                    rows={4}
+                    maxLength={3000}
+                    value={s.instructions ?? ""}
+                    aria-label={`Qué hace el agente en ${c.name}`}
+                    placeholder={"Lee la factura adjunta y busca su pedido en el ERP.\nSi todo coincide, regístrala en el ERP.\nSi algo no cuadra, no la registres: pregunta a una persona explicando el desfase."}
+                    onChange={(e) => set(c.key, { instructions: e.target.value })}
+                  />
+                  <span className="font-normal text-fg-faint">En tus palabras: qué mirar, qué sistema usar y qué hacer si algo no cuadra.</span>
+                </label>
+              )}
               {(s.gate || s.roles.length > 0 || (s.checklist ?? []).length > 0 || (s.requires ?? []).length > 0) && (
                 <LeaveFields
                   stage={s}
@@ -234,7 +248,9 @@ export function StagesEditor({
           loading={pending}
           onClick={() =>
             start(async () => {
-              const meaningful = stages.filter((s) => s.gate || s.roles.length > 0 || (s.checklist ?? []).length > 0 || (s.requires ?? []).length > 0);
+              const meaningful = stages
+                .filter((s) => s.gate || s.roles.length > 0 || (s.checklist ?? []).length > 0 || (s.requires ?? []).length > 0 || !!s.instructions?.trim())
+                .map((s) => ({ ...s, instructions: s.instructions?.trim() || null }));
               const r = await setStagesAction(project.key, meaningful, maxRework);
               if (r.ok) {
                 setError(null);

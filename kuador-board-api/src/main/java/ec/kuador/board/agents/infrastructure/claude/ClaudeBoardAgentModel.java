@@ -75,7 +75,7 @@ class ClaudeBoardAgentModel implements BoardAgentModel {
             tarjeta ya están ahí; si no los ves en el directorio actual, búscalos por nombre con find.
             - Para cálculos sobre datos usa código, no cuentas de cabeza.
             - Los archivos que entregas (PDF, Excel, CSV, imágenes) van copiados a $OUTPUT_DIR con un nombre claro; en el mismo comando lista \
-            $OUTPUT_DIR para confirmar que quedaron.
+            $OUTPUT_DIR para confirmar que quedaron. En tu resumen nómbralos solo por su nombre: la persona no ve carpetas ni $OUTPUT_DIR.
             """;
 
     /** Si puede buscar en Internet (cómo usarlo lo dicen las reglas del espacio). */

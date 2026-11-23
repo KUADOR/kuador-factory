@@ -256,6 +256,10 @@ public class BoardAgent {
         }
         // Lo que la etapa pide verificar y lo que la tarjeta debe tener para salir de ella (lo exige el tablero).
         board.stage(card.status()).ifPresent(st -> {
+            // Qué se hace en esta etapa: lo escribió quien configura el tablero, así que es una orden del equipo.
+            if (st.instructions() != null) {
+                all.add("Lo que se hace en esta etapa (lo definió el equipo para este tablero; síguelo):\n" + st.instructions());
+            }
             if (!st.checklist().isEmpty()) {
                 all.add((gate.isPresent() ? "Lista de verificación de esta puerta: aprueba solo si se cumplen todos los puntos" : "Antes de entregar, verifica cada punto")
                         + " y di en tu resumen cómo comprobaste cada uno:\n" + String.join("\n", st.checklist().stream().map(x -> "  · " + x).toList()));
@@ -758,7 +762,13 @@ public class BoardAgent {
     String deliver(MemberView agent, MemberView requester, String issueKey, BoardAgentModel.Result result) {
         List<String> attached = new ArrayList<>();
         List<String> notAttached = new ArrayList<>();
+        // Un archivo guardado dos veces con el mismo nombre se adjunta una sola vez (la última versión).
+        Map<String, BoardAgentModel.OutputFile> unique = new java.util.LinkedHashMap<>();
         for (BoardAgentModel.OutputFile f : result.files()) {
+            unique.remove(f.name());
+            unique.put(f.name(), f);
+        }
+        for (BoardAgentModel.OutputFile f : unique.values()) {
             try {
                 attached.add(attachments.attach(issueKey, f.name(), f.contentType(), f.content(), agent.id()).fileName());
             } catch (RuntimeException e) {

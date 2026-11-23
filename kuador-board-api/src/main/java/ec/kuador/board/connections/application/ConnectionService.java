@@ -332,6 +332,35 @@ public class ConnectionService implements ConnectionsApi {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Summary> summaries() {
+        UUID ws = TenantContext.require();
+        List<Summary> out = new ArrayList<>();
+        for (Connection c : store.all(ws)) {
+            if (c.oauth() != null && !sessions.connected(c.oauth())) continue;
+            List<Tool> reads = new ArrayList<>();
+            List<Tool> writes = new ArrayList<>();
+            for (Connection.ToolDef t : c.tools()) {
+                Tool tool = new Tool(t.name(), c.key(), c.name(), t.name(), t.description(), t.schema(), t.readOnly());
+                (t.readOnly() ? reads : writes).add(tool);
+            }
+            out.add(new Summary(c.key(), c.name(), mcp.isMailbox(c.url()), reads, writes));
+        }
+        return out;
+    }
+
+    @Override
+    @Transactional
+    public void enableWrites(String connection, List<String> tools) {
+        UUID ws = TenantContext.require();
+        Connection c = require(ws, connection);
+        Set<String> writable = c.tools().stream().filter(t -> !t.readOnly()).map(Connection.ToolDef::name).collect(java.util.stream.Collectors.toSet());
+        Set<String> all = new LinkedHashSet<>(c.allowedWrites());
+        for (String t : tools == null ? List.<String>of() : tools) if (writable.contains(t)) all.add(t);
+        store.save(ws, c.withAllowedWrites(all));
+    }
+
+    @Override
     public List<IncomingMail> recentMail(String connection, String folder, java.time.Instant since, int max) {
         UUID ws = TenantContext.require();
         Connection c = require(ws, connection);

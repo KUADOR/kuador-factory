@@ -73,6 +73,8 @@ export interface StageDef {
   checklist?: string[];
   /** Lo que la tarjeta debe tener para salir de la etapa; lo hace cumplir el tablero. */
   requires?: Requirement[];
+  /** Qué hace el agente en esta etapa (qué mira, qué sistema usa, qué hace si algo no cuadra). */
+  instructions?: string | null;
 }
 
 /** Un requisito de etapa: un adjunto, un documento de tipo `ref` o el dato propio `ref` lleno. */
@@ -1414,4 +1416,12 @@ export interface BoardDesign {
   goal: string;
   summary: string;
   template: WorkflowTemplate;
+  /** Sistemas conectados que usará el tablero (sus claves). */
+  connections: string[];
+  /** Buzón cuyos correos entran como tarjetas, o null. */
+  mailbox: string | null;
+  /** Acciones que cambian datos que los agentes necesitan («CLAVE:herramienta»); se habilitan solo las que queden. */
+  writes: string[];
+  /** Lo que hace falta conectar y todavía no está. */
+  missing: string[];
 }

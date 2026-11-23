@@ -42,19 +42,22 @@ class ConnectionServiceTest {
                     .contains(org.assertj.core.groups.Tuple.tuple("GMAIL", true), org.assertj.core.groups.Tuple.tuple("NOTION", true),
                             org.assertj.core.groups.Tuple.tuple("SLACK", false));
 
-            // Gmail no deja registrarse solo: usa la aplicación de la plataforma, sus permisos mínimos y pide poder renovar.
+            // Gmail es un conector propio: usa la aplicación de la plataforma, sus permisos y pide poder renovar.
             oauth.registration = null;
+            int before = oauth.discoveries;
             String go = service.startLogin(null, null, null, null, null, null, "gmail", ADMIN);
-            assertThat(go).contains("client_id=app-kuador", "access_type=offline", "prompt=consent", "gmail.readonly").doesNotContain("secreto-kuador", "mail.google.com");
+            assertThat(go).startsWith("https://accounts.google.com/o/oauth2/v2/auth?").contains("client_id=app-kuador", "access_type=offline", "prompt=consent",
+                    "gmail.modify").doesNotContain("secreto-kuador", "resource=");
+            assertThat(oauth.discoveries).isEqualTo(before);
             assertThat(service.list()).singleElement().satisfies(c -> {
                 assertThat(c.key()).isEqualTo("GMAIL");
                 assertThat(c.name()).isEqualTo("Gmail");
-                assertThat(c.url()).isEqualTo("https://gmailmcp.googleapis.com/mcp/v1");
+                assertThat(c.url()).isEqualTo("https://gmail.googleapis.com/gmail/v1");
             });
             mcp.expects = "acceso-1";
             service.finishLogin(param(go, "state"), "codigo", ADMIN);
             assertThat(oauth.lastClient).isEqualTo(new OAuthClient.Client("app-kuador", "secreto-kuador"));
-            assertThat(service.startLogin("GMAIL", "Gmail", "https://gmailmcp.googleapis.com/mcp/v1", null, null, null, ADMIN))
+            assertThat(service.startLogin("GMAIL", "Gmail", "https://gmail.googleapis.com/gmail/v1", null, null, null, ADMIN))
                     .as("al volver a iniciar sesión se conserva lo que pide el conector").contains("access_type=offline", "client_id=app-kuador");
 
             // Outlook es un conector propio: sus direcciones de inicio de sesión son fijas y Microsoft no admite «resource».
@@ -208,7 +211,7 @@ class ConnectionServiceTest {
         }
 
         @Override
-        public Tokens refresh(String tokenEndpoint, Client client, String refreshToken, String resource) {
+        public Tokens refresh(String tokenEndpoint, Client client, String refreshToken, String resource, String scope) {
             if (refreshFails) throw new OAuthException("invalid_grant");
             refreshes++;
             lastRefreshToken = refreshToken;

@@ -42,9 +42,9 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
   Notion, Stripe, Slack…) se eligen de una lista. Los que no dejan que el tablero se registre solo (Google, Slack,
   HubSpot, Asana, Box) usan una aplicación registrada una vez para toda la plataforma:
   `BOARD_CONNECTORS_<PROVEEDOR>_CLIENT_ID` y `_CLIENT_SECRET` (p. ej. `BOARD_CONNECTORS_GOOGLE_CLIENT_ID`); sin ella,
-  quien conecta pega la de su empresa. **Outlook** es un conector propio (`OutlookTools`): Microsoft no publica un
-  servidor MCP de correo, así que el tablero habla con Microsoft Graph y ofrece buscar y leer correos y adjuntos,
-  responder, enviar y marcar leído (`BOARD_CONNECTORS_MICROSOFT_CLIENT_ID` / `_CLIENT_SECRET`, aplicación multiinquilino).
+  quien conecta pega la de su empresa. **Outlook y Gmail** son conectores propios (`OutlookTools`, `GmailTools` sobre
+  Microsoft Graph y la API de Gmail): ofrecen las mismas herramientas (buscar y leer correos y adjuntos, responder,
+  enviar y marcar leído), así un procedimiento sirve con cualquiera de los dos. Variables en docs/despliegue.md.
 - **Armar un tablero con IA** (`/design`, `BoardDesigner`): la persona cuenta a qué se dedica su empresa y la IA propone
   pasos, roles, aprobaciones y datos de la tarjeta; se valida como cualquier plantilla y nada se crea hasta aceptarlo.
 - **Catálogo para cualquier negocio**: rol **Revisor** (revisa cualquier trabajo en una puerta) y **Manual de

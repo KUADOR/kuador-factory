@@ -31,5 +31,6 @@ public interface OAuthClient {
 
     Tokens exchange(Discovery where, Client client, String code, String verifier, String redirectUri);
 
-    Tokens refresh(String tokenEndpoint, Client client, String refreshToken, String resource);
+    /** {@code scope}: los permisos de la sesión (algunos sistemas, como Microsoft, los quieren también al renovar); nulo si no se pidieron. */
+    Tokens refresh(String tokenEndpoint, Client client, String refreshToken, String resource, String scope);
 }

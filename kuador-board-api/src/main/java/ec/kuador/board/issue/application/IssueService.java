@@ -224,6 +224,14 @@ public class IssueService implements IssueApi {
     /** Mueve el issue a {@code target} en la posición {@code index} (0 = arriba) y reordena la columna. */
     @Transactional
     public Issue move(String key, String target, int index, UUID actorId) {
+        return move(key, target, index, actorId, false);
+    }
+
+    /**
+     * {@code byRule}: lo mueve una regla fija del tablero (p. ej. devolver una tarjeta cuyo PR quedó en conflicto), no la
+     * decisión de quien figura como autor: no exige ser aprobador de la puerta de la que sale.
+     */
+    private Issue move(String key, String target, int index, UUID actorId, boolean byRule) {
         Issue issue = load(key);
         ProjectView project = project(issue.projectKey());
         ColumnDef to = requireColumn(project, target);
@@ -237,7 +245,7 @@ public class IssueService implements IssueApi {
                     + (targets.isEmpty() ? " Desde esa columna no hay salidas configuradas." : " Desde ahí se puede ir a: " + String.join(", ", targets) + "."));
         }
         Optional<StageDef> fromStage = from.equals(target) ? Optional.empty() : project.stage(from);
-        if (fromStage.isPresent() && fromStage.get().gate()) {
+        if (fromStage.isPresent() && fromStage.get().gate() && !byRule) {
             requireApprover(project, fromStage.get(), actorId, issue);
         }
         // Tampoco se salta una puerta llevando la tarjeta de antes a después de ella.
@@ -1073,8 +1081,22 @@ public class IssueService implements IssueApi {
             return Optional.empty();
         }
         saveComment(issue, actorId, "**Devuelto a " + columnName(project, back.get()) + "**. " + body, now());
-        move(issueKey, back.get(), Integer.MAX_VALUE, actorId);
+        move(issueKey, back.get(), Integer.MAX_VALUE, actorId, true);
         return back.map(k -> columnName(project, k));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean branchIdle(String issueKey) {
+        Optional<Issue> found = issues.findByKey(issueKey);
+        if (found.isEmpty()) return false;
+        ProjectView project = project(found.get().projectKey());
+        String status = found.get().status();
+        if (project.column(status).map(c -> c.category() == ec.kuador.board.catalog.ColumnCategory.DONE).orElse(true)) return false;
+        // Una columna sin etapa o que cubre cualquiera puede tener a alguien programando: no se toca.
+        return project.stage(status)
+                .map(st -> st.gate() || (!st.roles().isEmpty() && st.roles().stream().noneMatch(this::writesCode)))
+                .orElse(false);
     }
 
     private Progress progress(Issue issue) {

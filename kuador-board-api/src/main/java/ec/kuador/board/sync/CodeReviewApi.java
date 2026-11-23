@@ -57,4 +57,9 @@ public interface CodeReviewApi {
     default java.util.Optional<Boolean> mergeable(String projectKey, String repository, int number) {
         return java.util.Optional.empty();
     }
+
+    /** Trae a la rama del PR lo nuevo de su rama destino. Falso si no se pudo (conflictos, ya al día). */
+    default boolean updateBranch(String projectKey, String repository, int number) {
+        return false;
+    }
 }

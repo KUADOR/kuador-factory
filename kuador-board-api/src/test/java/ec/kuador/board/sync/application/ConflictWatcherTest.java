@@ -22,7 +22,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
-/** Tras una fusión, el PR que quedó en conflicto devuelve su tarjeta; los demás no se tocan. */
+/** Tras una fusión, el PR que quedó en conflicto devuelve su tarjeta; el atrasado se actualiza si nadie trabaja su rama. */
 @ExtendWith(TestTenant.class)
 class ConflictWatcherTest {
 
@@ -30,6 +30,10 @@ class ConflictWatcherTest {
 
     private final Map<Integer, Deque<Optional<Boolean>>> mergeable = new HashMap<>();
     private final List<String> returned = new ArrayList<>();
+    private final List<Integer> updated = new ArrayList<>();
+    private final java.util.Set<String> idle = new java.util.HashSet<>();
+    private final java.util.Set<String> syncable = new java.util.HashSet<>();
+    private final List<String> requested = new ArrayList<>();
 
     private static CodeReviewApi.PullSummary pr(int n, String title, String branch, String base, String state) {
         return new CodeReviewApi.PullSummary("acme/kua", n, title, branch, base, state, false, "agente", null, null, null);
@@ -62,6 +66,12 @@ class ConflictWatcherTest {
                 if (answers == null) throw new AssertionError("No debía preguntar por el PR #" + n);
                 return answers.size() > 1 ? answers.poll() : answers.peek();
             }
+
+            @Override
+            public boolean updateBranch(String p, String repo, int n) {
+                updated.add(n);
+                return true;
+            }
         };
         IssueApi issues = new IssueApiStub() {
             @Override
@@ -75,6 +85,11 @@ class ConflictWatcherTest {
                 returned.add(key + "|" + note);
                 return Optional.of("Desarrollo");
             }
+
+            @Override
+            public boolean branchIdle(String key) {
+                return idle.contains(key);
+            }
         };
         PlatformTransactionManager tx = new PlatformTransactionManager() {
             public TransactionStatus getTransaction(TransactionDefinition d) { return new SimpleTransactionStatus(); }
@@ -83,7 +98,22 @@ class ConflictWatcherTest {
 
             public void rollback(TransactionStatus s) {}
         };
-        return new ConflictWatcher(code, issues, tx, 0, 4);
+        ec.kuador.board.issue.BranchSyncApi syncs = new ec.kuador.board.issue.BranchSyncApi() {
+            public boolean request(String key, Conflict c, String note, UUID actor) {
+                if (!syncable.contains(key)) return false;
+                requested.add(key + "|" + c.repository() + "#" + c.number() + "|" + c.branch());
+                return true;
+            }
+
+            public Optional<BranchSync> pending(String key) { return Optional.empty(); }
+
+            public List<BranchSync> pending() { return List.of(); }
+
+            public void resolved(String key, String detail, UUID actor) {}
+
+            public void failed(String key, String reason, boolean giveUp, UUID actor) {}
+        };
+        return new ConflictWatcher(code, issues, syncs, tx, 0, 4);
     }
 
     @Test
@@ -98,6 +128,33 @@ class ConflictWatcherTest {
         assertThat(returned).singleElement().satisfies(r -> {
             assertThat(r).startsWith("KUA-2|").contains("acme/kua #8", "«develop»", "#7");
         });
+    }
+
+    @Test
+    void actualizaLaRamaDelPrAtrasadoSoloSiNadieLaTrabaja() {
+        mergeable.put(8, new ArrayDeque<>(List.of(Optional.of(true))));
+        mergeable.put(9, new ArrayDeque<>(List.of(Optional.of(true))));
+        mergeable.put(11, new ArrayDeque<>(List.of(Optional.of(true))));
+        // KUA-3 espera en la puerta o en QA; KUA-2 está en desarrollo; OTRO-5 es de otro tablero.
+        idle.addAll(List.of("KUA-3", "OTRO-5"));
+
+        watcher().check(new PullMerged(TestTenant.WORKSPACE, "KUA", "acme/kua", 7, OWNER));
+
+        assertThat(updated).containsExactly(9);
+        assertThat(returned).isEmpty();
+    }
+
+    @Test
+    void laTarjetaQueEsperaEnUnaPuertaPideActualizarLaRamaEnVezDeVolver() {
+        mergeable.put(8, new ArrayDeque<>(List.of(Optional.of(false))));
+        mergeable.put(9, new ArrayDeque<>(List.of(Optional.of(false))));
+        mergeable.put(11, new ArrayDeque<>(List.of(Optional.of(true))));
+        syncable.add("KUA-3"); // espera en la puerta; KUA-2 está en desarrollo
+
+        watcher().check(new PullMerged(TestTenant.WORKSPACE, "KUA", "acme/kua", 7, OWNER));
+
+        assertThat(requested).containsExactly("KUA-3|acme/kua#9|feature/KUA-3-reportes");
+        assertThat(returned).singleElement().satisfies(r -> assertThat(r).startsWith("KUA-2|"));
     }
 
     @Test

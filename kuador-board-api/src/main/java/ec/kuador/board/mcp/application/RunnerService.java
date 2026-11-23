@@ -103,6 +103,14 @@ public class RunnerService {
         this.zone = java.time.ZoneId.of(zone);
     }
     private ec.kuador.board.sync.RepositoriesApi repositories;
+    private ec.kuador.board.issue.BranchSyncApi syncs;
+    private ec.kuador.board.sync.CodeReviewApi code;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setSyncs(ec.kuador.board.issue.BranchSyncApi syncs, ec.kuador.board.sync.CodeReviewApi code) {
+        this.syncs = syncs;
+        this.code = code;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setRepositories(ec.kuador.board.sync.RepositoriesApi repositories) {
@@ -203,8 +211,21 @@ public class RunnerService {
         Set<String> leased = new java.util.HashSet<>(active.stream().map(Lease::issueKey).toList());
         List<Machine> online = store.machines(ws).stream().filter(x -> !x.paused() && x.lastSeen().isAfter(now.minus(ONLINE))).toList();
 
+        // Primero, las ramas en conflicto de tarjetas que esperan revisión: son cortas y destraban la puerta.
+        List<ec.kuador.board.issue.BranchSyncApi.BranchSync> pendingSyncs = syncs == null ? List.of() : syncs.pending();
+        for (ec.kuador.board.issue.BranchSyncApi.BranchSync sync : pendingSyncs) {
+            if (leased.contains(sync.issueKey()) || !machine.roles().contains(sync.role()) || !BoardScope.allows(sync.projectKey())) continue;
+            if (!projects.visibleKeys().contains(sync.projectKey())) continue;
+            if (store.failures(ws, sync.issueKey(), now.minus(Duration.ofDays(1))) >= MAX_FAILURES) continue;
+            MemberView agent = coderFor(sync.projectKey(), sync.role()).orElse(null);
+            if (agent == null) continue;
+            Optional<Claim> claim = tryClaimSync(who, machine, sync, agent, now);
+            if (claim.isPresent()) return claim;
+        }
+        Set<String> syncing = new java.util.HashSet<>(pendingSyncs.stream().map(ec.kuador.board.issue.BranchSyncApi.BranchSync::issueKey).toList());
+
         for (Candidate c : candidates(who.memberId())) {
-            if (leased.contains(c.item().key())) continue;
+            if (leased.contains(c.item().key()) || syncing.contains(c.item().key())) continue;
             String role = c.item().agentRoles().stream().filter(machine.roles()::contains).findFirst().orElse(null);
             if (role == null) continue;
             MemberView agent = agentFor(c.item(), role).orElse(null);
@@ -268,7 +289,7 @@ public class RunnerService {
         try {
             return tx.execute(s -> {
                 Lease lease = new Lease(UUID.randomUUID(), who.workspaceId(), item.key(), context.parentKey(), item.status(), machine.id(),
-                        who.memberId(), agent.id(), now, now.plus(LEASE), null, null, null);
+                        who.memberId(), agent.id(), now, now.plus(LEASE), null, null, null, Lease.WORK);
                 if (!store.insertLease(lease)) return Optional.<Claim>empty(); // otra máquina la ganó
                 if (!who.memberId().equals(supervisor)) issues.handOver(item.key(), who.memberId());
                 if (item.assigneeId() == null) issues.takeAs(item.key(), agent.id());
@@ -284,6 +305,64 @@ public class RunnerService {
             log.debug("No se pudo tomar {} para {}: {}", item.key(), machine.name(), e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /** El agente local que programa con ese rol en el tablero (el del equipo del tablero primero). */
+    private Optional<MemberView> coderFor(String projectKey, String role) {
+        List<MemberView> withRole = members.agents().stream().filter(a -> a.role().equals(role)).filter(a -> work.profile(a.id()).local()).toList();
+        return withRole.stream().filter(a -> projects.agentBoardsOf(a.id()).contains(projectKey)).findFirst().or(() -> withRole.stream().findFirst());
+    }
+
+    /** Toma el pedido de actualizar rama: la tarjeta no cambia de columna ni de responsable. */
+    private Optional<Claim> tryClaimSync(AuthenticatedMember who, Machine machine, ec.kuador.board.issue.BranchSyncApi.BranchSync sync, MemberView agent,
+            Instant now) {
+        try {
+            return tx.execute(s -> {
+                IssueContext context = issues.context(sync.issueKey()).orElse(null);
+                if (context == null) return Optional.<Claim>empty();
+                Lease lease = new Lease(UUID.randomUUID(), who.workspaceId(), sync.issueKey(), context.parentKey(), context.status(), machine.id(),
+                        who.memberId(), agent.id(), now, now.plus(LEASE), null, null, null, Lease.SYNC);
+                if (!store.insertLease(lease)) return Optional.<Claim>empty();
+                work.started(agent.id(), sync.issueKey(), sync.projectKey(), who.memberId(), "runner · " + machine.name() + " · actualizar rama");
+                ec.kuador.board.auth.RunTokens.Issued run = runTokens.issue(who.workspaceId(), who.memberId(),
+                        new ec.kuador.board.auth.RunScope(sync.issueKey(), sync.role()), RUN_TOKEN_TTL);
+                store.setRunToken(lease.id(), run.id());
+                return Optional.of(syncClaim(sync, context, agent, run.secret()));
+            });
+        } catch (RuntimeException e) {
+            log.debug("No se pudo tomar la rama de {} para {}: {}", sync.issueKey(), machine.name(), e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Lo que hace el runner con una rama en conflicto: solo git, compilar y probar. Sin herramientas del tablero: la tarjeta no
+     * se mueve, y el tablero comprueba en GitHub que el PR quedó sin conflictos.
+     */
+    private Claim syncClaim(ec.kuador.board.issue.BranchSyncApi.BranchSync sync, IssueContext context, MemberView agent, String runToken) {
+        AgentRole r = catalog.role(sync.role()).orElseThrow();
+        AgentKit.RunPlan plan = kit.runPlan(sync.role());
+        AgentWorkApi.LocalProfile profile = work.profile(agent.id());
+        ProjectView project = projects.find(sync.projectKey()).orElseThrow();
+        String prompt = syncPrompt(sync, context.title());
+        List<String> tools = plan.allowedTools().stream().filter(t -> !t.startsWith("mcp__")).toList();
+        AgentKit.Connection c = kit.connection();
+        return new Claim(sync.issueKey(), sync.projectKey(), project.kind().name(), context.title(), r.key(), r.name(), true, agent.id(), agent.name(),
+                profile.model(), profile.effort(), prompt, plan.instructions(), tools, c.server(), c.url(), LEASE.toSeconds(), runToken, 0, prompt,
+                List.of(sync.repository()));
+    }
+
+    static String syncPrompt(ec.kuador.board.issue.BranchSyncApi.BranchSync sync, String title) {
+        return """
+                Actualiza la rama del Pull Request %1$s #%2$d de la tarjeta %3$s («%4$s»): quedó en conflicto con «%5$s» porque se fusionó otro cambio antes.
+                Solo eso: no cambies el alcance de la tarjeta ni uses las herramientas del tablero (la tarjeta no se mueve; el tablero comprueba el PR en GitHub).
+                1. git fetch origin. Pasa a la rama «%6$s» y trae lo último de ella (git checkout %6$s && git pull --no-rebase origin %6$s).
+                2. git merge origin/%5$s. Resuelve cada conflicto conservando los dos cambios: lo de la tarjeta y lo que llegó de «%5$s» (por ejemplo, las dos entradas nuevas de un enum o de una lista de rutas).
+                3. Compila y corre las pruebas del proyecto; arregla solo lo que el merge rompió.
+                4. Haz commit del merge y git push origin %6$s (nunca --force).
+                Si un conflicto exige decidir algo de producto o no puedes dejarlo compilando, no subas nada: termina y explica por qué en una línea.
+                Responde al final con una o dos líneas: qué archivos tenían conflicto y cómo quedaron."""
+                .formatted(sync.repository(), sync.number(), sync.issueKey(), title, sync.baseBranch(), sync.branch());
     }
 
     private Claim claimFor(QueueItem item, String role, MemberView agent, String runToken) {
@@ -345,6 +424,11 @@ public class RunnerService {
         UUID ws = who.workspaceId();
         Lease lease = store.activeLease(ws, key).filter(l -> l.machineId().equals(machineId)).orElse(null);
         if (lease == null) return;
+        if (lease.sync()) {
+            releaseSync(ws, lease, result, message);
+            hub.signal(ws);
+            return;
+        }
         if (result.equals("DONE")) {
             boolean stalled = issues.context(key).map(c -> c.status().equals(lease.status()) && lease.agentId().equals(c.assigneeId())).orElse(false);
             if (stalled) result = "STALLED";
@@ -364,6 +448,58 @@ public class RunnerService {
         hub.signal(ws);
     }
 
+    /**
+     * Terminó un pedido de actualizar rama. El tablero no le cree al cliente de IA: pregunta a GitHub si el PR quedó sin
+     * conflictos. Sin conflictos, sigue la revisión; si sigue en conflicto, vuelve a desarrollo; si se cortó, se reintenta.
+     */
+    private void releaseSync(UUID ws, Lease lease, String result, String message) {
+        String key = lease.issueKey();
+        Optional<ec.kuador.board.issue.BranchSyncApi.BranchSync> sync = syncs == null ? Optional.empty() : tx.execute(s -> syncs.pending(key));
+        Optional<Boolean> clean = Optional.empty();
+        if (result.equals("DONE") && sync != null && sync.isPresent()) clean = mergeable(sync.get());
+        final Optional<Boolean> resolved = clean;
+        tx.executeWithoutResult(s -> {
+            store.release(ws, key, lease.machineId(), result.equals("DONE") && resolved.isPresent() && !resolved.get() ? "FAILED" : result, clock.instant());
+            runTokens.revoke(lease.runTokenId());
+            if (sync == null || sync.isEmpty()) return;
+            switch (result) {
+                case "DONE" -> {
+                    // GitHub a veces tarda en calcularlo: sin respuesta se da por resuelto; si no lo estaba, lo frena la fusión.
+                    if (resolved.isEmpty() || resolved.get()) {
+                        work.finished(lease.agentId(), key, "Actualizó la rama del PR " + sync.get().repository() + " #" + sync.get().number() + ".");
+                        syncs.resolved(key, message, lease.agentId());
+                    } else {
+                        work.failed(lease.agentId(), key, "La rama sigue en conflicto después de actualizarla.");
+                        syncs.failed(key, "el PR sigue en conflicto" + (message == null || message.isBlank() ? "" : ": " + message.strip()), true, lease.agentId());
+                    }
+                }
+                case "RATE_LIMITED", "CANCELLED" -> work.failed(lease.agentId(), key, "Se pausó: la retoma otra máquina o la misma más tarde.");
+                default -> {
+                    work.failed(lease.agentId(), key, message == null || message.isBlank() ? "Se cortó en la máquina." : message);
+                    syncs.failed(key, message, false, lease.agentId());
+                }
+            }
+        });
+    }
+
+    /** Si el PR quedó sin conflictos; GitHub lo calcula en segundo plano, así que se pregunta unas veces. */
+    private Optional<Boolean> mergeable(ec.kuador.board.issue.BranchSyncApi.BranchSync sync) {
+        if (code == null) return Optional.empty();
+        for (int i = 0; i < 5; i++) {
+            try {
+                Optional<Boolean> m = code.mergeable(sync.projectKey(), sync.repository(), sync.number());
+                if (m.isPresent()) return m;
+                Thread.sleep(2_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return Optional.empty();
+            } catch (RuntimeException e) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
     /** Los préstamos que nadie renovó: la máquina se apagó o se colgó. La tarjeta vuelve a la cola. */
     @Scheduled(fixedDelay = 30_000, initialDelay = 30_000)
     public void expire() {
@@ -375,6 +511,7 @@ public class RunnerService {
                     if (store.release(lease.workspaceId(), lease.issueKey(), lease.machineId(), "EXPIRED", now).isEmpty()) return;
                     runTokens.revoke(lease.runTokenId());
                     work.failed(lease.agentId(), lease.issueKey(), "Se cortó: «" + machine + "» dejó de responder.");
+                    if (lease.sync() && syncs != null) syncs.failed(lease.issueKey(), "«" + machine + "» dejó de responder", false, lease.agentId());
                     afterFailure(lease.workspaceId(), lease, "EXPIRED");
                 }));
                 hub.signal(lease.workspaceId());

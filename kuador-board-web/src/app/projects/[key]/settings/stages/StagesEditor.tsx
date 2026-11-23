@@ -252,7 +252,7 @@ function ReviewFields({
     mode: "AGENT_ESCALATE" as ReviewMode,
     reviewerRole: null,
     sensitive: DEFAULT_SENSITIVE,
-    maxChangedLines: 400,
+    maxChangedLines: 5000,
   };
   return (
     <div className="flex flex-col gap-1.5">
@@ -268,7 +268,8 @@ function ReviewFields({
       {mode !== "PERSON" && (
         <div className="mt-1 flex flex-col gap-2">
           <p className="text-xs text-fg-muted">
-            Al guardar se suma al equipo el <strong>Agente Revisor de PR</strong>.
+            Al guardar se suma al equipo el <strong>Agente Revisor de PR</strong>. Revisa cuando
+            termina el CI; si queda en rojo, la devuelve sin revisar.
           </p>
           <Switch
             checked={!!review.merge}
@@ -319,7 +320,7 @@ function ReviewFields({
                     className="tabular text-center"
                   />
                 </span>
-                líneas cambiadas pasa a una persona (0 = sin límite)
+                líneas cambiadas (sin lockfiles ni generados) pasa a una persona (0 = sin límite)
               </label>
             </>
           )}

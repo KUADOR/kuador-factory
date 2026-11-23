@@ -125,6 +125,14 @@ public interface IssueApi {
         return Optional.empty();
     }
 
+    /**
+     * Si nadie escribe código en la rama de la tarjeta ahora: espera en una puerta o está en una etapa cuyos roles no editan
+     * código (p. ej. QA). Entonces el tablero puede actualizar su rama sin pisar a quien la desarrolla.
+     */
+    default boolean branchIdle(String issueKey) {
+        return false;
+    }
+
     /** Devuelve el issue a una columna anterior con el motivo. */
     Progress sendBack(String issueKey, String column, String reason, UUID actorId);
 

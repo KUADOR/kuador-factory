@@ -357,6 +357,10 @@ public class BoardTools {
             }
         });
         project.nextAfter(column).ifPresent(n -> m.put("next", Map.of("column", n.key(), "name", n.name())));
+        // Las decisiones del paso: según el resultado, a qué paso sigue (lo declara el tablero).
+        List<Map<String, String>> paths = project.transitions().paths(column).stream()
+                .map(t -> Map.of("when", t.when(), "column", t.to(), "name", project.column(t.to()).map(x -> x.name()).orElse(t.to()))).toList();
+        if (!paths.isEmpty()) m.put("paths", paths);
         m.put("columns", project.columns().stream().map(x -> x.key() + " (" + x.name() + ")").toList());
         return m;
     }

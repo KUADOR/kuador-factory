@@ -6,22 +6,15 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { clsx } from "clsx";
 
-import { setStagesAction } from "@/app/actions";
+import { setStagesAction, setTransitionsAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { ChipPicker } from "@/components/ui/ChipPicker";
-import { Field, Switch, TextArea } from "@/components/ui/Field";
+import { Field, SelectInput, Switch, TextArea, TextInput } from "@/components/ui/Field";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
 import type { MailInbox, Project, Routine, StageDef } from "@/lib/types";
 
 type Option = { value: string; label: string };
-
-/** Los pasos posteriores que las instrucciones nombran entre comillas («Ingresada»): los caminos según el resultado. */
-function branches(stage: StageDef | undefined, later: { key: string; name: string }[]): { key: string; name: string }[] {
-  const text = (stage?.instructions ?? "").toLowerCase();
-  if (!text) return [];
-  return later.filter((c) => text.includes(`«${c.name.toLowerCase()}»`) || text.includes(`"${c.name.toLowerCase()}"`));
-}
 
 export function FlowView({
   project,
@@ -108,7 +101,7 @@ export function FlowView({
             const st = stageOf(c.key);
             const who = responsible(c.key, i);
             const systems = systemsFor(c.key);
-            const ways = branches(st, columns.slice(i + 1).map((x) => ({ key: x.key, name: x.name })));
+            const ways = project.transitions.allowed.filter((t) => t.from === c.key && t.when);
             const Icon = who.icon;
             return (
               <li key={c.key} className="flex flex-col items-center lg:flex-row">
@@ -146,9 +139,16 @@ export function FlowView({
                   {(st?.checklist ?? []).length > 0 && <span className="text-[11px] text-fg-faint">Comprueba {(st?.checklist ?? []).length} punto(s)</span>}
                   {ways.length > 0 && (
                     <span className="flex flex-col gap-0.5 border-t border-line pt-1.5 text-[11px] text-fg-muted">
-                      {ways.map((w) => (
-                        <span key={w.key}>↳ puede pasar a «{w.name}»</span>
-                      ))}
+                      {ways.map((w) => {
+                        const target = columns.find((x) => x.key === w.to);
+                        const back = columns.findIndex((x) => x.key === w.to) < i;
+                        return (
+                          <span key={w.to}>
+                            {back ? "↺" : "↳"} {w.when} → «{target?.name ?? w.to}»
+                          </span>
+                        );
+                      })}
+                      {columns[i + 1] && !ways.some((w) => w.to === columns[i + 1].key) && <span>↳ en otro caso → «{columns[i + 1].name}»</span>}
                     </span>
                   )}
                   {canEdit && i > 0 && c.category !== "DONE" && (
@@ -221,7 +221,12 @@ function StepEditor({ project, column, roleOptions, onDone }: { project: Project
   const [gate, setGate] = useState(current?.gate ?? false);
   const [instructions, setInstructions] = useState(current?.instructions ?? "");
   const [checklist, setChecklist] = useState((current?.checklist ?? []).join("\n"));
+  // Las decisiones del paso: «si …» → otro paso (adelante o atrás).
+  const [paths, setPaths] = useState<{ when: string; to: string }[]>(
+    project.transitions.allowed.filter((t) => t.from === column && t.when).map((t) => ({ when: t.when ?? "", to: t.to })),
+  );
   const [pending, start] = useTransition();
+  const targets = project.columns.filter((c) => c.key !== column).map((c) => ({ value: c.key, label: c.name }));
 
   const save = () =>
     start(async () => {
@@ -244,6 +249,18 @@ function StepEditor({ project, column, roleOptions, onDone }: { project: Project
         notify.error("No se pudo guardar", r.error);
         return;
       }
+      // Los caminos de este paso: se reemplazan las decisiones que salen de aquí; lo demás queda igual.
+      const clean = paths.map((p) => ({ from: column, to: p.to, when: p.when.trim() })).filter((p) => p.to && p.when);
+      const before = project.transitions.allowed;
+      const changed = JSON.stringify(before.filter((t) => t.from === column && t.when).map((t) => [t.to, t.when])) !== JSON.stringify(clean.map((p) => [p.to, p.when]));
+      if (changed) {
+        const kept = before.filter((t) => !(t.from === column && (t.when || clean.some((p) => p.to === t.to))));
+        const t = await setTransitionsAction(project.key, { restricted: project.transitions.restricted, allowed: [...kept, ...clean] });
+        if (!t.ok) {
+          notify.error("No se pudieron guardar los caminos", t.error);
+          return;
+        }
+      }
       notify.ok("Paso guardado");
       onDone();
       router.refresh();
@@ -259,9 +276,40 @@ function StepEditor({ project, column, roleOptions, onDone }: { project: Project
         </div>
       )}
       {!gate && roles.length > 0 && (
-        <Field label="Qué hace el agente en este paso" hint="Qué mirar, qué sistema usar y qué hacer si algo no cuadra. Puedes decir a qué paso va según el resultado: «Ingresada» o «Desfase».">
+        <Field label="Qué hace el agente en este paso" hint="Qué mirar, qué sistema usar y con qué criterio decide. A dónde va según el resultado se define abajo, en los caminos.">
           {(id) => <TextArea id={id} rows={7} maxLength={3000} value={instructions} onChange={(e) => setInstructions(e.target.value)} />}
         </Field>
+      )}
+      {!gate && (
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-medium text-fg-muted">Caminos según el resultado</span>
+          <span className="text-xs text-fg-faint">Si no se cumple ninguno, sigue al paso siguiente. Puede ir a un paso posterior o volver a uno anterior.</span>
+          {paths.map((p, idx) => (
+            <div key={idx} className="flex flex-wrap items-center gap-2">
+              <TextInput
+                aria-label="Condición"
+                className="min-w-40 flex-1"
+                maxLength={200}
+                placeholder="si algo no coincide"
+                value={p.when}
+                onChange={(e) => setPaths((all) => all.map((x, j) => (j === idx ? { ...x, when: e.target.value } : x)))}
+              />
+              <span className="text-xs text-fg-muted">→</span>
+              <div className="w-44">
+                <SelectInput ariaLabel="A qué paso va" value={p.to || null} options={targets} placeholder="Elige el paso"
+                  onChange={(to) => setPaths((all) => all.map((x, j) => (j === idx ? { ...x, to: to ?? "" } : x)))} />
+              </div>
+              <Button size="sm" tone="ghost" onClick={() => setPaths((all) => all.filter((_, j) => j !== idx))}>
+                Quitar
+              </Button>
+            </div>
+          ))}
+          <div>
+            <Button size="sm" onClick={() => setPaths((all) => [...all, { when: "", to: "" }])}>
+              Agregar camino
+            </Button>
+          </div>
+        </div>
       )}
       <Field label={gate ? "Qué comprueba quien aprueba (uno por línea)" : "Qué se comprueba antes de entregar (uno por línea)"}>
         {(id) => <TextArea id={id} rows={3} value={checklist} onChange={(e) => setChecklist(e.target.value)} />}

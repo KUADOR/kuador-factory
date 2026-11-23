@@ -379,22 +379,21 @@ public class BoardAgent {
                         return "Datos de la tarjeta: " + tx.execute(s -> issues.setCardFields(card.key(), values, agent.id()));
                     }));
         }
-        // Según su resultado, el agente puede mandar la tarjeta a otro paso (p. ej. «Ingresada» si todo coincide o «Desfase» si no).
+        // Las decisiones del paso: los caminos con condición que declara el tablero (un «si…»); el agente elige según su resultado.
         chosenNext.remove(card.key());
         List<StageHandoff.Next> choices = gate.isPresent() ? List.of() : tx.execute(s -> handoff.choices(agent, issueKey));
         if (choices.size() >= 2) {
             List<String> names = choices.stream().map(StageHandoff.Next::columnName).toList();
-            tools.add(new BoardAgentModel.BoardTool("choose_next_step", "Elige a qué paso pasa la tarjeta cuando entregues, si según tu resultado no es «"
-                    + names.getFirst() + "». Llámalo antes de deliver.",
+            String ways = String.join("; ", choices.stream().map(c -> (c.when() == null ? "en otro caso" : c.when()) + " → «" + c.columnName() + "»").toList());
+            tools.add(new BoardAgentModel.BoardTool("choose_next_step", "Elige por qué camino sigue la tarjeta según tu resultado: " + ways + ". Llámalo antes de deliver.",
                     Map.of("type", "object", "required", List.of("step"), "properties", Map.of("step", Map.of("type", "string", "enum", names))), args -> {
                         String wanted = String.valueOf(args.getOrDefault("step", "")).strip();
                         StageHandoff.Next n = choices.stream().filter(c -> c.columnName().equalsIgnoreCase(wanted) || c.column().equalsIgnoreCase(wanted)).findFirst()
-                                .orElseThrow(() -> new IllegalArgumentException("Ese paso no está entre los posibles: " + String.join(", ", names) + "."));
+                                .orElseThrow(() -> new IllegalArgumentException("Ese paso no está entre los caminos: " + String.join(", ", names) + "."));
                         chosenNext.put(card.key(), n);
                         return "Al entregar, la tarjeta pasará a «" + n.columnName() + "».";
                     }));
-            all.add("Al entregar, la tarjeta pasa a «" + names.getFirst() + "». Si según tu resultado corresponde otro paso (" + String.join(", ", names.subList(1, names.size()))
-                    + "), elígelo con choose_next_step antes de entregar.");
+            all.add("Este paso es una decisión: según tu resultado, " + ways + ". Elige el camino con choose_next_step antes de entregar y explica por qué en tu resumen.");
         }
         Optional<StageHandoff.Back> back = gate.isPresent() ? Optional.empty() : handoff.back(agent, issueKey);
         back.ifPresent(b -> all.add(AgentRules.fill(rules.sendBack(), Map.of("columna", b.columnName()))));
@@ -849,7 +848,16 @@ public class BoardAgent {
         Optional<StageHandoff.Next> next = question || !notAttached.isEmpty() ? Optional.empty() : handoff.next(agent, issueKey);
         // Si eligió otro paso según su resultado, va ahí (siempre dentro de lo permitido al elegir).
         StageHandoff.Next chosen = chosenNext.remove(issueKey);
-        if (next.isPresent() && chosen != null) next = Optional.of(chosen);
+        if (next.isPresent() && chosen != null) {
+            // Un camino que vuelve a un paso anterior es un bucle: se devuelve con su motivo (y cuenta para el freno de vueltas).
+            String status = issues.context(issueKey).map(IssueApi.IssueContext::status).orElse(null);
+            ProjectView project = issues.context(issueKey).flatMap(c -> projects.find(c.projectKey())).orElse(null);
+            if (project != null && status != null && chosen.back(project, status)) {
+                issues.sendBack(issueKey, chosen.column(), comment.toString(), agent.id());
+                return "entregó" + files + " · volvió a " + chosen.columnName();
+            }
+            next = Optional.of(chosen);
+        }
         if (next.isPresent()) {
             comment.append("\n\n").append(StageHandoff.closing(next.get(), requester.name(), catalog.agentPolicy().messages()));
             handoff.deliver(agent, requester, issueKey, next.get(), comment.toString());

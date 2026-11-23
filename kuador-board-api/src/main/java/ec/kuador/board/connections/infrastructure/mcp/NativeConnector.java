@@ -25,6 +25,11 @@ import tools.jackson.databind.json.JsonMapper;
 abstract class NativeConnector implements BuiltInConnector {
 
     static final JsonMapper JSON = JsonMapper.builder().build();
+    /** Adjuntos que se traen por correo, y su tamaño máximo (los más grandes llegan sin contenido). */
+    static final int MAX_FILES = 10;
+    static final long MAX_FILE = 25L * 1024 * 1024;
+    /** Texto de un correo que se guarda en la tarjeta. */
+    static final int MAX_BODY_TEXT = 20_000;
     private static final int MAX_BODY = 30_000_000;
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();

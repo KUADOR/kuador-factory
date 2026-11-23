@@ -20,6 +20,14 @@ public interface IssueApi {
      * Crea la tarjeta de una rutina en {@code status} (nulo = la primera columna), asignada a {@code assigneeId} (persona o
      * agente; nulo = sin asignar), como si la creara {@code actorId}.
      */
+    /**
+     * Crea la tarjeta de un correo que llegó a la bandeja del tablero, en {@code status} (nulo = la primera columna), con
+     * la etiqueta «correo», asignada a {@code assigneeId} (nulo = la toma el agente de la etapa, si tiene).
+     */
+    default IssueRef createFromMail(String projectKey, String title, String description, String status, UUID assigneeId, UUID actorId) {
+        throw new UnsupportedOperationException("createFromMail");
+    }
+
     default IssueRef createForRoutine(String projectKey, String title, String description, String status, UUID assigneeId, UUID actorId) {
         throw new UnsupportedOperationException("createForRoutine");
     }

@@ -25,6 +25,53 @@ class OutlookTools extends NativeConnector {
     }
 
     @Override
+    public boolean mailbox() {
+        return true;
+    }
+
+    @Override
+    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String token, String carpeta, java.time.Instant since, int max) {
+        String folder = carpeta == null || carpeta.isBlank() ? "inbox" : carpeta.strip();
+        if (!folder.matches("[A-Za-z0-9_=\\-]{1,200}")) throw new McpException("Carpeta no válida: usa inbox, sentitems, drafts, archive o junkemail.");
+        String filter = "receivedDateTime ge " + since.truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+        JsonNode list = get(token, "/me/mailFolders/" + folder + "/messages?$select=id,internetMessageId,subject,from,receivedDateTime,body,hasAttachments&$top="
+                + Math.max(1, Math.min(max, 50)) + "&$orderby=" + enc("receivedDateTime asc") + "&$filter=" + enc(filter), "Prefer", "outlook.body-content-type=\"text\"");
+        List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> out = new ArrayList<>();
+        for (JsonNode m : list.path("value")) {
+            String id = m.path("id").asString("");
+            List<ec.kuador.board.connections.ConnectionsApi.MailFile> files = new ArrayList<>();
+            if (m.path("hasAttachments").asBoolean(false)) {
+                for (JsonNode f : get(token, "/me/messages/" + enc(id) + "/attachments?$select=id,name,contentType,size,isInline").path("value")) {
+                    if (f.path("isInline").asBoolean(false) || files.size() >= MAX_FILES) continue;
+                    String name = f.path("name").asString("adjunto");
+                    long size = f.path("size").asLong(0);
+                    byte[] content = null;
+                    if (size <= MAX_FILE) {
+                        JsonNode full = get(token, "/me/messages/" + enc(id) + "/attachments/" + enc(f.path("id").asString("")));
+                        if (full.path("contentBytes").isString()) {
+                            try {
+                                content = Base64.getDecoder().decode(full.path("contentBytes").asString());
+                            } catch (IllegalArgumentException e) {
+                                content = null;
+                            }
+                        }
+                    }
+                    files.add(new ec.kuador.board.connections.ConnectionsApi.MailFile(name, f.path("contentType").asString("application/octet-stream"), size, content));
+                }
+            }
+            String body = m.path("body").path("content").asString("").strip();
+            out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(id, blankToNull(m.path("internetMessageId").asString("")), address(m.path("from")),
+                    m.path("subject").asString(""), java.time.Instant.parse(m.path("receivedDateTime").asString(since.toString())),
+                    body.length() > MAX_BODY_TEXT ? body.substring(0, MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files));
+        }
+        return out;
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s;
+    }
+
+    @Override
     public List<Connection.ToolDef> tools(String token) {
         get(token, "/me?$select=id");
         return mailTools();

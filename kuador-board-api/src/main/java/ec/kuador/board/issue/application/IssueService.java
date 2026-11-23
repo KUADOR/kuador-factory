@@ -132,6 +132,15 @@ public class IssueService implements IssueApi {
 
     @Override
     @Transactional
+    public IssueRef createFromMail(String projectKey, String title, String description, String status, UUID assigneeId, UUID actorId) {
+        IssueType type = project(projectKey).allows(IssueType.TASK) ? IssueType.TASK : IssueType.STORY;
+        Issue issue = create(projectKey, new IssueDetails(title, description, type, null, null, null, null, List.of("correo")), actorId, status);
+        if (assigneeId != null) assign(issue.key(), assigneeId, actorId);
+        return find(issue.key()).orElseThrow();
+    }
+
+    @Override
+    @Transactional
     public IssueRef createForRoutine(String projectKey, String title, String description, String status, UUID assigneeId, UUID actorId) {
         IssueType type = project(projectKey).allows(IssueType.TASK) ? IssueType.TASK : IssueType.STORY;
         Issue issue = create(projectKey, new IssueDetails(title, description, type, null, null, null, null, List.of("rutina")), actorId, status);

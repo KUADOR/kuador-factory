@@ -105,6 +105,18 @@ class GmailToolsTest {
     }
 
     @Test
+    void deliversNewMailWithItsFilesForTheBoardInbox() {
+        var since = java.time.Instant.parse("2026-11-23T09:00:00Z");
+        var mail = client.recentMail(url, "acceso", null, since, 10);
+        assertThat(mail).singleElement().satisfies(m -> {
+            assertThat(m.messageId()).isEqualTo("<abc@cartones.example>");
+            assertThat(m.body()).isEqualTo("Estimados, adjunto la factura del pedido 4471.");
+            assertThat(m.files()).singleElement().satisfies(f -> assertThat(new String(f.content(), 0, 4, StandardCharsets.US_ASCII)).isEqualTo("%PDF"));
+        });
+        assertThat(seen).anyMatch(s -> s.contains("q=in:inbox after:" + since.getEpochSecond()));
+    }
+
+    @Test
     void repliesInTheSameConversationAndSendsPlainText() throws Exception {
         assertThat(client.callTool(url, null, "acceso", "marcar_leido", Map.of("id", "m1"))).isEqualTo("Marcado como leído.");
         assertThat(seen.getLast()).startsWith("POST /gmail/v1/users/me/messages/m1/modify").contains("\"removeLabelIds\":[\"UNREAD\"]");

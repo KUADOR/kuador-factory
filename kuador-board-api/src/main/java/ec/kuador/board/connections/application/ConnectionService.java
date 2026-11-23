@@ -361,12 +361,12 @@ public class ConnectionService implements ConnectionsApi {
     }
 
     @Override
-    public List<IncomingMail> recentMail(String connection, String folder, java.time.Instant since, int max) {
+    public List<IncomingMail> recentMail(String connection, String folder, java.time.Instant since, int max, Set<String> known) {
         UUID ws = TenantContext.require();
         Connection c = require(ws, connection);
         if (!mcp.isMailbox(c.url())) throw new DomainException("«" + c.name() + "» no es un buzón de correo.");
         try {
-            return withCredential(ws, c, secret -> mcp.recentMail(c.url(), secret, folder, since, max));
+            return withCredential(ws, c, secret -> mcp.recentMail(c.url(), secret, folder, since, max, known));
         } catch (McpClient.McpException e) {
             throw new DomainException("No se pudo leer «" + c.name() + "»: " + e.getMessage());
         }

@@ -74,7 +74,7 @@ class MailInboxIT {
                     return List.of(new Mailbox("CORREO", "Correo de facturas"));
                 }
 
-                public List<IncomingMail> recentMail(String connection, String folder, Instant since, int max) {
+                public List<IncomingMail> recentMail(String connection, String folder, Instant since, int max, java.util.Set<String> known) {
                     if (failure != null) throw new ec.kuador.board.shared.error.DomainException(failure);
                     return MAILBOX.stream().filter(m -> !m.receivedAt().isBefore(since)).limit(max).toList();
                 }
@@ -196,6 +196,13 @@ class MailInboxIT {
 
         assertThat(call("POST", "/api/inboxes/" + id + "/check", null, owner).body().get("created")).as("el mismo correo no se repite").isEmpty();
 
+        // Los avisos del propio tablero (o cualquier correo automático) que lleguen al buzón no se vuelven tarjetas: no hay bucle.
+        MAILBOX.add(new ConnectionsApi.IncomingMail("aviso", "<aviso@kuador>", "Kuador Go <no-reply@kuador.com>", "FAC-1 · Agente te necesita", now.plusSeconds(20),
+                "…", List.of(new ConnectionsApi.MailFile("x.pdf", "application/pdf", 4, "%PDF".getBytes(StandardCharsets.US_ASCII)))));
+        MAILBOX.add(new ConnectionsApi.IncomingMail("auto", "<auto@proveedor>", "ventas@proveedor.example", "Respuesta automática", now.plusSeconds(21), "Fuera de oficina",
+                List.of(new ConnectionsApi.MailFile("y.pdf", "application/pdf", 4, "%PDF".getBytes(StandardCharsets.US_ASCII))), true));
+        assertThat(call("POST", "/api/inboxes/" + id + "/check", null, owner).body().get("created")).as("ni avisos del tablero ni respuestas automáticas").isEmpty();
+
         MAILBOX.add(mail("m4", "facturacion@proveedor.example", "Factura 2", now.plusSeconds(60), "f2.pdf", "f2.xml"));
         assertThat(call("POST", "/api/inboxes/" + id + "/check", null, owner).body().get("created")).hasSize(1);
         assertThat(ATTACHED).hasSize(3);
@@ -211,5 +218,16 @@ class MailInboxIT {
 
         assertThat(call("DELETE", "/api/inboxes/" + id, null, owner).status()).isEqualTo(204);
         assertThat(call("GET", "/api/projects/FAC/inboxes", null, owner).body()).isEmpty();
+
+        // Si igual entra una avalancha (un bucle que no se pudo reconocer), la bandeja se pausa sola y dice por qué.
+        String flood = call("POST", "/api/projects/FAC/inboxes", Map.of("connection", "CORREO"), owner).body().get("id").asString();
+        Instant later = Instant.now().plusSeconds(120);
+        for (int i = 0; i < 35; i++) MAILBOX.add(mail("lote-" + i, "ventas@proveedor.example", "Factura " + i, later.plusSeconds(i), "f.pdf"));
+        int floodCards = 0;
+        for (int round = 0; round < 5; round++) floodCards += call("POST", "/api/inboxes/" + flood + "/check", null, owner).body().get("created").size();
+        assertThat(floodCards).isEqualTo(30);
+        JsonNode paused = call("GET", "/api/projects/FAC/inboxes", null, owner).body().get(0);
+        assertThat(paused.get("enabled").asBoolean()).isFalse();
+        assertThat(paused.get("lastError").asString()).contains("bucle");
     }
 }

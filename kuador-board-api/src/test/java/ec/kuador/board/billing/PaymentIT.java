@@ -101,6 +101,24 @@ class PaymentIT {
                 public void send(org.springframework.mail.SimpleMailMessage... messages) {
                     MAILS.addAll(List.of(messages));
                 }
+
+                /** Los avisos van como correo automático (MimeMessage con Auto-Submitted): se guardan con los mismos datos. */
+                @Override
+                public void send(jakarta.mail.internet.MimeMessage... messages) {
+                    for (jakarta.mail.internet.MimeMessage m : messages) {
+                        try {
+                            if (!"auto-generated".equals(m.getHeader("Auto-Submitted", null))) throw new AssertionError("el aviso no va marcado como automático");
+                            org.springframework.mail.SimpleMailMessage simple = new org.springframework.mail.SimpleMailMessage();
+                            simple.setFrom(m.getFrom()[0].toString());
+                            simple.setTo(java.util.Arrays.stream(m.getAllRecipients()).map(Object::toString).toArray(String[]::new));
+                            simple.setSubject(m.getSubject());
+                            simple.setText(String.valueOf(m.getContent()));
+                            MAILS.add(simple);
+                        } catch (jakarta.mail.MessagingException | java.io.IOException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    }
+                }
             };
         }
     }

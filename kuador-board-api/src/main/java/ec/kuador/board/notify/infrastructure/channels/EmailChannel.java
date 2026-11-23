@@ -3,7 +3,6 @@ package ec.kuador.board.notify.infrastructure.channels;
 import ec.kuador.board.notify.domain.Channel;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
@@ -33,11 +32,19 @@ class EmailChannel implements Channel {
     public void send(java.util.UUID workspaceId, String address, String subject, String body, String link) {
         JavaMailSender smtp = sender.getIfAvailable();
         if (smtp == null) throw new IllegalStateException("No hay SMTP configurado.");
-        SimpleMailMessage m = new SimpleMailMessage();
-        m.setFrom(from);
-        m.setTo(address);
-        m.setSubject(subject);
-        m.setText(body + (link == null ? "" : "\n\nÁbrelo en el tablero: " + link) + "\n\nCambia tus avisos en Mi cuenta → Notificaciones.\n");
+        // Correo automático (RFC 3834): ningún buzón conectado al tablero lo vuelve tarjeta, ni responde fuera de oficina.
+        jakarta.mail.internet.MimeMessage m = smtp.createMimeMessage();
+        try {
+            org.springframework.mail.javamail.MimeMessageHelper h = new org.springframework.mail.javamail.MimeMessageHelper(m, "UTF-8");
+            h.setFrom(from);
+            h.setTo(address);
+            h.setSubject(subject);
+            m.setHeader("Auto-Submitted", "auto-generated");
+            m.setHeader("X-Kuador-Mail", "aviso");
+            h.setText(body + (link == null ? "" : "\n\nÁbrelo en el tablero: " + link) + "\n\nCambia tus avisos en Mi cuenta → Notificaciones.\n");
+        } catch (jakarta.mail.MessagingException e) {
+            throw new IllegalStateException("No se pudo armar el correo: " + e.getMessage(), e);
+        }
         smtp.send(m);
     }
 }

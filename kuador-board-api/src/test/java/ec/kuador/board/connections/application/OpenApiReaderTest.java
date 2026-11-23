@@ -83,4 +83,14 @@ class OpenApiReaderTest {
         assertThat(spec.operations()).extracting(ApiAccount.Operation::name).as("sin su parámetro de ruta no se puede llamar").containsExactly("listar");
         assertThat(spec.operations().getFirst().params()).extracting(ApiAccount.Param::name).containsExactly("estado");
     }
+
+    @Test
+    void automaticMailIsRecognizedByItsHeaders() {
+        var auto = (java.util.function.Function<Map<String, String>, Boolean>) ec.kuador.board.connections.ConnectionsApi.IncomingMail::automatic;
+        assertThat(auto.apply(Map.of("auto-submitted", "auto-generated"))).isTrue();
+        assertThat(auto.apply(Map.of("auto-submitted", "no"))).isFalse();
+        assertThat(auto.apply(Map.of("x-kuador-mail", "aviso"))).isTrue();
+        assertThat(auto.apply(Map.of("precedence", "bulk"))).isTrue();
+        assertThat(auto.apply(Map.of("subject", "Factura"))).isFalse();
+    }
 }

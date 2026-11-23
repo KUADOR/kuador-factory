@@ -45,6 +45,10 @@ class ConnectionsIT {
     @org.springframework.test.context.DynamicPropertySource
     static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
         ec.kuador.board.testing.SharedPostgres.register(registry);
+        // La credencial de la conexión se guarda cifrada: la prueba trae su propia clave (el CI no tiene BOARD_SECRETS_KEY).
+        byte[] key = new byte[32];
+        new java.security.SecureRandom().nextBytes(key);
+        registry.add("board.secrets-key", () -> java.util.Base64.getEncoder().encodeToString(key));
     }
 
     static final Map<String, String> INBOX = new ConcurrentHashMap<>();

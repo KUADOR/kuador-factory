@@ -63,6 +63,19 @@ export function roleLabel(key: string, catalogName?: string): string {
 }
 
 /** Roles que pueden cubrir etapas: los del catálogo (agentes) y los de las personas del espacio. */
+/** Roles de la fábrica de software: en un tablero que no es de software no se ofrecen (confunden). */
+const SOFTWARE_ROLE_KEYS = new Set(["PRODUCT_OWNER", "ARCHITECT", "BACKEND", "FRONTEND", "DEVOPS", "QA", "RELEASE", "PR_REVIEWER"]);
+
+/** Si el rol es de desarrollo de software: los de la fábrica o cualquiera que escriba código. */
+export function isSoftwareRole(role: { key: string; tools?: string[] }): boolean {
+  return SOFTWARE_ROLE_KEYS.has(role.key) || (role.tools ?? []).some((t) => t === "Edit" || t === "Write");
+}
+
+/** Los roles que tienen sentido en un tablero: en uno sin repositorio de código, sin los de desarrollo de software. */
+export function rolesForBoard<R extends { key: string; tools?: string[] }>(roles: R[], software: boolean): R[] {
+  return software ? roles : roles.filter((r) => !isSoftwareRole(r));
+}
+
 export function stageRoleOptions(catalogRoles: { key: string; name: string }[], humanRoles: string[]): { value: string; label: string }[] {
   const human = [...new Set(["OWNER", ...humanRoles])].filter((k) => !catalogRoles.some((r) => r.key === k));
   return [...catalogRoles.map((r) => ({ value: r.key, label: r.name })), ...human.map((k) => ({ value: k, label: roleLabel(k) }))];

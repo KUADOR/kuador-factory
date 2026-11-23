@@ -31,7 +31,38 @@ class ConnectionServiceTest {
     private final SecretBox box = new SecretBox(Base64.getEncoder().encodeToString(new byte[32]));
     private final FakeOAuth oauth = new FakeOAuth();
     private final MutableClock clock = new MutableClock();
-    private final ConnectionService service = new ConnectionService(store, mcp, box, new OAuthSessions(oauth, box, clock, "https://go.example/"), clock, true);
+    private final ConnectionService service = new ConnectionService(store, mcp, box, new OAuthSessions(oauth, box, clock, "https://go.example/"),
+            new ConnectorDirectory(new org.springframework.mock.env.MockEnvironment().withProperty("board.connectors.google.client-id", "app-kuador")
+                    .withProperty("board.connectors.google.client-secret", "secreto-kuador")), clock, true);
+
+    @Test
+    void aKnownConnectorIsConnectedByChoosingItFromTheDirectory() {
+        TenantContext.run(WS, () -> {
+            assertThat(service.directory()).extracting(ConnectorDirectory.Entry::key, ConnectorDirectory.Entry::ready)
+                    .contains(org.assertj.core.groups.Tuple.tuple("GMAIL", true), org.assertj.core.groups.Tuple.tuple("NOTION", true),
+                            org.assertj.core.groups.Tuple.tuple("SLACK", false));
+
+            // Gmail no deja registrarse solo: usa la aplicación de la plataforma, sus permisos mínimos y pide poder renovar.
+            oauth.registration = null;
+            String go = service.startLogin(null, null, null, null, null, null, "gmail", ADMIN);
+            assertThat(go).contains("client_id=app-kuador", "access_type=offline", "prompt=consent", "gmail.readonly").doesNotContain("secreto-kuador", "mail.google.com");
+            assertThat(service.list()).singleElement().satisfies(c -> {
+                assertThat(c.key()).isEqualTo("GMAIL");
+                assertThat(c.name()).isEqualTo("Gmail");
+                assertThat(c.url()).isEqualTo("https://gmailmcp.googleapis.com/mcp/v1");
+            });
+            mcp.expects = "acceso-1";
+            service.finishLogin(param(go, "state"), "codigo", ADMIN);
+            assertThat(oauth.lastClient).isEqualTo(new OAuthClient.Client("app-kuador", "secreto-kuador"));
+            assertThat(service.startLogin("GMAIL", "Gmail", "https://gmailmcp.googleapis.com/mcp/v1", null, null, null, ADMIN))
+                    .as("al volver a iniciar sesión se conserva lo que pide el conector").contains("access_type=offline", "client_id=app-kuador");
+
+            // Sin aplicación de la plataforma, quien conecta pega la suya.
+            assertThatThrownBy(() -> service.startLogin(null, null, null, null, null, null, "SLACK", ADMIN)).isInstanceOf(DomainException.class)
+                    .hasMessageContaining("registra un cliente");
+            assertThat(service.startLogin(null, null, null, "app-propia", "s", null, "SLACK", ADMIN)).contains("client_id=app-propia");
+        });
+    }
     private static final UUID ADMIN = UUID.randomUUID();
 
     @Test

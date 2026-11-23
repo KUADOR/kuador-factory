@@ -38,6 +38,11 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
   `BOARD_WEB_URL/connections/oauth/callback`), usa PKCE y renueva el acceso solo.
   Los archivos que devuelve una herramienta (el adjunto de un correo, una factura en PDF o XML) llegan al agente como
   texto, vengan como recurso de MCP o en base64 dentro de un JSON (`ToolFiles`); las imágenes y planillas se avisan.
+  **Directorio de conectores** (`connections/directory.yaml`): los sistemas conocidos (Gmail, Google Calendar y Drive,
+  Notion, Stripe, Slack…) se eligen de una lista. Los que no dejan que el tablero se registre solo (Google, Slack,
+  HubSpot, Asana, Box) usan una aplicación registrada una vez para toda la plataforma:
+  `BOARD_CONNECTORS_<PROVEEDOR>_CLIENT_ID` y `_CLIENT_SECRET` (p. ej. `BOARD_CONNECTORS_GOOGLE_CLIENT_ID`); sin ella,
+  quien conecta pega la de su empresa.
 - **Armar un tablero con IA** (`/design`, `BoardDesigner`): la persona cuenta a qué se dedica su empresa y la IA propone
   pasos, roles, aprobaciones y datos de la tarjeta; se valida como cualquier plantilla y nada se crea hasta aceptarlo.
 - **Catálogo para cualquier negocio**: rol **Revisor** (revisa cualquier trabajo en una puerta) y **Manual de

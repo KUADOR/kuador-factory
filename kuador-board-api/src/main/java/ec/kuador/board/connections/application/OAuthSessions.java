@@ -54,6 +54,11 @@ class OAuthSessions {
      * el tablero se registra solo en el servidor. {@code scope} vacío: los permisos que sugiere el servidor.
      */
     Started start(String mcpUrl, String clientId, String clientSecret, String scope, String previous, UUID memberId) {
+        return start(mcpUrl, clientId, clientSecret, scope, null, previous, memberId);
+    }
+
+    /** {@code extra}: parámetros propios del sistema para el inicio de sesión (nulo = los de {@code previous}, si los había). */
+    Started start(String mcpUrl, String clientId, String clientSecret, String scope, Map<String, String> extra, String previous, UUID memberId) {
         OAuthClient.Discovery found = call(() -> oauth.discover(mcpUrl));
         Map<String, String> old = previous == null ? Map.of() : read(previous);
         OAuthClient.Client client;
@@ -82,6 +87,8 @@ class OAuthSessions {
         s.put("verifier", verifier);
         s.put("stateExpires", String.valueOf(clock.instant().plus(LOGIN_WINDOW).getEpochSecond()));
         s.put("by", memberId.toString());
+        Map<String, String> params = extra != null ? extra : Json.readMap(old.get("params"));
+        if (!params.isEmpty()) s.put("params", Json.write(params));
 
         Map<String, String> query = new LinkedHashMap<>();
         query.put("response_type", "code");
@@ -92,6 +99,7 @@ class OAuthSessions {
         query.put("code_challenge_method", "S256");
         query.put("resource", found.resource());
         if (!wanted.isBlank()) query.put("scope", wanted);
+        params.forEach(query::putIfAbsent);
         StringBuilder url = new StringBuilder(found.authorizationEndpoint()).append(found.authorizationEndpoint().contains("?") ? '&' : '?');
         query.forEach((k, v) -> url.append(k).append('=').append(URLEncoder.encode(v, StandardCharsets.UTF_8)).append('&'));
         url.setLength(url.length() - 1);

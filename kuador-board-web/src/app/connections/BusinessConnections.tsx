@@ -17,9 +17,9 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Field, PasswordInput, Switch, TextInput } from "@/components/ui/Field";
 import { Badge, Section } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
-import type { BusinessConnection } from "@/lib/types";
+import type { BusinessConnection, ConnectionLogin, Connector } from "@/lib/types";
 
-const BLANK = { key: "", name: "", url: "", secret: "", login: false, clientId: "", clientSecret: "", scope: "" };
+const BLANK = { key: "", name: "", url: "", secret: "", login: false, clientId: "", clientSecret: "", scope: "", connector: null as Connector | null };
 
 /** «Agenda de la clínica» → AGENDA_DE_LA_CLINICA (la clave con la que los agentes ven sus herramientas). */
 function keyFrom(name: string) {
@@ -38,11 +38,14 @@ function keyFrom(name: string) {
  */
 export function BusinessConnections({
   connections: initial,
+  directory,
   boards,
   done,
   error: failed,
 }: {
   connections: BusinessConnection[];
+  /** Sistemas conocidos que se eligen de una lista. */
+  directory: Connector[];
   boards: { key: string; name: string }[];
   /** Nombre del sistema en el que se acaba de iniciar sesión (vuelta del sistema). */
   done?: string | null;
@@ -50,6 +53,8 @@ export function BusinessConnections({
 }) {
   const [connections, setConnections] = useState(initial);
   const [draft, setDraft] = useState<typeof BLANK | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [search, setSearch] = useState("");
   const [removing, setRemoving] = useState<BusinessConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -60,7 +65,7 @@ export function BusinessConnections({
   }, [done, failed]);
 
   /** Lleva el navegador al sistema para iniciar sesión; al volver, la conexión queda lista. */
-  const login = (key: string, body: { name: string; url: string; clientId: string | null; clientSecret: string | null; scope: string | null }) =>
+  const login = (key: string, body: ConnectionLogin) =>
     start(async () => {
       const r = await startConnectionLoginAction(key, body);
       if (!r.ok) {
@@ -83,6 +88,7 @@ export function BusinessConnections({
           clientId: draft.clientId.trim() || null,
           clientSecret: draft.clientSecret || null,
           scope: draft.scope.trim() || null,
+          connector: draft.connector?.key ?? null,
         });
       }
       const r = await saveConnectionAction(draft.key || keyFrom(draft.name), { name: draft.name, url: draft.url, header: null, secret: draft.secret || null });
@@ -107,14 +113,60 @@ export function BusinessConnections({
       title="Sistemas de la empresa"
       description="Lo que los agentes pueden consultar o usar: correo, agenda, facturación. Se conectan por MCP."
       actions={
-        !draft && (
-          <Button size="sm" icon={Plus} onClick={() => setDraft(BLANK)}>
+        !draft && !picking && (
+          <Button size="sm" icon={Plus} onClick={() => (directory.length > 0 ? setPicking(true) : setDraft(BLANK))}>
             Conectar
           </Button>
         )
       }
     >
       <div className="flex flex-col gap-5">
+        {picking && (
+          <div className="flex flex-col gap-3">
+            <TextInput type="search" aria-label="Buscar un sistema" placeholder="Buscar: correo, agenda, pagos…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <ul className="flex flex-col">
+              {directory
+                .filter((d) => `${d.name} ${d.category} ${d.description}`.toLowerCase().includes(search.trim().toLowerCase()))
+                .map((d) => {
+                  const has = connections.some((c) => c.key === d.key);
+                  return (
+                    <li key={d.key} className="flex items-center gap-3 border-t border-line py-2 first:border-t-0">
+                      <span className="min-w-0 flex-1 text-[13px]">
+                        <span className="font-medium text-fg-strong">{d.name}</span> <span className="text-fg-faint">{d.category}</span>
+                        <span className="block truncate text-fg-muted">{d.description}</span>
+                      </span>
+                      {has ? (
+                        <Badge tone="neutral">Conectado</Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          loading={pending}
+                          onClick={() => {
+                            if (d.ready) return login(d.key, { name: d.name, url: null, clientId: null, clientSecret: null, scope: null, connector: d.key });
+                            setPicking(false);
+                            setDraft({ ...BLANK, key: d.key, name: d.name, url: d.url, login: true, connector: d });
+                          }}
+                        >
+                          Conectar
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              <li className="flex items-center gap-3 border-t border-line py-2">
+                <span className="min-w-0 flex-1 text-[13px]">
+                  <span className="font-medium text-fg-strong">Otro sistema</span>
+                  <span className="block text-fg-muted">Cualquier servidor MCP: el sistema propio de la empresa u otro que no esté en la lista.</span>
+                </span>
+                <Button size="sm" onClick={() => { setPicking(false); setDraft(BLANK); }}>Conectar</Button>
+              </li>
+            </ul>
+            <div className="flex justify-end">
+              <Button tone="ghost" onClick={() => { setPicking(false); setSearch(""); }}>Cancelar</Button>
+            </div>
+          </div>
+        )}
+
         {draft && (
           <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); create(); }}>
             <Field label="Nombre">
@@ -123,14 +175,20 @@ export function BusinessConnections({
             <Field label="Dirección del servidor MCP" error={error}>
               {(id) => <TextInput id={id} required type="url" maxLength={500} value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://…/mcp" />}
             </Field>
-            <Switch checked={draft.login} label="Pide iniciar sesión (Outlook, Gmail…)" onChange={(on) => setDraft({ ...draft, login: on })} />
+            {!draft.connector && <Switch checked={draft.login} label="Pide iniciar sesión" onChange={(on) => setDraft({ ...draft, login: on })} />}
+            {draft.connector && (
+              <p className="text-[13px] text-fg-muted">
+                {draft.connector.name} pide una aplicación registrada a nombre de la empresa. Regístrala en {draft.connector.name} con la dirección de retorno{" "}
+                <span className="font-mono text-xs">{typeof window === "undefined" ? "" : window.location.origin}/connections/oauth/callback</span> y pega aquí sus datos.
+              </p>
+            )}
             {!draft.login && (
               <Field label="Credencial" hint="Se guarda cifrada y no se vuelve a mostrar. Vacía si el servidor no la pide.">
                 {(id) => <PasswordInput id={id} autoComplete="off" value={draft.secret} onChange={(e) => setDraft({ ...draft, secret: e.target.value })} />}
               </Field>
             )}
             {draft.login && (
-              <details className="text-[13px] text-fg-muted">
+              <details className="text-[13px] text-fg-muted" open={draft.connector != null}>
                 <summary className="cursor-pointer select-none">El sistema ya tiene una aplicación registrada</summary>
                 <div className="mt-3 flex flex-col gap-3">
                   <Field label="Identificador de la aplicación" hint="Solo si el sistema no deja que el tablero se registre solo (por ejemplo, Microsoft).">
@@ -147,12 +205,12 @@ export function BusinessConnections({
             )}
             <div className="flex justify-end gap-2">
               <Button tone="ghost" onClick={() => { setDraft(null); setError(null); }}>Cancelar</Button>
-              <Button type="submit" tone="primary" loading={pending} disabled={!draft.name.trim() || !draft.url.trim()}>{draft.login ? "Iniciar sesión" : "Conectar"}</Button>
+              <Button type="submit" tone="primary" loading={pending} disabled={!draft.name.trim() || !draft.url.trim() || (draft.connector != null && !draft.clientId.trim())}>{draft.login ? "Iniciar sesión" : "Conectar"}</Button>
             </div>
           </form>
         )}
 
-        {!draft && connections.length === 0 && <p className="text-[13px] text-fg-muted">Todavía no hay ninguno conectado.</p>}
+        {!draft && !picking && connections.length === 0 && <p className="text-[13px] text-fg-muted">Todavía no hay ninguno conectado.</p>}
 
         {connections.map((c) => {
           const writes = c.tools.filter((t) => !t.readOnly);

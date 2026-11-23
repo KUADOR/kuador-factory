@@ -45,17 +45,19 @@ public class ConnectionService implements ConnectionsApi {
     private final McpClient mcp;
     private final SecretBox secrets;
     private final OAuthSessions sessions;
+    private final ConnectorDirectory directory;
     private final Clock clock;
     private final boolean allowPrivate;
     /** Una renovación a la vez por conexión: algunos servidores cambian el token de renovación en cada uso. */
     private final Map<String, Object> renewing = new java.util.concurrent.ConcurrentHashMap<>();
 
-    ConnectionService(ConnectionStore store, McpClient mcp, SecretBox secrets, OAuthSessions sessions, Clock clock,
+    ConnectionService(ConnectionStore store, McpClient mcp, SecretBox secrets, OAuthSessions sessions, ConnectorDirectory directory, Clock clock,
             @Value("${board.connections.allow-private:false}") boolean allowPrivate) {
         this.store = store;
         this.mcp = mcp;
         this.secrets = secrets;
         this.sessions = sessions;
+        this.directory = directory;
         this.clock = clock;
         this.allowPrivate = allowPrivate;
     }
@@ -107,6 +109,36 @@ public class ConnectionService implements ConnectionsApi {
      */
     @Transactional
     public String startLogin(String key, String name, String url, String clientId, String clientSecret, String scope, UUID memberId) {
+        return startLogin(key, name, url, clientId, clientSecret, scope, null, memberId);
+    }
+
+    /** Los conectores que se eligen de una lista. */
+    public List<ConnectorDirectory.Entry> directory() {
+        return directory.entries();
+    }
+
+    /**
+     * {@code connector}: clave de un conector del directorio. Su dirección, sus permisos y la aplicación registrada de la
+     * plataforma salen de ahí; lo que la persona escriba (su propia aplicación, otros permisos) tiene prioridad.
+     */
+    @Transactional
+    public String startLogin(String key, String name, String url, String clientId, String clientSecret, String scope, String connector, UUID memberId) {
+        java.util.Map<String, String> extra = null;
+        if (connector != null && !connector.isBlank()) {
+            ConnectorDirectory.Connector known = directory.find(connector).orElseThrow(() -> new NotFoundException("No existe el conector " + connector + "."));
+            url = known.url();
+            if (name == null || name.isBlank()) name = known.name();
+            if (key == null || key.isBlank()) key = known.key();
+            if (scope == null || scope.isBlank()) scope = known.scope();
+            extra = known.params();
+            if (clientId == null || clientId.isBlank()) {
+                ConnectorDirectory.Client app = directory.client(known).orElse(null);
+                if (app != null) {
+                    clientId = app.id();
+                    clientSecret = app.secret();
+                }
+            }
+        }
         UUID ws = TenantContext.require();
         String k = key == null ? "" : key.strip().toUpperCase(Locale.ROOT);
         Connection previous = store.find(ws, k).orElse(null);
@@ -115,7 +147,7 @@ public class ConnectionService implements ConnectionsApi {
         Connection draft = new Connection(k, name, url, null, null, same ? previous.tools() : List.of(), same ? previous.allowedWrites() : Set.of(),
                 same ? previous.checkedAt() : null, null);
         SafeUrls.requirePublicHttps(draft.url(), allowPrivate);
-        OAuthSessions.Started started = sessions.start(draft.url(), clientId, clientSecret, scope, same ? previous.oauth() : null, memberId);
+        OAuthSessions.Started started = sessions.start(draft.url(), clientId, clientSecret, scope, extra, same ? previous.oauth() : null, memberId);
         store.save(ws, draft.withOauth(started.session()));
         return started.authorizationUrl();
     }

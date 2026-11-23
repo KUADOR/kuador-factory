@@ -36,6 +36,12 @@ class ConnectionController {
 
     record BoardUsesRequest(@Size(max = 20) List<ConnectionService.BoardUseRequest> connections) {}
 
+    /** Los sistemas conocidos que se conectan eligiéndolos de una lista. */
+    @GetMapping("/api/connection-directory")
+    List<ec.kuador.board.connections.application.ConnectorDirectory.Entry> directory() {
+        return service.directory();
+    }
+
     @GetMapping("/api/connections")
     List<ConnectionService.View> list() {
         return service.list();
@@ -47,8 +53,8 @@ class ConnectionController {
     }
 
     /** {@code clientId} vacío: el tablero se registra solo en el servidor. {@code scope} vacío: los permisos que sugiere el servidor. */
-    record LoginRequest(@NotBlank @Size(max = 80) String name, @NotBlank @Size(max = 500) String url, @Size(max = 300) String clientId,
-            @Size(max = 1000) String clientSecret, @Size(max = 1000) String scope) {}
+    record LoginRequest(@Size(max = 80) String name, @Size(max = 500) String url, @Size(max = 300) String clientId,
+            @Size(max = 1000) String clientSecret, @Size(max = 1000) String scope, @Size(max = 40) String connector) {}
 
     record LoginStarted(String authorizationUrl) {}
 
@@ -57,7 +63,7 @@ class ConnectionController {
     /** Conexión que pide iniciar sesión (OAuth): devuelve la dirección a la que debe ir el navegador. */
     @PostMapping("/api/connections/{key}/login")
     LoginStarted startLogin(@PathVariable String key, @Valid @RequestBody LoginRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
-        return new LoginStarted(service.startLogin(key, r.name(), r.url(), r.clientId(), r.clientSecret(), r.scope(), who.memberId()));
+        return new LoginStarted(service.startLogin(key, r.name(), r.url(), r.clientId(), r.clientSecret(), r.scope(), r.connector(), who.memberId()));
     }
 
     /** El sistema devolvió a la persona con su código: se cierra el inicio de sesión. */

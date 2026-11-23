@@ -10,6 +10,7 @@ import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
   BoardDesign,
   BusinessConnection,
+  ConnectionLogin,
   Capability,
   EstimateUnit,
   IssueTypeDef,
@@ -856,7 +857,7 @@ export async function saveConnectionAction(
 /** Conexión que pide iniciar sesión: devuelve la dirección del sistema a la que debe ir el navegador. */
 export async function startConnectionLoginAction(
   key: string,
-  body: { name: string; url: string; clientId: string | null; clientSecret: string | null; scope: string | null },
+  body: ConnectionLogin,
 ): Promise<ActionResult<{ authorizationUrl: string }>> {
   return run(() => boardApi.startConnectionLogin(key, body), "/connections");
 }

@@ -102,8 +102,12 @@ class HttpOAuthClientTest {
     @Test
     void refusesServersThatDoNotAskToSignInOrPointInside() {
         open = true;
+        assertThat(new HttpOAuthClient(true).discover(base + "/correo/mcp").tokenEndpoint()).as("hay servidores que saludan sin credencial y la piden después")
+                .isEqualTo(base + "/auth/token");
+        server.removeContext("/.well-known/oauth-protected-resource/correo/mcp");
+        server.removeContext("/meta/recurso");
         assertThatThrownBy(() -> new HttpOAuthClient(true).discover(base + "/correo/mcp")).isInstanceOf(OAuthClient.OAuthException.class)
-                .hasMessageContaining("no pide iniciar sesión");
+                .hasMessageContaining("no publica cómo iniciar sesión");
         assertThatThrownBy(() -> new HttpOAuthClient(false).discover(base + "/correo/mcp")).as("sin permiso, nunca hacia la red interna")
                 .isInstanceOf(OAuthClient.OAuthException.class).hasMessageContaining("https");
     }

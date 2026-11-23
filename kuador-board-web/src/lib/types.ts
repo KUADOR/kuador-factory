@@ -1273,6 +1273,26 @@ export interface BusinessConnection {
   connected: boolean;
 }
 
+/** Un sistema conocido que se conecta eligiéndolo de una lista. `ready`: basta iniciar sesión, sin pegar identificadores. */
+export interface Connector {
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  url: string;
+  ready: boolean;
+}
+
+/** Lo que se envía para iniciar sesión en un sistema. `connector`: clave del directorio (su dirección y permisos salen de ahí). */
+export interface ConnectionLogin {
+  name: string | null;
+  url: string | null;
+  clientId: string | null;
+  clientSecret: string | null;
+  scope: string | null;
+  connector?: string | null;
+}
+
 /** `readOnly`: solo lee; `allowed`: los agentes la pueden usar (las que escriben, solo si se habilitaron). */
 export interface BusinessTool {
   name: string;

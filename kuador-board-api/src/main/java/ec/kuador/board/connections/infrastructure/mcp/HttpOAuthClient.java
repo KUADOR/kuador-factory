@@ -89,7 +89,7 @@ class HttpOAuthClient implements OAuthClient {
         }
         JsonNode server = firstJson(metadata);
         if (server == null || !server.path("authorization_endpoint").isString() || !server.path("token_endpoint").isString()) {
-            throw new OAuthException("Este servidor no publica cómo iniciar sesión. Si usa una clave, conéctalo con «Credencial».");
+            throw new OAuthException("Este servidor no publica cómo iniciar sesión. Si usa una clave o no pide nada, conéctalo sin esa opción.");
         }
         JsonNode methods = server.path("code_challenge_methods_supported");
         if (methods.isArray() && !methods.isEmpty() && !contains(methods, "S256")) {
@@ -156,13 +156,15 @@ class HttpOAuthClient implements OAuthClient {
                 reply.path("expires_in").asLong(0));
     }
 
-    /** La cabecera WWW-Authenticate de un pedido sin credencial; vacía si el servidor no la envía. */
+    /**
+     * La cabecera WWW-Authenticate de un pedido sin credencial; vacía si el servidor no la envía (algunos, como los de
+     * Google, dejan saludar sin credencial y la piden recién al usar una herramienta).
+     */
     private String challenge(URI mcp) {
         String init = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},"
                 + "\"clientInfo\":{\"name\":\"board\",\"version\":\"1\"}}}";
         HttpResponse<String> res = send(HttpRequest.newBuilder(mcp).header("Content-Type", "application/json")
                 .header("Accept", "application/json, text/event-stream").POST(HttpRequest.BodyPublishers.ofString(init)));
-        if (res.statusCode() / 100 == 2) throw new OAuthException("Este servidor no pide iniciar sesión: conéctalo sin esa opción.");
         return String.join(", ", res.headers().allValues("WWW-Authenticate"));
     }
 

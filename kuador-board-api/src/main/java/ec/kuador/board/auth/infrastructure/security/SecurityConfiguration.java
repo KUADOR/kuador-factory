@@ -130,7 +130,7 @@ class SecurityConfiguration {
                         // Diseñar un tablero con IA guarda una plantilla en el catálogo: solo quien administra.
                         .requestMatchers("/api/boards/design", "/api/boards/design/**").access(HUMAN_ADMIN)
                         // Conexiones del negocio (sistemas de la empresa que usan los agentes): solo quien administra.
-                        .requestMatchers("/api/connections", "/api/connections/**", "/api/connection-logins", "/api/projects/*/connections").access(HUMAN_ADMIN)
+                        .requestMatchers("/api/connections", "/api/connections/**", "/api/connection-logins", "/api/connection-directory", "/api/projects/*/connections").access(HUMAN_ADMIN)
                         // La auditoría del espacio: solo quien administra.
                         .requestMatchers("/api/workspace/audit", "/api/workspace/audit/**").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/workspace", "/api/workspace/languages", "/api/members/*/access").access(HUMAN_ADMIN)

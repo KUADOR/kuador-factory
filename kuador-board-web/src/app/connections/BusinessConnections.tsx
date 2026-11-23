@@ -10,6 +10,7 @@ import {
   setConnectionBoardsAction,
   setConnectionWritesAction,
   detectMailAction,
+  demoErpAction,
   startConnectionLoginAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
@@ -18,7 +19,9 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Field, PasswordInput, Switch, TextInput } from "@/components/ui/Field";
 import { Badge, Section } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
-import type { BusinessConnection, ConnectionLogin, Connector, MailDetection } from "@/lib/types";
+import type { BusinessConnection, ConnectionLogin, Connector, DemoErpInfo, MailDetection } from "@/lib/types";
+
+import { ApiForm } from "./ApiForm";
 
 import { MailboxForm } from "./MailboxForm";
 
@@ -61,6 +64,8 @@ export function BusinessConnections({
   const [email, setEmail] = useState("");
   const [found, setFound] = useState<MailDetection | null>(null);
   const [mailbox, setMailbox] = useState<MailDetection | null>(null);
+  // Conectar un sistema por su API; con «preset», el ERP de demostración ya armado.
+  const [api, setApi] = useState<{ preset: DemoErpInfo | null } | null>(null);
   const [removing, setRemoving] = useState<BusinessConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -153,7 +158,7 @@ export function BusinessConnections({
       title="Sistemas de la empresa"
       description="Lo que los agentes pueden consultar o usar: correo, agenda, facturación. Se conectan por MCP."
       actions={
-        !draft && !picking && !mailbox && (
+        !draft && !picking && !mailbox && !api && (
           <Button size="sm" icon={Plus} onClick={() => (directory.length > 0 ? setPicking(true) : setDraft(BLANK))}>
             Conectar
           </Button>
@@ -161,6 +166,19 @@ export function BusinessConnections({
       }
     >
       <div className="flex flex-col gap-5">
+        {api && (
+          <ApiForm
+            preset={api.preset}
+            onCancel={() => setApi(null)}
+            onDone={(c) => {
+              replace(c);
+              setApi(null);
+              closePicker();
+              notify.ok(`${c.name} conectado`, `${c.tools.length} operaciones. Elige en qué tableros se usa.`);
+            }}
+          />
+        )}
+
         {mailbox && (
           <MailboxForm
             detected={mailbox}
@@ -233,6 +251,36 @@ export function BusinessConnections({
               </li>
               <li className="flex items-center gap-3 border-t border-line py-2">
                 <span className="min-w-0 flex-1 text-[13px]">
+                  <span className="font-medium text-fg-strong">API de un sistema</span> <span className="text-fg-faint">ERP, tienda, sistema propio</span>
+                  <span className="block truncate text-fg-muted">Cualquier sistema con API documentada (OpenAPI o Swagger).</span>
+                </span>
+                <Button size="sm" onClick={() => { setPicking(false); setApi({ preset: null }); }}>Conectar</Button>
+              </li>
+              <li className="flex items-center gap-3 border-t border-line py-2">
+                <span className="min-w-0 flex-1 text-[13px]">
+                  <span className="font-medium text-fg-strong">ERP de demostración</span> <span className="text-fg-faint">Para probar</span>
+                  <span className="block truncate text-fg-muted">Compras de una exportadora de flores: pedidos, proveedores y registro de facturas.</span>
+                </span>
+                <Button
+                  size="sm"
+                  loading={pending}
+                  onClick={() =>
+                    start(async () => {
+                      const r = await demoErpAction();
+                      if (!r.ok) {
+                        notify.error("No se pudo preparar la demostración", r.error);
+                        return;
+                      }
+                      setPicking(false);
+                      setApi({ preset: r.data });
+                    })
+                  }
+                >
+                  Conectar
+                </Button>
+              </li>
+              <li className="flex items-center gap-3 border-t border-line py-2">
+                <span className="min-w-0 flex-1 text-[13px]">
                   <span className="font-medium text-fg-strong">Otro sistema</span>
                   <span className="block text-fg-muted">Cualquier servidor MCP: el sistema propio de la empresa u otro que no esté en la lista.</span>
                 </span>
@@ -289,7 +337,7 @@ export function BusinessConnections({
           </form>
         )}
 
-        {!draft && !picking && !mailbox && connections.length === 0 && <p className="text-[13px] text-fg-muted">Todavía no hay ninguno conectado.</p>}
+        {!draft && !picking && !mailbox && !api && connections.length === 0 && <p className="text-[13px] text-fg-muted">Todavía no hay ninguno conectado.</p>}
 
         {connections.map((c) => {
           const writes = c.tools.filter((t) => !t.readOnly);

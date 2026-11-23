@@ -99,7 +99,9 @@ public class ConnectionService implements ConnectionsApi {
                 previous == null ? List.of() : previous.tools(), previous == null ? Set.of() : previous.allowedWrites(), null,
                 keepsSession ? previous.oauth() : null);
         // Un correo IMAP comprueba sus servidores en cada conexión; los demás son direcciones web.
-        if (!draft.url().startsWith(ec.kuador.board.connections.domain.MailAccount.SCHEME)) SafeUrls.requirePublicHttps(draft.url(), allowPrivate);
+        if (!draft.url().startsWith(ec.kuador.board.connections.domain.MailAccount.SCHEME) && !draft.url().startsWith(ec.kuador.board.connections.domain.ApiAccount.SCHEME)) {
+            SafeUrls.requirePublicHttps(draft.url(), allowPrivate);
+        }
         Connection checked = withFreshTools(ws, draft);
         store.save(ws, checked);
         return view(checked, store.uses(ws));
@@ -137,6 +139,44 @@ public class ConnectionService implements ConnectionsApi {
     private boolean sameMailbox(Connection c, String email) {
         if (c.secret() == null || !c.url().startsWith(ec.kuador.board.connections.domain.MailAccount.SCHEME)) return false;
         return email.equalsIgnoreCase(ec.kuador.board.shared.json.Json.readMap(secrets.decrypt(c.secret())).getOrDefault("email", ""));
+    }
+
+    /** Lee la documentación de una API (desde su dirección o pegada) para elegir qué operaciones usa el agente. */
+    public OpenApiReader.Spec readApi(String specUrl, String specText) {
+        String text = specText;
+        if (text == null || text.isBlank()) {
+            if (specUrl == null || specUrl.isBlank()) throw new DomainException("Indica la dirección de la documentación o pégala.");
+            try {
+                text = mcp.fetchDocument(specUrl.strip());
+            } catch (McpClient.McpException e) {
+                throw new DomainException(e.getMessage());
+            }
+        }
+        return OpenApiReader.read(text, specUrl);
+    }
+
+    /**
+     * Conecta un sistema por su API: de la documentación quedan solo las operaciones elegidas. {@code credential} nula
+     * al editar: se conserva la guardada.
+     */
+    @Transactional
+    public View saveApi(String key, String name, String specUrl, String specText, String baseUrl, String header, String prefix, String credential,
+            List<String> operations) {
+        UUID ws = TenantContext.require();
+        String k = key == null ? "" : key.strip().toUpperCase(Locale.ROOT);
+        OpenApiReader.Spec spec = readApi(specUrl, specText);
+        Set<String> wanted = new LinkedHashSet<>(operations == null ? List.of() : operations);
+        List<ec.kuador.board.connections.domain.ApiAccount.Operation> chosen = spec.operations().stream().filter(o -> wanted.contains(o.name())).toList();
+        String base = baseUrl != null && !baseUrl.isBlank() ? baseUrl.strip() : spec.baseUrl();
+        if (base == null || base.isBlank()) throw new DomainException("La documentación no dice la dirección base de la API: escríbela.");
+        String kept = credential;
+        if (kept == null) {
+            Connection previous = store.find(ws, k).filter(c -> c.secret() != null && c.url().startsWith(ec.kuador.board.connections.domain.ApiAccount.SCHEME)).orElse(null);
+            if (previous != null) kept = ec.kuador.board.shared.json.Json.readMap(secrets.decrypt(previous.secret())).get("credential");
+        }
+        var account = new ec.kuador.board.connections.domain.ApiAccount(base, header, prefix, kept, chosen);
+        SafeUrls.requirePublicHttps(account.baseUrl(), allowPrivate);
+        return save(k, name, account.url(), null, ec.kuador.board.shared.json.Json.write(account));
     }
 
     /** La contraseña guardada de un buzón IMAP, para editarlo sin volver a escribirla. */

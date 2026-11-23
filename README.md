@@ -48,6 +48,14 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
   **Correo con contraseña** (`ImapTools`, IMAP por SSL y SMTP por SSL o STARTTLS): Hostinger, cPanel, Zoho y cualquier
   hosting, con las mismas herramientas. **Detección** (`MailDetector`): se escribe el correo y, por los registros MX del
   dominio, el tablero propone Outlook (Microsoft 365), Gmail (Google Workspace) o IMAP con los servidores ya puestos.
+- **Conector de API** (`ApiTools`, `OpenApiReader`, *Conexiones → API de un sistema*): para sistemas con API documentada
+  (OpenAPI 3 o Swagger 2, JSON o YAML) como un ERP a medida. Se lee la documentación, se eligen las operaciones (GET
+  quedan disponibles; las que escriben, apagadas hasta habilitarlas) y la credencial va en la cabecera elegida. Todo se
+  guarda cifrado como credencial de la conexión (`api+https://…`).
+- **ERP de demostración** (módulo `demo`, `/demo-erp/…`): compras de una exportadora de flores (proveedores, pedidos de
+  compra y registro de facturas de proveedor) con su `openapi.json`, clave `X-API-Key` (`board.demo-erp.key`) y tres
+  facturas PDF de ejemplo en `/demo-erp/muestras/`. Datos en memoria; `POST /demo-erp/reiniciar` los restaura. Se
+  conecta desde *Conexiones → ERP de demostración*.
 - **Correo entrante** (módulo `inbox`, *Configuración del tablero → Correo entrante*): un buzón conectado alimenta un
   tablero; cada minuto se revisa y cada correo nuevo que cumple los filtros (carpeta, remitentes, solo con adjuntos) se
   vuelve una tarjeta con su texto y sus adjuntos, en la columna elegida, donde la toma el agente de la etapa. No marca

@@ -89,11 +89,25 @@ public class NotificationService {
                 push ? store.pushSubscriptions(who.memberId()).size() : 0);
     }
 
+    /** Solo para desarrollo local: permite suscripciones hacia la red interna. */
+    private boolean pushAllowPrivate;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setPushAllowPrivate(@org.springframework.beans.factory.annotation.Value("${board.push.allow-private:false}") boolean allow) {
+        this.pushAllowPrivate = allow;
+    }
+
     /** Este dispositivo recibe notificaciones push (activarlas en el dispositivo es el consentimiento). */
     public View subscribePush(AuthenticatedMember who, String endpoint, String p256dh, String auth, String userAgent) {
         requirePerson(who);
         if (!pushAvailable()) throw new DomainException("Las notificaciones push no están configuradas en este servidor.");
         if (endpoint == null || !endpoint.startsWith("https://") || endpoint.length() > 1000 || p256dh == null || auth == null) {
+            throw new DomainException("La suscripción del navegador no es válida.");
+        }
+        // El servidor le enviará avisos a esa dirección: solo servicios de push públicos, nunca la red interna.
+        try {
+            ec.kuador.board.shared.net.SafeUrls.requirePublicHttps(endpoint, pushAllowPrivate);
+        } catch (DomainException e) {
             throw new DomainException("La suscripción del navegador no es válida.");
         }
         store.savePush(new NotifyStore.PushSubscription(UUID.randomUUID(), who.workspaceId(), who.memberId(), endpoint.strip(), p256dh.strip(), auth.strip()),

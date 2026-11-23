@@ -67,7 +67,7 @@ class CatalogServiceTest {
 
     @Test
     void provisioningCopiesTheFactoryCatalog() {
-        assertThat(catalog.methodologies()).extracting(Methodology::key).containsExactly("FREE", "ODD", "SDD");
+        assertThat(catalog.methodologies()).extracting(Methodology::key).containsExactly("FREE", "MANUAL", "ODD", "SDD");
         assertThat(catalog.methodology("SDD")).get().extracting(Methodology::builtIn).isEqualTo(true);
     }
 

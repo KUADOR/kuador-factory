@@ -141,18 +141,18 @@ public class DraftService implements AiJobsApi {
         if (hasDocs(p)) {
             Methodology m = methodology(p);
             List<String> base = m.baseDocuments().stream().map(DocumentDef::kind).toList();
-            for (DocumentDef d : m.documents(DocumentDef.Scope.PROJECT)) {
+            for (DocumentDef d : projectDocuments(p, m)) {
                 options.add(new DocOption(d.kind(), d.label(), d.purpose(), base.contains(d.kind()), !pending.contains(d.label())));
             }
         }
-        List<String> repos = p.software() ? safeRepositories(p.key()) : List.of();
-        int pieceCount = p.software() ? repositories.pieces(p.key()).size() : 0;
+        List<String> repos = p.repository() ? safeRepositories(p.key()) : List.of();
+        int pieceCount = p.repository() ? repositories.pieces(p.key()).size() : 0;
         return new Plan(p.kind().name(), p.methodology(), options, ai.key().isPresent(), projects.goal(p.key()).orElse(null), repos, pieceCount, pending);
     }
 
     /** Hay documentos que redactar: software con metodología. Sin ella (o fuera de software) se redacta solo el objetivo. */
     private static boolean hasDocs(ProjectView p) {
-        return p.software() && p.methodology() != null;
+        return p.documents() && p.methodology() != null;
     }
 
     // ---- Un paso de la conversación ----
@@ -251,7 +251,7 @@ public class DraftService implements AiJobsApi {
             created.add(issues.createSuggested(key, c.title(), c.description(), who.memberId()).key());
         }
         // Las piezas mandan: el stack de Arquitectura se reescribe con ellas aunque el borrador dijera otra cosa.
-        if (board(key).software()) repositories.refreshStack(key, who.memberId());
+        if (board(key).repository()) repositories.refreshStack(key, who.memberId());
         out.put("pieces", pieces == null ? 0 : pieces.size());
         out.put("cards", created);
         return out;
@@ -277,8 +277,8 @@ public class DraftService implements AiJobsApi {
         ProjectView p = board(projectKey);
         List<String> saved = new ArrayList<>();
         if (approved != null && !approved.isEmpty()) {
-            if (!p.software()) throw new DomainException("Los documentos base son de los tableros de software.");
-            List<String> allowed = methodology(p).documents(DocumentDef.Scope.PROJECT).stream().map(DocumentDef::kind).toList();
+            if (!p.documents()) throw new DomainException("Este tablero no usa documentos.");
+            List<String> allowed = projectDocuments(p, methodology(p)).stream().map(DocumentDef::kind).toList();
             for (ApprovedDoc d : approved) {
                 if (!allowed.contains(d.kind())) throw new DomainException("La metodología no tiene el documento " + d.kind() + ".");
                 if (d.content() == null || d.content().isBlank()) continue;
@@ -465,14 +465,19 @@ public class DraftService implements AiJobsApi {
         }
     }
 
+    /** Los documentos del tablero según su manual. «Despliegue» solo existe donde hay un repositorio de código. */
+    private static List<DocumentDef> projectDocuments(ProjectView p, Methodology m) {
+        return m.documents(DocumentDef.Scope.PROJECT).stream().filter(d -> p.repository() || !Methodology.DEPLOYMENT_KIND.equals(d.kind())).toList();
+    }
+
     private String context(ProjectView p) {
-        StringBuilder b = new StringBuilder("Tablero: ").append(p.name()).append(" (").append(p.software() ? "software" : "trabajo general").append(")");
-        if (p.software() && p.methodology() != null) {
+        StringBuilder b = new StringBuilder("Tablero: ").append(p.name()).append(" (").append(p.repository() ? "software" : "trabajo general").append(")");
+        if (p.documents() && p.methodology() != null) {
             Methodology m = methodology(p);
             b.append(". Metodología: ").append(m.name()).append(" — ").append(nz(m.summary()));
         }
         projects.goal(p.key()).ifPresent(g -> b.append("\nObjetivo actual del tablero: ").append(g));
-        if (p.software()) b.append("\n").append(stack(p));
+        if (p.repository()) b.append("\n").append(stack(p));
         return b.toString();
     }
 
@@ -504,7 +509,7 @@ public class DraftService implements AiJobsApi {
             + " en los demás documentos no lo repitas y, si hace falta, remite a «Arquitectura § Stack».";
 
     private List<DocumentDef> wanted(ProjectView p, List<String> kinds) {
-        List<DocumentDef> all = methodology(p).documents(DocumentDef.Scope.PROJECT);
+        List<DocumentDef> all = projectDocuments(p, methodology(p));
         List<DocumentDef> chosen = kinds == null || kinds.isEmpty() ? all : all.stream().filter(d -> kinds.contains(d.kind())).toList();
         if (chosen.isEmpty()) throw new DomainException("Elige al menos un documento para redactar.");
         return chosen;
@@ -561,7 +566,7 @@ public class DraftService implements AiJobsApi {
             }
             case DRAFT -> {
                 Map<String, String> labels = new LinkedHashMap<>();
-                if (hasDocs(p)) methodology(p).documents(DocumentDef.Scope.PROJECT).forEach(d -> labels.put(d.kind(), d.label()));
+                if (hasDocs(p)) projectDocuments(p, methodology(p)).forEach(d -> labels.put(d.kind(), d.label()));
                 List<Map<String, Object>> documents = new ArrayList<>();
                 for (JsonNode d : node.path("documents")) {
                     String kind = d.path("kind").asString("").strip().toUpperCase(Locale.ROOT);
@@ -574,7 +579,7 @@ public class DraftService implements AiJobsApi {
             case REFINE -> out.put("content", node.path("content").asString("").strip());
             case RECOGNIZE -> {
                 Map<String, String> labels = new LinkedHashMap<>();
-                methodology(p).documents(DocumentDef.Scope.PROJECT).forEach(d -> labels.put(d.kind(), d.label()));
+                projectDocuments(p, methodology(p)).forEach(d -> labels.put(d.kind(), d.label()));
                 List<Map<String, Object>> documents = new ArrayList<>();
                 for (JsonNode d : node.path("documents")) {
                     String kind = d.path("kind").asString("").strip().toUpperCase(Locale.ROOT);

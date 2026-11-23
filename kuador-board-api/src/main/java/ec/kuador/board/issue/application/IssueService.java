@@ -88,6 +88,19 @@ public class IssueService implements IssueApi {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<String, String> cardFields(String issueKey) {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        issues.findByKey(issueKey).ifPresent(i -> projects.find(i.projectKey()).ifPresent(p -> {
+            for (ec.kuador.board.catalog.FieldDef f : p.fieldsOf(i.type())) {
+                String v = i.fields().get(f.key());
+                if (v != null) out.put(f.label(), v);
+            }
+        }));
+        return out;
+    }
+
+    @Override
     @Transactional
     public void addComment(String issueKey, UUID authorId, String body) {
         comment(issueKey, authorId, body);
@@ -169,6 +182,8 @@ public class IssueService implements IssueApi {
     public Issue create(String projectKey, IssueDetails details, UUID actorId, String status) {
         ProjectView project = project(projectKey);
         validateReferences(project, details, null, null);
+        // Los datos propios se validan contra los del tipo en este tablero; lo que no está definido se descarta.
+        details = details.withFields(ec.kuador.board.catalog.FieldDef.clean(project.fieldsOf(details.type()), details.fields()));
         if (actorId != null) {
             requireMember(actorId);
         }
@@ -193,6 +208,9 @@ public class IssueService implements IssueApi {
     public Issue edit(String key, IssueDetails details, UUID actorId) {
         Issue issue = load(key);
         validateReferences(project(issue.projectKey()), details, issue.key(), issue.assigneeId());
+        // Sin datos propios en el pedido se conservan los que tiene; al cambiar de tipo quedan los que el nuevo tipo define.
+        details = details.withFields(ec.kuador.board.catalog.FieldDef.clean(project(issue.projectKey()).fieldsOf(details.type()),
+                details.fields() == null ? issue.fields() : details.fields()));
         UUID previousAssignee = issue.assigneeId();
         Instant now = now();
         List<FieldChange> changes = issue.edit(details, now);
@@ -301,6 +319,7 @@ public class IssueService implements IssueApi {
     public List<IssueRef> createEpicTasks(String epicKey, List<PlannedTask> tasks, UUID actorId) {
         Issue epic = load(epicKey);
         ProjectView project = project(epic.projectKey());
+        if (!project.splits()) throw new DomainException("Este tablero no reparte el trabajo en tareas (se enciende en Configuración → General).");
         boolean promote = epic.type() != IssueType.EPIC;
         if (promote && !splittable(epic, project)) {
             throw new DomainException(epicKey + " no es una épica: las tareas del plan se crean en una épica (o en una historia sin épica, que pasa a serlo).");
@@ -562,7 +581,7 @@ public class IssueService implements IssueApi {
      * Desarrollo). Ahí arrancan las tareas del reparto y ahí espera la épica mientras se trabajan.
      */
     Optional<String> buildColumn(ProjectView project) {
-        if (!project.software()) return Optional.empty();
+        if (!project.repository()) return Optional.empty();
         for (ColumnDef c : project.columns()) {
             Optional<StageDef> st = project.stage(c.key());
             if (st.isPresent() && !st.get().gate() && st.get().roles().stream().anyMatch(this::writesCode)) return Optional.of(c.key());
@@ -689,6 +708,7 @@ public class IssueService implements IssueApi {
         if (column != null && project.indexOf(next.key()) <= project.indexOf(issue.status())) {
             throw new DomainException("«" + next.name() + "» no está después de «" + columnName(project, issue.status()) + "».");
         }
+        stage.ifPresent(st -> requireEvidence(project, st, issue));
         if (comment != null && !comment.isBlank()) saveComment(issue, actorId, comment.strip(), now());
         Issue moved = move(key, next.key(), Integer.MAX_VALUE, actorId);
         if (actor.agent() && actorId.equals(moved.assigneeId())) {
@@ -713,6 +733,7 @@ public class IssueService implements IssueApi {
         MemberView person = requireApprover(project, gate, actorId, issue);
         String target;
         if (approve) {
+            requireEvidence(project, gate, issue);
             target = project.nextAfter(issue.status()).map(ColumnDef::key)
                     .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay una etapa siguiente permitida."));
             saveComment(issue, actorId, "**Aprobado** por " + person.name() + "." + (comment == null || comment.isBlank() ? "" : "\n\n" + comment.strip()), now());
@@ -723,6 +744,46 @@ public class IssueService implements IssueApi {
             saveComment(issue, actorId, "**Rechazado** por " + person.name() + ": " + comment.strip(), now());
         }
         return move(key, target, Integer.MAX_VALUE, actorId);
+    }
+
+    /** Lo que vive en otros módulos (adjuntos, documentos): cada uno dice lo que la tarjeta tiene. */
+    private List<ec.kuador.board.issue.CardEvidence> evidence = List.of();
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setEvidence(List<ec.kuador.board.issue.CardEvidence> evidence) {
+        this.evidence = evidence == null ? List.of() : evidence;
+    }
+
+    /** Lo que le falta a la tarjeta de lo que su etapa exige para salir (vacío = cumple). En palabras para una persona. */
+    List<String> missingEvidence(ProjectView project, StageDef stage, Issue issue) {
+        List<String> missing = new ArrayList<>();
+        for (ec.kuador.board.catalog.Requirement r : stage.requires()) {
+            switch (r.kind()) {
+                case ATTACHMENT -> {
+                    if (evidence.stream().noneMatch(e -> e.hasAttachment(issue.key()))) missing.add("un archivo adjunto");
+                }
+                case DOCUMENT -> {
+                    if (evidence.stream().noneMatch(e -> e.hasDocument(issue.key(), r.ref()))) missing.add("el documento " + r.ref());
+                }
+                case FIELD -> {
+                    String value = issue.fields().get(r.ref());
+                    if (value == null || value.isBlank()) {
+                        String label = project.fieldsOf(issue.type()).stream().filter(f -> f.key().equals(r.ref())).map(ec.kuador.board.catalog.FieldDef::label)
+                                .findFirst().orElse(null);
+                        // Un dato que este tipo de tarjeta no tiene no se le puede exigir.
+                        if (label != null) missing.add("el dato «" + label + "»");
+                    }
+                }
+            }
+        }
+        return missing;
+    }
+
+    private void requireEvidence(ProjectView project, StageDef stage, Issue issue) {
+        List<String> missing = missingEvidence(project, stage, issue);
+        if (!missing.isEmpty()) {
+            throw new DomainException("Para salir de «" + columnName(project, issue.status()) + "», a " + issue.key() + " le falta " + String.join(", ", missing) + ".");
+        }
     }
 
     // ---- Mis decisiones ----

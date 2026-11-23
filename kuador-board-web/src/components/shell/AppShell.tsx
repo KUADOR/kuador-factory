@@ -101,7 +101,7 @@ function TabBar({ path, decisions, canCapture, onMenu }: { path: string; decisio
         </Link>
         <Link href="/projects" className={item(inProjects)} aria-current={inProjects ? "page" : undefined}>
           <LayoutGrid className="size-6" aria-hidden />
-          Proyectos
+          Tableros
         </Link>
         {canCapture && (
           <Link href="/capture" aria-label="Capturar una idea" className="flex flex-1 items-center justify-center">

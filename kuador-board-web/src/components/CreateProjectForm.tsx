@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { createProjectAction, setMethodologyAction } from "@/app/actions";
+import { useAccess } from "@/components/shell/AccessContext";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, TextInput } from "@/components/ui/Field";
@@ -16,6 +18,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
   const rank = (key: string) => (recommended.includes(key) ? recommended.indexOf(key) : recommended.length);
   const templates = [...all].sort((a, b) => rank(a.key) - rank(b.key));
   const router = useRouter();
+  const { canAdminister } = useAccess();
   const [key, setKey] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -42,7 +45,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
       }}
     >
       <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3">
-        <Field label="Clave" hint="Prefijo de los issues.">
+        <Field label="Clave" hint="Prefijo de las tarjetas.">
           {(id) => (
             <TextInput
               id={id}
@@ -52,17 +55,24 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
               title="2 a 10 letras o números, empezando por letra"
               value={key}
               onChange={(e) => setKey(e.target.value.toUpperCase())}
-              placeholder="MED"
+              placeholder="ATE"
               className="font-mono uppercase"
               autoFocus
             />
           )}
         </Field>
-        <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Medical para Clínica Andes" />}</Field>
+        <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Atención de pacientes" />}</Field>
       </div>
       <Field label="Descripción" hint="Opcional.">{(id) => <TextInput id={id} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} />}</Field>
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-medium text-fg-muted">Plantilla de flujo</span>
+        <span className="flex items-center justify-between gap-3 text-xs font-medium text-fg-muted">
+          Plantilla de flujo
+          {canAdminister && (
+            <Link href="/design" className="k-link font-normal">
+              Armarlo con IA para mi negocio
+            </Link>
+          )}
+        </span>
         <ChoiceCards
           name="template"
           label="Plantilla de flujo"

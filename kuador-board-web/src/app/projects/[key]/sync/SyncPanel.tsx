@@ -155,7 +155,7 @@ export function SyncPanel({ projectKey, status, issues }: { projectKey: string; 
         )}
       </Section>
 
-      <Section title="Solo en el repositorio" description="Al importarlos se asocian a un issue." flush>
+      <Section title="Solo en el repositorio" description="Al importarlos se asocian a una tarjeta." flush>
         {status.untracked.length === 0 ? (
           <p className="px-5 py-4 text-[13px] text-fg-faint">No hay documentos del repositorio pendientes de importar.</p>
         ) : (
@@ -303,7 +303,7 @@ function UntrackedRow({
                 size="sm"
                 ariaLabel={`Issue para ${group.group}`}
                 options={[
-                  { value: "new", label: "Crear issue nuevo" },
+                  { value: "new", label: "Crear tarjeta nueva" },
                   ...issues.filter((i) => !taken(i.key)).map((i) => ({ value: i.key, label: `${i.key} · ${i.title}` })),
                 ]}
                 value={target}
@@ -312,7 +312,7 @@ function UntrackedRow({
             </div>
             {target === "new" && (
               <div className="min-w-56 flex-1">
-                <TextInput size="sm" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Título del issue nuevo" />
+                <TextInput size="sm" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Título de la tarjeta nueva" />
               </div>
             )}
           </>

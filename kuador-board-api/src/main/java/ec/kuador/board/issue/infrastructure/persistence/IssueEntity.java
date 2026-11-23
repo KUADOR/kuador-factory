@@ -50,6 +50,10 @@ class IssueEntity {
     @Column(name = "story_points")
     private Integer storyPoints;
 
+    /** JSON {clave: valor} de los datos propios del tipo de tarjeta. */
+    @Column(name = "custom_fields")
+    private String customFields;
+
     @Column(name = "assignee_id")
     private UUID assigneeId;
 
@@ -112,6 +116,7 @@ class IssueEntity {
         status = issue.status();
         priority = issue.priority();
         storyPoints = issue.storyPoints();
+        customFields = issue.fields().isEmpty() ? null : ec.kuador.board.shared.json.Json.write(issue.fields());
         assigneeId = issue.assigneeId();
         parentKey = issue.parentKey();
         labels = new ArrayList<>(issue.labels());
@@ -128,6 +133,7 @@ class IssueEntity {
         Issue issue = new Issue(id, key, projectKey, title, description, type, status, priority, storyPoints, assigneeId,
                 reporterId, parentKey, labels == null ? List.of() : List.copyOf(labels), position, reworkCount, createdAt, updatedAt);
         issue.superviseBy(supervisorId);
+        if (customFields != null && !customFields.isBlank()) issue.fields(ec.kuador.board.shared.json.Json.readMap(customFields));
         issue.reviewBy(reviewBy);
         if (parentKey != null && (workRole != null || (dependsOn != null && !dependsOn.isEmpty()))) {
             issue.planAsTask(workRole, dependsOn == null ? List.of() : List.copyOf(dependsOn));

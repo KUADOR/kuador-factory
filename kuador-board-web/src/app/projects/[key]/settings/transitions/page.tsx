@@ -21,7 +21,7 @@ export default async function TransitionsSettingsPage({ params }: PageProps<"/pr
   return (
     <SettingsSection
       title="Reglas de transición"
-      description="Por qué etapas puede pasar un issue."
+      description="Por qué etapas puede pasar una tarjeta."
     >
       <AdminOnly>
       <TransitionsEditor project={project} />

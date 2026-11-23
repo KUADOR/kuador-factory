@@ -19,13 +19,19 @@ import java.util.regex.Pattern;
  *   <li>{@code approvers}: roles de personas que pueden cerrar la puerta. Vacío = cualquier persona.
  *   <li>{@code rejectTo}: columna a la que vuelve un issue rechazado en la puerta.
  *   <li>{@code review}: quién cierra la puerta: una persona (nulo o {@link ReviewMode#PERSON}) o un agente revisor.
+ *   <li>{@code checklist}: lo que hay que verificar antes de sacar la tarjeta de aquí. En una puerta lo comprueba quien
+ *       aprueba (persona o agente revisor); en una etapa de trabajo, quien entrega.
+ *   <li>{@code requires}: lo que la tarjeta debe tener para salir de aquí (un adjunto, un documento, un dato lleno). Lo
+ *       hace cumplir el tablero, no el criterio de nadie.
  *   <li>{@code autoPlan}: en una etapa de trabajo, el reparto de tareas de una épica arranca solo al llegar aquí (sin
  *       esperar que una persona lo apruebe). El spec ya pasó por su puerta; el reparto se puede corregir después.
  * </ul>
  */
-public record StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan) {
+public record StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan,
+        List<String> checklist, List<Requirement> requires) {
 
     private static final Pattern ROLE = Pattern.compile("^[A-Z][A-Z0-9_]{1,39}$");
+    private static final Pattern FIELD = Pattern.compile("^[a-z][a-z0-9_]{0,29}$");
 
     /** Rol del agente que revisa una puerta si no se elige otro. */
     public static final String DEFAULT_REVIEWER = "PR_REVIEWER";
@@ -89,6 +95,13 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
         review = !gate || review == null || review.mode() == ReviewMode.PERSON ? null : review;
         // Etapas guardadas antes de este campo no lo traen (null): vale falso.
         autoPlan = Boolean.TRUE.equals(autoPlan) && !gate;
+        // Etapas guardadas antes de estos campos no los traen (null): quedan vacíos.
+        checklist = checklist == null ? List.of() : checklist.stream().filter(x -> x != null && !x.isBlank()).map(String::strip).distinct().toList();
+        requires = requires == null ? List.of() : requires.stream().filter(java.util.Objects::nonNull).distinct().toList();
+    }
+
+    public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan) {
+        this(column, roles, gate, approvers, rejectTo, review, autoPlan, null, null);
     }
 
     public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review) {
@@ -154,6 +167,18 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
                     }
                 }
             }
+            if (s.checklist().size() > 12) throw new DomainException("Hasta 12 puntos en la lista de verificación de " + s.column() + ".");
+            for (String item : s.checklist()) if (item.length() > 200) throw new DomainException("Un punto de la lista de verificación de " + s.column() + " es demasiado largo (máximo 200).");
+            if (s.requires().size() > 8) throw new DomainException("Hasta 8 requisitos por etapa (" + s.column() + ").");
+            for (Requirement r : s.requires()) {
+                if (r.kind() == null) throw new DomainException("Requisito sin tipo en " + s.column() + ".");
+                if (r.kind() == Requirement.Kind.DOCUMENT && (r.ref() == null || !ROLE.matcher(r.ref()).matches())) {
+                    throw new DomainException("El requisito de documento de " + s.column() + " necesita el tipo de documento (p. ej. SPEC).");
+                }
+                if (r.kind() == Requirement.Kind.FIELD && (r.ref() == null || !FIELD.matcher(r.ref()).matches())) {
+                    throw new DomainException("El requisito de dato de " + s.column() + " necesita la clave del dato (p. ej. monto).");
+                }
+            }
             if (s.rejectTo() != null && (!keys.contains(s.rejectTo()) || s.rejectTo().equals(s.column()))) {
                 throw new DomainException("«Rechazar a» de " + s.column() + " debe ser otra columna del flujo.");
             }
@@ -165,7 +190,7 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
     public static List<StageDef> prunedTo(List<StageDef> stages, List<ColumnDef> columns) {
         Set<String> keys = new HashSet<>(columns.stream().map(ColumnDef::key).toList());
         return stages.stream().filter(s -> keys.contains(s.column()))
-                .map(s -> s.rejectTo() != null && !keys.contains(s.rejectTo()) ? new StageDef(s.column(), s.roles(), s.gate(), s.approvers(), null, s.review(), s.autoPlan()) : s)
+                .map(s -> s.rejectTo() != null && !keys.contains(s.rejectTo()) ? new StageDef(s.column(), s.roles(), s.gate(), s.approvers(), null, s.review(), s.autoPlan(), s.checklist(), s.requires()) : s)
                 .toList();
     }
 }

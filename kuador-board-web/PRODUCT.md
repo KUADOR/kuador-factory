@@ -14,7 +14,7 @@ web
 
 ## Product Purpose
 
-Kuador Factory: un tablero tipo Jira donde personas y agentes de IA trabajan el mismo flujo (backlog → diseño → desarrollo → QA → release). Las personas deciden y aprueban; los agentes refinan, documentan y ejecutan. Éxito: un proyecto avanza de idea a release con los agentes haciendo el trabajo repetible y las personas en las puertas de aprobación, sin perder trazabilidad.
+Kuador Go: una fábrica de trabajo para cualquier negocio. Cada empresa describe cómo se hace su trabajo (pasos, responsables y aprobaciones) y personas y agentes de IA lo sacan adelante en el mismo tablero; en software, el flujo es backlog → diseño → desarrollo → QA → release. Las personas deciden y aprueban; los agentes refinan, documentan y ejecutan. Éxito: un proyecto avanza de idea a release con los agentes haciendo el trabajo repetible y las personas en las puertas de aprobación, sin perder trazabilidad.
 
 ## Positioning
 
@@ -22,8 +22,8 @@ Personas y agentes son miembros del mismo equipo en el mismo tablero: los agente
 
 ## Operating Context
 
-- Proyectos de software (con metodología, documentos y repositorio) y proyectos generales (ventas, tareas) en el mismo espacio.
-- Los agentes corren con la suscripción de Claude Code de cada desarrollador, conectados al tablero por un servidor MCP (fase posterior).
+- Tableros de cualquier negocio en el mismo espacio: cada uno enciende lo que usa (documentos y manual de trabajo, repositorio de código, reparto en tareas) y define los datos propios de sus tarjetas.
+- Los agentes trabajan en el tablero (con la clave de IA de la empresa) o en la PC de cada persona (su cliente de IA por MCP, o el runner), y pueden usar los sistemas de la empresa conectados por MCP.
 - Documentos en Markdown con versiones; conflictos de edición resueltos por versión base, nunca sobrescritos en silencio.
 
 ## Capabilities and Constraints
@@ -33,12 +33,12 @@ Personas y agentes son miembros del mismo equipo en el mismo tablero: los agente
 - Español (`es-EC`) en toda la interfaz.
 - Catálogo por espacio: plantillas de flujo, metodologías, roles de agentes, servidores MCP; editable solo por personas.
 - Alta de espacios abierta (SaaS) desde el login, con el correo verificado por código.
-- Acceso por persona: «Puede editar» o «Solo lectura». Quien solo mira ve el tablero, los documentos y la actividad sin controles de edición, y aprueba o rechaza solo en las puertas de su rol. Los clientes nacen en solo lectura.
+- Acceso por persona: dueño, administrador, «Puede editar» o «Solo lectura». Quien solo mira ve el tablero, los documentos y la actividad sin controles de edición, y aprueba o rechaza solo en las puertas de su rol. Los clientes nacen en solo lectura.
 - Etapas: un issue que llega a una etapa queda sin asignar y lo toma cualquiera con el rol responsable; las puertas las cierra una persona con el rol aprobador. Valen en cualquier tablero, según su configuración.
 
 ## Brand Commitments
 
-- Nombre del producto: Kuador Factory (empresa Kuador S.A.S., Quito). Identidad de marca de Kuador: noche técnica con un solo sol ecuatorial (amarillo `#ffb81c`), definida en `landing/kuador-app/DESIGN.md`.
+- Nombre del producto: Kuador Go (empresa Kuador S.A.S., Quito). Identidad de marca de Kuador: noche técnica con un solo sol ecuatorial (amarillo `#ffb81c`), definida en `landing/kuador-app/DESIGN.md`.
 - El tablero debe sentirse profesional, a la altura de Jira, Linear y las plantillas oficiales de PrimeReact; el usuario rechazó explícitamente que «parezca hecho por IA».
 - Densidad compacta en pantallas de trabajo.
 

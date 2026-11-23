@@ -328,7 +328,7 @@ function PromptPreview({ agent, projectKey }: { agent: TeamAgent; projectKey: st
           {preview && (
             <div className="flex flex-col gap-4">
               <p className="text-xs text-fg-muted">
-                {preview.kind === "REFINE" ? "Refina el issue (PO/Arquitecto)." : "Trabaja la tarjeta en el tablero."} Herramientas: {preview.tools.join(", ")}.{" "}
+                {preview.kind === "REFINE" ? "Refina la tarjeta (PO/Arquitecto)." : "Trabaja la tarjeta en el tablero."} Herramientas: {preview.tools.join(", ")}.{" "}
                 {preview.note}
               </p>
               <PromptBlock title="Sistema (quién es y sus reglas)" text={preview.system} />

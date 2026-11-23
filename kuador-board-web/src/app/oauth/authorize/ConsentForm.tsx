@@ -37,7 +37,7 @@ export function ConsentForm({
         Este cliente de IA quiere entrar al tablero de <span className="font-medium text-fg-strong">{workspaceName}</span> como <span className="font-medium text-fg-strong">{personName}</span>.
       </p>
       <ul className="mt-4 flex list-disc flex-col gap-1.5 pl-5 text-[13px] leading-relaxed text-fg">
-        <li>Verá tus pendientes y trabajará como los agentes del equipo solo los issues que tú supervisas.</li>
+        <li>Verá tus pendientes y trabajará como los agentes del equipo solo las tarjetas que tú supervisas.</li>
         <li>No puede entrar a la web, aprobar puertas ni administrar el espacio.</li>
         <li>Puedes desconectarlo cuando quieras desde Agentes locales.</li>
       </ul>

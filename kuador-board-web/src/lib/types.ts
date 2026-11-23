@@ -2,8 +2,15 @@
 export type IssueStatus = string;
 
 export const PROJECT_KINDS = ["SOFTWARE", "GENERAL"] as const;
-/** SOFTWARE habilita metodología, documentos y sincronización con repositorios. */
+/** Dato anterior a las capacidades: SOFTWARE = el tablero trabaja con un repositorio de código. */
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
+
+/**
+ * Lo que un tablero sabe hacer además del flujo: DOCUMENTS (manual de trabajo y documentos con versiones), REPOSITORY
+ * (repositorio de código: piezas, PR, CI) y SPLIT (repartir una tarjeta grande en tareas).
+ */
+export const CAPABILITIES = ["DOCUMENTS", "REPOSITORY", "SPLIT"] as const;
+export type Capability = (typeof CAPABILITIES)[number];
 
 export const COLUMN_CATEGORIES = ["TODO", "IN_PROGRESS", "DONE"] as const;
 export type ColumnCategory = (typeof COLUMN_CATEGORIES)[number];
@@ -25,9 +32,26 @@ interface CatalogEntry {
   version: number;
 }
 
+export const FIELD_KINDS = ["TEXT", "NUMBER", "MONEY", "DATE", "CHOICE"] as const;
+export type FieldKind = (typeof FIELD_KINDS)[number];
+
+/** Un dato propio de un tipo de tarjeta (p. ej. «Monto»). `options` solo en CHOICE. */
+export interface FieldDef {
+  key: string;
+  label: string;
+  kind: FieldKind;
+  options: string[];
+}
+
+export const ESTIMATE_UNITS = ["POINTS", "HOURS", "NONE"] as const;
+/** En qué mide el tablero el tamaño de sus tarjetas; NONE = no estima. */
+export type EstimateUnit = (typeof ESTIMATE_UNITS)[number];
+
 export interface IssueTypeDef {
   type: IssueType;
   label: string;
+  /** Datos propios del tipo; la API los completa con una lista vacía si faltan. */
+  fields?: FieldDef[];
 }
 
 /**
@@ -45,6 +69,16 @@ export interface StageDef {
   review?: AgentReview | null;
   /** En una etapa de trabajo: el reparto de tareas de una épica arranca solo al llegar aquí. */
   autoPlan?: boolean;
+  /** Lo que hay que verificar antes de sacar la tarjeta de la etapa (quien aprueba o quien entrega). */
+  checklist?: string[];
+  /** Lo que la tarjeta debe tener para salir de la etapa; lo hace cumplir el tablero. */
+  requires?: Requirement[];
+}
+
+/** Un requisito de etapa: un adjunto, un documento de tipo `ref` o el dato propio `ref` lleno. */
+export interface Requirement {
+  kind: "ATTACHMENT" | "DOCUMENT" | "FIELD";
+  ref: string | null;
 }
 
 /** Quién cierra una puerta: una persona, un agente revisor, o el agente con escalamiento a una persona. */
@@ -65,6 +99,9 @@ export interface AgentReview {
 export interface WorkflowTemplate extends CatalogEntry {
   description: string | null;
   kind: ProjectKind;
+  /** Lo que usa el tablero; la API las completa si faltan. */
+  capabilities?: Capability[];
+  estimate?: EstimateUnit;
   columns: BoardColumn[];
   issueTypes: IssueTypeDef[];
   stages: StageDef[];
@@ -349,6 +386,8 @@ export interface Project {
   /** Freno de bucles: vueltas atrás permitidas antes de pasar el issue a una persona. */
   maxRework: number;
   createdAt: string;
+  capabilities: Capability[];
+  estimate: EstimateUnit;
 }
 
 /**
@@ -396,6 +435,8 @@ export interface Issue {
   reviewBy: "PERSON" | "AGENT" | null;
   createdAt: string;
   updatedAt: string;
+  /** Datos propios del tipo de tarjeta (clave → valor como texto). */
+  fields: Record<string, string>;
 }
 
 export interface Comment {
@@ -417,6 +458,8 @@ export interface IssueInput {
   assigneeId: string | null;
   parentKey: string | null;
   labels: string[];
+  /** Datos propios del tipo; sin enviar, la API conserva los que tiene. */
+  fields?: Record<string, string>;
 }
 
 export interface Me {
@@ -1212,4 +1255,33 @@ export interface DraftJob {
     cards?: { title: string; description: string }[];
   } | null;
   error: string | null;
+}
+
+/** Un sistema de la empresa conectado para los agentes (correo, agenda, ERP…). La credencial nunca vuelve de la API. */
+export interface BusinessConnection {
+  key: string;
+  name: string;
+  url: string;
+  header: string | null;
+  hasSecret: boolean;
+  tools: BusinessTool[];
+  checkedAt: string | null;
+  boards: { projectKey: string; roles: string[] }[];
+}
+
+/** `readOnly`: solo lee; `allowed`: los agentes la pueden usar (las que escriben, solo si se habilitaron). */
+export interface BusinessTool {
+  name: string;
+  description: string;
+  readOnly: boolean;
+  allowed: boolean;
+}
+
+/** Un tablero propuesto por la IA para un negocio: su plantilla, su objetivo y una explicación corta. Nada está creado todavía. */
+export interface BoardDesign {
+  name: string;
+  key: string;
+  goal: string;
+  summary: string;
+  template: WorkflowTemplate;
 }

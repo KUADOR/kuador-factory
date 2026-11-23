@@ -3,25 +3,28 @@
 import Link from "next/link";
 import { SectionNav } from "@/components/shell/SectionNav";
 
-import type { ProjectKind } from "@/lib/types";
+import type { Capability } from "@/lib/types";
 
-/** Secciones de la configuración del proyecto. Metodología y repositorio solo en software. */
-export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: ProjectKind }) {
+/** Secciones de la configuración del tablero, según lo que usa (documentos, repositorio de código). */
+export function SettingsNav({ projectKey, capabilities }: { projectKey: string; capabilities: Capability[] }) {
+  const repository = capabilities.includes("REPOSITORY");
+  const documents = capabilities.includes("DOCUMENTS");
   const base = `/projects/${projectKey}/settings`;
   const groups = [
     {
-      title: "Proyecto",
+      title: "Tablero",
       items: [
         { slug: "general", label: "General" },
         { slug: "people", label: "Personas" },
       ],
     },
-    ...(kind === "SOFTWARE"
+    ...(repository
       ? [
           {
             title: "Flujo de trabajo",
             items: [
               { slug: "columns", label: "Columnas" },
+              { slug: "card", label: "Tarjeta" },
               { slug: "stages", label: "Etapas y responsables" },
               { slug: "agents", label: "Equipo de agentes" },
               { slug: "routines", label: "Rutinas" },
@@ -30,11 +33,12 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
           },
         ]
       : [
-          // Fuera de software, lo de todos los días primero; etapas y reglas quedan como opciones avanzadas.
+          // Sin repositorio de código, lo de todos los días primero; etapas y reglas quedan como opciones avanzadas.
           {
-            title: "Tablero",
+            title: "Flujo de trabajo",
             items: [
               { slug: "columns", label: "Columnas" },
+              { slug: "card", label: "Tarjeta" },
               { slug: "agents", label: "Equipo de agentes" },
               { slug: "routines", label: "Rutinas" },
             ],
@@ -47,7 +51,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
             ],
           },
         ]),
-    ...(kind === "SOFTWARE"
+    ...(repository
       ? [
           {
             title: "Software",
@@ -57,13 +61,15 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
             ],
           },
         ]
-      : []),
+      : documents
+        ? [{ title: "Documentos", items: [{ slug: "methodology", label: "Manual de trabajo" }] }]
+        : []),
   ];
   return (
     <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <SectionNav
-          label="Configuración del proyecto"
+          label="Configuración del tablero"
           pickerLabel="Ajustes"
           groups={groups.map((g) => ({ title: g.title, items: g.items.map((item) => ({ href: `${base}/${item.slug}`, label: item.label })) }))}
         />

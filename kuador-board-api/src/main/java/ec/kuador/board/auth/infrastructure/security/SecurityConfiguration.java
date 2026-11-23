@@ -127,11 +127,15 @@ class SecurityConfiguration {
                         // El dashboard: cómo va la empresa y su ajuste, quien administra; «mi trabajo», cada persona.
                         .requestMatchers("/api/insights/company", "/api/insights/settings").access(HUMAN_ADMIN)
                         .requestMatchers("/api/insights/**").hasRole("HUMAN")
+                        // Diseñar un tablero con IA guarda una plantilla en el catálogo: solo quien administra.
+                        .requestMatchers("/api/boards/design", "/api/boards/design/**").access(HUMAN_ADMIN)
+                        // Conexiones del negocio (sistemas de la empresa que usan los agentes): solo quien administra.
+                        .requestMatchers("/api/connections", "/api/connections/**", "/api/projects/*/connections").access(HUMAN_ADMIN)
                         // La auditoría del espacio: solo quien administra.
                         .requestMatchers("/api/workspace/audit", "/api/workspace/audit/**").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/workspace", "/api/workspace/languages", "/api/members/*/access").access(HUMAN_ADMIN)
                         // Columnas, etapas (puertas y aprobadores) y transiciones definen quién aprueba: solo quien administra.
-                        .requestMatchers(HttpMethod.PUT, "/api/projects/*/columns", "/api/projects/*/transitions", "/api/projects/*/stages").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.PUT, "/api/projects/*/columns", "/api/projects/*/transitions", "/api/projects/*/stages", "/api/projects/*/capabilities", "/api/projects/*/card").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/projects/*", "/api/projects/*/methodology", "/api/projects/*/goal").access(HUMAN_EDITOR)
                         // El catálogo lo lee cualquiera del espacio; solo quien administra lo cambia.
                         .requestMatchers(HttpMethod.PUT, "/api/catalog/**").access(HUMAN_ADMIN)

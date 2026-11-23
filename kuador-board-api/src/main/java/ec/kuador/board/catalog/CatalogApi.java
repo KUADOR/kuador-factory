@@ -10,6 +10,11 @@ public interface CatalogApi {
 
     Optional<WorkflowTemplate> workflowTemplate(String key);
 
+    /** Guarda una plantilla de flujo propia del espacio (se valida como cualquier otra) y devuelve la guardada. */
+    default WorkflowTemplate saveWorkflowTemplate(WorkflowTemplate template) {
+        throw new UnsupportedOperationException("saveWorkflowTemplate");
+    }
+
     List<Methodology> methodologies();
 
     Optional<Methodology> methodology(String key);

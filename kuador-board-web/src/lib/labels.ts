@@ -1,4 +1,4 @@
-import type { ColumnCategory, DocumentDef, DocumentScope, IssueType, Methodology, Priority, Project, ProjectKind } from "./types";
+import type { Capability, ColumnCategory, EstimateUnit, FieldDef, FieldKind, DocumentDef, DocumentScope, IssueType, Methodology, Priority, Project, ProjectKind } from "./types";
 
 /** Lo que define cómo se nombran los issues de un proyecto: viene de su plantilla del catálogo. */
 export type TypeSource = Pick<Project, "kind" | "issueTypes">;
@@ -86,3 +86,33 @@ export const MODEL_LABEL: Record<string, string> = {
   "claude-sonnet-5-5": "Claude Sonnet 5.5 (equilibrado: análisis, redacción)",
   "claude-haiku-5-5": "Claude Haiku 5.5 (rápido y económico: tareas simples)",
 };
+
+/** Lo que un tablero puede usar, con palabras de quien lo configura. */
+export const CAPABILITY_LABEL: Record<Capability, { label: string; hint: string }> = {
+  DOCUMENTS: { label: "Documentos", hint: "Manual de trabajo y documentos con versiones." },
+  REPOSITORY: { label: "Repositorio de código", hint: "Piezas, Pull Requests y CI en GitHub." },
+  SPLIT: { label: "Reparto en tareas", hint: "Un trabajo grande se divide en tareas con responsable." },
+};
+
+/** Si el tablero usa una capacidad. */
+export function can(project: Pick<Project, "capabilities">, capability: Capability): boolean {
+  return project.capabilities?.includes(capability) ?? false;
+}
+
+/** Cómo se llama el tamaño de una tarjeta según la unidad del tablero (NONE no se muestra). */
+export const ESTIMATE_LABEL: Record<EstimateUnit, string> = { POINTS: "Puntos", HOURS: "Horas", NONE: "Sin estimación" };
+
+export const FIELD_KIND_LABEL: Record<FieldKind, string> = { TEXT: "Texto", NUMBER: "Número", MONEY: "Dinero", DATE: "Fecha", CHOICE: "Lista" };
+
+/** Los datos propios de un tipo de tarjeta en el tablero. */
+export function fieldsOf(project: Pick<Project, "issueTypes">, type: IssueType): FieldDef[] {
+  return project.issueTypes.find((t) => t.type === type)?.fields ?? [];
+}
+
+/** Un valor guardado, como se le muestra a una persona. */
+export function fieldText(def: FieldDef, value: string | undefined): string {
+  if (!value) return "";
+  if (def.kind === "MONEY") return new Intl.NumberFormat("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value));
+  if (def.kind === "DATE") return new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+  return value;
+}

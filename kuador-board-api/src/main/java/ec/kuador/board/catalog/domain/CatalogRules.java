@@ -42,7 +42,7 @@ public final class CatalogRules {
 
     private static void workflowTemplate(WorkflowTemplate t) {
         name(t.name());
-        if (t.kind() == null) throw new DomainException("Indica el tipo de proyecto: SOFTWARE o GENERAL.");
+        if (t.capabilities() == null) throw new DomainException("Indica qué usa el tablero: documentos, repositorio de código o reparto en tareas (puede ser nada).");
         ColumnDef.validate(t.columns());
         StageDef.validate(t.stages(), t.columns());
         java.util.Set<String> keys = new java.util.HashSet<>(t.columns().stream().map(ColumnDef::key).toList());
@@ -59,6 +59,7 @@ public final class CatalogRules {
             if (d.label() == null || d.label().isBlank() || d.label().length() > 40) {
                 throw new DomainException("Cada tipo de issue necesita un nombre de hasta 40 caracteres.");
             }
+            ec.kuador.board.catalog.FieldDef.validate(d.fields(), d.label());
         }
         if (seen.stream().allMatch(x -> x == IssueType.EPIC)) {
             throw new DomainException("La plantilla necesita algún tipo de issue además de las épicas.");

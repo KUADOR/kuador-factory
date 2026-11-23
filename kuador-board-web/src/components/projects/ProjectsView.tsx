@@ -41,11 +41,11 @@ export function ProjectsView({
   return (
     <>
       <PageHeader
-        title="Proyectos"
+        title="Tableros"
         actions={
           canEdit && (
             <Button tone="primary" size="sm" icon={Plus} onClick={() => setCreating(true)}>
-              Nuevo proyecto
+              Nuevo tablero
             </Button>
           )
         }
@@ -155,7 +155,7 @@ export function ProjectsView({
         open={creating}
         onClose={() => setCreating(false)}
         width="narrow"
-        title="Nuevo proyecto"
+        title="Nuevo tablero"
       >
         {creating && (
           <CreateProjectForm
@@ -177,7 +177,7 @@ function FirstSteps({ onCreate }: { onCreate: () => void }) {
       text: "Desde una plantilla: ventas, marketing, tareas o software.",
       action: (
         <Button tone="primary" size="sm" icon={Plus} onClick={onCreate}>
-          Nuevo proyecto
+          Nuevo tablero
         </Button>
       ),
     },

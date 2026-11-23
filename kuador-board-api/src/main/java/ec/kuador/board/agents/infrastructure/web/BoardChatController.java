@@ -18,6 +18,30 @@ class BoardChatController {
         this.chat = chat;
     }
 
+    private ec.kuador.board.agents.application.BoardDesigner designer;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setDesigner(ec.kuador.board.agents.application.BoardDesigner designer) {
+        this.designer = designer;
+    }
+
+    record DesignRequest(@jakarta.validation.constraints.Size(max = 3000) String description) {}
+
+    record CreateRequest(ec.kuador.board.agents.application.BoardDesigner.Design design, @jakarta.validation.constraints.Size(max = 10) String key,
+            @jakarta.validation.constraints.Size(max = 120) String name) {}
+
+    /** «Cuéntame tu negocio»: propone un tablero para ese negocio, sin crear nada. */
+    @PostMapping("/api/boards/design")
+    ec.kuador.board.agents.application.BoardDesigner.Design design(@AuthenticationPrincipal AuthenticatedMember who, @jakarta.validation.Valid @RequestBody DesignRequest r) {
+        return designer.propose(who, r.description());
+    }
+
+    /** Crea el tablero de una propuesta (con su plantilla y su objetivo). */
+    @PostMapping("/api/boards/design/create")
+    java.util.Map<String, String> create(@AuthenticationPrincipal AuthenticatedMember who, @jakarta.validation.Valid @RequestBody CreateRequest r) {
+        return java.util.Map.of("key", designer.create(who, r.design(), r.key(), r.name()));
+    }
+
     @PostMapping("/api/projects/{key}/chat")
     BoardChat.Answer ask(@AuthenticationPrincipal AuthenticatedMember who, @PathVariable String key, @RequestBody BoardChat.Question q) {
         return chat.ask(who, key, q);

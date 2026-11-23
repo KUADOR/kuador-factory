@@ -44,7 +44,7 @@ export function MethodologyPicker({ project, methodologies }: { project: Project
           <div className="grid gap-4 md:grid-cols-2">
             {[
               { title: "Documentos del proyecto", rules: documentsOf(guide, "PROJECT") },
-              { title: "Documentos por issue", rules: documentsOf(guide, "ISSUE") },
+              { title: "Documentos por tarjeta", rules: documentsOf(guide, "ISSUE") },
             ].map(({ title, rules }) => (
               <div key={title}>
                 <h3 className="mb-2 text-xs font-medium text-fg-muted">{title}</h3>

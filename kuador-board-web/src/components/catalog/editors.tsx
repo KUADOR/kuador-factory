@@ -3,14 +3,17 @@
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 
+import { FieldsEditor } from "@/components/board/FieldsEditor";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
-import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
+import { Field, SelectInput, Switch, TextArea, TextInput } from "@/components/ui/Field";
 import { TypeIcon } from "@/components/ui/IssueIcons";
 import { Badge } from "@/components/ui/Section";
-import { CATEGORY_LABEL, typeLabel } from "@/lib/labels";
+import { CAPABILITY_LABEL, CATEGORY_LABEL, ESTIMATE_LABEL, typeLabel } from "@/lib/labels";
 import {
+  CAPABILITIES,
   COLUMN_CATEGORIES,
+  ESTIMATE_UNITS,
   ISSUE_TYPES,
   type AgentRole,
   type BoardColumn,
@@ -37,6 +40,7 @@ export function blankEntry(type: CatalogType): CatalogEntries[CatalogType] {
         ...base,
         description: null,
         kind: "GENERAL",
+        capabilities: ["DOCUMENTS"],
         columns: [
           { key: "TODO", name: "Por hacer", category: "TODO" },
           { key: "DOING", name: "En curso", category: "IN_PROGRESS" },
@@ -160,19 +164,32 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
       <Field label="Descripción">
         {(id) => <TextInput id={id} maxLength={300} value={value.description ?? ""} onChange={(e) => onChange({ ...value, description: e.target.value || null })} />}
       </Field>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-fg-muted">Tipo de proyecto</span>
-        <ChoiceCards
-          name="template-kind"
-          label="Tipo de proyecto"
-          columns={2}
-          value={value.kind}
-          onChange={(kind) => onChange({ ...value, kind })}
-          choices={[
-            { value: "SOFTWARE", label: "Software", hint: "Con metodología, documentos y repositorio." },
-            { value: "GENERAL", label: "General", hint: "Ventas, operaciones, tareas: solo el tablero." },
-          ]}
-        />
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-medium text-fg-muted">Qué usa el tablero</span>
+        {CAPABILITIES.map((c) => {
+          const on = (value.capabilities ?? []).includes(c);
+          // El repositorio guarda documentos: van juntos.
+          const locked = c === "DOCUMENTS" && (value.capabilities ?? []).includes("REPOSITORY");
+          return (
+            <div key={c} className="flex items-center justify-between gap-4">
+              <span className="min-w-0 text-[13px] text-fg">
+                {CAPABILITY_LABEL[c].label} <span className="text-fg-muted">· {CAPABILITY_LABEL[c].hint}</span>
+              </span>
+              <Switch
+                checked={on || locked}
+                disabled={locked}
+                label={CAPABILITY_LABEL[c].label}
+                hideLabel
+                onChange={(checked) => {
+                  const rest = (value.capabilities ?? []).filter((x) => x !== c);
+                  const next = checked ? [...rest, c] : rest;
+                  const capabilities = next.includes("REPOSITORY") && !next.includes("DOCUMENTS") ? [...next, "DOCUMENTS" as const] : next;
+                  onChange({ ...value, capabilities, kind: capabilities.includes("REPOSITORY") ? "SOFTWARE" : "GENERAL" });
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <Group
@@ -244,11 +261,34 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
                   value={current?.label ?? typeLabel(type)}
                   onChange={(e) => onChange({ ...value, issueTypes: value.issueTypes.map((t) => (t.type === type ? { ...t, label: e.target.value } : t)) })}
                 />
+                {current && (
+                  <div className="col-span-3 pb-2 pl-7">
+                    <FieldsEditor
+                      typeLabel={current.label}
+                      value={current.fields ?? []}
+                      onChange={(fields) => onChange({ ...value, issueTypes: value.issueTypes.map((t) => (t.type === type ? { ...t, fields } : t)) })}
+                    />
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       </Group>
+
+      <div className="max-w-64">
+        <Field label="Tamaño de la tarjeta">
+          {(id) => (
+            <SelectInput
+              id={id}
+              size="sm"
+              options={ESTIMATE_UNITS.map((u) => ({ value: u, label: ESTIMATE_LABEL[u] }))}
+              value={value.estimate ?? "POINTS"}
+              onChange={(estimate) => estimate && onChange({ ...value, estimate })}
+            />
+          )}
+        </Field>
+      </div>
     </div>
   );
 }
@@ -306,7 +346,7 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2 text-[13px] font-medium text-fg-strong">
                       {d.label || "Documento sin nombre"}
-                      <Badge>{d.scope === "PROJECT" ? "Proyecto" : "Issue"}</Badge>
+                      <Badge>{d.scope === "PROJECT" ? "Tablero" : "Tarjeta"}</Badge>
                       {d.required && <Badge tone="warn">Obligatorio</Badge>}
                     </span>
                     <code className="block truncate font-mono text-[11px] text-fg-faint">{d.pathPattern}</code>
@@ -330,8 +370,8 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
                             id={id}
                             size="sm"
                             options={[
-                              { value: "PROJECT", label: "Del proyecto" },
-                              { value: "ISSUE", label: "De cada issue" },
+                              { value: "PROJECT", label: "Del tablero" },
+                              { value: "ISSUE", label: "De cada tarjeta" },
                             ]}
                             value={d.scope}
                             onChange={(scope) => scope && setDoc(i, { scope })}
@@ -354,7 +394,7 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
                         )}
                       </Field>
                     </div>
-                    <Field label="Ruta en el repositorio" hint={d.scope === "ISSUE" ? "Lleva una vez {feature} (carpeta por issue) o {task} (un archivo) y termina en .md." : "Ruta fija que termina en .md."}>
+                    <Field label="Ruta en el repositorio" hint={d.scope === "ISSUE" ? "Lleva una vez {feature} (carpeta por tarjeta) o {task} (un archivo) y termina en .md." : "Ruta fija que termina en .md."}>
                       {(id) => <TextInput id={id} size="sm" required value={d.pathPattern} onChange={(e) => setDoc(i, { pathPattern: e.target.value })} className="font-mono text-xs" />}
                     </Field>
                     <Field label="Para qué sirve">{(id) => <TextInput id={id} size="sm" value={d.purpose} onChange={(e) => setDoc(i, { purpose: e.target.value })} />}</Field>
@@ -418,7 +458,7 @@ export function RoleEditor({ value, onChange, isNew }: { value: AgentRole; onCha
           onChange={(automation) => onChange({ ...value, automation })}
           choices={[
             { value: "NONE", label: "Ninguna", hint: "Trabaja desde su entorno." },
-            { value: "REFINE_ISSUE", label: "Refinar issues", hint: "Propone historia, criterios y estimación, y lo devuelve." },
+            { value: "REFINE_ISSUE", label: "Refinar tarjetas", hint: "Propone historia, criterios y estimación, y lo devuelve." },
           ]}
         />
       </div>

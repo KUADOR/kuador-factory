@@ -12,6 +12,9 @@ import type {
   BusinessConnection,
   ConnectionLogin,
   MailConnectionInput,
+  ApiConnectionInput,
+  ApiSpec,
+  DemoErpInfo,
   MailInbox,
   MailInboxInput,
   MailDetection,
@@ -869,6 +872,19 @@ export async function saveConnectionAction(
   body: { name: string; url: string; header: string | null; secret: string | null },
 ): Promise<ActionResult<BusinessConnection>> {
   return run(() => boardApi.saveConnection(key, body), "/connections");
+}
+
+/** Lee la documentación de una API (desde su dirección o pegada) para elegir qué operaciones usa el agente. */
+export async function readApiSpecAction(body: { url: string | null; text: string | null }): Promise<ActionResult<ApiSpec>> {
+  return run(() => boardApi.readApiSpec(body));
+}
+
+export async function saveApiConnectionAction(key: string, body: ApiConnectionInput): Promise<ActionResult<BusinessConnection>> {
+  return run(() => boardApi.saveApiConnection(key, body), "/connections");
+}
+
+export async function demoErpAction(): Promise<ActionResult<DemoErpInfo>> {
+  return run(() => boardApi.demoErp());
 }
 
 /** Con qué conector se conecta un correo, según dónde está alojado su dominio. */

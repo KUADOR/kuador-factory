@@ -53,6 +53,33 @@ class HttpMcpClient implements McpClient {
     }
 
     @Override
+    public String fetchDocument(String url) {
+        URI uri;
+        try {
+            uri = SafeUrls.requirePublicHttps(url, allowPrivate);
+        } catch (DomainException e) {
+            throw new McpException(e.getMessage());
+        }
+        try {
+            HttpResponse<java.io.InputStream> res = http.send(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(20))
+                    .header("Accept", "application/json, application/yaml, text/yaml, */*;q=0.5").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+            byte[] bytes;
+            try (java.io.InputStream in = res.body()) {
+                bytes = in.readNBytes(5 * 1024 * 1024 + 1);
+            }
+            if (res.statusCode() == 401 || res.statusCode() == 403) throw new McpException("La documentación pide credencial: descárgala y pégala.");
+            if (res.statusCode() / 100 != 2) throw new McpException("La dirección de la documentación respondió " + res.statusCode() + ".");
+            if (bytes.length > 5 * 1024 * 1024) throw new McpException("La documentación pesa más de 5 MB.");
+            return new String(bytes, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new McpException("No se pudo descargar la documentación: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new McpException("Se interrumpió la descarga.");
+        }
+    }
+
+    @Override
     public boolean isMailbox(String url) {
         return nativeFor(url).map(BuiltInConnector::mailbox).orElse(false);
     }

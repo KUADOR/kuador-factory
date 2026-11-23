@@ -56,6 +56,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Servidor autocontenido para la imagen Docker (solo lo que usa la app, sin node_modules completo).
   output: "standalone",
+  // La documentación de una API (OpenAPI) puede pegarse entera al conectar un sistema: hasta 6 MB.
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
   async redirects() {
     return OLD_ROUTES.map(([source, destination]) => ({ source, destination, permanent: true }));
   },

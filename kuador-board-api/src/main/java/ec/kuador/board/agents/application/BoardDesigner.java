@@ -120,8 +120,10 @@ public class BoardDesigner {
               persona (roles vacío) o es una aprobación de una persona («gate»: true, roles vacío). Pon una aprobación antes de que algo salga
               hacia un cliente o cueste dinero. No pongas dos aprobaciones seguidas.
             - Si la persona quiere que algo quede registrado o hecho SOLO cuando todo coincide (y avisado cuando no), no pongas una aprobación
-              en medio: el agente que compara también lo registra cuando todo coincide y, cuando algo no coincide, no registra y le pregunta a
-              una persona explicando el desfase. Eso va en su «instructions».
+              en medio: el agente que compara también lo registra cuando todo coincide. Para lo que no coincide pon un paso que hace una
+              persona (por ejemplo «Desfase por resolver», roles vacío) justo antes del paso final. El agente puede elegir a qué paso pasa la
+              tarjeta según su resultado: en su «instructions» di a cuál va en cada caso (si coincide, al paso final; si no, al de desfase,
+              sin registrar y explicando el desfase).
             - «instructions»: en cada paso que hace un agente, de 3 a 8 frases concretas en segunda persona: qué lee (la tarjeta, sus adjuntos),
               qué datos saca, qué consulta y con qué herramienta de los sistemas conectados (por su nombre exacto), qué compara, qué hace si
               todo está bien y qué hace si algo no cuadra (preguntar a una persona con el detalle). Si el dato que necesita está en un sistema

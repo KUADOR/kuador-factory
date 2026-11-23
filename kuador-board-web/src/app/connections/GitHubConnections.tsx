@@ -152,7 +152,7 @@ export function GitHubConnections({ overview, workspaceName, done, error }: { ov
         open={removing != null}
         onCancel={() => setRemoving(null)}
         title={`¿Quitar ${removing?.account}?`}
-        message="Los proyectos vinculados dejarán de sincronizar. La app sigue instalada en GitHub hasta que la desinstales allá."
+        message="Los tableros vinculados dejarán de sincronizar. La app sigue instalada en GitHub hasta que la desinstales allá."
         confirmLabel="Quitar"
         pending={pending}
         onConfirm={() =>

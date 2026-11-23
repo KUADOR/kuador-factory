@@ -5,7 +5,8 @@ import { clsx } from "clsx";
 import { CompanyDashboard } from "@/components/insights/CompanyDashboard";
 import { MyWork } from "@/components/insights/MyWork";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { canAdminister } from "@/lib/access";
+import { FirstSteps } from "@/components/projects/FirstSteps";
+import { canAdminister, canEdit } from "@/lib/access";
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
 import type { InsightsCompany, InsightsMine, RunnerMachine } from "@/lib/types";
@@ -29,6 +30,20 @@ export default async function HomePage({ searchParams }: Props) {
     return failPage(e);
   }
   const admin = canAdminister(me);
+  // Empresa recién creada: en vez de métricas vacías, por dónde empezar.
+  if (canEdit(me) && view !== "me") {
+    const boards = await boardApi.projects().catch(() => null);
+    if (boards != null && boards.length === 0) {
+      return (
+        <>
+          <PageHeader title={`Hola, ${me.name.split(" ")[0]}`} description="Todavía no hay tableros en tu empresa." />
+          <div className="px-4 py-5 sm:px-6 sm:py-6">
+            <FirstSteps canDesign={admin} />
+          </div>
+        </>
+      );
+    }
+  }
   const showCompany = admin && view !== "me";
   const days = PERIODS.includes(Number(rawDays)) ? Number(rawDays) : 30;
 
@@ -71,6 +86,9 @@ export default async function HomePage({ searchParams }: Props) {
             </Link>
             <Link href="/?view=me" className={tab(!showCompany)} aria-current={!showCompany ? "page" : undefined}>
               Mi trabajo
+            </Link>
+            <Link href="/pulse" className={tab(false)}>
+              Pulso del día
             </Link>
             {showCompany && (
               <span className="ml-auto flex items-center gap-1" aria-label="Período">

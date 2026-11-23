@@ -189,7 +189,7 @@ export function IssueForm({
       {newAgent && (
         <p className="-mt-1 flex gap-1.5 text-[11px] text-fg-muted">
           <Sparkle className="mt-0.5 size-3 shrink-0 fill-sol text-sol" aria-hidden />
-          <span>Al guardar, {newAgent.name} recibe el issue y empieza a trabajarlo.</span>
+          <span>Al guardar, {newAgent.name} recibe la tarjeta y empieza a trabajarla.</span>
         </p>
       )}
       <Field label="Tipo">

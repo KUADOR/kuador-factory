@@ -18,41 +18,21 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
         { slug: "people", label: "Personas" },
       ],
     },
-    ...(repository
-      ? [
-          {
-            title: "Flujo de trabajo",
-            items: [
-              { slug: "columns", label: "Columnas" },
-              { slug: "card", label: "Tarjeta" },
-              { slug: "stages", label: "Etapas y responsables" },
-              { slug: "agents", label: "Equipo de agentes" },
-              { slug: "routines", label: "Rutinas" },
-              { slug: "inbox", label: "Correo entrante" },
-              { slug: "transitions", label: "Reglas de transición" },
-            ],
-          },
-        ]
-      : [
-          // Sin repositorio de código, lo de todos los días primero; etapas y reglas quedan como opciones avanzadas.
-          {
-            title: "Flujo de trabajo",
-            items: [
-              { slug: "columns", label: "Columnas" },
-              { slug: "card", label: "Tarjeta" },
-              { slug: "agents", label: "Equipo de agentes" },
-              { slug: "routines", label: "Rutinas" },
-              { slug: "inbox", label: "Correo entrante" },
-            ],
-          },
-          {
-            title: "Avanzado",
-            items: [
-              { slug: "stages", label: "Etapas y aprobaciones" },
-              { slug: "transitions", label: "Reglas de transición" },
-            ],
-          },
-        ]),
+    {
+      title: "Flujo de trabajo",
+      items: [
+        { slug: "columns", label: "Pasos y responsables" },
+        { slug: "card", label: "Tarjeta" },
+        { slug: "agents", label: "Equipo de agentes" },
+      ],
+    },
+    {
+      title: "Automatización",
+      items: [
+        { slug: "routines", label: "Rutinas" },
+        { slug: "inbox", label: "Correo entrante" },
+      ],
+    },
     ...(repository
       ? [
           {
@@ -66,6 +46,8 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
       : documents
         ? [{ title: "Documentos", items: [{ slug: "methodology", label: "Manual de trabajo" }] }]
         : []),
+    // Lo que casi nadie toca a diario queda al final.
+    { title: "Avanzado", items: [{ slug: "transitions", label: "Reglas de transición" }] },
   ];
   return (
     <div className="flex items-center gap-3">

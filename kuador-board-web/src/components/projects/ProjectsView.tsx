@@ -10,6 +10,8 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Badge, EmptyState } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
+
+import { FirstSteps } from "./FirstSteps";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
 import type { Methodology, Project, WorkflowTemplate } from "@/lib/types";
 
@@ -29,7 +31,7 @@ export function ProjectsView({
   recommended?: string[];
 }) {
   const router = useRouter();
-  const { canEdit } = useAccess();
+  const { canEdit, canAdminister } = useAccess();
   const asked = useSearchParams().get("nuevo") === "1";
   const creating = canEdit && asked;
   const setCreating = (open: boolean) =>
@@ -53,9 +55,9 @@ export function ProjectsView({
       <div className="px-4 py-5 sm:px-6 sm:py-6">
         {projects.length === 0 ? (
           canEdit ? (
-            <FirstSteps onCreate={() => setCreating(true)} />
+            <FirstSteps canDesign={canAdminister} />
           ) : (
-            <EmptyState title="Aún no hay proyectos">
+            <EmptyState title="Aún no hay tableros">
               Cuando el equipo cree uno, lo verás aquí.
             </EmptyState>
           )
@@ -166,57 +168,5 @@ export function ProjectsView({
         )}
       </SidePanel>
     </>
-  );
-}
-
-/** Espacio sin proyectos: tres pasos para arrancar, sin más explicaciones. */
-function FirstSteps({ onCreate }: { onCreate: () => void }) {
-  const steps = [
-    {
-      title: "Crea tu primer tablero",
-      text: "Desde una plantilla: ventas, marketing, tareas o software.",
-      action: (
-        <Button tone="primary" size="sm" icon={Plus} onClick={onCreate}>
-          Nuevo tablero
-        </Button>
-      ),
-    },
-    {
-      title: "Conecta la IA de la empresa",
-      text: "Para que tus agentes trabajen en el tablero.",
-      action: (
-        <Button size="sm" href="/connections">
-          Ir a Conexiones
-        </Button>
-      ),
-    },
-    {
-      title: "Invita a tu equipo",
-      text: "Cada persona con su acceso.",
-      action: (
-        <Button size="sm" href="/team">
-          Ir a Equipo
-        </Button>
-      ),
-    },
-  ];
-  return (
-    <div className="max-w-2xl">
-      <h2 className="text-base font-semibold text-fg-strong">Empecemos</h2>
-      <ol className="mt-4 divide-y divide-line rounded-lg border border-line bg-surface">
-        {steps.map((s, i) => (
-          <li key={s.title} className="flex flex-wrap items-center gap-4 px-5 py-4">
-            <span className="tabular grid size-6 shrink-0 place-items-center rounded-full border border-line-strong font-mono text-[11px] text-fg-muted">
-              {i + 1}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-medium text-fg-strong">{s.title}</p>
-              <p className="text-xs text-fg-muted">{s.text}</p>
-            </div>
-            {s.action}
-          </li>
-        ))}
-      </ol>
-    </div>
   );
 }

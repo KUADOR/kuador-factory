@@ -70,4 +70,17 @@ class OpenApiReaderTest {
         assertThatThrownBy(() -> OpenApiReader.read("{\"hola\": 1}", null)).isInstanceOf(DomainException.class).hasMessageContaining("OpenAPI");
         assertThatThrownBy(() -> OpenApiReader.read("::: no es yaml :::\n  - [", null)).isInstanceOf(DomainException.class);
     }
+
+    @Test
+    void leavesOutArgumentNamesTheAiProvidersReject() {
+        String json = """
+                {"openapi":"3.0.0","info":{"title":"T"},"servers":[{"url":"https://erp.example/api"}],"paths":{
+                  "/pedidos":{"get":{"operationId":"listar","parameters":[{"name":"page[size]","in":"query","schema":{"type":"integer"}},
+                                                                          {"name":"estado","in":"query","schema":{"type":"string"}}]}},
+                  "/raro/{id de pedido}":{"get":{"operationId":"raro","parameters":[{"name":"id de pedido","in":"path","required":true,"schema":{"type":"string"}}]}}}}
+                """;
+        OpenApiReader.Spec spec = OpenApiReader.read(json, null);
+        assertThat(spec.operations()).extracting(ApiAccount.Operation::name).as("sin su parámetro de ruta no se puede llamar").containsExactly("listar");
+        assertThat(spec.operations().getFirst().params()).extracting(ApiAccount.Param::name).containsExactly("estado");
+    }
 }

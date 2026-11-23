@@ -349,6 +349,11 @@ public class BoardAgent {
         if (connections != null) {
             List<ec.kuador.board.connections.ConnectionsApi.Tool> business = connections.toolsFor(card.projectKey(), agent.role());
             for (ec.kuador.board.connections.ConnectionsApi.Tool t : business) {
+                // Una herramienta con nombres de argumento que el proveedor de IA rechaza haría fallar todo el trabajo: no se ofrece.
+                if (!validArguments(t.schema())) {
+                    log.warn("Herramienta {} de {} sin ofrecer: nombres de argumento no válidos", t.tool(), t.connection());
+                    continue;
+                }
                 tools.add(new BoardAgentModel.BoardTool(t.name(), "[" + t.connectionName() + (t.readOnly() ? "" : " · cambia datos") + "] " + t.description(), t.schema(),
                         args -> connections.call(card.projectKey(), agent.role(), t.name(), args, agent.id(), card.key())));
             }
@@ -361,8 +366,10 @@ public class BoardAgent {
         List<ec.kuador.board.catalog.FieldDef> fieldDefs = gate.isPresent() ? List.of() : board.fieldsOf(ec.kuador.board.catalog.IssueType.valueOf(card.type()));
         if (!fieldDefs.isEmpty()) {
             Map<String, Object> props = new java.util.LinkedHashMap<>();
+            // Las claves de los datos (proveedor, numero_factura…): los proveedores de IA no aceptan espacios ni tildes en los nombres.
             for (ec.kuador.board.catalog.FieldDef f : fieldDefs) {
-                props.put(f.label(), Map.of("type", "string", "description", f.kind().name() + (f.options().isEmpty() ? "" : ": una de " + String.join(", ", f.options()))));
+                props.put(f.key(), Map.of("type", "string", "description", "«" + f.label() + "» (" + f.kind().name() + ")"
+                        + (f.options().isEmpty() ? "" : ": una de " + String.join(", ", f.options()))));
             }
             tools.add(new BoardAgentModel.BoardTool("set_card_fields", "Llena los datos de la tarjeta («" + String.join("», «", fieldDefs.stream().map(ec.kuador.board.catalog.FieldDef::label).toList())
                     + "») con lo que encontraste. Solo los que sepas; los demás se conservan. Montos y números sin símbolos; fechas AAAA-MM-DD.",
@@ -786,6 +793,14 @@ public class BoardAgent {
                     ? epicKey + " es una épica sin tareas: antes de entregarla, crea una tarjeta por cada tarea del plan con create_tasks."
                     : null;
         });
+    }
+
+    private static final java.util.regex.Pattern ARGUMENT = java.util.regex.Pattern.compile("^[a-zA-Z0-9_.-]{1,64}$");
+
+    /** Si los nombres de los argumentos de una herramienta los aceptan todos los proveedores de IA. */
+    static boolean validArguments(Map<String, Object> schema) {
+        if (schema == null || !(schema.get("properties") instanceof Map<?, ?> props)) return true;
+        return props.keySet().stream().allMatch(k -> k != null && ARGUMENT.matcher(String.valueOf(k)).matches());
     }
 
     private static String str(Object o) {

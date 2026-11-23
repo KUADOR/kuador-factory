@@ -2,24 +2,48 @@ package ec.kuador.board.project;
 
 import ec.kuador.board.catalog.ColumnDef;
 import ec.kuador.board.shared.error.DomainException;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Reglas de transición del flujo, como en Jira: desde qué columna se puede mover un issue a cuál.
- * Sin restricción ({@code restricted = false}) cualquier movimiento vale. Reordenar dentro de la
- * misma columna siempre vale.
+ * Los caminos del flujo: desde qué columna se puede ir a cuál. Sin restricción ({@code restricted = false})
+ * cualquier movimiento vale. Reordenar dentro de la misma columna siempre vale.
+ *
+ * <p>Un camino con condición ({@code when}: «si todo coincide», «si falta información») es una decisión del flujo: quien
+ * entrega en esa columna elige por cuál sigue según su resultado. Puede ir hacia adelante (saltando pasos) o volver a uno
+ * anterior (un bucle, con el freno de vueltas del tablero). Valen aunque el tablero no restrinja los movimientos.
  */
 public record Transitions(boolean restricted, List<Transition> allowed) {
 
-    public record Transition(String from, String to) {}
+    public static final int MAX_CONDITION = 200;
+
+    public record Transition(String from, String to,
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String when) {
+
+        public Transition {
+            when = when == null || when.isBlank() ? null : when.strip();
+        }
+
+        public Transition(String from, String to) {
+            this(from, to, null);
+        }
+    }
 
     public static final Transitions FREE = new Transitions(false, List.of());
 
     public Transitions {
-        allowed = allowed == null ? List.of() : List.copyOf(new LinkedHashSet<>(allowed));
+        // Un camino por par de columnas (el primero que se declaró).
+        java.util.Map<String, Transition> unique = new java.util.LinkedHashMap<>();
+        for (Transition t : allowed == null ? List.<Transition>of() : allowed) {
+            if (t != null) unique.putIfAbsent(t.from() + "→" + t.to(), t);
+        }
+        allowed = List.copyOf(unique.values());
+    }
+
+    /** Los caminos con condición que salen de {@code from}: las decisiones de ese paso. */
+    public List<Transition> paths(String from) {
+        return allowed.stream().filter(t -> t.when() != null && t.from().equals(from)).toList();
     }
 
     public boolean allows(String from, String to) {
@@ -40,6 +64,9 @@ public record Transitions(boolean restricted, List<Transition> allowed) {
                 throw new DomainException("La regla " + t.from() + " → " + t.to() + " usa una columna que no existe en el flujo.");
             }
             if (t.from().equals(t.to())) throw new DomainException("Una columna no necesita regla hacia sí misma.");
+            if (t.when() != null && t.when().length() > MAX_CONDITION) {
+                throw new DomainException("La condición del camino " + t.from() + " → " + t.to() + " tiene hasta " + MAX_CONDITION + " caracteres.");
+            }
         }
         if (restricted) {
             for (ColumnDef c : columns) {

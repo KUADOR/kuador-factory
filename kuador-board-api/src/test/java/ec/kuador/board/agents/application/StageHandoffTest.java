@@ -92,12 +92,26 @@ class StageHandoffTest {
     }
 
     @Test
-    void anAgentCanChooseTheNextStepByItsResultButNeverSkipAnApproval() {
-        assertThat(handoff("SALES", "RESEARCH", ANALYST).choices(ANALYST, "B-1")).extracting(StageHandoff.Next::columnName)
-                .as("hasta la primera aprobación, incluida; nunca más allá").containsExactly("Contactado", "Preparar propuesta", "Revisión de propuesta");
-        assertThat(handoff("SALES", "RESEARCH", ANALYST).choices(ANALYST, "B-1").getLast().gate()).isTrue();
-        assertThat(handoff("SALES", "PROPOSAL_DRAFT", ANALYST).choices(ANALYST, "B-1")).as("no es la etapa de su rol").isEmpty();
-        assertThat(handoff("SALES", "PROPOSAL_REVIEW", MARKETING).choices(MARKETING, "B-1")).as("en una puerta no elige").isEmpty();
+    void theStepsDecisionsComeFromTheBoardsConditionalPaths() {
+        InMemoryProjects projects = new InMemoryProjects();
+        projects.add("B", "SALES", null);
+        IssueApi issues = new IssueApiStub() {
+            @Override public Optional<IssueContext> context(String k) {
+                return Optional.of(new IssueContext(k, "B", "t", null, "TASK", "RESEARCH", "HIGH", null, List.of(), null, ANALYST.id(), null, List.of()));
+            }
+        };
+        StageHandoff handoff = new StageHandoff(issues, projects);
+        assertThat(handoff.choices(ANALYST, "B-1")).as("sin caminos con condición no hay decisión: sigue al siguiente").isEmpty();
+
+        projects.restrict("B", new ec.kuador.board.project.Transitions.Transition("RESEARCH", "LOST", "si el prospecto no califica"),
+                new ec.kuador.board.project.Transitions.Transition("RESEARCH", "PROSPECT", "si faltan datos de contacto"),
+                new ec.kuador.board.project.Transitions.Transition("RESEARCH", "CONTACTED"));
+        List<StageHandoff.Next> choices = handoff.choices(ANALYST, "B-1");
+        assertThat(choices).extracting(StageHandoff.Next::columnName).as("las alternativas y el camino normal")
+                .containsExactly("Perdido", "Prospecto", "Contactado");
+        assertThat(choices).extracting(StageHandoff.Next::when).containsExactly("si el prospecto no califica", "si faltan datos de contacto", null);
+        assertThat(choices.get(1).back(projects.find("B").orElseThrow(), "RESEARCH")).as("volver a un paso anterior es un bucle").isTrue();
+        assertThat(handoff.choices(MARKETING, "B-1")).as("no es la etapa de su rol").isEmpty();
     }
 
     @Test

@@ -132,4 +132,21 @@ class BoardDesignerTest {
         assertThat(qs.get(1).id()).as("ids sin repetir").isNotEqualTo(qs.get(0).id());
         assertThat(designer.questions("no es json")).isEmpty();
     }
+
+    @Test
+    void decisionsBecomeConditionalPathsBetweenRealSteps() {
+        BoardDesigner.Design d = designer.design("""
+                {"name":"Facturas","key":"FAC","goal":"g","summary":"s","workItem":"Factura",
+                 "steps":[
+                   {"name":"Recibida","category":"TODO"},
+                   {"name":"Cruce","category":"IN_PROGRESS","roles":["ANALYST"],"instructions":"Compara.",
+                    "paths":[{"to":"Ingresada","when":"si todo coincide"},{"to":"Desfase","when":"si algo no coincide"},
+                             {"to":"Recibida","when":"si la factura no se puede leer"},{"to":"Inventado","when":"x"},{"to":"Desfase","when":""}]},
+                   {"name":"Desfase","category":"IN_PROGRESS","gate":true},
+                   {"name":"Ingresada","category":"DONE"}]}
+                """, ROLES);
+        assertThat(d.template().transitions()).extracting(t -> t.from() + "→" + t.to() + ": " + t.when())
+                .as("a pasos que existen, con condición, también hacia atrás").containsExactly("CRUCE→INGRESADA: si todo coincide",
+                        "CRUCE→DESFASE: si algo no coincide", "CRUCE→RECIBIDA: si la factura no se puede leer");
+    }
 }

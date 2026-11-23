@@ -317,6 +317,8 @@ export interface Workspace {
 export interface Transition {
   from: string;
   to: string;
+  /** Condición del camino («si todo coincide»): con ella, es una decisión del paso que elige quien entrega. */
+  when?: string | null;
 }
 
 /** Reglas de transición del flujo. Sin restricción, cualquier movimiento vale. */

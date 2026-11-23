@@ -49,7 +49,10 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
   if (!methodology) {
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
-        <EmptyState title="Este proyecto aún no tiene metodología" action={<Button href={settings} tone="primary" size="sm">Elegir metodología</Button>} />
+        <EmptyState
+          title={project.capabilities.includes("REPOSITORY") ? "Este tablero aún no tiene metodología" : "Este tablero aún no tiene manual de trabajo"}
+          action={<Button href={`${settings}/methodology`} tone="primary" size="sm">{project.capabilities.includes("REPOSITORY") ? "Elegir metodología" : "Elegir manual"}</Button>}
+        />
       </div>
     );
   }
@@ -110,7 +113,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
               </li>
             );
           })}
-          {!projectRules.some((r) => r.kind === "DEPLOYMENT") && (
+          {project.capabilities.includes("REPOSITORY") && !projectRules.some((r) => r.kind === "DEPLOYMENT") && (
             <li className="flex items-center">
               {deployment ? (
                 <div className="min-w-0 flex-1">

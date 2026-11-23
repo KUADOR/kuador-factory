@@ -88,6 +88,9 @@ public class DocumentService implements DocsApi {
     private WithContent createDocument(String projectKey, String kind, String issueKey, String importedPath, String content, UUID actorId) {
         ProjectView project = documentsBoard(projectKey);
         DocumentDef def;
+        if (Methodology.DEPLOYMENT_KIND.equals(kind) && !project.repository()) {
+            throw new DomainException("«Despliegue» es de los tableros con repositorio de código.");
+        }
         if (Methodology.DEPLOYMENT_KIND.equals(kind) && project.methodology() == null) {
             def = Methodology.DEPLOYMENT; // Despliegue no depende de la metodología
         } else {

@@ -273,7 +273,8 @@ function ReviewFields({
   );
   const review = stage.review ?? {
     mode: "AGENT_ESCALATE" as ReviewMode,
-    reviewerRole: null,
+    // Sin repositorio revisa el Revisor (de cualquier trabajo); con repositorio, el Revisor de PR (por defecto).
+    reviewerRole: repository ? null : "REVIEWER",
     sensitive: repository ? DEFAULT_SENSITIVE : [],
     maxChangedLines: repository ? 5000 : null,
   };

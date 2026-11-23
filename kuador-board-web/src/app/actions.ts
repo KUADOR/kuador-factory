@@ -8,6 +8,7 @@ import { ApiError, boardApi } from "@/lib/api";
 import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
+  BoardDesign,
   BusinessConnection,
   Capability,
   EstimateUnit,
@@ -836,6 +837,14 @@ export async function setThemeAction(mode: ThemeMode): Promise<void> {
 }
 
 // ---- Etapas (Fase 1) ----
+
+export async function designBoardAction(description: string): Promise<ActionResult<BoardDesign>> {
+  return run(() => boardApi.designBoard(description));
+}
+
+export async function createDesignedBoardAction(design: BoardDesign, key: string, name: string): Promise<ActionResult<{ key: string }>> {
+  return run(() => boardApi.createDesignedBoard(design, key, name), "/", true);
+}
 
 export async function saveConnectionAction(
   key: string,

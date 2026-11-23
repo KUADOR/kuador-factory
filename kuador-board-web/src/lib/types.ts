@@ -1276,3 +1276,12 @@ export interface BusinessTool {
   readOnly: boolean;
   allowed: boolean;
 }
+
+/** Un tablero propuesto por la IA para un negocio: su plantilla, su objetivo y una explicación corta. Nada está creado todavía. */
+export interface BoardDesign {
+  name: string;
+  key: string;
+  goal: string;
+  summary: string;
+  template: WorkflowTemplate;
+}

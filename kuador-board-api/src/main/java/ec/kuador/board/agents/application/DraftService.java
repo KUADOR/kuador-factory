@@ -141,7 +141,7 @@ public class DraftService implements AiJobsApi {
         if (hasDocs(p)) {
             Methodology m = methodology(p);
             List<String> base = m.baseDocuments().stream().map(DocumentDef::kind).toList();
-            for (DocumentDef d : m.documents(DocumentDef.Scope.PROJECT)) {
+            for (DocumentDef d : projectDocuments(p, m)) {
                 options.add(new DocOption(d.kind(), d.label(), d.purpose(), base.contains(d.kind()), !pending.contains(d.label())));
             }
         }
@@ -278,7 +278,7 @@ public class DraftService implements AiJobsApi {
         List<String> saved = new ArrayList<>();
         if (approved != null && !approved.isEmpty()) {
             if (!p.documents()) throw new DomainException("Este tablero no usa documentos.");
-            List<String> allowed = methodology(p).documents(DocumentDef.Scope.PROJECT).stream().map(DocumentDef::kind).toList();
+            List<String> allowed = projectDocuments(p, methodology(p)).stream().map(DocumentDef::kind).toList();
             for (ApprovedDoc d : approved) {
                 if (!allowed.contains(d.kind())) throw new DomainException("La metodología no tiene el documento " + d.kind() + ".");
                 if (d.content() == null || d.content().isBlank()) continue;
@@ -465,6 +465,11 @@ public class DraftService implements AiJobsApi {
         }
     }
 
+    /** Los documentos del tablero según su manual. «Despliegue» solo existe donde hay un repositorio de código. */
+    private static List<DocumentDef> projectDocuments(ProjectView p, Methodology m) {
+        return m.documents(DocumentDef.Scope.PROJECT).stream().filter(d -> p.repository() || !Methodology.DEPLOYMENT_KIND.equals(d.kind())).toList();
+    }
+
     private String context(ProjectView p) {
         StringBuilder b = new StringBuilder("Tablero: ").append(p.name()).append(" (").append(p.repository() ? "software" : "trabajo general").append(")");
         if (p.documents() && p.methodology() != null) {
@@ -504,7 +509,7 @@ public class DraftService implements AiJobsApi {
             + " en los demás documentos no lo repitas y, si hace falta, remite a «Arquitectura § Stack».";
 
     private List<DocumentDef> wanted(ProjectView p, List<String> kinds) {
-        List<DocumentDef> all = methodology(p).documents(DocumentDef.Scope.PROJECT);
+        List<DocumentDef> all = projectDocuments(p, methodology(p));
         List<DocumentDef> chosen = kinds == null || kinds.isEmpty() ? all : all.stream().filter(d -> kinds.contains(d.kind())).toList();
         if (chosen.isEmpty()) throw new DomainException("Elige al menos un documento para redactar.");
         return chosen;
@@ -561,7 +566,7 @@ public class DraftService implements AiJobsApi {
             }
             case DRAFT -> {
                 Map<String, String> labels = new LinkedHashMap<>();
-                if (hasDocs(p)) methodology(p).documents(DocumentDef.Scope.PROJECT).forEach(d -> labels.put(d.kind(), d.label()));
+                if (hasDocs(p)) projectDocuments(p, methodology(p)).forEach(d -> labels.put(d.kind(), d.label()));
                 List<Map<String, Object>> documents = new ArrayList<>();
                 for (JsonNode d : node.path("documents")) {
                     String kind = d.path("kind").asString("").strip().toUpperCase(Locale.ROOT);
@@ -574,7 +579,7 @@ public class DraftService implements AiJobsApi {
             case REFINE -> out.put("content", node.path("content").asString("").strip());
             case RECOGNIZE -> {
                 Map<String, String> labels = new LinkedHashMap<>();
-                methodology(p).documents(DocumentDef.Scope.PROJECT).forEach(d -> labels.put(d.kind(), d.label()));
+                projectDocuments(p, methodology(p)).forEach(d -> labels.put(d.kind(), d.label()));
                 List<Map<String, Object>> documents = new ArrayList<>();
                 for (JsonNode d : node.path("documents")) {
                     String kind = d.path("kind").asString("").strip().toUpperCase(Locale.ROOT);

@@ -224,6 +224,12 @@ public class CatalogService implements CatalogApi {
         return entries.save(type, key, entry, builtIn(existing.get()), versionOf(entry), recordType);
     }
 
+    @Override
+    @Transactional
+    public WorkflowTemplate saveWorkflowTemplate(WorkflowTemplate template) {
+        return (WorkflowTemplate) save(CatalogType.WORKFLOW_TEMPLATE, template.key(), template);
+    }
+
     @Transactional
     public void delete(CatalogType type, String key) {
         get(type, key);

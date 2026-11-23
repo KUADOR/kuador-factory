@@ -35,7 +35,12 @@ export default async function ProjectActivityPage({ params }: PageProps<"/projec
 
   return (
     <div className="flex flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
-      <p className="text-[13px] text-fg-muted">Últimos 100 cambios.</p>
+      <p className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-fg-muted">
+        Últimos 100 cambios.
+        <Link href={`/projects/${projectKey}/office`} className="k-link">
+          Ver la oficina: quién está trabajando ahora
+        </Link>
+      </p>
       {activity.length === 0 ? (
         <EmptyState title="Todavía no hay actividad" />
       ) : (
@@ -51,7 +56,7 @@ export default async function ProjectActivityPage({ params }: PageProps<"/projec
                   project={project}
                   issueLink={
                     !a.issueKey ? (
-                      <span className="text-xs text-fg-muted">proyecto</span>
+                      <span className="text-xs text-fg-muted">tablero</span>
                     ) : live.has(a.issueKey) ? (
                       <Link href={`/projects/${project.key}?issue=${a.issueKey}`} className="k-link tabular font-mono text-xs">
                         {a.issueKey}

@@ -33,17 +33,16 @@ export function ProjectTabs({
     ...(capabilities.includes("REPOSITORY") && canAdminister ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
     // Tableros de ventas: los prospectos con su próxima acción, para el celular.
     ...(templateKey === "SALES" ? [{ href: `${base}/sales`, label: "En movimiento" }] : []),
-    { href: `${base}/office`, label: "Oficina" },
     { href: `${base}/activity`, label: "Actividad" },
-    ...(canEdit ? [{ href: `${base}/settings`, label: "Configuración" }] : []),
+    ...(canEdit ? [{ href: `${base}/settings`, label: "Ajustes" }] : []),
   ];
   // Celular: la sección actual y, al tocar, todas; pestañas que no caben esconden «Configuración».
   if (variant === "picker")
-    return <SectionPicker label="Secciones del proyecto" groups={[{ items: tabs }]} compact />;
+    return <SectionPicker label="Secciones del tablero" groups={[{ items: tabs }]} compact />;
   return (
     <>
       <nav
-        aria-label="Secciones del proyecto"
+        aria-label="Secciones del tablero"
         className="-mb-px hidden gap-5 overflow-x-auto md:flex"
       >
         {tabs.map((t) => {

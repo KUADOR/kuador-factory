@@ -216,7 +216,7 @@ export function CatalogView({
         message={
           platform
             ? "Los espacios nuevos ya no la reciben; los que ya la tienen la conservan. No se puede deshacer."
-            : "Solo se puede borrar si ningún proyecto o miembro la usa. No se puede deshacer."
+            : "Solo se puede borrar si ningún tablero o miembro la usa. No se puede deshacer."
         }
         confirmLabel={platform ? "Quitar" : "Eliminar"}
         pending={pending}

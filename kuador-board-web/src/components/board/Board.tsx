@@ -281,7 +281,7 @@ export function Board({
     if (fromStatus === status && before[status].indexOf(id) === index) return;
     if (!canMove(fromStatus, status)) {
       setColumns(before);
-      notify.error("Movimiento no permitido", "Las reglas de transición del proyecto no permiten ese paso.");
+      notify.error("Movimiento no permitido", "Las reglas de este tablero no permiten ese paso.");
       return;
     }
 

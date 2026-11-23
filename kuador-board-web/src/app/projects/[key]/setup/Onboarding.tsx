@@ -106,7 +106,7 @@ export function Onboarding({
 
   return (
     <div className="grid gap-6 px-4 py-5 sm:px-6 sm:py-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
-      <nav aria-label="Pasos para configurar el proyecto" className="flex flex-col gap-1">
+      <nav aria-label="Pasos para configurar el tablero" className="flex flex-col gap-1">
         <p className="mb-2 text-xs text-fg-muted">{pending === 0 ? "Todo configurado." : `${steps.length - pending} de ${steps.length} pasos listos.`}</p>
         {steps.map((s, i) => (
           <Link

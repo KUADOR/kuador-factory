@@ -10,7 +10,7 @@ import { setupDone, setupSteps, type StepId } from "@/lib/onboarding";
 import { Onboarding } from "./Onboarding";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Configurar proyecto" };
+export const metadata: Metadata = { title: "Configurar tablero" };
 
 const NO_GITHUB: GitHubOverview = { app: null, canRegister: false, connections: [] };
 
@@ -53,7 +53,7 @@ export default async function ProjectOnboardingPage({ params, searchParams }: Pa
       project={project}
       steps={steps}
       done={done}
-      current={step === "done" ? "done" : (requested ?? steps.find((s) => !done[s]) ?? "done")}
+      current={step === "done" || step === "fin" ? "done" : (requested ?? steps.find((s) => !done[s]) ?? "done")}
       methodologies={methodologies}
       link={link}
       github={github}

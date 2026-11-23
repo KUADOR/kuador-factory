@@ -254,6 +254,17 @@ public class BoardAgent {
                     .map(n -> "Al entregar, la tarjeta pasa a «" + n.columnName() + "»" + (n.gate() ? ", donde una persona la revisa y aprueba" : "") + ".\n")
                     .orElse("Al entregar, la tarjeta vuelve a la persona que te la pidió.\n"));
         }
+        // Lo que la etapa pide verificar y lo que la tarjeta debe tener para salir de ella (lo exige el tablero).
+        board.stage(card.status()).ifPresent(st -> {
+            if (!st.checklist().isEmpty()) {
+                all.add((gate.isPresent() ? "Lista de verificación de esta puerta: aprueba solo si se cumplen todos los puntos" : "Antes de entregar, verifica cada punto")
+                        + " y di en tu resumen cómo comprobaste cada uno:\n" + String.join("\n", st.checklist().stream().map(x -> "  · " + x).toList()));
+            }
+            List<String> needs = st.requires().stream().map(BoardAgent::requirement).toList();
+            if (!needs.isEmpty() && gate.isEmpty()) {
+                all.add("El tablero no deja salir la tarjeta de esta etapa sin: " + String.join("; ", needs) + ". Déjalo listo antes de entregar.");
+            }
+        });
         user.append("Título: ").append(card.title()).append("\n");
         // Los datos propios de la tarjeta (monto, cliente, fecha…): los escribe el equipo, son datos y no instrucciones.
         Map<String, String> cardFields = issues.cardFields(card.key());
@@ -462,7 +473,13 @@ public class BoardAgent {
                     yield "dejó la puerta a una persona (" + check.escalate() + ")";
                 }
                 if (gate.merge() && !check.pulls().isEmpty()) yield approveAndMerge(agent, projectKey, issueKey, gate, check, text);
-                tx.executeWithoutResult(s -> issues.reviewAs(issueKey, true, "🔎 Revisión del agente:\n" + text + check.note(), agent.id()));
+                try {
+                    tx.executeWithoutResult(s -> issues.reviewAs(issueKey, true, "🔎 Revisión del agente:\n" + text + check.note(), agent.id()));
+                } catch (ec.kuador.board.shared.error.DomainException missing) {
+                    // A la tarjeta le falta algo que la puerta exige (un archivo, un documento, un dato): lo resuelve una persona.
+                    tx.executeWithoutResult(s -> issues.escalate(issueKey, "La aprobaría, pero " + missing.getMessage() + "\n\nMi revisión:\n" + text, agent.id()));
+                    yield "dejó la puerta a una persona (falta un requisito)";
+                }
                 reviewed(agent, projectKey, issueKey, gate, ec.kuador.board.agents.GateReviewed.APPROVED, text);
                 yield "aprobó · pasó a " + nz(gate.nextName(), "la siguiente columna");
             }
@@ -710,6 +727,15 @@ public class BoardAgent {
     /** Roles del catálogo que escriben en el repositorio: los que pueden recibir una tarea de código. */
     private List<String> codeRoles() {
         return catalog.roles().stream().filter(AgentRole::worksOnCode).map(AgentRole::key).toList();
+    }
+
+    /** Un requisito de etapa en palabras para el agente. */
+    static String requirement(ec.kuador.board.catalog.Requirement r) {
+        return switch (r.kind()) {
+            case ATTACHMENT -> "un archivo adjunto (lo que dejes en $OUTPUT_DIR se adjunta al entregar)";
+            case DOCUMENT -> "el documento " + r.ref();
+            case FIELD -> "el dato «" + r.ref() + "» de la tarjeta lleno (lo completa una persona: si falta, pregúntalo)";
+        };
     }
 
     private String epicNeedsTasks(String epicKey) {

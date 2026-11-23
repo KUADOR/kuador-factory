@@ -15,11 +15,13 @@ export default async function StagesSettingsPage({ params }: PageProps<"/project
   const key = (await params).key.toUpperCase();
   let data;
   try {
-    data = await Promise.all([boardApi.project(key), boardApi.catalog("roles"), boardApi.members()]);
+    data = await Promise.all([boardApi.project(key), boardApi.catalog("roles"), boardApi.members(), boardApi.catalog("methodologies").catch(() => [])]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, roles, members] = data;
+  const [project, roles, members, methodologies] = data;
+  // Los documentos por tarjeta del manual del tablero: una etapa puede exigirlos para avanzar.
+  const documents = (methodologies.find((m) => m.key === project.methodology)?.documents ?? []).filter((d) => d.scope === "ISSUE");
   const humanRoles = [...new Set(["OWNER", ...members.filter((m) => m.kind === "HUMAN").map((m) => m.role)])];
   return (
     <SettingsSection title="Etapas y responsables" description="Quién toma el trabajo en cada columna y quién cierra cada puerta.">
@@ -28,6 +30,7 @@ export default async function StagesSettingsPage({ params }: PageProps<"/project
         project={project}
         roleOptions={stageRoleOptions(roles, humanRoles)}
         humanRoleOptions={humanRoles.map((k) => ({ value: k, label: roleLabel(k) }))}
+        documentOptions={documents.map((d) => ({ value: d.kind, label: d.label }))}
       />
       </AdminOnly>
     </SettingsSection>

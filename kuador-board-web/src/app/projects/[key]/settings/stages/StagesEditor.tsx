@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { ChipPicker } from "@/components/ui/ChipPicker";
 import { SelectInput, Switch, TextArea, TextInput } from "@/components/ui/Field";
 import { notify } from "@/components/ui/Toaster";
-import type { Project, ReviewMode, StageDef } from "@/lib/types";
+import type { Project, Requirement, ReviewMode, StageDef } from "@/lib/types";
 
 /** Lo que conviene que decida siempre una persona, para empezar (se puede editar). */
 const DEFAULT_SENSITIVE = [
@@ -49,12 +49,19 @@ export function StagesEditor({
   project,
   roleOptions,
   humanRoleOptions,
+  documentOptions = [],
 }: {
   project: Project;
   roleOptions: Option[];
   humanRoleOptions: Option[];
+  /** Tipos de documento por tarjeta del manual del tablero (para exigirlos en una etapa). */
+  documentOptions?: Option[];
 }) {
   const router = useRouter();
+  const repository = project.capabilities.includes("REPOSITORY");
+  // Los datos propios de las tarjetas del tablero (de cualquier tipo), para poder exigirlos.
+  const fieldOptions: Option[] = [];
+  project.issueTypes.forEach((t) => (t.fields ?? []).forEach((f) => !fieldOptions.some((o) => o.value === f.key) && fieldOptions.push({ value: f.key, label: f.label })));
   const blank = (column: string): StageDef => ({
     column,
     roles: [],
@@ -147,6 +154,8 @@ export function StagesEditor({
                   <ReviewFields
                     stage={s}
                     columnName={c.name}
+                    repository={repository}
+                    roleOptions={roleOptions}
                     onChange={(review) => set(c.key, { review })}
                   />
                   <div className="flex items-center gap-2">
@@ -178,6 +187,15 @@ export function StagesEditor({
                     </>
                   )}
                 </div>
+              )}
+              {(s.gate || s.roles.length > 0 || (s.checklist ?? []).length > 0 || (s.requires ?? []).length > 0) && (
+                <LeaveFields
+                  stage={s}
+                  columnName={c.name}
+                  fieldOptions={fieldOptions}
+                  documentOptions={documentOptions}
+                  onChange={(patch) => set(c.key, patch)}
+                />
               )}
             </li>
           );
@@ -216,7 +234,7 @@ export function StagesEditor({
           loading={pending}
           onClick={() =>
             start(async () => {
-              const meaningful = stages.filter((s) => s.gate || s.roles.length > 0);
+              const meaningful = stages.filter((s) => s.gate || s.roles.length > 0 || (s.checklist ?? []).length > 0 || (s.requires ?? []).length > 0);
               const r = await setStagesAction(project.key, meaningful, maxRework);
               if (r.ok) {
                 setError(null);
@@ -237,10 +255,15 @@ export function StagesEditor({
 function ReviewFields({
   stage,
   columnName,
+  repository,
+  roleOptions,
   onChange,
 }: {
   stage: StageDef;
   columnName: string;
+  /** El tablero trabaja con un repositorio de código: la revisión mira el PR y su CI. */
+  repository: boolean;
+  roleOptions: Option[];
   onChange: (review: StageDef["review"]) => void;
 }) {
   const mode: ReviewMode = stage.review?.mode ?? "PERSON";
@@ -251,8 +274,8 @@ function ReviewFields({
   const review = stage.review ?? {
     mode: "AGENT_ESCALATE" as ReviewMode,
     reviewerRole: null,
-    sensitive: DEFAULT_SENSITIVE,
-    maxChangedLines: 5000,
+    sensitive: repository ? DEFAULT_SENSITIVE : [],
+    maxChangedLines: repository ? 5000 : null,
   };
   return (
     <div className="flex flex-col gap-1.5">
@@ -267,21 +290,35 @@ function ReviewFields({
       <p className="text-xs text-fg-faint">{choice.hint}</p>
       {mode !== "PERSON" && (
         <div className="mt-1 flex flex-col gap-2">
-          <p className="text-xs text-fg-muted">
-            Al guardar se suma al equipo el <strong>Agente Revisor de PR</strong>. Revisa cuando
-            termina el CI; si queda en rojo, la devuelve sin revisar.
-          </p>
-          <Switch
-            checked={!!review.merge}
-            onChange={(merge) => onChange({ ...review, mode, merge })}
-            label="Al aprobar, fusionar el PR"
-          />
-          <p className="text-xs text-fg-faint">
-            {review.merge
-              ? "El tablero fusiona lo que el agente revisó. Con conflictos la devuelve; lo dudoso te lo deja a ti."
-              : "El agente aprueba o devuelve; el merge lo hace una persona."}
-          </p>
-          {mode === "AGENT_ESCALATE" && (
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-xs text-fg-muted">Revisa el agente</span>
+            <div className="w-52">
+              <SelectInput
+                size="sm"
+                ariaLabel={`Rol del agente que revisa ${columnName}`}
+                placeholder={repository ? "Revisor de PR" : "Elige un rol"}
+                options={roleOptions}
+                value={review.reviewerRole}
+                onChange={(reviewerRole) => onChange({ ...review, mode, reviewerRole })}
+              />
+            </div>
+          </div>
+          {repository && (
+            <>
+              <p className="text-xs text-fg-muted">Revisa cuando termina el CI; si queda en rojo, la devuelve sin revisar.</p>
+              <Switch
+                checked={!!review.merge}
+                onChange={(merge) => onChange({ ...review, mode, merge })}
+                label="Al aprobar, fusionar el PR"
+              />
+              <p className="text-xs text-fg-faint">
+                {review.merge
+                  ? "El tablero fusiona lo que el agente revisó. Con conflictos la devuelve; lo dudoso te lo deja a ti."
+                  : "El agente aprueba o devuelve; el merge lo hace una persona."}
+              </p>
+            </>
+          )}
+          {mode === "AGENT_ESCALATE" && repository && (
             <>
               <label className="flex flex-col gap-1 text-xs text-fg-muted">
                 Rutas que siempre decide una persona (una por línea)
@@ -326,6 +363,72 @@ function ReviewFields({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Qué hay que verificar y qué debe tener la tarjeta para salir de la etapa. */
+function LeaveFields({
+  stage,
+  columnName,
+  fieldOptions,
+  documentOptions,
+  onChange,
+}: {
+  stage: StageDef;
+  columnName: string;
+  fieldOptions: Option[];
+  documentOptions: Option[];
+  onChange: (patch: Partial<StageDef>) => void;
+}) {
+  const [checklist, setChecklist] = useState((stage.checklist ?? []).join("\n"));
+  const requires = stage.requires ?? [];
+  const refs = (kind: Requirement["kind"]) => requires.filter((r) => r.kind === kind && r.ref).map((r) => r.ref as string);
+  const replace = (kind: Requirement["kind"], values: (string | null)[]) =>
+    onChange({ requires: [...requires.filter((r) => r.kind !== kind), ...values.map((ref) => ({ kind, ref }))] });
+  return (
+    <div className="grid gap-3 border-t border-line pt-3 lg:col-span-3 lg:grid-cols-2">
+      <label className="flex flex-col gap-1 text-xs font-medium text-fg-muted">
+        {stage.gate ? "Lista de verificación para aprobar (una por línea)" : "Lista de verificación antes de entregar (una por línea)"}
+        <TextArea
+          rows={3}
+          value={checklist}
+          aria-label={`Lista de verificación de ${columnName}`}
+          placeholder={"La propuesta tiene precio y plazo\nLos datos del cliente están completos"}
+          onChange={(e) => {
+            setChecklist(e.target.value);
+            onChange({ checklist: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) });
+          }}
+        />
+      </label>
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-medium text-fg-muted">No sale de aquí sin</span>
+        <Switch
+          checked={requires.some((r) => r.kind === "ATTACHMENT")}
+          onChange={(on) => replace("ATTACHMENT", on ? [null] : [])}
+          label="Un archivo adjunto"
+        />
+        {fieldOptions.length > 0 && (
+          <ChipPicker
+            value={refs("FIELD")}
+            options={fieldOptions}
+            onChange={(keys) => replace("FIELD", keys)}
+            placeholder="Agregar dato…"
+            ariaLabel={`Datos que ${columnName} exige`}
+            empty="ningún dato de la tarjeta"
+          />
+        )}
+        {documentOptions.length > 0 && (
+          <ChipPicker
+            value={refs("DOCUMENT")}
+            options={documentOptions}
+            onChange={(kinds) => replace("DOCUMENT", kinds)}
+            placeholder="Agregar documento…"
+            ariaLabel={`Documentos que ${columnName} exige`}
+            empty="ningún documento"
+          />
+        )}
+      </div>
     </div>
   );
 }

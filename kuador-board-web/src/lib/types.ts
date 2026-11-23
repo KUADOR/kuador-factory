@@ -69,6 +69,16 @@ export interface StageDef {
   review?: AgentReview | null;
   /** En una etapa de trabajo: el reparto de tareas de una épica arranca solo al llegar aquí. */
   autoPlan?: boolean;
+  /** Lo que hay que verificar antes de sacar la tarjeta de la etapa (quien aprueba o quien entrega). */
+  checklist?: string[];
+  /** Lo que la tarjeta debe tener para salir de la etapa; lo hace cumplir el tablero. */
+  requires?: Requirement[];
+}
+
+/** Un requisito de etapa: un adjunto, un documento de tipo `ref` o el dato propio `ref` lleno. */
+export interface Requirement {
+  kind: "ATTACHMENT" | "DOCUMENT" | "FIELD";
+  ref: string | null;
 }
 
 /** Quién cierra una puerta: una persona, un agente revisor, o el agente con escalamiento a una persona. */

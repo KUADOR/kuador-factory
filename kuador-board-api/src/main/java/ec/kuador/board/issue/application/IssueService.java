@@ -708,6 +708,7 @@ public class IssueService implements IssueApi {
         if (column != null && project.indexOf(next.key()) <= project.indexOf(issue.status())) {
             throw new DomainException("«" + next.name() + "» no está después de «" + columnName(project, issue.status()) + "».");
         }
+        stage.ifPresent(st -> requireEvidence(project, st, issue));
         if (comment != null && !comment.isBlank()) saveComment(issue, actorId, comment.strip(), now());
         Issue moved = move(key, next.key(), Integer.MAX_VALUE, actorId);
         if (actor.agent() && actorId.equals(moved.assigneeId())) {
@@ -732,6 +733,7 @@ public class IssueService implements IssueApi {
         MemberView person = requireApprover(project, gate, actorId, issue);
         String target;
         if (approve) {
+            requireEvidence(project, gate, issue);
             target = project.nextAfter(issue.status()).map(ColumnDef::key)
                     .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay una etapa siguiente permitida."));
             saveComment(issue, actorId, "**Aprobado** por " + person.name() + "." + (comment == null || comment.isBlank() ? "" : "\n\n" + comment.strip()), now());
@@ -742,6 +744,46 @@ public class IssueService implements IssueApi {
             saveComment(issue, actorId, "**Rechazado** por " + person.name() + ": " + comment.strip(), now());
         }
         return move(key, target, Integer.MAX_VALUE, actorId);
+    }
+
+    /** Lo que vive en otros módulos (adjuntos, documentos): cada uno dice lo que la tarjeta tiene. */
+    private List<ec.kuador.board.issue.CardEvidence> evidence = List.of();
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setEvidence(List<ec.kuador.board.issue.CardEvidence> evidence) {
+        this.evidence = evidence == null ? List.of() : evidence;
+    }
+
+    /** Lo que le falta a la tarjeta de lo que su etapa exige para salir (vacío = cumple). En palabras para una persona. */
+    List<String> missingEvidence(ProjectView project, StageDef stage, Issue issue) {
+        List<String> missing = new ArrayList<>();
+        for (ec.kuador.board.catalog.Requirement r : stage.requires()) {
+            switch (r.kind()) {
+                case ATTACHMENT -> {
+                    if (evidence.stream().noneMatch(e -> e.hasAttachment(issue.key()))) missing.add("un archivo adjunto");
+                }
+                case DOCUMENT -> {
+                    if (evidence.stream().noneMatch(e -> e.hasDocument(issue.key(), r.ref()))) missing.add("el documento " + r.ref());
+                }
+                case FIELD -> {
+                    String value = issue.fields().get(r.ref());
+                    if (value == null || value.isBlank()) {
+                        String label = project.fieldsOf(issue.type()).stream().filter(f -> f.key().equals(r.ref())).map(ec.kuador.board.catalog.FieldDef::label)
+                                .findFirst().orElse(null);
+                        // Un dato que este tipo de tarjeta no tiene no se le puede exigir.
+                        if (label != null) missing.add("el dato «" + label + "»");
+                    }
+                }
+            }
+        }
+        return missing;
+    }
+
+    private void requireEvidence(ProjectView project, StageDef stage, Issue issue) {
+        List<String> missing = missingEvidence(project, stage, issue);
+        if (!missing.isEmpty()) {
+            throw new DomainException("Para salir de «" + columnName(project, issue.status()) + "», a " + issue.key() + " le falta " + String.join(", ", missing) + ".");
+        }
     }
 
     // ---- Mis decisiones ----

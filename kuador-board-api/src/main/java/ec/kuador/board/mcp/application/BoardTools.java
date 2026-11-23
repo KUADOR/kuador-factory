@@ -350,6 +350,10 @@ public class BoardTools {
             m.put("roles", s.roles());
             m.put("gate", s.gate());
             if (s.gate()) m.put("approvers", s.approvers().isEmpty() ? List.of("cualquier persona") : s.approvers());
+            if (!s.checklist().isEmpty()) m.put("checklist", s.checklist());
+            if (!s.requires().isEmpty()) {
+                m.put("requiredToLeave", s.requires().stream().map(r -> r.kind().name().toLowerCase(Locale.ROOT) + (r.ref() == null ? "" : ":" + r.ref())).toList());
+            }
         });
         project.nextAfter(column).ifPresent(n -> m.put("next", Map.of("column", n.key(), "name", n.name())));
         m.put("columns", project.columns().stream().map(x -> x.key() + " (" + x.name() + ")").toList());

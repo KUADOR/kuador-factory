@@ -46,18 +46,20 @@ public class ConnectionService implements ConnectionsApi {
     private final SecretBox secrets;
     private final OAuthSessions sessions;
     private final ConnectorDirectory directory;
+    private final MailDetector mail;
     private final Clock clock;
     private final boolean allowPrivate;
     /** Una renovación a la vez por conexión: algunos servidores cambian el token de renovación en cada uso. */
     private final Map<String, Object> renewing = new java.util.concurrent.ConcurrentHashMap<>();
 
-    ConnectionService(ConnectionStore store, McpClient mcp, SecretBox secrets, OAuthSessions sessions, ConnectorDirectory directory, Clock clock,
+    ConnectionService(ConnectionStore store, McpClient mcp, SecretBox secrets, OAuthSessions sessions, ConnectorDirectory directory, MailDetector mail, Clock clock,
             @Value("${board.connections.allow-private:false}") boolean allowPrivate) {
         this.store = store;
         this.mcp = mcp;
         this.secrets = secrets;
         this.sessions = sessions;
         this.directory = directory;
+        this.mail = mail;
         this.clock = clock;
         this.allowPrivate = allowPrivate;
     }
@@ -96,7 +98,8 @@ public class ConnectionService implements ConnectionsApi {
         Connection draft = new Connection(k, name, url, keepsSession ? null : header, keepsSession ? null : stored,
                 previous == null ? List.of() : previous.tools(), previous == null ? Set.of() : previous.allowedWrites(), null,
                 keepsSession ? previous.oauth() : null);
-        SafeUrls.requirePublicHttps(draft.url(), allowPrivate);
+        // Un correo IMAP comprueba sus servidores en cada conexión; los demás son direcciones web.
+        if (!draft.url().startsWith(ec.kuador.board.connections.domain.MailAccount.SCHEME)) SafeUrls.requirePublicHttps(draft.url(), allowPrivate);
         Connection checked = withFreshTools(ws, draft);
         store.save(ws, checked);
         return view(checked, store.uses(ws));
@@ -110,6 +113,33 @@ public class ConnectionService implements ConnectionsApi {
     @Transactional
     public String startLogin(String key, String name, String url, String clientId, String clientSecret, String scope, UUID memberId) {
         return startLogin(key, name, url, clientId, clientSecret, scope, null, memberId);
+    }
+
+    /** Con qué conector se conecta un correo (Outlook, Gmail o IMAP con sus servidores), según dónde está su dominio. */
+    public MailDetector.Detected detectMail(String email) {
+        return mail.detect(email);
+    }
+
+    /**
+     * Conecta un buzón por IMAP y SMTP con su correo y contraseña. {@code password} vacía al editar: se conserva la
+     * guardada. Antes de guardar se comprueba que se pueda leer y enviar.
+     */
+    @Transactional
+    public View saveMail(String key, String name, ec.kuador.board.connections.domain.MailAccount account) {
+        UUID ws = TenantContext.require();
+        String k = key == null ? "" : key.strip().toUpperCase(Locale.ROOT);
+        return save(k, name, account.url(), null, ec.kuador.board.shared.json.Json.write(account));
+    }
+
+    /** La contraseña guardada de un buzón IMAP, para editarlo sin volver a escribirla. */
+    @Transactional(readOnly = true)
+    public String savedMailPassword(String key) {
+        UUID ws = TenantContext.require();
+        Connection c = store.find(ws, key == null ? "" : key.strip().toUpperCase(Locale.ROOT)).orElse(null);
+        if (c == null || c.secret() == null || !c.url().startsWith(ec.kuador.board.connections.domain.MailAccount.SCHEME)) {
+            throw new DomainException("Falta la contraseña del correo.");
+        }
+        return ec.kuador.board.shared.json.Json.readMap(secrets.decrypt(c.secret())).getOrDefault("password", "");
     }
 
     /** Los conectores que se eligen de una lista. */

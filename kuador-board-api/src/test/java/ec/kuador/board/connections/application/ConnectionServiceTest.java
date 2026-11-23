@@ -33,7 +33,46 @@ class ConnectionServiceTest {
     private final MutableClock clock = new MutableClock();
     private final ConnectionService service = new ConnectionService(store, mcp, box, new OAuthSessions(oauth, box, clock, "https://go.example/"),
             new ConnectorDirectory(new org.springframework.mock.env.MockEnvironment().withProperty("board.connectors.google.client-id", "app-kuador")
-                    .withProperty("board.connectors.google.client-secret", "secreto-kuador")), clock, true);
+                    .withProperty("board.connectors.google.client-secret", "secreto-kuador")), new MailDetector(domain -> MX.getOrDefault(domain, List.of())), clock, true);
+
+    private static final Map<String, List<String>> MX = Map.of(
+            "flores.example", List.of("floresexample-com.mail.protection.outlook.com"),
+            "andes.example", List.of("aspmx.l.google.com", "alt1.aspmx.l.google.com"),
+            "kuador.example", List.of("mx1.hostinger.com", "mx2.hostinger.com"),
+            "propio.example", List.of("mail.propio.example"));
+
+    @Test
+    void detectsWhereAMailboxLivesFromItsDomain() {
+        assertThat(service.detectMail("Compras@Flores.example")).extracting(MailDetector.Detected::connector, MailDetector.Detected::provider)
+                .containsExactly("OUTLOOK", "Microsoft 365");
+        assertThat(service.detectMail("ana@andes.example")).extracting(MailDetector.Detected::connector, MailDetector.Detected::provider)
+                .containsExactly("GMAIL", "Google Workspace");
+        assertThat(service.detectMail("diego@hotmail.com").connector()).isEqualTo("OUTLOOK");
+        assertThat(service.detectMail("diego@gmail.com").connector()).isEqualTo("GMAIL");
+        assertThat(service.detectMail("facturas@kuador.example")).satisfies(d -> {
+            assertThat(d.connector()).isEqualTo("IMAP");
+            assertThat(d.provider()).isEqualTo("Hostinger");
+            assertThat(d).extracting(MailDetector.Detected::imapHost, MailDetector.Detected::imapPort, MailDetector.Detected::smtpHost, MailDetector.Detected::smtpPort,
+                    MailDetector.Detected::smtpSsl, MailDetector.Detected::sure).containsExactly("imap.hostinger.com", 993, "smtp.hostinger.com", 465, true, true);
+        });
+        assertThat(service.detectMail("info@propio.example")).as("un hosting desconocido: se adivina y se pide revisar")
+                .extracting(MailDetector.Detected::imapHost, MailDetector.Detected::sure).containsExactly("mail.propio.example", false);
+        assertThatThrownBy(() -> service.detectMail("no-es-correo")).isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void aMailboxIsConnectedWithItsPasswordAndKeepsItWhenEdited() {
+        TenantContext.run(WS, () -> {
+            var account = new ec.kuador.board.connections.domain.MailAccount("facturas@kuador.example", "clave", "imap.hostinger.com", 993, "smtp.hostinger.com", 465, null);
+            ConnectionService.View saved = service.saveMail("correo", "Correo de facturas", account);
+            assertThat(saved.url()).isEqualTo("imaps://imap.hostinger.com:993");
+            assertThat(saved.hasSecret()).isTrue();
+            assertThat(store.find(WS, "CORREO").orElseThrow().secret()).as("cifrada").doesNotContain("clave");
+            assertThat(mcp.secrets.getLast()).as("al conector llega la cuenta completa").contains("\"password\":\"clave\"", "\"smtpSsl\":true");
+            assertThat(service.savedMailPassword("CORREO")).isEqualTo("clave");
+            assertThatThrownBy(() -> service.savedMailPassword("NO_EXISTE")).isInstanceOf(DomainException.class);
+        });
+    }
 
     @Test
     void aKnownConnectorIsConnectedByChoosingItFromTheDirectory() {

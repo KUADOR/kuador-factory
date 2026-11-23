@@ -40,10 +40,10 @@ class HttpMcpClient implements McpClient {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();
     private final boolean allowPrivate;
     /** Conectores propios (sin servidor MCP del fabricante): se atienden aquí mismo, con las mismas reglas. */
-    private final List<NativeConnector> natives;
+    private final List<BuiltInConnector> natives;
 
     @org.springframework.beans.factory.annotation.Autowired
-    HttpMcpClient(@Value("${board.connections.allow-private:false}") boolean allowPrivate, List<NativeConnector> natives) {
+    HttpMcpClient(@Value("${board.connections.allow-private:false}") boolean allowPrivate, List<BuiltInConnector> natives) {
         this.allowPrivate = allowPrivate;
         this.natives = List.copyOf(natives);
     }
@@ -52,13 +52,13 @@ class HttpMcpClient implements McpClient {
         this(allowPrivate, List.of());
     }
 
-    private java.util.Optional<NativeConnector> nativeFor(String url) {
+    private java.util.Optional<BuiltInConnector> nativeFor(String url) {
         return natives.stream().filter(n -> n.handles(url)).findFirst();
     }
 
     @Override
     public List<Connection.ToolDef> listTools(String url, String header, String secret) {
-        java.util.Optional<NativeConnector> own = nativeFor(url);
+        java.util.Optional<BuiltInConnector> own = nativeFor(url);
         if (own.isPresent()) return own.get().tools(secret);
         Session session = open(url, header, secret);
         List<Connection.ToolDef> tools = new ArrayList<>();
@@ -83,7 +83,7 @@ class HttpMcpClient implements McpClient {
 
     @Override
     public String callTool(String url, String header, String secret, String tool, Map<String, Object> arguments) {
-        java.util.Optional<NativeConnector> own = nativeFor(url);
+        java.util.Optional<BuiltInConnector> own = nativeFor(url);
         if (own.isPresent()) return own.get().call(secret, tool, arguments);
         Session session = open(url, header, secret);
         Map<String, Object> params = new LinkedHashMap<>();

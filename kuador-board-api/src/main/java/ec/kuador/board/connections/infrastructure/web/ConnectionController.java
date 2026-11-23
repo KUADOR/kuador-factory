@@ -36,6 +36,23 @@ class ConnectionController {
 
     record BoardUsesRequest(@Size(max = 20) List<ConnectionService.BoardUseRequest> connections) {}
 
+    record MailRequest(@NotBlank @Size(max = 80) String name, @NotBlank @Size(max = 254) String email, @Size(max = 500) String password,
+            @NotBlank @Size(max = 253) String imapHost, int imapPort, @NotBlank @Size(max = 253) String smtpHost, int smtpPort, Boolean smtpSsl) {}
+
+    /** Un buzón por IMAP y SMTP (Hostinger, cPanel…). {@code password} vacía al editar: se conserva la guardada. */
+    @PutMapping("/api/connections/{key}/mail")
+    ConnectionService.View saveMail(@PathVariable String key, @Valid @RequestBody MailRequest r) {
+        String password = r.password() == null || r.password().isEmpty() ? service.savedMailPassword(key) : r.password();
+        return service.saveMail(key, r.name(), new ec.kuador.board.connections.domain.MailAccount(r.email(), password, r.imapHost(), r.imapPort(), r.smtpHost(),
+                r.smtpPort(), r.smtpSsl()));
+    }
+
+    /** Con qué conector se conecta un correo, según dónde está alojado su dominio. */
+    @GetMapping("/api/connection-directory/detect")
+    ec.kuador.board.connections.application.MailDetector.Detected detect(@org.springframework.web.bind.annotation.RequestParam String email) {
+        return service.detectMail(email);
+    }
+
     /** Los sistemas conocidos que se conectan eligiéndolos de una lista. */
     @GetMapping("/api/connection-directory")
     List<ec.kuador.board.connections.application.ConnectorDirectory.Entry> directory() {

@@ -45,6 +45,9 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
   quien conecta pega la de su empresa. **Outlook y Gmail** son conectores propios (`OutlookTools`, `GmailTools` sobre
   Microsoft Graph y la API de Gmail): ofrecen las mismas herramientas (buscar y leer correos y adjuntos, responder,
   enviar y marcar leído), así un procedimiento sirve con cualquiera de los dos. Variables en docs/despliegue.md.
+  **Correo con contraseña** (`ImapTools`, IMAP por SSL y SMTP por SSL o STARTTLS): Hostinger, cPanel, Zoho y cualquier
+  hosting, con las mismas herramientas. **Detección** (`MailDetector`): se escribe el correo y, por los registros MX del
+  dominio, el tablero propone Outlook (Microsoft 365), Gmail (Google Workspace) o IMAP con los servidores ya puestos.
 - **Armar un tablero con IA** (`/design`, `BoardDesigner`): la persona cuenta a qué se dedica su empresa y la IA propone
   pasos, roles, aprobaciones y datos de la tarjeta; se valida como cualquier plantilla y nada se crea hasta aceptarlo.
 - **Catálogo para cualquier negocio**: rol **Revisor** (revisa cualquier trabajo en una puerta) y **Manual de

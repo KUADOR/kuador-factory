@@ -33,13 +33,13 @@ class GmailTools extends NativeConnector {
     }
 
     @Override
-    List<Connection.ToolDef> tools(String token) {
+    public List<Connection.ToolDef> tools(String token) {
         get(token, "/users/me/profile");
         return mailTools();
     }
 
     @Override
-    String call(String token, String tool, Map<String, Object> a) {
+    public String call(String token, String tool, Map<String, Object> a) {
         Map<String, Object> args = a == null ? Map.of() : a;
         return switch (tool) {
             case "buscar_correos" -> search(token, args);
@@ -109,8 +109,7 @@ class GmailTools extends NativeConnector {
         String body = body(m.path("payload"), "text/plain");
         if (body == null) {
             String html = body(m.path("payload"), "text/html");
-            body = html == null ? m.path("snippet").asString("") : html.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", "").replaceAll("(?i)<br\\s*/?>|</p>|</div>|</tr>", "\n")
-                    .replaceAll("<[^>]+>", "").replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replaceAll("\n{3,}", "\n\n");
+            body = html == null ? m.path("snippet").asString("") : plain(html);
         }
         body = body.strip();
         out.append(body.length() > MAX_MAIL_TEXT ? body.substring(0, MAX_MAIL_TEXT) + "\n… (correo recortado)" : body);

@@ -25,13 +25,13 @@ class OutlookTools extends NativeConnector {
     }
 
     @Override
-    List<Connection.ToolDef> tools(String token) {
+    public List<Connection.ToolDef> tools(String token) {
         get(token, "/me?$select=id");
         return mailTools();
     }
 
     @Override
-    String call(String token, String tool, Map<String, Object> a) {
+    public String call(String token, String tool, Map<String, Object> a) {
         Map<String, Object> args = a == null ? Map.of() : a;
         return switch (tool) {
             case "buscar_correos" -> search(token, args);

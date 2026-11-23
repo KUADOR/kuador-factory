@@ -22,7 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
  * nombre de la cuenta que inició sesión y ofrece herramientas como las de un servidor. Los de correo usan los mismos
  * nombres de herramienta, así un manual o un procedimiento sirve con cualquier proveedor.
  */
-abstract class NativeConnector {
+abstract class NativeConnector implements BuiltInConnector {
 
     static final JsonMapper JSON = JsonMapper.builder().build();
     private static final int MAX_BODY = 30_000_000;
@@ -36,15 +36,11 @@ abstract class NativeConnector {
         this.system = system;
     }
 
-    /** Si la dirección de la conexión es la de este conector (y no la de un servidor MCP). */
-    final boolean handles(String url) {
+    @Override
+    public final boolean handles(String url) {
         return url != null && url.strip().replaceAll("/+$", "").equals(base);
     }
 
-    /** Las herramientas que ofrece; comprueba antes que la sesión sirva. */
-    abstract List<Connection.ToolDef> tools(String token);
-
-    abstract String call(String token, String tool, Map<String, Object> arguments);
 
     final JsonNode get(String token, String path, String... headers) {
         HttpRequest.Builder b = HttpRequest.newBuilder(java.net.URI.create(base + path)).GET();
@@ -112,7 +108,13 @@ abstract class NativeConnector {
                                 "asunto", string("Asunto."), "cuerpo", string("Texto del correo.")), List.of("para", "asunto", "cuerpo")));
     }
 
-    /** Los destinatarios de «para», sea una lista o un texto separado por comas. */
+    /** El texto de un cuerpo HTML, sin etiquetas ni estilos. */
+    static String plain(String html) {
+        return html.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", "").replaceAll("(?i)<br\\s*/?>|</p>|</div>|</tr>", "\n").replaceAll("<[^>]+>", "")
+                .replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replaceAll("\n{3,}", "\n\n");
+    }
+
+        /** Los destinatarios de «para», sea una lista o un texto separado por comas. */
     static List<String> recipients(Object para) {
         List<String> out = new java.util.ArrayList<>();
         for (Object address : para instanceof List<?> list ? list : List.of(String.valueOf(para == null ? "" : para).split("[,;\\s]+"))) {

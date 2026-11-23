@@ -2,8 +2,15 @@
 export type IssueStatus = string;
 
 export const PROJECT_KINDS = ["SOFTWARE", "GENERAL"] as const;
-/** SOFTWARE habilita metodología, documentos y sincronización con repositorios. */
+/** Dato anterior a las capacidades: SOFTWARE = el tablero trabaja con un repositorio de código. */
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
+
+/**
+ * Lo que un tablero sabe hacer además del flujo: DOCUMENTS (manual de trabajo y documentos con versiones), REPOSITORY
+ * (repositorio de código: piezas, PR, CI) y SPLIT (repartir una tarjeta grande en tareas).
+ */
+export const CAPABILITIES = ["DOCUMENTS", "REPOSITORY", "SPLIT"] as const;
+export type Capability = (typeof CAPABILITIES)[number];
 
 export const COLUMN_CATEGORIES = ["TODO", "IN_PROGRESS", "DONE"] as const;
 export type ColumnCategory = (typeof COLUMN_CATEGORIES)[number];
@@ -65,6 +72,8 @@ export interface AgentReview {
 export interface WorkflowTemplate extends CatalogEntry {
   description: string | null;
   kind: ProjectKind;
+  /** Lo que usa el tablero; la API las completa si faltan. */
+  capabilities?: Capability[];
   columns: BoardColumn[];
   issueTypes: IssueTypeDef[];
   stages: StageDef[];
@@ -349,6 +358,7 @@ export interface Project {
   /** Freno de bucles: vueltas atrás permitidas antes de pasar el issue a una persona. */
   maxRework: number;
   createdAt: string;
+  capabilities: Capability[];
 }
 
 /**

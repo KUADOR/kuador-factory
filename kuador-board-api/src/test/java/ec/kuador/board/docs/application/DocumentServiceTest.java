@@ -121,8 +121,13 @@ class DocumentServiceTest {
                 .isEqualTo("odd/tasks/odd-1-recuperar-contrasena.md");
         assertThatThrownBy(() -> service.create("NUE", "PRODUCT", null, PERSON))
                 .isInstanceOf(DomainException.class).hasMessageContaining("metodología");
-        assertThatThrownBy(() -> service.overview("VEN"))
-                .isInstanceOf(DomainException.class).hasMessageContaining("software");
+    }
+
+    @Test
+    void aBoardWithoutRepositoryAlsoKeepsDocuments() {
+        // Un tablero de ventas lleva documentos (su manual, una propuesta) aunque no tenga repositorio de código.
+        assertThat(service.overview("VEN").project().repository()).isFalse();
+        assertThat(service.overview("VEN").documents()).isEmpty();
     }
 
     @Test

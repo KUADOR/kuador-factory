@@ -64,14 +64,14 @@ public class DocumentService implements DocsApi {
 
     @Transactional(readOnly = true)
     public Overview overview(String projectKey) {
-        ProjectView project = softwareProject(projectKey);
+        ProjectView project = documentsBoard(projectKey);
         return new Overview(project, catalog.methodology(project.methodology()).orElse(null), documents.findByProject(projectKey));
     }
 
     @Transactional(readOnly = true)
     public List<Document> ofIssue(String issueKey) {
         IssueApi.IssueRef issue = issues.find(issueKey).orElseThrow(() -> new NotFoundException("No existe el issue " + issueKey + "."));
-        softwareProject(issue.projectKey());
+        documentsBoard(issue.projectKey());
         return documents.findByIssue(issueKey);
     }
 
@@ -86,7 +86,7 @@ public class DocumentService implements DocsApi {
      * con él, conserva la ruta real del repositorio. Sin {@code content}, usa la plantilla.
      */
     private WithContent createDocument(String projectKey, String kind, String issueKey, String importedPath, String content, UUID actorId) {
-        ProjectView project = softwareProject(projectKey);
+        ProjectView project = documentsBoard(projectKey);
         DocumentDef def;
         if (Methodology.DEPLOYMENT_KIND.equals(kind) && project.methodology() == null) {
             def = Methodology.DEPLOYMENT; // Despliegue no depende de la metodología
@@ -208,7 +208,7 @@ public class DocumentService implements DocsApi {
     @Transactional(readOnly = true)
     public List<String> allowedKinds(String projectKey) {
         // Despliegue lo trae el tablero aunque la metodología no lo tenga (o no haya metodología).
-        return catalog.methodology(softwareProject(projectKey).methodology())
+        return catalog.methodology(documentsBoard(projectKey).methodology())
                 .map(m -> java.util.stream.Stream.concat(m.documents(DocumentDef.Scope.PROJECT).stream(), m.documents(DocumentDef.Scope.ISSUE).stream())
                         .map(DocumentDef::kind).toList())
                 .orElse(List.of(Methodology.DEPLOYMENT_KIND));
@@ -217,14 +217,14 @@ public class DocumentService implements DocsApi {
     @Override
     @Transactional(readOnly = true)
     public Optional<MethodologyRules> methodologyRules(String projectKey) {
-        return catalog.methodology(softwareProject(projectKey).methodology())
+        return catalog.methodology(documentsBoard(projectKey).methodology())
                 .map(m -> new MethodologyRules(m.key(), m.name(), m.summary(), m.agentRules()));
     }
 
     @Override
     @Transactional
     public List<DocContent> ensureProjectDocuments(String projectKey, UUID actorId) {
-        ProjectView project = softwareProject(projectKey);
+        ProjectView project = documentsBoard(projectKey);
         catalog.methodology(project.methodology()).ifPresent(m -> {
             List<Document> existing = documents.findByProject(projectKey);
             for (DocumentDef def : m.documents(DocumentDef.Scope.PROJECT)) {
@@ -238,7 +238,7 @@ public class DocumentService implements DocsApi {
     @Override
     @Transactional(readOnly = true)
     public List<String> pendingBaseDocuments(String projectKey) {
-        ProjectView project = softwareProject(projectKey);
+        ProjectView project = documentsBoard(projectKey);
         return catalog.methodology(project.methodology()).map(m -> {
             List<Document> existing = documents.findByProject(projectKey).stream().filter(d -> d.issueKey() == null).toList();
             return m.baseDocuments().stream()
@@ -285,11 +285,11 @@ public class DocumentService implements DocsApi {
                 "La metodología " + project.methodology() + " ya no existe en el catálogo del espacio. Elige otra en Configurar."));
     }
 
-    private ProjectView softwareProject(String projectKey) {
+    private ProjectView documentsBoard(String projectKey) {
         ProjectView project = projects.find(projectKey)
                 .orElseThrow(() -> new NotFoundException("No existe el proyecto " + projectKey + "."));
-        if (!project.software()) {
-            throw new DomainException("Los documentos y la metodología son solo para proyectos de software.");
+        if (!project.documents()) {
+            throw new DomainException("Este tablero no usa documentos.");
         }
         return project;
     }

@@ -149,7 +149,10 @@ public class DbFactoryCatalog implements FactoryCatalog {
     public List<ec.kuador.board.catalog.AgentPolicy> agentPolicies() {
         List<ec.kuador.board.catalog.AgentPolicy> published = list(CatalogType.AGENT_POLICY);
         // Una plataforma que todavía no publicó las reglas de agentes usa las de la semilla.
-        return published.isEmpty() ? SEED_POLICIES.get() : published;
+        if (published.isEmpty()) return SEED_POLICIES.get();
+        // Un texto que la plataforma publicó antes de que existiera (una regla nueva) sale de la semilla: sin migración.
+        ec.kuador.board.catalog.AgentPolicy seed = SEED_POLICIES.get().stream().findFirst().orElse(null);
+        return published.stream().map(p -> p.orElse(seed)).toList();
     }
 
     private static final java.util.function.Supplier<List<ec.kuador.board.catalog.AgentPolicy>> SEED_POLICIES =

@@ -26,7 +26,8 @@ export default async function ProjectLayout({ params, children }: LayoutProps<"/
           mobileAside={
             <ProjectTabs
               projectKey={project.key}
-              kind={project.kind}
+              capabilities={project.capabilities}
+              documents={project.methodology != null}
               templateKey={project.templateKey}
               variant="picker"
             />
@@ -34,7 +35,8 @@ export default async function ProjectLayout({ params, children }: LayoutProps<"/
         >
           <ProjectTabs
             projectKey={project.key}
-            kind={project.kind}
+            capabilities={project.capabilities}
+              documents={project.methodology != null}
             templateKey={project.templateKey}
           />
         </PageHeader>

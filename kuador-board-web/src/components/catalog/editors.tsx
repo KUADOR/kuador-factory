@@ -5,11 +5,12 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
-import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
+import { Field, SelectInput, Switch, TextArea, TextInput } from "@/components/ui/Field";
 import { TypeIcon } from "@/components/ui/IssueIcons";
 import { Badge } from "@/components/ui/Section";
-import { CATEGORY_LABEL, typeLabel } from "@/lib/labels";
+import { CAPABILITY_LABEL, CATEGORY_LABEL, typeLabel } from "@/lib/labels";
 import {
+  CAPABILITIES,
   COLUMN_CATEGORIES,
   ISSUE_TYPES,
   type AgentRole,
@@ -37,6 +38,7 @@ export function blankEntry(type: CatalogType): CatalogEntries[CatalogType] {
         ...base,
         description: null,
         kind: "GENERAL",
+        capabilities: ["DOCUMENTS"],
         columns: [
           { key: "TODO", name: "Por hacer", category: "TODO" },
           { key: "DOING", name: "En curso", category: "IN_PROGRESS" },
@@ -160,19 +162,32 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
       <Field label="Descripción">
         {(id) => <TextInput id={id} maxLength={300} value={value.description ?? ""} onChange={(e) => onChange({ ...value, description: e.target.value || null })} />}
       </Field>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-fg-muted">Tipo de proyecto</span>
-        <ChoiceCards
-          name="template-kind"
-          label="Tipo de proyecto"
-          columns={2}
-          value={value.kind}
-          onChange={(kind) => onChange({ ...value, kind })}
-          choices={[
-            { value: "SOFTWARE", label: "Software", hint: "Con metodología, documentos y repositorio." },
-            { value: "GENERAL", label: "General", hint: "Ventas, operaciones, tareas: solo el tablero." },
-          ]}
-        />
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-medium text-fg-muted">Qué usa el tablero</span>
+        {CAPABILITIES.map((c) => {
+          const on = (value.capabilities ?? []).includes(c);
+          // El repositorio guarda documentos: van juntos.
+          const locked = c === "DOCUMENTS" && (value.capabilities ?? []).includes("REPOSITORY");
+          return (
+            <div key={c} className="flex items-center justify-between gap-4">
+              <span className="min-w-0 text-[13px] text-fg">
+                {CAPABILITY_LABEL[c].label} <span className="text-fg-muted">· {CAPABILITY_LABEL[c].hint}</span>
+              </span>
+              <Switch
+                checked={on || locked}
+                disabled={locked}
+                label={CAPABILITY_LABEL[c].label}
+                hideLabel
+                onChange={(checked) => {
+                  const rest = (value.capabilities ?? []).filter((x) => x !== c);
+                  const next = checked ? [...rest, c] : rest;
+                  const capabilities = next.includes("REPOSITORY") && !next.includes("DOCUMENTS") ? [...next, "DOCUMENTS" as const] : next;
+                  onChange({ ...value, capabilities, kind: capabilities.includes("REPOSITORY") ? "SOFTWARE" : "GENERAL" });
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <Group

@@ -48,6 +48,10 @@ interface SpringDataProjectRepository extends JpaRepository<ProjectEntity, UUID>
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update ProjectEntity p set p.stages = :stages, p.maxRework = :maxRework where p.workspaceId = :workspaceId and p.key = :key")
     int setStages(UUID workspaceId, String key, String stages, int maxRework);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update ProjectEntity p set p.capabilities = :capabilities, p.kind = :kind where p.workspaceId = :workspaceId and p.key = :key")
+    int setCapabilities(UUID workspaceId, String key, String capabilities, ec.kuador.board.catalog.ProjectKind kind);
 }
 
 interface SpringDataColumnRepository extends JpaRepository<ColumnEntity, UUID> {
@@ -116,6 +120,12 @@ class JpaProjectRepository implements ProjectRepository {
     @Override
     public void updateStages(String projectKey, java.util.List<ec.kuador.board.catalog.StageDef> stages, int maxRework) {
         jpa.setStages(TenantContext.require(), projectKey, ec.kuador.board.shared.json.Json.write(stages), maxRework);
+    }
+
+    @Override
+    public void updateCapabilities(String projectKey, java.util.List<ec.kuador.board.catalog.Capability> capabilities) {
+        jpa.setCapabilities(TenantContext.require(), projectKey, ec.kuador.board.shared.json.Json.write(capabilities),
+                ec.kuador.board.catalog.Capability.kindOf(capabilities));
     }
 
     @Override

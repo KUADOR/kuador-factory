@@ -1,5 +1,6 @@
 package ec.kuador.board.project.infrastructure.persistence;
 
+import ec.kuador.board.catalog.Capability;
 import ec.kuador.board.catalog.IssueTypeDef;
 import ec.kuador.board.catalog.ProjectKind;
 import ec.kuador.board.catalog.StageDef;
@@ -53,6 +54,9 @@ class ProjectEntity {
 
     String stages;
 
+    /** Lista JSON de {@link Capability}; nulo en tableros anteriores (valen las de su tipo). */
+    String capabilities;
+
     @Column(name = "max_rework")
     int maxRework;
 
@@ -77,6 +81,7 @@ class ProjectEntity {
         e.transitionsRestricted = p.transitions().restricted();
         e.transitions = Json.write(p.transitions().allowed());
         e.stages = Json.write(p.stages());
+        e.capabilities = Json.write(p.capabilities());
         e.maxRework = p.maxRework();
         e.nextIssueNumber = 1;
         e.createdAt = p.createdAt();
@@ -86,6 +91,7 @@ class ProjectEntity {
     Project toDomain() {
         return new Project(id, key, name, description, kind, templateKey, methodology, Json.readList(issueTypes, IssueTypeDef.class),
                 new Transitions(transitionsRestricted, Json.readList(transitions, Transitions.Transition.class)),
-                Json.readList(stages, StageDef.class), maxRework == 0 ? Project.DEFAULT_MAX_REWORK : maxRework, createdAt);
+                Json.readList(stages, StageDef.class), maxRework == 0 ? Project.DEFAULT_MAX_REWORK : maxRework, createdAt,
+                capabilities == null ? null : Json.readList(capabilities, Capability.class));
     }
 }

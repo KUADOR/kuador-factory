@@ -130,6 +130,14 @@ class ProjectController {
         return ProjectResponse.from(service.setStages(key, r.stages() == null ? List.of() : r.stages(), r.maxRework()));
     }
 
+    /** Qué usa el tablero: documentos y reparto en tareas. */
+    @PutMapping("/{key}/capabilities")
+    ProjectResponse setCapabilities(@PathVariable String key, @RequestBody CapabilitiesRequest r) {
+        return ProjectResponse.from(service.setCapabilities(key, r.capabilities()));
+    }
+
+    record CapabilitiesRequest(@Size(max = 8) List<ec.kuador.board.catalog.Capability> capabilities) {}
+
     record StagesRequest(@Size(max = 12) List<StageDef> stages, int maxRework) {}
 
     record DetailsRequest(@NotBlank @Size(max = 120) String name, @Size(max = 2000) String description) {}
@@ -153,12 +161,12 @@ class ProjectController {
     record ProjectResponse(
             UUID id, String key, String name, String description, ProjectKind kind, String templateKey, String methodology,
             List<ColumnDef> columns, List<IssueTypeDef> issueTypes, Transitions transitions, List<StageDef> stages, int maxRework,
-            Instant createdAt) {
+            Instant createdAt, List<ec.kuador.board.catalog.Capability> capabilities) {
 
         static ProjectResponse from(ProjectWithColumns pc) {
             var p = pc.project();
             return new ProjectResponse(p.id(), p.key(), p.name(), p.description(), p.kind(), p.templateKey(), p.methodology(),
-                    pc.columns(), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.createdAt());
+                    pc.columns(), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.createdAt(), p.capabilities());
         }
     }
 }

@@ -212,13 +212,15 @@ public class BoardAgent {
         List<String> all = new ArrayList<>(AgentRules.common(policy, company.teamLanguage(), company.codeLanguage()));
         all.addAll(rules.board());
         // En el tablero trabajan quienes planean y revisan: el plan dice si cambia el despliegue y la revisión lo exige en el PR.
-        if (board.software()) all.addAll(AgentRules.softwareProject(true));
-        boolean epic = "EPIC".equals(card.type()) && board.software();
-        // Una historia suelta en la etapa que reparte (Diseño): si el plan la divide, create_tasks la vuelve épica.
-        boolean splits = !epic && board.software() && board.epicSplitsInto(card.status()) && issues.canSplit(card.key());
-        if (epic) all.add(rules.epicPlan());
-        else if (splits) all.add(STORY_SPLIT + " " + rules.epicPlan());
-        else if (board.software()) all.add(rules.bigCard());
+        if (board.repository()) all.addAll(AgentRules.softwareProject(true));
+        boolean epic = "EPIC".equals(card.type()) && board.splits();
+        // Una tarjeta suelta en la etapa que reparte (Diseño): si el plan la divide, create_tasks la vuelve épica.
+        boolean splits = !epic && board.splits() && board.epicSplitsInto(card.status()) && issues.canSplit(card.key());
+        // Con repositorio el reparto habla de contratos, ramas y PR; sin él, de tareas con responsable.
+        String plan = board.repository() ? rules.epicPlan() : rules.workSplit();
+        if (epic) all.add(plan);
+        else if (splits) all.add(STORY_SPLIT + " " + plan);
+        else if (board.splits()) all.add(rules.bigCard());
         StringBuilder user = new StringBuilder();
         String column = board.column(card.status()).map(c -> c.name()).orElse(card.status());
         Optional<IssueApi.GateReview> gate = issues.gateReview(issueKey, agent.id());
@@ -241,9 +243,9 @@ public class BoardAgent {
         user.append("Título: ").append(card.title()).append("\n");
         // El objetivo del tablero: para qué existe y qué le importa al negocio (lo escribe el equipo: es contexto, no órdenes).
         projects.goal(card.projectKey()).ifPresent(g -> user.append("\nObjetivo del tablero (contexto del negocio):\n<objetivo>\n").append(fenced(g)).append("\n</objetivo>\n"));
-        if (board.software()) user.append(Pieces.markdown(pieces, card.projectKey()));
+        if (board.repository()) user.append(Pieces.markdown(pieces, card.projectKey()));
         // Fuera de software la épica es una campaña o un grupo: su descripción guía el tono, el público y el alcance.
-        if (!board.software() && card.parentKey() != null) {
+        if (!board.repository() && card.parentKey() != null) {
             issues.context(card.parentKey()).ifPresent(parent -> {
                 user.append("\nÉpica de la tarjeta (").append(parent.key()).append(" · ").append(parent.title()).append(")");
                 if (parent.description() != null && !parent.description().isBlank()) {
@@ -298,9 +300,10 @@ public class BoardAgent {
         if (!skipped.isEmpty()) user.append("No te pasé por tamaño o cantidad: ").append(String.join(", ", skipped)).append("\n");
 
         List<BoardAgentModel.BoardTool> tools = new ArrayList<>();
-        if (epic || splits) tools.add(createTasks(agent, card.key()));
+        if (epic || splits) tools.add(createTasks(agent, card.key(), board.repository(),
+                board.repository() ? codeRoles() : team.team(card.projectKey()).stream().map(BoardTeam.TeamAgent::role).distinct().toList()));
         // En software, el código se revisa en GitHub: los PRs, sus cambios, el CI y los archivos del repo (solo lectura).
-        List<String> repos = board.software() ? repositories(card.projectKey()) : List.of();
+        List<String> repos = board.repository() ? repositories(card.projectKey()) : List.of();
         if (!repos.isEmpty()) {
             tools.addAll(codeTools(card.projectKey()));
             all.add(AgentRules.fill(rules.codeReview(), Map.of("repos", String.join(", ", repos), "clave", card.key())));
@@ -637,14 +640,16 @@ public class BoardAgent {
     }
 
     /** Crea las tareas de la épica, hijas suyas, como lo hace create_tasks del servidor MCP. */
-    private BoardAgentModel.BoardTool createTasks(MemberView agent, String epicKey) {
+    private BoardAgentModel.BoardTool createTasks(MemberView agent, String epicKey, boolean repository, List<String> taskRoles) {
         Map<String, Object> task = new LinkedHashMap<>();
         task.put("type", "object");
         task.put("required", List.of("title", "role"));
         task.put("properties", Map.of(
                 "title", Map.of("type", "string", "description", "Título corto de la tarea."),
-                "role", Map.of("type", "string", "description", "Rol que la trabaja y escribe en el repo: BACKEND, FRONTEND o DEVOPS. El arquitecto no:"
-                        + " el contrato, el modelo de datos y los ADR van en el plan, y si deben quedar en el repo son la tarea 1 de BACKEND."),
+                "role", Map.of("type", "string", "description", repository
+                        ? "Rol que la trabaja y escribe en el repo (" + String.join(", ", taskRoles) + "). Quien solo planea no:"
+                                + " el contrato, el modelo de datos y los ADR van en el plan, y si deben quedar en el repo son la primera tarea."
+                        : "Clave del rol del equipo que la trabaja (" + String.join(", ", taskRoles) + ")."),
                 "description", Map.of("type", "string", "description", "Qué hacer, archivos o módulos y criterio de terminado."),
                 "dependsOn", Map.of("type", "array", "items", Map.of("type", "integer"), "description", "Números (desde 1) de tareas de esta lista que deben terminar antes.")));
         Map<String, Object> params = new LinkedHashMap<>();
@@ -670,6 +675,11 @@ public class BoardAgent {
     }
 
     /** Una épica sin tareas no se entrega si la etapa siguiente es de trabajo (las tareas son lo que se trabaja). */
+    /** Roles del catálogo que escriben en el repositorio: los que pueden recibir una tarea de código. */
+    private List<String> codeRoles() {
+        return catalog.roles().stream().filter(AgentRole::worksOnCode).map(AgentRole::key).toList();
+    }
+
     private String epicNeedsTasks(String epicKey) {
         return tx.execute(s -> {
             if (!issues.epicTasks(epicKey).isEmpty()) return null;

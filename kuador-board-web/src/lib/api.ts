@@ -4,6 +4,7 @@ import { headers as incomingHeaders } from "next/headers";
 
 import { getSessionToken } from "./session";
 import type {
+  Capability,
   PieceUpdate,
   ChatAnswer,
   AgentPromptPreview,
@@ -339,6 +340,8 @@ export const boardApi = {
 
   updateProject: (key: string, input: { name: string; description: string | null }) =>
     request<Project>(`/api/projects/${encodeURIComponent(key)}`, json("PUT", input)),
+  setCapabilities: (key: string, capabilities: Capability[]) =>
+    request<Project>(`/api/projects/${encodeURIComponent(key)}/capabilities`, json("PUT", { capabilities })),
   setStages: (key: string, stages: StageDef[], maxRework: number) =>
     request<Project>(`/api/projects/${encodeURIComponent(key)}/stages`, json("PUT", { stages, maxRework })),
   takeIssue: (key: string) => request<Issue>(`/api/issues/${encodeURIComponent(key)}/take`, { method: "POST" }),

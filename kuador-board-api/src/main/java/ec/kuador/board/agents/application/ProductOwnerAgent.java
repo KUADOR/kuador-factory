@@ -188,8 +188,8 @@ public class ProductOwnerAgent {
         if (found.isEmpty()) return null;
         IssueApi.IssueContext issue = found.get();
         ProjectView project = projects.find(issue.projectKey()).orElseThrow();
-        Optional<Methodology> methodology = project.software() ? catalog.methodology(project.methodology()) : Optional.empty();
-        List<DocsApi.DocContent> allDocs = project.software() ? docs.ofProject(project.key()) : List.of();
+        Optional<Methodology> methodology = project.documents() ? catalog.methodology(project.methodology()) : Optional.empty();
+        List<DocsApi.DocContent> allDocs = project.documents() ? docs.ofProject(project.key()) : List.of();
         List<PoContext.Doc> projectDocs = allDocs.stream()
                 .filter(d -> d.issueKey() == null && CONTEXT_DOC_KINDS.contains(d.kind()))
                 .map(d -> new PoContext.Doc(d.kind(), d.title(), d.path(), d.content())).toList();

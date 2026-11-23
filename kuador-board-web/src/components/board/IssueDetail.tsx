@@ -190,8 +190,8 @@ export function IssueDetail({
 
 function IssueTabs({ issueKey, members, project, actions }: { issueKey: string; members: Member[]; project: Project; actions: QuickAction[] }) {
   const [tab, setTab] = useState<"comments" | "files" | "history" | "docs">("comments");
-  // Documentos solo en proyectos de software con metodología.
-  const withDocs = project.kind === "SOFTWARE" && project.methodology != null;
+  // Documentos en tableros que los usan y ya eligieron su manual.
+  const withDocs = project.capabilities.includes("DOCUMENTS") && project.methodology != null;
   return (
     <div className="mt-2">
       <Tabs

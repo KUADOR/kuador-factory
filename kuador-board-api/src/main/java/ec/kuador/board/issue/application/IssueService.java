@@ -562,7 +562,7 @@ public class IssueService implements IssueApi {
      * Desarrollo). Ahí arrancan las tareas del reparto y ahí espera la épica mientras se trabajan.
      */
     Optional<String> buildColumn(ProjectView project) {
-        if (!project.software()) return Optional.empty();
+        if (!project.repository()) return Optional.empty();
         for (ColumnDef c : project.columns()) {
             Optional<StageDef> st = project.stage(c.key());
             if (st.isPresent() && !st.get().gate() && st.get().roles().stream().anyMatch(this::writesCode)) return Optional.of(c.key());

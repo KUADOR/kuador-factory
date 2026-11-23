@@ -50,7 +50,7 @@ class BranchSyncs implements BranchSyncApi {
         if (card.isEmpty() || conflict == null || conflict.branch() == null || conflict.branch().isBlank()) return false;
         if (!issues.branchIdle(issueKey)) return false; // en desarrollo: su autor trae los cambios al subir los suyos
         ProjectView project = projects.find(card.get().projectKey()).orElse(null);
-        if (project == null || !project.software()) return false;
+        if (project == null || !project.repository()) return false;
         Optional<String> role = coder(project, issueKey);
         if (role.isEmpty()) return false;
         if (pending(issueKey).isPresent()) return true; // ya pedido: no se repite el aviso

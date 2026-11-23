@@ -459,7 +459,7 @@ public class ComponentService implements RepositoriesApi {
 
     private ProjectView software(String projectKey) {
         ProjectView project = projects.find(projectKey).orElseThrow(() -> new NotFoundException("No existe el proyecto " + projectKey + "."));
-        if (!project.software()) throw new DomainException("Las piezas y repositorios son para proyectos de software.");
+        if (!project.repository()) throw new DomainException("Este tablero no trabaja con un repositorio de código.");
         return project;
     }
 }

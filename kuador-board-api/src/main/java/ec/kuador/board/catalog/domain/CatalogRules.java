@@ -42,7 +42,7 @@ public final class CatalogRules {
 
     private static void workflowTemplate(WorkflowTemplate t) {
         name(t.name());
-        if (t.kind() == null) throw new DomainException("Indica el tipo de proyecto: SOFTWARE o GENERAL.");
+        if (t.capabilities() == null) throw new DomainException("Indica qué usa el tablero: documentos, repositorio de código o reparto en tareas (puede ser nada).");
         ColumnDef.validate(t.columns());
         StageDef.validate(t.stages(), t.columns());
         java.util.Set<String> keys = new java.util.HashSet<>(t.columns().stream().map(ColumnDef::key).toList());

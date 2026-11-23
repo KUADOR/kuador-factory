@@ -145,14 +145,14 @@ public class DraftService implements AiJobsApi {
                 options.add(new DocOption(d.kind(), d.label(), d.purpose(), base.contains(d.kind()), !pending.contains(d.label())));
             }
         }
-        List<String> repos = p.software() ? safeRepositories(p.key()) : List.of();
-        int pieceCount = p.software() ? repositories.pieces(p.key()).size() : 0;
+        List<String> repos = p.repository() ? safeRepositories(p.key()) : List.of();
+        int pieceCount = p.repository() ? repositories.pieces(p.key()).size() : 0;
         return new Plan(p.kind().name(), p.methodology(), options, ai.key().isPresent(), projects.goal(p.key()).orElse(null), repos, pieceCount, pending);
     }
 
     /** Hay documentos que redactar: software con metodología. Sin ella (o fuera de software) se redacta solo el objetivo. */
     private static boolean hasDocs(ProjectView p) {
-        return p.software() && p.methodology() != null;
+        return p.documents() && p.methodology() != null;
     }
 
     // ---- Un paso de la conversación ----
@@ -251,7 +251,7 @@ public class DraftService implements AiJobsApi {
             created.add(issues.createSuggested(key, c.title(), c.description(), who.memberId()).key());
         }
         // Las piezas mandan: el stack de Arquitectura se reescribe con ellas aunque el borrador dijera otra cosa.
-        if (board(key).software()) repositories.refreshStack(key, who.memberId());
+        if (board(key).repository()) repositories.refreshStack(key, who.memberId());
         out.put("pieces", pieces == null ? 0 : pieces.size());
         out.put("cards", created);
         return out;
@@ -277,7 +277,7 @@ public class DraftService implements AiJobsApi {
         ProjectView p = board(projectKey);
         List<String> saved = new ArrayList<>();
         if (approved != null && !approved.isEmpty()) {
-            if (!p.software()) throw new DomainException("Los documentos base son de los tableros de software.");
+            if (!p.documents()) throw new DomainException("Este tablero no usa documentos.");
             List<String> allowed = methodology(p).documents(DocumentDef.Scope.PROJECT).stream().map(DocumentDef::kind).toList();
             for (ApprovedDoc d : approved) {
                 if (!allowed.contains(d.kind())) throw new DomainException("La metodología no tiene el documento " + d.kind() + ".");
@@ -466,13 +466,13 @@ public class DraftService implements AiJobsApi {
     }
 
     private String context(ProjectView p) {
-        StringBuilder b = new StringBuilder("Tablero: ").append(p.name()).append(" (").append(p.software() ? "software" : "trabajo general").append(")");
-        if (p.software() && p.methodology() != null) {
+        StringBuilder b = new StringBuilder("Tablero: ").append(p.name()).append(" (").append(p.repository() ? "software" : "trabajo general").append(")");
+        if (p.documents() && p.methodology() != null) {
             Methodology m = methodology(p);
             b.append(". Metodología: ").append(m.name()).append(" — ").append(nz(m.summary()));
         }
         projects.goal(p.key()).ifPresent(g -> b.append("\nObjetivo actual del tablero: ").append(g));
-        if (p.software()) b.append("\n").append(stack(p));
+        if (p.repository()) b.append("\n").append(stack(p));
         return b.toString();
     }
 

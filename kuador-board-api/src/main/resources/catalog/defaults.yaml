@@ -1186,6 +1186,7 @@ agentPolicies:
         - No apruebes por suposición: un criterio que no pudiste verificar no está verificado. Antes de aprobar el tablero comprueba el CI y, si aplica, las rutas sensibles y el tamaño del cambio.
       gateEscalate: "Dejarla a una persona ({aprobadores}): usa ask_human con tu análisis (qué revisaste, qué te preocupa y dónde mirar) cuando algo sea dudoso o riesgoso: decisiones de producto, seguridad, datos personales o pagos, cambios grandes, o criterios que no puedes verificar. Rutas que siempre decide una persona: {sensibles}."
       gateDecide: "Decides tú: usa ask_human ({aprobadores}) solo si es imposible decidir, p. ej. no existe el Pull Request o no lo puedes leer."
+      workSplit: "Esta tarjeta agrupa un trabajo grande. Si te toca planearlo, termina creando las tareas con create_tasks antes de entregar: tareas chicas y verificables, cada una con el rol del equipo que la trabaja, qué hay que hacer, cómo se sabe que está terminada y de qué otras tareas depende. Una persona aprueba el reparto antes de que arranquen. No repartas lo que una sola persona o un solo agente resuelve de una vez."
     limits:
       questionRounds: 2
       commentsRead: 20

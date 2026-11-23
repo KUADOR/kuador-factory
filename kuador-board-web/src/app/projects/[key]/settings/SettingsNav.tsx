@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { SectionNav } from "@/components/shell/SectionNav";
 
-import type { ProjectKind } from "@/lib/types";
+import type { Capability } from "@/lib/types";
 
-/** Secciones de la configuración del proyecto. Metodología y repositorio solo en software. */
-export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: ProjectKind }) {
+/** Secciones de la configuración del tablero, según lo que usa (documentos, repositorio de código). */
+export function SettingsNav({ projectKey, capabilities }: { projectKey: string; capabilities: Capability[] }) {
+  const repository = capabilities.includes("REPOSITORY");
+  const documents = capabilities.includes("DOCUMENTS");
   const base = `/projects/${projectKey}/settings`;
   const groups = [
     {
@@ -16,7 +18,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
         { slug: "people", label: "Personas" },
       ],
     },
-    ...(kind === "SOFTWARE"
+    ...(repository
       ? [
           {
             title: "Flujo de trabajo",
@@ -30,7 +32,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
           },
         ]
       : [
-          // Fuera de software, lo de todos los días primero; etapas y reglas quedan como opciones avanzadas.
+          // Sin repositorio de código, lo de todos los días primero; etapas y reglas quedan como opciones avanzadas.
           {
             title: "Tablero",
             items: [
@@ -47,7 +49,7 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
             ],
           },
         ]),
-    ...(kind === "SOFTWARE"
+    ...(repository
       ? [
           {
             title: "Software",
@@ -57,7 +59,9 @@ export function SettingsNav({ projectKey, kind }: { projectKey: string; kind: Pr
             ],
           },
         ]
-      : []),
+      : documents
+        ? [{ title: "Documentos", items: [{ slug: "methodology", label: "Manual de trabajo" }] }]
+        : []),
   ];
   return (
     <div className="flex items-center gap-3">

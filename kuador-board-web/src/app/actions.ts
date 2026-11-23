@@ -8,6 +8,7 @@ import { ApiError, boardApi } from "@/lib/api";
 import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
+  Capability,
   Routine,
   RoutineInput,
   CatalogRevision,
@@ -832,6 +833,10 @@ export async function setThemeAction(mode: ThemeMode): Promise<void> {
 }
 
 // ---- Etapas (Fase 1) ----
+
+export async function setCapabilitiesAction(key: string, capabilities: Capability[]): Promise<ActionResult<Project>> {
+  return run(() => boardApi.setCapabilities(key, capabilities), `/projects/${key}`);
+}
 
 export async function setStagesAction(key: string, stages: StageDef[], maxRework: number): Promise<ActionResult<Project>> {
   return run(() => boardApi.setStages(key, stages, maxRework), `/projects/${key}`);

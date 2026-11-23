@@ -6,17 +6,20 @@ import { clsx } from "clsx";
 
 import { useAccess } from "@/components/shell/AccessContext";
 import { SectionPicker } from "@/components/shell/SectionPicker";
-import type { ProjectKind } from "@/lib/types";
+import type { Capability } from "@/lib/types";
 
-/** Pestañas del proyecto (navegación entre páginas). Documentos y sincronización solo en software. */
+/** Pestañas del tablero (navegación entre páginas): Documentos y Repositorio según lo que el tablero usa. */
 export function ProjectTabs({
   projectKey,
-  kind,
+  capabilities,
+  documents,
   templateKey,
   variant = "tabs",
 }: {
   projectKey: string;
-  kind: ProjectKind;
+  capabilities: Capability[];
+  /** Si ya hay documentos que mostrar (manual elegido): sin eso la pestaña no aparece. */
+  documents: boolean;
   templateKey?: string | null;
   /** «picker»: en el celular, la sección actual al lado del nombre del proyecto; «tabs»: las pestañas de escritorio. */
   variant?: "tabs" | "picker";
@@ -26,12 +29,8 @@ export function ProjectTabs({
   const base = `/projects/${projectKey}`;
   const tabs = [
     { href: base, label: "Tablero", exact: true },
-    ...(kind === "SOFTWARE"
-      ? [
-          { href: `${base}/docs`, label: "Documentos" },
-          ...(canAdminister ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
-        ]
-      : []),
+    ...(capabilities.includes("DOCUMENTS") && (documents || capabilities.includes("REPOSITORY")) ? [{ href: `${base}/docs`, label: "Documentos" }] : []),
+    ...(capabilities.includes("REPOSITORY") && canAdminister ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
     // Tableros de ventas: los prospectos con su próxima acción, para el celular.
     ...(templateKey === "SALES" ? [{ href: `${base}/sales`, label: "En movimiento" }] : []),
     { href: `${base}/office`, label: "Oficina" },

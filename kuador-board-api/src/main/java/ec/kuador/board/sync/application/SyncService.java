@@ -420,7 +420,7 @@ public class SyncService {
 
     private ProjectView software(String projectKey) {
         ProjectView p = projects.find(projectKey).orElseThrow(() -> new NotFoundException("No existe el proyecto " + projectKey + "."));
-        if (!p.software()) {
+        if (!p.repository()) {
             throw new DomainException("La sincronización con repositorios es solo para proyectos de software.");
         }
         return p;

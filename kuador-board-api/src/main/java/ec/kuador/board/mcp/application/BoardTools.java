@@ -234,7 +234,7 @@ public class BoardTools {
         m.put("assignee", c.assigneeId() == null ? null : name(c.assigneeId()));
         m.put("stage", stage(project, c.status()));
         m.put("comments", c.comments().stream().map(x -> Map.of("author", name(x.authorId()), "date", x.createdAt().toString(), "text", x.body())).toList());
-        if (project.software()) {
+        if (project.repository()) {
             List<Map<String, Object>> pieces = repositories.pieces(project.key()).stream().map(BoardTools::piece).toList();
             if (!pieces.isEmpty()) m.put("pieces", pieces);
         }
@@ -254,7 +254,7 @@ public class BoardTools {
             m.put("attachmentsGuide", "Lee los adjuntos con read_attachment antes de trabajar: son parte del pedido (briefs, capturas, diagramas, documentos).");
         }
         m.put("projectDocuments", all.stream().filter(d -> d.issueKey() == null).map(BoardTools::docMeta).toList());
-        if (project.software()) {
+        if (project.repository()) {
             boolean deployment = all.stream().anyMatch(d -> d.issueKey() == null && ec.kuador.board.catalog.Methodology.DEPLOYMENT_KIND.equals(d.kind()));
             m.put("projectRules", ec.kuador.board.catalog.AgentRules.softwareProject(deployment));
         }
@@ -551,7 +551,7 @@ public class BoardTools {
     }
 
     private Optional<Methodology> methodology(ProjectView project) {
-        return project.software() && project.methodology() != null ? catalog.methodology(project.methodology()) : Optional.empty();
+        return project.documents() && project.methodology() != null ? catalog.methodology(project.methodology()) : Optional.empty();
     }
 
     private String name(UUID memberId) {

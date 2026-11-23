@@ -52,6 +52,17 @@ class HttpMcpClient implements McpClient {
         this(allowPrivate, List.of());
     }
 
+    @Override
+    public boolean isMailbox(String url) {
+        return nativeFor(url).map(BuiltInConnector::mailbox).orElse(false);
+    }
+
+    @Override
+    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recentMail(String url, String secret, String folder, java.time.Instant since, int max) {
+        return nativeFor(url).filter(BuiltInConnector::mailbox).orElseThrow(() -> new McpException("Esta conexión no es un buzón de correo."))
+                .recent(secret, folder, since, max);
+    }
+
     private java.util.Optional<BuiltInConnector> nativeFor(String url) {
         return natives.stream().filter(n -> n.handles(url)).findFirst();
     }

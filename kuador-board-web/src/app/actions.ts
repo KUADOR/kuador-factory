@@ -12,6 +12,8 @@ import type {
   BusinessConnection,
   ConnectionLogin,
   MailConnectionInput,
+  MailInbox,
+  MailInboxInput,
   MailDetection,
   Capability,
   EstimateUnit,
@@ -163,6 +165,19 @@ export async function createRunnerTokenAction(name: string): Promise<ActionResul
 
 export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionResult<void>> {
   return run(() => boardApi.revokeRunnerToken(tokenId), "/local-agents");
+}
+
+export async function saveInboxAction(projectKey: string, id: string | null, input: MailInboxInput): Promise<ActionResult<MailInbox>> {
+  const path = `/projects/${projectKey}/settings/inbox`;
+  return run(() => (id ? boardApi.updateInbox(id, input) : boardApi.createInbox(projectKey, input)), path);
+}
+
+export async function deleteInboxAction(projectKey: string, id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteInbox(id), `/projects/${projectKey}/settings/inbox`);
+}
+
+export async function checkInboxAction(projectKey: string, id: string): Promise<ActionResult<{ created: string[]; error: string | null }>> {
+  return run(() => boardApi.checkInbox(id), `/projects/${projectKey}/settings/inbox`);
 }
 
 export async function saveRoutineAction(projectKey: string, id: string | null, input: RoutineInput): Promise<ActionResult<Routine>> {

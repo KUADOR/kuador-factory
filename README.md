@@ -48,6 +48,10 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
   **Correo con contraseña** (`ImapTools`, IMAP por SSL y SMTP por SSL o STARTTLS): Hostinger, cPanel, Zoho y cualquier
   hosting, con las mismas herramientas. **Detección** (`MailDetector`): se escribe el correo y, por los registros MX del
   dominio, el tablero propone Outlook (Microsoft 365), Gmail (Google Workspace) o IMAP con los servidores ya puestos.
+- **Correo entrante** (módulo `inbox`, *Configuración del tablero → Correo entrante*): un buzón conectado alimenta un
+  tablero; cada minuto se revisa y cada correo nuevo que cumple los filtros (carpeta, remitentes, solo con adjuntos) se
+  vuelve una tarjeta con su texto y sus adjuntos, en la columna elegida, donde la toma el agente de la etapa. No marca
+  nada en el buzón: recuerda lo visto por el Message-ID (`mail_inbox_seen`).
 - **Armar un tablero con IA** (`/design`, `BoardDesigner`): la persona cuenta a qué se dedica su empresa y la IA propone
   pasos, roles, aprobaciones y datos de la tarjeta; se valida como cualquier plantilla y nada se crea hasta aceptarlo.
 - **Catálogo para cualquier negocio**: rol **Revisor** (revisa cualquier trabajo en una puerta) y **Manual de

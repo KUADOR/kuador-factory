@@ -1285,6 +1285,44 @@ export interface Connector {
   note: string | null;
 }
 
+/** Un buzón conectado que puede alimentar la bandeja de un tablero. */
+export interface Mailbox {
+  key: string;
+  name: string;
+}
+
+/** La bandeja de correo de un tablero: cada correo nuevo que cumple los filtros se vuelve una tarjeta. */
+export interface MailInbox {
+  id: string;
+  projectKey: string;
+  connection: string;
+  connectionName: string;
+  folder: string | null;
+  fromFilter: string | null;
+  onlyAttachments: boolean;
+  status: string | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
+  enabled: boolean;
+  since: string;
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  lastIssueKey: string | null;
+  cardsCreated: number;
+}
+
+/** `backfillDays`: al crearla, traer también los correos de esos días atrás (0 a 7). */
+export interface MailInboxInput {
+  connection: string;
+  folder: string | null;
+  fromFilter: string | null;
+  onlyAttachments: boolean;
+  status: string | null;
+  assigneeId: string | null;
+  enabled: boolean;
+  backfillDays?: number;
+}
+
 /** Dónde está un correo según su dominio: con qué conector se conecta y, si es IMAP, sus servidores. `sure` falso: se adivinaron. */
 export interface MailDetection {
   email: string;

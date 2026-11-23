@@ -103,6 +103,60 @@ class ImapTools implements BuiltInConnector {
     }
 
     @Override
+    public boolean mailbox() {
+        return true;
+    }
+
+    @Override
+    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String secret, String carpeta, java.time.Instant since, int max) {
+        MailAccount account = account(secret);
+        Store store = store(account);
+        try {
+            Folder folder = folder(store, carpeta == null || carpeta.isBlank() ? null : carpeta.strip());
+            folder.open(Folder.READ_ONLY);
+            try {
+                // IMAP busca por día: se pide desde el día de «since» y se filtra a la hora exacta.
+                Message[] found = folder.search(new ReceivedDateTerm(ComparisonTerm.GE, Date.from(since.truncatedTo(java.time.temporal.ChronoUnit.DAYS))));
+                jakarta.mail.FetchProfile profile = new jakarta.mail.FetchProfile();
+                profile.add(jakarta.mail.FetchProfile.Item.ENVELOPE);
+                profile.add(UIDFolder.FetchProfileItem.UID);
+                folder.fetch(found, profile);
+                List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> out = new ArrayList<>();
+                for (Message m : found) {
+                    if (out.size() >= max) break;
+                    Date when = m.getReceivedDate() != null ? m.getReceivedDate() : m.getSentDate();
+                    if (when == null || when.toInstant().isBefore(since)) continue;
+                    List<ec.kuador.board.connections.ConnectionsApi.MailFile> files = new ArrayList<>();
+                    for (Map.Entry<String, Part> f : files(m, "", new ArrayList<>())) {
+                        if (files.size() >= NativeConnector.MAX_FILES) break;
+                        Part p = f.getValue();
+                        byte[] content;
+                        try (InputStream in = p.getInputStream()) {
+                            content = in.readNBytes((int) NativeConnector.MAX_FILE + 1);
+                        }
+                        long size = content.length;
+                        if (size > NativeConnector.MAX_FILE) content = null;
+                        files.add(new ec.kuador.board.connections.ConnectionsApi.MailFile(fileName(p), baseType(p), size, content));
+                    }
+                    String body = body(m);
+                    body = body == null ? "" : body.strip();
+                    String[] ids = m.getHeader("Message-ID");
+                    out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(((UIDFolder) folder).getUID(m) + ":" + folder.getFullName(),
+                            ids == null || ids.length == 0 ? null : ids[0].strip(), addresses(m.getFrom()), m.getSubject() == null ? "" : m.getSubject(), when.toInstant(),
+                            body.length() > NativeConnector.MAX_BODY_TEXT ? body.substring(0, NativeConnector.MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files));
+                }
+                return out;
+            } finally {
+                closeFolder(folder);
+            }
+        } catch (MessagingException | IOException e) {
+            throw new McpException("El servidor de correo respondió un error: " + e.getMessage());
+        } finally {
+            close(store);
+        }
+    }
+
+    @Override
     public List<Connection.ToolDef> tools(String secret) {
         MailAccount a = account(secret);
         Store store = store(a);

@@ -22,6 +22,16 @@ public interface McpClient {
 
     List<Connection.ToolDef> listTools(String url, String header, String secret);
 
+    /** Si la dirección es la de un buzón de correo que el tablero sabe leer (Outlook, Gmail o IMAP). */
+    default boolean isMailbox(String url) {
+        return false;
+    }
+
+    /** Los correos nuevos de un buzón (ver {@link ec.kuador.board.connections.ConnectionsApi#recentMail}). */
+    default List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recentMail(String url, String secret, String folder, java.time.Instant since, int max) {
+        throw new McpException("Esta conexión no es un buzón de correo.");
+    }
+
     /** El texto que devuelve la herramienta. Si la herramienta informa un error, lanza {@link McpException} con él. */
     String callTool(String url, String header, String secret, String tool, Map<String, Object> arguments);
 }

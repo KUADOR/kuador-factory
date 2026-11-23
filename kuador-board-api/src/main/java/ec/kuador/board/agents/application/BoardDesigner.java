@@ -119,14 +119,15 @@ public class BoardDesigner {
             - En cada paso intermedio decide: lo prepara un agente («roles»: claves de la lista de roles que te doy, solo esas), lo hace una
               persona (roles vacío) o es una aprobación de una persona («gate»: true, roles vacío). Pon una aprobación antes de que algo salga
               hacia un cliente o cueste dinero. No pongas dos aprobaciones seguidas.
-            - Si la persona quiere que algo quede registrado o hecho SOLO cuando todo coincide (y avisado cuando no), no pongas una aprobación
-              en medio: el agente que compara también lo registra cuando todo coincide. Para lo que no coincide pon un paso que hace una
-              persona (por ejemplo «Desfase por resolver», roles vacío) justo antes del paso final. El agente puede elegir a qué paso pasa la
-              tarjeta según su resultado: en su «instructions» di a cuál va en cada caso (si coincide, al paso final; si no, al de desfase,
-              sin registrar y explicando el desfase).
+            - Decisiones: cuando el resultado de un paso decide a dónde sigue (un «si…»), declara en ese paso sus «paths»: a qué paso va
+              («to», el nombre exacto de otro paso) y en qué caso («when», en palabras del negocio: «si todo coincide», «si falta
+              información»). Puede saltar pasos hacia adelante o volver a uno anterior para corregir (un bucle). El paso siguiente es el
+              camino normal: declara solo las alternativas. Si una aprobación solo hace falta en un caso, ponla en el camino de ese caso
+              (no en el camino normal). Si la persona quiere algo automático cuando todo está bien, el agente lo hace en su paso y el
+              camino alternativo lleva lo que no está bien a una persona.
             - «instructions»: en cada paso que hace un agente, de 3 a 8 frases concretas en segunda persona: qué lee (la tarjeta, sus adjuntos),
-              qué datos saca, qué consulta y con qué herramienta de los sistemas conectados (por su nombre exacto), qué compara, qué hace si
-              todo está bien y qué hace si algo no cuadra (preguntar a una persona con el detalle). Si el dato que necesita está en un sistema
+              qué datos saca, qué consulta y con qué herramienta de los sistemas conectados (por su nombre exacto), qué decide y con qué
+              criterio (los caminos ya los declaras en «paths»). Si el dato que necesita está en un sistema
               que no está conectado, dilo («cuando esté conectado el sistema de pedidos…») y agrégalo a «missing». Vacío en los demás pasos.
             - Sistemas conectados: usa solo los de la lista que te doy, con sus claves y herramientas exactas. «uses»: claves de los que usará
               el tablero. «mailbox»: si el trabajo llega por correo y hay un buzón conectado, su clave (sus correos entrarán solos como
@@ -149,7 +150,8 @@ public class BoardDesigner {
             {"name":"","key":"","goal":"","summary":"","workItem":"","group":null,"split":false,
              "uses":[],"mailbox":null,"writes":[],"missing":[],
              "fields":[{"label":"","kind":"TEXT","options":[]}],
-             "steps":[{"name":"","category":"TODO","roles":[],"gate":false,"checklist":[],"requiresFile":false,"instructions":""}]}
+             "steps":[{"name":"","category":"TODO","roles":[],"gate":false,"checklist":[],"requiresFile":false,"instructions":"",
+                       "paths":[{"to":"","when":""}]}]}
             """;
 
     /** Una pregunta para afinar el tablero antes de proponerlo. {@code kind}: SINGLE (una opción), MULTI (varias) o TEXT. */
@@ -278,6 +280,9 @@ public class BoardDesigner {
                 step.put("checklist", st == null ? List.of() : st.checklist());
                 step.put("requiresFile", st != null && st.requires().stream().anyMatch(r -> r.kind() == Requirement.Kind.ATTACHMENT));
                 step.put("instructions", st == null || st.instructions() == null ? "" : st.instructions());
+                step.put("paths", t.transitions().stream().filter(x -> x.from().equals(col.key()) && x.when() != null)
+                        .map(x -> java.util.Map.of("to", t.columns().stream().filter(cc -> cc.key().equals(x.to())).map(ColumnDef::name).findFirst().orElse(x.to()),
+                                "when", x.when())).toList());
                 steps.add(step);
             }
             m.put("steps", steps);
@@ -352,8 +357,10 @@ public class BoardDesigner {
             // Sin repositorio: un tablero armado así no es de software (ese se crea con su plantilla y su asistente).
             List<Capability> capabilities = t.capabilities() == null ? List.of(Capability.DOCUMENTS)
                     : t.capabilities().stream().filter(c -> c != Capability.REPOSITORY).toList();
+            // Solo las decisiones (caminos con condición): el resto de los movimientos queda libre.
+            List<ec.kuador.board.catalog.TransitionDef> decisions = t.transitions().stream().filter(x -> x.when() != null).toList();
             WorkflowTemplate own = new WorkflowTemplate(null, templateKey, clip(name, 80), "Diseñado con IA para este negocio.", null, t.columns(), t.issueTypes(),
-                    t.stages(), List.of(), t.agents(), capabilities, t.estimate(), false, 0);
+                    t.stages(), decisions, t.agents(), capabilities, t.estimate(), false, 0);
             catalog.saveWorkflowTemplate(own);
             projects.createBoard(key, name, templateKey);
             if (design.goal() != null && !design.goal().isBlank()) projects.saveGoal(key, clip(design.goal().strip(), 1000));
@@ -479,7 +486,23 @@ public class BoardDesigner {
         String key = node.path("key").asString("").strip().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
         if (!key.matches("^[A-Z][A-Z0-9]{1,9}$")) key = ascii(name).replaceAll("[^A-Z]", "").chars().limit(3).collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
         if (key.length() < 2) key = "TAB";
-        WorkflowTemplate template = new WorkflowTemplate(null, "PROPUESTA", name, null, null, columns, types, stages, List.of(), List.copyOf(team), capabilities,
+        // Las decisiones: caminos con condición entre pasos que existen (por nombre), hacia adelante o hacia atrás.
+        List<ec.kuador.board.catalog.TransitionDef> paths = new ArrayList<>();
+        for (JsonNode step : node.path("steps")) {
+            String fromName = clip(step.path("name").asString("").strip(), 40);
+            ColumnDef from = columns.stream().filter(c -> c.name().equalsIgnoreCase(fromName)).findFirst().orElse(null);
+            if (from == null || from.category() == ColumnCategory.DONE) continue;
+            for (JsonNode p : step.path("paths")) {
+                String toName = clip(p.path("to").asString("").strip(), 40);
+                String when = clip(p.path("when").asString("").strip(), ec.kuador.board.project.Transitions.MAX_CONDITION);
+                ColumnDef to = columns.stream().filter(c -> c.name().equalsIgnoreCase(toName)).findFirst().orElse(null);
+                if (to == null || to.key().equals(from.key()) || when.isEmpty() || paths.size() >= 20) continue;
+                if (paths.stream().noneMatch(x -> x.from().equals(from.key()) && x.to().equals(to.key()))) {
+                    paths.add(new ec.kuador.board.catalog.TransitionDef(from.key(), to.key(), when));
+                }
+            }
+        }
+        WorkflowTemplate template = new WorkflowTemplate(null, "PROPUESTA", name, null, null, columns, types, stages, paths, List.copyOf(team), capabilities,
                 EstimateUnit.NONE, false, 0);
         // Las mismas reglas que una plantilla hecha a mano.
         ColumnDef.validate(template.columns());

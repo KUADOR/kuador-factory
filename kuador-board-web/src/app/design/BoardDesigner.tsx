@@ -215,6 +215,11 @@ export function BoardDesigner({
                 </span>
               </div>
               {stage?.instructions && <p className="pl-7 text-xs whitespace-pre-line text-fg">{stage.instructions}</p>}
+              {(t.transitions ?? []).filter((x) => x.from === c.key && x.when).map((x) => (
+                <p key={x.to} className="pl-7 text-xs text-fg-muted">
+                  {t.columns.findIndex((y) => y.key === x.to) < i ? "↺" : "↳"} {x.when} → «{t.columns.find((y) => y.key === x.to)?.name ?? x.to}»
+                </p>
+              ))}
               {i === 0 && design.mailbox && (
                 <p className="pl-7 text-xs text-fg-muted">Los correos que lleguen a «{systemName(design.mailbox)}» entran aquí solos, como tarjetas.</p>
               )}

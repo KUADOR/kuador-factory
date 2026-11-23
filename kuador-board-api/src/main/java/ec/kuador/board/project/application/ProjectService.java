@@ -109,7 +109,9 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         if (softwareFactory(template)) billing.requireFactory("La plantilla «" + template.name() + "»");
         // Del catálogo se copian columnas, tipos, etapas (roles y puertas) y pasos del flujo.
         Transitions transitions = template.transitions().isEmpty() ? Transitions.FREE
-                : new Transitions(true, template.transitions().stream().map(t -> new Transitions.Transition(t.from(), t.to())).toList());
+                // Solo caminos con condición (decisiones): el tablero queda libre y esos son sus caminos según el resultado.
+                : new Transitions(template.transitions().stream().anyMatch(t -> t.when() == null),
+                        template.transitions().stream().map(t -> new Transitions.Transition(t.from(), t.to(), t.when())).toList());
         Project project = Project.create(key, name, description, template.capabilities(), template.key(), template.issueTypes(), transitions,
                 template.stages(), template.estimate(), clock.instant());
         if (projects.existsByKey(project.key())) {

@@ -58,11 +58,14 @@ export function TransitionsEditor({ project }: { project: Project }) {
 
   const save = () =>
     start(async () => {
+      // Las decisiones (caminos con condición) se conservan siempre: se editan en el Flujo.
+      const decisions = project.transitions.allowed.filter((t) => t.when);
       const list = [...allowed].map((k) => {
         const [from, to] = k.split(">");
-        return { from, to };
+        return { from, to, when: decisions.find((d) => d.from === from && d.to === to)?.when ?? null };
       });
-      const r = await setTransitionsAction(project.key, { restricted, allowed: restricted ? list : [] });
+      const extra = decisions.filter((d) => !list.some((l) => l.from === d.from && l.to === d.to));
+      const r = await setTransitionsAction(project.key, { restricted, allowed: restricted ? [...list, ...extra] : decisions });
       if (r.ok) {
         setError(null);
         notify.ok(restricted ? "Flujo de trabajo guardado" : "Movimiento libre entre columnas");

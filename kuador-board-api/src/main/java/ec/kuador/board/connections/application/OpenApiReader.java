@@ -29,6 +29,8 @@ public final class OpenApiReader {
     private static final Set<String> METHODS = Set.of("get", "post", "put", "patch", "delete", "head");
     private static final int MAX_DEPTH = 6;
     private static final int MAX_DESCRIPTION = 600;
+    /** Los nombres de argumento que aceptan los proveedores de IA: un parámetro con otro nombre («page[size]») no se ofrece. */
+    private static final java.util.regex.Pattern ARG = java.util.regex.Pattern.compile("^[a-zA-Z0-9_.-]{1,64}$");
 
     private OpenApiReader() {}
 
@@ -53,7 +55,8 @@ public final class OpenApiReader {
                 JsonNode op = m.getValue();
                 List<JsonNode> params = new ArrayList<>(shared);
                 op.path("parameters").forEach(params::add);
-                ops.add(operation(root, swagger, method, path, op, params, names));
+                ApiAccount.Operation built = operation(root, swagger, method, path, op, params, names);
+                if (built != null) ops.add(built);
                 if (ops.size() >= 500) break;
             }
         }
@@ -79,6 +82,11 @@ public final class OpenApiReader {
                 continue;
             }
             if (!in.equals("path") && !in.equals("query") && !in.equals("header")) continue;
+            // Un nombre que el modelo no puede usar: sin ese parámetro de consulta se puede igual; sin uno de ruta, no (la operación no se ofrece).
+            if (!ARG.matcher(name).matches()) {
+                if (in.equals("path")) return null;
+                continue;
+            }
             if (in.equals("header") && name.equalsIgnoreCase("authorization")) continue;
             boolean req = in.equals("path") || p.path("required").asBoolean(false);
             params.add(new ApiAccount.Param(name, in, req));

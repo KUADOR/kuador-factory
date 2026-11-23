@@ -99,4 +99,11 @@ class StageHandoffTest {
         assertThat(handoff("SALES", "PROPOSAL_DRAFT", ANALYST).choices(ANALYST, "B-1")).as("no es la etapa de su rol").isEmpty();
         assertThat(handoff("SALES", "PROPOSAL_REVIEW", MARKETING).choices(MARKETING, "B-1")).as("en una puerta no elige").isEmpty();
     }
+
+    @Test
+    void toolArgumentNamesMustBeOnesEveryAiProviderAccepts() {
+        assertThat(BoardAgent.validArguments(java.util.Map.of("type", "object", "properties", java.util.Map.of("numero_factura", java.util.Map.of())))).isTrue();
+        assertThat(BoardAgent.validArguments(java.util.Map.of("type", "object", "properties", java.util.Map.of("Número de factura", java.util.Map.of())))).isFalse();
+        assertThat(BoardAgent.validArguments(java.util.Map.of("type", "object"))).isTrue();
+    }
 }

@@ -9,6 +9,8 @@ import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
   BoardDesign,
+  DesignQuestion,
+  DesignRequest,
   BusinessConnection,
   ConnectionLogin,
   MailConnectionInput,
@@ -859,8 +861,12 @@ export async function setThemeAction(mode: ThemeMode): Promise<void> {
 
 // ---- Etapas (Fase 1) ----
 
-export async function designBoardAction(description: string): Promise<ActionResult<BoardDesign>> {
-  return run(() => boardApi.designBoard(description));
+export async function designBoardAction(body: DesignRequest): Promise<ActionResult<BoardDesign>> {
+  return run(() => boardApi.designBoard(body));
+}
+
+export async function designQuestionsAction(description: string): Promise<ActionResult<{ questions: DesignQuestion[] }>> {
+  return run(() => boardApi.designQuestions(description));
 }
 
 export async function createDesignedBoardAction(design: BoardDesign, key: string, name: string): Promise<ActionResult<{ key: string }>> {

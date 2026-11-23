@@ -29,6 +29,8 @@ export function ProjectTabs({
   const base = `/projects/${projectKey}`;
   const tabs = [
     { href: base, label: "Tablero", exact: true },
+    // El flujo de un vistazo: de dónde llega el trabajo, quién hace cada paso, a dónde va y qué sale.
+    { href: `${base}/flow`, label: "Flujo" },
     ...(capabilities.includes("DOCUMENTS") && (documents || capabilities.includes("REPOSITORY")) ? [{ href: `${base}/docs`, label: "Documentos" }] : []),
     ...(capabilities.includes("REPOSITORY") && canAdminister ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
     // Tableros de ventas: los prospectos con su próxima acción, para el celular.

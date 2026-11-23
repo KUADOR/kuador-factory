@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { boardApi } from "@/lib/api";
+import { rolesForBoard } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
 
 import { SettingsSection } from "../SettingsSection";
@@ -27,7 +28,7 @@ export default async function TeamSettingsPage({ params }: PageProps<"/projects/
         projectKey={key}
         software={project.kind === "SOFTWARE"}
         team={team}
-        roles={roles.map((r) => ({ key: r.key, name: r.name, description: r.description, worksOnCode: r.tools.some((t) => CODE_TOOLS.includes(t)) }))}
+        roles={rolesForBoard(roles, project.capabilities.includes("REPOSITORY")).map((r) => ({ key: r.key, name: r.name, description: r.description, worksOnCode: r.tools.some((t) => CODE_TOOLS.includes(t)) }))}
         ai={ai}
       />
     </SettingsSection>

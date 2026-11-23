@@ -121,8 +121,9 @@ public class AiUsage {
      */
     @Transactional(readOnly = true)
     public Optional<String> blockReason(UUID agentId, String issueKey) {
-        if (overBudget()) return Optional.of("El espacio llegó a su tope mensual de IA. Quien administra puede subirlo en Conexiones → IA.");
         UUID ws = TenantContext.require();
+        Optional<String> workspace = workspaceBlock(ws);
+        if (workspace.isPresent()) return workspace;
         Report r = report();
         BigDecimal limit = store.agentBudgets(ws).get(agentId);
         if (limit != null) {
@@ -218,14 +219,44 @@ public class AiUsage {
         return n == null ? 0 : n;
     }
 
-    /** Si el espacio llegó a su tope mensual (solo se sabe con precios para todo lo usado). */
+    /** Si el espacio llegó a su tope mensual. */
     @Transactional(readOnly = true)
     public boolean overBudget() {
-        Optional<BigDecimal> budget = store.budget(TenantContext.require());
-        if (budget.isEmpty()) return false;
-        Report r = report();
-        // Con tope y un modelo usado sin precio no se puede saber el gasto: se frena por precaución (antes el tope dejaba de aplicar).
-        return r.costUsd() == null || r.costUsd().compareTo(budget.get()) >= 0;
+        return workspaceBlock(TenantContext.require()).isPresent();
+    }
+
+    /**
+     * El freno del tope del espacio, con el motivo. Un modelo usado sin precio se estima al precio más alto configurado
+     * (antes frenaba todo aunque se subiera el tope); sin ningún precio no se puede estimar y se frena por precaución.
+     */
+    private Optional<String> workspaceBlock(UUID ws) {
+        Optional<BigDecimal> budget = store.budget(ws);
+        if (budget.isEmpty()) return Optional.empty();
+        YearMonth month = YearMonth.now(clock.withZone(zone));
+        List<AiUsageStore.Usage> used = store.usage(ws, month.atDay(1).atStartOfDay(zone).toInstant(),
+                month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant());
+        if (used.isEmpty()) return Optional.empty();
+        List<AiUsageStore.Price> prices = store.prices();
+        List<String> unpriced = used.stream().map(AiUsageStore.Usage::model).filter(m -> prices.stream().noneMatch(p -> p.model().equals(m))).distinct()
+                .toList();
+        if (prices.isEmpty()) {
+            return Optional.of("Falta el precio de " + String.join(", ", unpriced) + ": con tope mensual no se puede calcular el gasto. Cárgalo en Plataforma → IA.");
+        }
+        BigDecimal spent = estimatedSpend(used, prices);
+        if (spent.compareTo(budget.get()) < 0) return Optional.empty();
+        return Optional.of("El espacio llegó a su tope mensual de IA (USD " + spent.setScale(2, RoundingMode.HALF_UP) + " de " + budget.get()
+                + (unpriced.isEmpty() ? "" : ", estimando " + String.join(", ", unpriced) + " al precio más alto") + "). Quien administra puede subirlo en Conexiones → IA.");
+    }
+
+    /** Gasto del mes; lo que usó un modelo sin precio cuenta al precio más alto configurado (de entrada y de salida). */
+    static BigDecimal estimatedSpend(List<AiUsageStore.Usage> used, List<AiUsageStore.Price> prices) {
+        Map<String, AiUsageStore.Price> byModel = new LinkedHashMap<>();
+        prices.forEach(p -> byModel.put(p.model(), p));
+        AiUsageStore.Price highest = new AiUsageStore.Price("?", prices.stream().map(AiUsageStore.Price::inputPerMTok).max(BigDecimal::compareTo).orElseThrow(),
+                prices.stream().map(AiUsageStore.Price::outputPerMTok).max(BigDecimal::compareTo).orElseThrow());
+        BigDecimal total = BigDecimal.ZERO;
+        for (AiUsageStore.Usage u : used) total = total.add(cost(byModel.getOrDefault(u.model(), highest), u));
+        return total;
     }
 
     /** Si el espacio ya hizo el máximo de corridas de la última hora. */

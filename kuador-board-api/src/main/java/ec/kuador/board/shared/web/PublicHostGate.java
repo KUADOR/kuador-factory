@@ -50,6 +50,7 @@ public final class PublicHostGate extends OncePerRequestFilter {
         if (!fullAccess(request) && !OPEN_PATHS.contains(path) && !path.matches("^/api/(telegram|payments)/webhook/[A-Za-z0-9_-]{1,64}$")
                 && !path.matches("^/api/runner/leases/[A-Za-z0-9]{1,12}-[0-9]{1,7}/(renew|release)$")
                 && !path.matches("^/api/routines/[0-9a-fA-F-]{36}/hook$")
+                && !path.startsWith("/demo-erp/")
                 && !path.matches("^/api/runner/jobs/[0-9a-fA-F-]{36}/complete$")) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             response.setContentType("application/problem+json;charset=UTF-8");

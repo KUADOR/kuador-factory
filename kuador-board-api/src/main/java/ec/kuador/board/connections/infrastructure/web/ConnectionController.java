@@ -47,6 +47,23 @@ class ConnectionController {
                 r.smtpPort(), r.smtpSsl()));
     }
 
+    record ApiSpecRequest(@Size(max = 500) String url, @Size(max = 5_000_000) String text) {}
+
+    /** Lee la documentación de una API (OpenAPI o Swagger) para elegir qué operaciones usa el agente. */
+    @PostMapping("/api/connection-directory/openapi")
+    ec.kuador.board.connections.application.OpenApiReader.Spec readApi(@Valid @RequestBody ApiSpecRequest r) {
+        return service.readApi(r.url(), r.text());
+    }
+
+    record ApiRequest(@NotBlank @Size(max = 80) String name, @Size(max = 500) String specUrl, @Size(max = 5_000_000) String specText, @Size(max = 500) String baseUrl,
+            @Size(max = 64) String header, @Size(max = 40) String prefix, @Size(max = 4000) String credential, @Size(max = 40) List<String> operations) {}
+
+    /** Un sistema por su API: quedan solo las operaciones elegidas. {@code credential} nula al editar: se conserva la guardada. */
+    @PutMapping("/api/connections/{key}/api")
+    ConnectionService.View saveApi(@PathVariable String key, @Valid @RequestBody ApiRequest r) {
+        return service.saveApi(key, r.name(), r.specUrl(), r.specText(), r.baseUrl(), r.header(), r.prefix(), r.credential(), r.operations());
+    }
+
     /** Con qué conector se conecta un correo, según dónde está alojado su dominio. */
     @GetMapping("/api/connection-directory/detect")
     ec.kuador.board.connections.application.MailDetector.Detected detect(@org.springframework.web.bind.annotation.RequestParam String email) {

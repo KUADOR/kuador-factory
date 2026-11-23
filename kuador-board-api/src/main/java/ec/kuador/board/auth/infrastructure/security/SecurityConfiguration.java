@@ -123,6 +123,8 @@ class SecurityConfiguration {
                         .requestMatchers("/api/projects/*/drafting", "/api/projects/*/drafting/**", "/api/drafting/**").access(HUMAN_EDITOR)
                         // Rutinas: el webhook es público (lleva su secreto); configurarlas, personas que editan.
                         .requestMatchers(HttpMethod.POST, "/api/routines/*/hook").permitAll()
+                        // ERP de demostración: su propia clave (X-API-Key) y datos de ejemplo.
+                        .requestMatchers("/demo-erp/**").permitAll()
                         .requestMatchers("/api/routines/**", "/api/projects/*/routines").access(HUMAN_EDITOR)
                         // Bandeja de correo: usa los buzones de la empresa, así que la configura quien administra.
                         .requestMatchers("/api/inboxes", "/api/inboxes/**", "/api/projects/*/inboxes").access(HUMAN_ADMIN)

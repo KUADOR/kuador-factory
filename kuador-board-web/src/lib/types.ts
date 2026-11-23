@@ -1285,6 +1285,44 @@ export interface Connector {
   note: string | null;
 }
 
+/** Una operación de una API (de su documentación OpenAPI) que el agente puede usar. `readOnly`: solo consulta (GET). */
+export interface ApiOperation {
+  name: string;
+  method: string;
+  path: string;
+  description: string;
+  readOnly: boolean;
+}
+
+/** Lo que se leyó de la documentación de una API. */
+export interface ApiSpec {
+  title: string;
+  baseUrl: string;
+  operations: ApiOperation[];
+}
+
+/** Conectar un sistema por su API. `credential` nula al editar: se conserva la guardada. */
+export interface ApiConnectionInput {
+  name: string;
+  specUrl: string | null;
+  specText: string | null;
+  baseUrl: string | null;
+  header: string;
+  prefix: string;
+  credential: string | null;
+  operations: string[];
+}
+
+/** El ERP de demostración: cómo conectarlo y sus facturas de ejemplo. */
+export interface DemoErpInfo {
+  name: string;
+  specUrl: string;
+  header: string;
+  credential: string;
+  operations: string[];
+  samples: { name: string; url: string }[];
+}
+
 /** Un buzón conectado que puede alimentar la bandeja de un tablero. */
 export interface Mailbox {
   key: string;

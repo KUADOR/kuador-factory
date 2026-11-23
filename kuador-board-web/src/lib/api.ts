@@ -9,6 +9,9 @@ import type {
   ConnectionLogin,
   Connector,
   MailConnectionInput,
+  ApiConnectionInput,
+  ApiSpec,
+  DemoErpInfo,
   MailInbox,
   MailInboxInput,
   Mailbox,
@@ -368,6 +371,9 @@ export const boardApi = {
   saveConnection: (key: string, body: { name: string; url: string; header: string | null; secret: string | null }) =>
     request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}`, json("PUT", body)),
   connectionDirectory: () => request<Connector[]>("/api/connection-directory"),
+  readApiSpec: (body: { url: string | null; text: string | null }) => request<ApiSpec>("/api/connection-directory/openapi", json("POST", body)),
+  saveApiConnection: (key: string, body: ApiConnectionInput) => request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/api`, json("PUT", body)),
+  demoErp: () => request<DemoErpInfo>("/api/connection-directory/demo-erp"),
   detectMail: (email: string) => request<MailDetection>(`/api/connection-directory/detect?email=${encodeURIComponent(email)}`),
   saveMailConnection: (key: string, body: MailConnectionInput) =>
     request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/mail`, json("PUT", body)),

@@ -1,0 +1,100 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ERP de compras — Flores de la Sierra (demostración)",
+    "version": "1.0.0",
+    "description": "Proveedores, pedidos de compra y registro de facturas de proveedor. Datos de ejemplo."
+  },
+  "servers": [{ "url": "/demo-erp" }],
+  "components": {
+    "securitySchemes": { "clave": { "type": "apiKey", "in": "header", "name": "X-API-Key" } },
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "properties": {
+          "codigo": { "type": "string" },
+          "descripcion": { "type": "string" },
+          "cantidad": { "type": "number" },
+          "unidad": { "type": "string" },
+          "precio_unitario": { "type": "number", "description": "Precio acordado por unidad, sin IVA." },
+          "subtotal": { "type": "number" }
+        }
+      },
+      "Pedido": {
+        "type": "object",
+        "properties": {
+          "numero": { "type": "string", "example": "OC-2026-0451" },
+          "ruc_proveedor": { "type": "string" },
+          "proveedor": { "type": "string" },
+          "fecha": { "type": "string", "format": "date" },
+          "fecha_entrega": { "type": "string", "format": "date" },
+          "estado": { "type": "string", "enum": ["RECIBIDO", "FACTURADO"] },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } },
+          "subtotal": { "type": "number" },
+          "iva": { "type": "number", "description": "IVA 15 %." },
+          "total": { "type": "number" }
+        }
+      },
+      "FacturaNueva": {
+        "type": "object",
+        "required": ["numero_factura", "ruc_proveedor", "numero_pedido", "total"],
+        "properties": {
+          "numero_factura": { "type": "string", "description": "Número de la factura del proveedor, ej. 001-002-000004518." },
+          "ruc_proveedor": { "type": "string", "description": "RUC del proveedor que emite la factura." },
+          "numero_pedido": { "type": "string", "description": "Pedido de compra al que corresponde, ej. OC-2026-0451." },
+          "fecha_emision": { "type": "string", "format": "date" },
+          "total": { "type": "number", "description": "Total de la factura con IVA." },
+          "observacion": { "type": "string" }
+        }
+      }
+    }
+  },
+  "security": [{ "clave": [] }],
+  "paths": {
+    "/proveedores": {
+      "get": {
+        "operationId": "listarProveedores",
+        "summary": "Lista los proveedores",
+        "description": "Busca por nombre o RUC.",
+        "parameters": [{ "name": "texto", "in": "query", "schema": { "type": "string" }, "description": "Parte del nombre o del RUC." }],
+        "responses": { "200": { "description": "Proveedores" } }
+      }
+    },
+    "/pedidos-compra": {
+      "get": {
+        "operationId": "buscarPedidosCompra",
+        "summary": "Busca pedidos de compra",
+        "description": "Filtra por número, proveedor (nombre o RUC) y estado. Devuelve el resumen; el detalle con ítems y precios está en obtener_pedido_compra.",
+        "parameters": [
+          { "name": "numero", "in": "query", "schema": { "type": "string" } },
+          { "name": "proveedor", "in": "query", "schema": { "type": "string" } },
+          { "name": "estado", "in": "query", "schema": { "type": "string", "enum": ["RECIBIDO", "FACTURADO"] } }
+        ],
+        "responses": { "200": { "description": "Pedidos" } }
+      }
+    },
+    "/pedidos-compra/{numero}": {
+      "get": {
+        "operationId": "obtenerPedidoCompra",
+        "summary": "Detalle de un pedido de compra",
+        "description": "Ítems con cantidades y precios acordados, subtotal, IVA y total, para compararlos con la factura.",
+        "parameters": [{ "name": "numero", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Ej. OC-2026-0451." }],
+        "responses": { "200": { "description": "Pedido", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pedido" } } } }, "404": { "description": "No existe" } }
+      }
+    },
+    "/facturas-proveedor": {
+      "get": {
+        "operationId": "listarFacturasProveedor",
+        "summary": "Facturas de proveedor registradas",
+        "responses": { "200": { "description": "Facturas" } }
+      },
+      "post": {
+        "operationId": "registrarFacturaProveedor",
+        "summary": "Registra una factura de proveedor contra su pedido",
+        "description": "Deja la factura ingresada y el pedido como FACTURADO. Rechaza un pedido inexistente, un RUC que no es del proveedor del pedido, un pedido ya facturado o una factura repetida.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FacturaNueva" } } } },
+        "responses": { "201": { "description": "Registrada" }, "404": { "description": "Pedido inexistente" }, "409": { "description": "No coincide o ya registrada" } }
+      }
+    }
+  }
+}

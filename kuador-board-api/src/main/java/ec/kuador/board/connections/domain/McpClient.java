@@ -32,6 +32,11 @@ public interface McpClient {
         throw new McpException("Esta conexión no es un buzón de correo.");
     }
 
+    /** El texto de un documento público (la documentación de una API), con tope de tamaño y solo hacia Internet. */
+    default String fetchDocument(String url) {
+        throw new McpException("No se pueden descargar documentos desde aquí.");
+    }
+
     /** El texto que devuelve la herramienta. Si la herramienta informa un error, lanza {@link McpException} con él. */
     String callTool(String url, String header, String secret, String tool, Map<String, Object> arguments);
 }

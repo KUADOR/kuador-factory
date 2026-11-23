@@ -25,7 +25,10 @@ class BoardChatController {
         this.designer = designer;
     }
 
-    record DesignRequest(@jakarta.validation.constraints.Size(max = 3000) String description) {}
+    /** {@code answers}: lo respondido a las preguntas; {@code previous} y {@code change}: ajustar una propuesta ya hecha. */
+    record DesignRequest(@jakarta.validation.constraints.Size(max = 3000) String description,
+            @jakarta.validation.constraints.Size(max = 10) java.util.List<ec.kuador.board.agents.application.BoardDesigner.Answer> answers,
+            ec.kuador.board.agents.application.BoardDesigner.Design previous, @jakarta.validation.constraints.Size(max = 1500) String change) {}
 
     record CreateRequest(ec.kuador.board.agents.application.BoardDesigner.Design design, @jakarta.validation.constraints.Size(max = 10) String key,
             @jakarta.validation.constraints.Size(max = 120) String name) {}
@@ -33,7 +36,13 @@ class BoardChatController {
     /** «Cuéntame tu negocio»: propone un tablero para ese negocio, sin crear nada. */
     @PostMapping("/api/boards/design")
     ec.kuador.board.agents.application.BoardDesigner.Design design(@AuthenticationPrincipal AuthenticatedMember who, @jakarta.validation.Valid @RequestBody DesignRequest r) {
-        return designer.propose(who, r.description());
+        return designer.propose(who, r.description(), r.answers(), r.previous(), r.change());
+    }
+
+    /** Las preguntas que faltan para que el tablero quede bien conectado: de dónde llega el trabajo, contra qué se revisa, a dónde va. */
+    @PostMapping("/api/boards/design/questions")
+    java.util.Map<String, Object> questions(@AuthenticationPrincipal AuthenticatedMember who, @jakarta.validation.Valid @RequestBody DesignRequest r) {
+        return java.util.Map.of("questions", designer.questions(who, r.description()));
     }
 
     /** Crea el tablero de una propuesta (con su plantilla y su objetivo). */

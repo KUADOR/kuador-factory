@@ -110,4 +110,26 @@ class BoardDesignerTest {
                 .satisfies(st -> assertThat(st.instructions()).contains("registrar_factura_proveedor", "pregunta a una persona"));
         assertThat(d.template().stages()).filteredOn(StageDef::gate).singleElement().satisfies(st -> assertThat(st.instructions()).isNull());
     }
+
+    @Test
+    void theQuestionsComeBackCleanWhateverTheModelSays() {
+        List<BoardDesigner.Question> qs = designer.questions("""
+                Antes de armarlo:
+                {"questions":[
+                  {"id":"entrada","text":"¿Por dónde llegan las facturas?","kind":"single","options":[{"value":"CORREO","label":"Al buzón Correo de facturas"},{"label":"A mano"}],
+                   "help":"Así entran solas como tarjetas."},
+                  {"id":"entrada","text":"¿Dónde están los pedidos?","kind":"RARO","options":[]},
+                  {"text":""},
+                  {"id":"x","text":"1"},{"id":"x","text":"2"},{"id":"x","text":"3"},{"id":"x","text":"4"},{"id":"x","text":"5"}]}
+                """);
+        assertThat(qs).as("hasta 6, sin las vacías").hasSize(6);
+        assertThat(qs.get(0)).satisfies(q -> {
+            assertThat(q.kind()).isEqualTo("SINGLE");
+            assertThat(q.options()).extracting(BoardDesigner.Option::label).containsExactly("Al buzón Correo de facturas", "A mano");
+            assertThat(q.help()).startsWith("Así entran");
+        });
+        assertThat(qs.get(1).kind()).as("sin opciones, se responde escribiendo").isEqualTo("TEXT");
+        assertThat(qs.get(1).id()).as("ids sin repetir").isNotEqualTo(qs.get(0).id());
+        assertThat(designer.questions("no es json")).isEmpty();
+    }
 }

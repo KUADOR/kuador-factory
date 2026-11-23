@@ -1410,6 +1410,29 @@ export interface BusinessTool {
 }
 
 /** Un tablero propuesto por la IA para un negocio: su plantilla, su objetivo y una explicación corta. Nada está creado todavía. */
+/** Una pregunta del asistente antes de proponer el tablero. `kind`: SINGLE (una opción), MULTI (varias) o TEXT. */
+export interface DesignQuestion {
+  id: string;
+  text: string;
+  kind: "SINGLE" | "MULTI" | "TEXT";
+  options: { value: string; label: string }[];
+  help: string;
+}
+
+/** Lo que respondió la persona a una pregunta. */
+export interface DesignAnswer {
+  question: string;
+  answer: string;
+}
+
+/** Pedido de propuesta: con respuestas, o para ajustar una propuesta anterior con un cambio. */
+export interface DesignRequest {
+  description: string;
+  answers?: DesignAnswer[];
+  previous?: BoardDesign | null;
+  change?: string | null;
+}
+
 export interface BoardDesign {
   name: string;
   key: string;

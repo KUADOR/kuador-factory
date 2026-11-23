@@ -5,6 +5,8 @@ import { headers as incomingHeaders } from "next/headers";
 import { getSessionToken } from "./session";
 import type {
   BoardDesign,
+  DesignQuestion,
+  DesignRequest,
   BusinessConnection,
   ConnectionLogin,
   Connector,
@@ -364,7 +366,8 @@ export const boardApi = {
 
   updateProject: (key: string, input: { name: string; description: string | null }) =>
     request<Project>(`/api/projects/${encodeURIComponent(key)}`, json("PUT", input)),
-  designBoard: (description: string) => request<BoardDesign>("/api/boards/design", json("POST", { description })),
+  designBoard: (body: DesignRequest) => request<BoardDesign>("/api/boards/design", json("POST", body)),
+  designQuestions: (description: string) => request<{ questions: DesignQuestion[] }>("/api/boards/design/questions", json("POST", { description })),
   createDesignedBoard: (design: BoardDesign, key: string, name: string) =>
     request<{ key: string }>("/api/boards/design/create", json("POST", { design, key, name })),
   connections: () => request<BusinessConnection[]>("/api/connections"),

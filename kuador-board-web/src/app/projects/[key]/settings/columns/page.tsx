@@ -2,7 +2,7 @@ import { AdminOnly } from "../AdminOnly";
 import type { Metadata } from "next";
 
 import { boardApi } from "@/lib/api";
-import { roleLabel, stageRoleOptions } from "@/lib/labels";
+import { roleLabel, rolesForBoard, stageRoleOptions } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
 
 import { SettingsSection } from "../SettingsSection";
@@ -47,7 +47,7 @@ export default async function FlowSettingsPage({ params }: PageProps<"/projects/
           <AdminOnly>
             <StagesEditor
               project={project}
-              roleOptions={stageRoleOptions(roles, humanRoles)}
+              roleOptions={stageRoleOptions(rolesForBoard(roles, project.capabilities.includes("REPOSITORY")), humanRoles)}
               humanRoleOptions={humanRoles.map((k) => ({ value: k, label: roleLabel(k) }))}
               documentOptions={documents.map((d) => ({ value: d.kind, label: d.label }))}
             />

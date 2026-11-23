@@ -30,6 +30,7 @@ function parseUsd(text: string): number | null | undefined {
 export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
   const [usage, setUsage] = useState(initial);
   const [budget, setBudget] = useState(initial.budgetUsd?.toString() ?? "");
+  const [cardCap, setCardCap] = useState(initial.cardCapUsd?.toString() ?? "");
   const [pending, start] = useTransition();
   const spent = usage.costUsd;
   const ratio = spent != null && usage.budgetUsd ? Math.min(1, spent / usage.budgetUsd) : null;
@@ -83,68 +84,51 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
         className="flex flex-wrap items-end gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          const value = budget.trim() === "" ? null : Number(budget.replace(",", "."));
-          if (value != null && (!Number.isFinite(value) || value <= 0)) {
-            notify.error("Escribe un monto mayor que cero, o déjalo vacío para no tener tope.");
-            return;
-          }
+          const monthly = parseUsd(budget);
+          if (monthly === undefined) return;
+          const perCard = parseUsd(cardCap);
+          if (perCard === undefined) return;
           start(async () => {
-            const r = await setAiBudgetAction(value);
-            if (!r.ok) {
-              notify.error("No se pudo guardar", r.error);
-              return;
+            // Un solo botón para los dos topes: solo se envía el que cambió.
+            let report: AiUsageReport | null = null;
+            if (monthly !== usage.budgetUsd) {
+              const r = await setAiBudgetAction(monthly);
+              if (!r.ok) {
+                notify.error("No se pudo guardar el tope mensual", r.error);
+                return;
+              }
+              report = r.data;
             }
-            setUsage(r.data);
-            notify.ok(value == null ? "Sin tope mensual" : `Tope mensual: ${usd(value)}`);
+            if (perCard !== usage.cardCapUsd) {
+              const r = await setCardCapAction(perCard);
+              if (!r.ok) {
+                notify.error("No se pudo guardar el tope por tarjeta", r.error);
+                if (report) setUsage(report);
+                return;
+              }
+              report = r.data;
+            }
+            if (report) setUsage(report);
+            notify.ok(`Tope mensual: ${monthly == null ? "sin tope" : usd(monthly)} · por tarjeta: ${perCard == null ? "sin tope" : usd(perCard)}`);
           });
         }}
       >
         <div className="w-48">
           <Field label="Tope mensual (USD)" hint="Vacío = sin tope.">
-            {(id) => <TextInput id={id} inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="20" />}
+            {(id) => <TextInput id={id} inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="Sin tope" />}
           </Field>
         </div>
-        <Button type="submit" loading={pending}>Guardar tope</Button>
+        <div className="w-48">
+          <Field label="Tope por tarjeta (USD)" hint="Vacío = sin tope.">
+            {(id) => <TextInput id={id} inputMode="decimal" value={cardCap} onChange={(e) => setCardCap(e.target.value)} placeholder="Sin tope" />}
+          </Field>
+        </div>
+        <Button type="submit" loading={pending}>Guardar topes</Button>
       </form>
-      <CardCap value={usage.cardCapUsd} onSaved={setUsage} />
       <p className="text-xs text-fg-faint">
         Te avisamos al 80 % y al 100 % de cada tope; al llegar, esos agentes no toman trabajo nuevo.
       </p>
     </div>
-  );
-}
-
-/** Tope por tarjeta: corta los bucles (rehacer, que la devuelvan, rehacer) antes de que gasten el mes. */
-function CardCap({ value, onSaved }: { value: number | null; onSaved: (r: AiUsageReport) => void }) {
-  const [text, setText] = useState(value?.toString() ?? "");
-  const [pending, start] = useTransition();
-  return (
-    <form
-      className="flex flex-wrap items-end gap-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const v = parseUsd(text);
-        if (v === undefined) return;
-        start(async () => {
-          const r = await setCardCapAction(v);
-          if (!r.ok) {
-            notify.error("No se pudo guardar", r.error);
-            return;
-          }
-          onSaved(r.data);
-          notify.ok(v == null ? "Sin tope por tarjeta" : `Ninguna tarjeta gasta más de ${usd(v)}`);
-        });
-      }}
-    >
-      <div className="w-48">
-        <Field label="Tope por tarjeta (USD)">
-          {(id) => <TextInput id={id} inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} placeholder="3" />}
-        </Field>
-      </div>
-      <Button type="submit" loading={pending}>
-        Guardar
-      </Button>
-    </form>
   );
 }
 

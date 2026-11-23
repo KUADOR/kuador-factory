@@ -1334,6 +1334,9 @@ export interface MailDetection {
   smtpPort: number | null;
   smtpSsl: boolean | null;
   sure: boolean;
+  /** Qué contraseña pide ese proveedor (p. ej. Gmail: de aplicación) y dónde se crea; nulos si sirve la del correo. */
+  help: string | null;
+  helpUrl: string | null;
 }
 
 /** Un buzón por IMAP y SMTP. `password` vacía al editar: se conserva la guardada. */

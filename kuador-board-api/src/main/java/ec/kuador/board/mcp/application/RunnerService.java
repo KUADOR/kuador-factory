@@ -122,7 +122,7 @@ public class RunnerService {
      * una sola vez), en vez de que el agente clone el repo en cada tarjeta.
      */
     private List<String> repositoriesOf(ProjectView project) {
-        if (!project.software() || repositories == null) return List.of();
+        if (!project.repository() || repositories == null) return List.of();
         try {
             return repositories.pieces(project.key()).stream().map(ec.kuador.board.sync.RepositoriesApi.Piece::repository)
                     .filter(r -> r != null && !r.isBlank()).distinct().toList();

@@ -115,7 +115,7 @@ export function IssueDetail({
                 notify.ok("Enlace copiado");
               },
             },
-            ...(canEdit ? (["separator", { label: "Eliminar issue", icon: Trash, danger: true, onSelect: () => setConfirming(true) }] as const) : []),
+            ...(canEdit ? (["separator", { label: "Eliminar tarjeta", icon: Trash, danger: true, onSelect: () => setConfirming(true) }] as const) : []),
           ]}
         />
       }
@@ -171,7 +171,7 @@ export function IssueDetail({
             Se borra «{issue.title}» con sus comentarios. No se puede deshacer.
           </>
         }
-        confirmLabel="Eliminar issue"
+        confirmLabel="Eliminar tarjeta"
         pending={pending}
         onConfirm={() =>
           startTransition(async () => {
@@ -190,12 +190,12 @@ export function IssueDetail({
 
 function IssueTabs({ issueKey, members, project, actions }: { issueKey: string; members: Member[]; project: Project; actions: QuickAction[] }) {
   const [tab, setTab] = useState<"comments" | "files" | "history" | "docs">("comments");
-  // Documentos solo en proyectos de software con metodología.
-  const withDocs = project.kind === "SOFTWARE" && project.methodology != null;
+  // Documentos en tableros que los usan y ya eligieron su manual.
+  const withDocs = project.capabilities.includes("DOCUMENTS") && project.methodology != null;
   return (
     <div className="mt-2">
       <Tabs
-        ariaLabel="Detalle del issue"
+        ariaLabel="Detalle de la tarjeta"
         value={tab}
         onChange={setTab}
         items={[
@@ -234,7 +234,7 @@ function IssueDocs({ issueKey, project }: { issueKey: string; project: Project }
   return (
     <div className="flex flex-col gap-3">
       {docs.length === 0 && (
-        <p className="text-xs text-fg-faint">Este issue aún no tiene documentos.</p>
+        <p className="text-xs text-fg-faint">Esta tarjeta aún no tiene documentos.</p>
       )}
       <ul className="flex flex-col gap-2">
         {docs.map((d) => (

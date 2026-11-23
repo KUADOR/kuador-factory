@@ -84,6 +84,42 @@ class StagesTest {
     }
 
     @Test
+    void aStageDoesNotLetACardLeaveWithoutWhatItRequires() {
+        // «En progreso» exige un archivo; la puerta, además, un documento. Vale igual para personas y agentes.
+        projects.stages("KUA", 2,
+                new StageDef("TODO", List.of(), true, List.of("OWNER"), "BACKLOG", null, false, List.of("El pedido tiene fecha"),
+                        List.of(new ec.kuador.board.catalog.Requirement(ec.kuador.board.catalog.Requirement.Kind.DOCUMENT, "SPEC"))),
+                new StageDef("IN_PROGRESS", List.of("BACKEND"), false, List.of(), null, null, false, List.of(),
+                        List.of(new ec.kuador.board.catalog.Requirement(ec.kuador.board.catalog.Requirement.Kind.ATTACHMENT, null))));
+        java.util.Set<String> withFile = new java.util.HashSet<>();
+        java.util.Set<String> withSpec = new java.util.HashSet<>();
+        service.setEvidence(List.of(new ec.kuador.board.issue.CardEvidence() {
+            @Override
+            public boolean hasAttachment(String issueKey) {
+                return withFile.contains(issueKey);
+            }
+
+            @Override
+            public boolean hasDocument(String issueKey, String kind) {
+                return "SPEC".equals(kind) && withSpec.contains(issueKey);
+            }
+        }));
+
+        Issue work = issueIn("IN_PROGRESS");
+        service.take(work.key(), BACKEND);
+        assertThatThrownBy(() -> service.deliver(work.key(), "Listo", BACKEND)).isInstanceOf(DomainException.class).hasMessageContaining("un archivo adjunto");
+        withFile.add(work.key());
+        assertThat(service.deliver(work.key(), "Listo", BACKEND).status()).isEqualTo("IN_REVIEW");
+
+        Issue gated = issueIn("TODO");
+        assertThatThrownBy(() -> service.review(gated.key(), true, null, OWNER)).isInstanceOf(DomainException.class).hasMessageContaining("el documento SPEC");
+        assertThat(service.review(gated.key(), false, "Falta la spec", OWNER).status()).as("rechazar no exige nada").isEqualTo("BACKLOG");
+        Issue again = issueIn("TODO");
+        withSpec.add(again.key());
+        assertThat(service.review(again.key(), true, null, OWNER).status()).isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
     void rejectingSendsTheIssueBackWithTheReason() {
         Issue issue = issueIn("TODO");
         Issue rejected = service.review(issue.key(), false, "Faltan los criterios de aceptación", OWNER);

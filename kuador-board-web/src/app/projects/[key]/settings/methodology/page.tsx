@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { boardApi } from "@/lib/api";
+import { can } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
 
 import { MethodologyPicker } from "../MethodologyPicker";
@@ -19,9 +20,10 @@ export default async function MethodologySettingsPage({ params }: PageProps<"/pr
     return failPage(e);
   }
   const [project, methodologies] = data;
-  if (project.kind !== "SOFTWARE") notFound();
+  if (!can(project, "DOCUMENTS")) notFound();
+  const repository = can(project, "REPOSITORY");
   return (
-    <SettingsSection title="Metodología" description="Cambiarla no borra documentos.">
+    <SettingsSection title={repository ? "Metodología" : "Manual de trabajo"} description={repository ? "Cambiarla no borra documentos." : "Qué documentos lleva el tablero y cómo trabajan los agentes. Cambiarlo no borra documentos."}>
       <div className="rounded-lg border border-line bg-surface p-5">
         <MethodologyPicker project={project} methodologies={methodologies} />
       </div>

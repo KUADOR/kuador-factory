@@ -1,5 +1,6 @@
 package ec.kuador.board.project.application;
 
+import ec.kuador.board.catalog.Capability;
 import ec.kuador.board.catalog.CatalogApi;
 import ec.kuador.board.catalog.CatalogUsage;
 import ec.kuador.board.catalog.ColumnDef;
@@ -60,9 +61,16 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         this.billing = billing;
     }
 
-    /** Plantillas y metodologías que son parte de la fábrica de software (planes que la incluyen). */
-    static final String FACTORY_TEMPLATE = "SOFTWARE_FACTORY";
+    /** El manual sin reglas de agentes: no es parte de la fábrica de software (planes que la incluyen). */
     static final String FREE_METHODOLOGY = "FREE";
+
+    /**
+     * Una plantilla es de la fábrica de software si trabaja con repositorio y sus etapas las cubren roles: no depende de
+     * su clave, así una copia con otro nombre cuenta igual.
+     */
+    static boolean softwareFactory(WorkflowTemplate template) {
+        return template.can(Capability.REPOSITORY) && template.stages().stream().anyMatch(s -> !s.roles().isEmpty());
+    }
 
     public record ProjectWithColumns(Project project, List<ColumnDef> columns) {}
 
@@ -98,19 +106,19 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         WorkflowTemplate template = catalog.workflowTemplate(templateKey)
                 .orElseThrow(() -> new NotFoundException("No existe la plantilla de flujo " + templateKey + "."));
         billing.requireRoom(BillingApi.Limit.PROJECTS, projects.findAll().size());
-        if (FACTORY_TEMPLATE.equals(template.key())) billing.requireFactory("La plantilla «" + template.name() + "»");
+        if (softwareFactory(template)) billing.requireFactory("La plantilla «" + template.name() + "»");
         // Del catálogo se copian columnas, tipos, etapas (roles y puertas) y pasos del flujo.
         Transitions transitions = template.transitions().isEmpty() ? Transitions.FREE
                 : new Transitions(true, template.transitions().stream().map(t -> new Transitions.Transition(t.from(), t.to())).toList());
-        Project project = Project.create(key, name, description, template.kind(), template.key(), template.issueTypes(), transitions,
-                template.stages(), clock.instant());
+        Project project = Project.create(key, name, description, template.capabilities(), template.key(), template.issueTypes(), transitions,
+                template.stages(), template.estimate(), clock.instant());
         if (projects.existsByKey(project.key())) {
             throw new ConflictException("Ya existe un proyecto con la clave " + project.key() + ".");
         }
         Project saved = projects.save(project);
         projects.saveColumns(saved.key(), template.columns());
         events.publishEvent(new ec.kuador.board.project.ProjectCreated(UUID.randomUUID(), TenantContext.require(), saved.key(), catalog.defaultTeam(template.key()),
-                template.kind() == ec.kuador.board.catalog.ProjectKind.SOFTWARE, clock.instant()));
+                template.can(ec.kuador.board.catalog.Capability.REPOSITORY), clock.instant()));
         return new ProjectWithColumns(saved, template.columns());
     }
 
@@ -174,13 +182,47 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         events.publishEvent(new ProjectDeleted(UUID.randomUUID(), TenantContext.require(), project.key(), project.name(), actorId, clock.instant()));
     }
 
+    /**
+     * Qué usa el tablero (solo personas). No se apaga lo que ya tiene contenido: los documentos con un manual elegido, ni
+     * el repositorio una vez encendido (hay ramas, piezas y PR que dependen de él).
+     */
+    @Transactional
+    public ProjectWithColumns setCapabilities(String key, List<Capability> capabilities) {
+        Project project = load(key);
+        List<Capability> wanted = Capability.normalize(capabilities == null ? List.of() : capabilities);
+        if (project.can(Capability.REPOSITORY) && !wanted.contains(Capability.REPOSITORY)) {
+            throw new DomainException("Este tablero ya trabaja con un repositorio de código: eso no se apaga.");
+        }
+        if (!project.can(Capability.REPOSITORY) && wanted.contains(Capability.REPOSITORY)) {
+            throw new DomainException("El repositorio de código se elige al crear el tablero, con una plantilla de software.");
+        }
+        if (project.methodology() != null && !wanted.contains(Capability.DOCUMENTS)) {
+            throw new DomainException("Este tablero tiene un manual de trabajo elegido: quítalo antes de apagar los documentos.");
+        }
+        Project updated = project.withCapabilities(wanted);
+        projects.updateCapabilities(key, updated.capabilities());
+        return new ProjectWithColumns(updated, projects.findColumns(key));
+    }
+
+    /** La forma de la tarjeta: nombres de los tipos, sus datos propios y la unidad de medida (solo personas). */
+    @Transactional
+    public ProjectWithColumns setCard(String key, List<ec.kuador.board.catalog.IssueTypeDef> issueTypes, ec.kuador.board.catalog.EstimateUnit estimate) {
+        Project updated = load(key).withCard(issueTypes, estimate);
+        projects.updateCard(key, updated.issueTypes(), updated.estimate());
+        return new ProjectWithColumns(updated, projects.findColumns(key));
+    }
+
     @Transactional
     public ProjectWithColumns setMethodology(String key, String methodologyKey) {
         if (methodologyKey != null && catalog.methodology(methodologyKey).isEmpty()) {
             throw new NotFoundException("No existe la metodología " + methodologyKey + " en el catálogo.");
         }
-        if (methodologyKey != null && !FREE_METHODOLOGY.equals(methodologyKey)) billing.requireFactory("Trabajar con una metodología de agentes");
-        Project updated = load(key).withMethodology(methodologyKey); // valida que sea de software
+        Project current = load(key);
+        // El manual de un tablero sin repositorio (una clínica, ventas) no es la fábrica de software.
+        if (methodologyKey != null && !FREE_METHODOLOGY.equals(methodologyKey) && current.can(Capability.REPOSITORY)) {
+            billing.requireFactory("Trabajar con una metodología de agentes");
+        }
+        Project updated = current.withMethodology(methodologyKey); // valida que el tablero use documentos
         projects.updateMethodology(key, methodologyKey);
         return new ProjectWithColumns(updated, projects.findColumns(key));
     }
@@ -201,7 +243,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Transactional(readOnly = true)
     public Optional<ProjectView> find(String projectKey) {
         return projects.findByKey(projectKey).map(p -> new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(),
-                projects.findColumns(p.key()), p.issueTypes(), p.transitions(), p.stages(), p.maxRework()));
+                projects.findColumns(p.key()), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.capabilities(), p.estimate()));
     }
 
     @Override

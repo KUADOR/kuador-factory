@@ -53,7 +53,7 @@ export function WorkflowEditor({ project, counts }: { project: Project; counts: 
               <span className="tabular text-center font-mono text-xs text-fg-faint">{i + 1}</span>
               <TextInput size="sm" required maxLength={40} value={c.name} onChange={(e) => update(c.id, { name: e.target.value })} aria-label={`Nombre de la columna ${i + 1}`} />
               <SelectInput size="sm" ariaLabel={`Categoría de ${c.name || `la columna ${i + 1}`}`} options={categoryOptions} value={c.category} onChange={(v) => v && update(c.id, { category: v })} />
-              <span className="tabular text-right text-xs text-fg-faint">{c.key ? `${count} ${count === 1 ? "issue" : "issues"}` : "nueva"}</span>
+              <span className="tabular text-right text-xs text-fg-faint">{c.key ? `${count} ${count === 1 ? "tarjeta" : "tarjetas"}` : "nueva"}</span>
               <span className="flex">
                 <Button tone="ghost" size="sm" icon={ArrowUp} iconOnly label={`Subir ${c.name}`} disabled={i === 0} onClick={() => move(i, -1)} />
                 <Button tone="ghost" size="sm" icon={ArrowDown} iconOnly label={`Bajar ${c.name}`} disabled={i === drafts.length - 1} onClick={() => move(i, 1)} />
@@ -62,7 +62,7 @@ export function WorkflowEditor({ project, counts }: { project: Project; counts: 
                   size="sm"
                   icon={Trash}
                   iconOnly
-                  label={count > 0 ? "Mueve primero sus issues a otra columna" : `Quitar ${c.name}`}
+                  label={count > 0 ? "Mueve primero sus tarjetas a otra columna" : `Quitar ${c.name}`}
                   disabled={drafts.length === 1 || count > 0}
                   onClick={() => setDrafts((d) => d.filter((x) => x.id !== c.id))}
                 />

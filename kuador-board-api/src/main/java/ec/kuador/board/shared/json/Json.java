@@ -15,6 +15,12 @@ public final class Json {
         return MAPPER.writeValueAsString(value);
     }
 
+    /** Un objeto JSON de textos ({@code {"clave":"valor"}}), en su orden. */
+    public static java.util.Map<String, String> readMap(String json) {
+        if (json == null || json.isBlank()) return java.util.Map.of();
+        return MAPPER.readValue(json, MAPPER.getTypeFactory().constructMapType(java.util.LinkedHashMap.class, String.class, String.class));
+    }
+
     public static <T> List<T> readList(String json, Class<T> elementType) {
         if (json == null || json.isBlank()) return List.of();
         return MAPPER.readValue(json, MAPPER.getTypeFactory().constructCollectionType(List.class, elementType));

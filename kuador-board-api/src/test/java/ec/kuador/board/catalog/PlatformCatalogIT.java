@@ -100,7 +100,7 @@ class PlatformCatalogIT {
         assertThat(call("GET", "/api/platform/catalog", null, untouched).get("_status").asInt()).isEqualTo(403);
 
         JsonNode summary = call("GET", "/api/platform/catalog", null, admin).get("body");
-        assertThat(summary.get("version").asInt()).isEqualTo(10);
+        assertThat(summary.get("version").asInt()).isEqualTo(11);
         assertThat(summary.get("pending").asInt()).isZero();
         JsonNode analyst = call("GET", "/api/platform/catalog/roles", null, admin).get("body").valueStream()
                 .filter(e -> e.get("key").asString().equals("ANALYST")).findFirst().orElseThrow();
@@ -151,7 +151,7 @@ class PlatformCatalogIT {
                 .as("el borrador no llega a nadie").doesNotContain("mejorado");
 
         JsonNode published = call("POST", "/api/platform/catalog/publish", null, admin).get("body");
-        assertThat(published.get("version").asInt()).isEqualTo(11);
+        assertThat(published.get("version").asInt()).isEqualTo(12);
         assertThat(published.get("pending").asInt()).isZero();
         assertThat(call("POST", "/api/platform/catalog/publish", null, admin).get("_status").asInt()).as("sin cambios no hay versión").isEqualTo(422);
 

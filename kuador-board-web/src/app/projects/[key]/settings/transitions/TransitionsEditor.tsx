@@ -77,7 +77,7 @@ export function TransitionsEditor({ project }: { project: Project }) {
         <p className="text-xs text-fg-muted">
           {restricted
             ? "Solo se permiten los pasos que dibujes, para personas y agentes."
-            : "Cualquier issue puede ir a cualquier columna."}
+            : "Cualquier tarjeta puede ir a cualquier columna."}
         </p>
       </div>
 

@@ -1,8 +1,42 @@
 # Kuador Go
 
-Fábrica de software de Kuador: un **tablero tipo Jira** donde personas y **agentes especialistas**
-(PO, arquitecto, backend Spring Boot, frontend React/Angular, DevOps, QA, marketing) trabajan en el
-mismo flujo de issues.
+Una **fábrica de trabajo** para cualquier negocio: cada empresa describe cómo se hace su trabajo (los pasos, quién hace
+cada uno y dónde aprueba una persona) y un equipo de **personas y agentes de IA** lo saca adelante en el mismo tablero.
+Los agentes preparan; las personas deciden. Nació como fábrica de software (PO, arquitecto, backend, frontend, DevOps,
+QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ventas.
+
+| Lo que ves | Lo que es en la fábrica |
+|---|---|
+| Plantilla de flujo | La línea de trabajo |
+| Columna / etapa | Un paso |
+| Rol (persona o agente) | Quién hace el paso |
+| Puerta | Una aprobación |
+| Tarjeta | Un pedido, con los datos propios del negocio |
+| Documento, archivo, PR | Lo que se entrega |
+| Manual de trabajo (metodología) | Cómo se trabaja |
+
+## Lo que hace adaptable a un tablero
+
+- **Capacidades por tablero** (`catalog/Capability`): cada plantilla y cada tablero encienden lo que usan: `DOCUMENTS`
+  (manual de trabajo y documentos con versiones), `REPOSITORY` (repositorio de código: piezas, PR, CI, kit de agentes) y
+  `SPLIT` (repartir un trabajo grande en tareas). Ya no hay «tableros de software» y «los demás»: `kind` queda como dato
+  derivado (`SOFTWARE` = tiene repositorio). Se cambian en *Configuración → General* (el repositorio se elige al crear).
+- **Tarjeta adaptable**: cada tipo de tarjeta lleva sus **datos propios** (`FieldDef`: texto, número, dinero, fecha o
+  lista), definidos en la plantilla o en *Configuración → Tarjeta* y validados al guardar; y el tablero dice en qué mide
+  el tamaño de sus tarjetas (`EstimateUnit`: puntos, horas o nada).
+- **Etapas que exigen y comprueban** (`StageDef`): `requires` es lo que la tarjeta debe tener para salir de la etapa (un
+  archivo, un documento o un dato lleno; lo hace cumplir el tablero para personas y agentes) y `checklist` lo que debe
+  verificar quien aprueba o entrega. La revisión por agente vale para cualquier trabajo; lo de código (CI, fusionar el
+  PR, rutas sensibles) solo aplica con repositorio.
+- **Conexiones del negocio** (módulo `connections`, *Conexiones → Sistemas de la empresa*): servidores MCP por HTTP de la
+  empresa (correo, agenda, ERP). El tablero hace de intermediario: la credencial va cifrada y nunca sale del servidor,
+  sirve con cualquier proveedor de IA, y los agentes locales las usan con `business_tools` / `use_business_tool`. Lo que
+  solo lee se ofrece; lo que escribe, solo si quien administra lo habilitó. Solo HTTPS hacia Internet
+  (`board.connections.allow-private=true` para desarrollo local). Todavía no hay servidores que pidan OAuth.
+- **Armar un tablero con IA** (`/design`, `BoardDesigner`): la persona cuenta a qué se dedica su empresa y la IA propone
+  pasos, roles, aprobaciones y datos de la tarjeta; se valida como cualquier plantilla y nada se crea hasta aceptarlo.
+- **Catálogo para cualquier negocio**: rol **Revisor** (revisa cualquier trabajo en una puerta) y **Manual de
+  procedimientos** (El negocio, Procedimientos, Glosario), además de lo de software.
 
 | Carpeta | Qué es | Stack |
 |---|---|---|
@@ -164,8 +198,10 @@ curl -H "Authorization: Bearer kfa_..." http://127.0.0.1:8091/api/auth/me
 
 ## Agentes
 
-Un agente es un miembro del tablero. El módulo `agents` lo despierta cuando **una persona** le
-asigna un issue (evento `IssueAssigned`). Por ahora trabaja el **Agente PO** (rol `PRODUCT_OWNER`):
+Un agente es un miembro del tablero. El módulo `agents` lo despierta cuando le asignan una tarjeta (evento
+`IssueAssigned`) o cuando la cadena la lleva a su etapa. Los agentes trabajan en el tablero (SERVER, `BoardAgent`) o en
+la PC de una persona (LOCAL, por MCP o con el runner); ver «Agentes en el tablero» y «Agentes locales» más abajo. El
+**Agente PO** (rol con `automation: REFINE_ISSUE`) tiene además su camino propio de refinamiento:
 
 1. **Arma el contexto** desde el código:
    - su rol (la descripción del miembro) y la metodología con sus reglas;
@@ -228,9 +264,10 @@ nunca llama a la API) y `LiveUpdates` recarga la página del proyecto y los pane
 sin pisar lo que alguien está escribiendo. Las conexiones viven en memoria (una réplica) con un
 latido cada 25 s; si se cortan, el navegador se reconecta y recarga.
 
-## Metodología y documentos (solo proyectos de Software)
+## Metodología (manual de trabajo) y documentos
 
-En *Configurar* se elige la metodología; en *Docs* se crean los documentos desde plantillas. Cada
+Los lleva cualquier tablero con la capacidad `DOCUMENTS`. En *Configuración* se elige la metodología (en un tablero
+sin repositorio se llama «Manual de trabajo»); en *Documentos* se crean desde plantillas. Cada
 guardado es una versión nueva (autor, nota y fecha) y cualquier versión se puede ver o restaurar.
 
 | Metodología | Del proyecto | Por issue |
@@ -378,19 +415,15 @@ Errores en formato Problem Details (RFC 9457), con mensajes en español: 400, 40
 2. **Base para agentes** ✅ autenticación (personas y tokens de servicio), eventos de dominio con
    entrega garantizada e historial de actividad.
 3. **Contexto de proyectos de software** ✅ metodología (SDD, ODD o Libre), documentos versionados y
-   sincronización en tres vías con GitHub (Pull Requests) y con carpetas locales. Falta el webhook
-   de GitHub, que requiere desplegar el tablero.
-4. **Fábrica de agentes**: módulo `agents` ✅ con el **Agente PO**. Siguen el arquitecto, backend,
-   frontend, QA, DevOps y marketing. Detalle de lo planeado: un módulo `agents` que escucha `IssueAssigned` e `IssueMoved`. Cuando un issue se asigna a
-   un agente o entra a su columna, el agente trabaja sobre el repositorio con Claude Agent SDK,
-   comenta el resultado y mueve el issue (por ejemplo Backend → En QA → QA valida → Hecho o vuelve
-   a En progreso con evidencia).
-5. **Agentes de negocio**: marketing y ventas a partir de lo entregado en "Hecho".
+   sincronización en tres vías con GitHub (Pull Requests). Falta el webhook de GitHub.
+4. **Fábrica de agentes** ✅ cadena automática entre etapas, agentes en el tablero y locales (MCP y runner), revisor de
+   PR con puerta automática, rutinas, presupuesto con frenos y credenciales por ejecución.
+5. **Agentes de negocio** ✅ ventas, marketing y tareas con analista, marketing y diseño.
+6. **Fábrica de cualquier negocio** ✅ capacidades por tablero, conexiones del negocio, tarjeta adaptable, etapas con
+   requisitos y lista de verificación, tablero armado con IA. Sigue: servidores MCP con OAuth, que una persona apruebe
+   cada acción que escribe hacia afuera, y paquetes por industria con su contenido completo.
 
-Plan de la fábrica (`docs/diseno-fabrica.md`): **Fase 0** ✅ base configurable (espacios de trabajo,
-catálogo por espacio, interfaz nueva con PrimeReact). Siguen: 1 etapas, roles y aprobaciones
-humanas · 2 servidor MCP del tablero · 3 proyecto nuevo desde plantillas · 4 PO y arquitecto por
-MCP · 5 desarrollo y QA · 6 release.
+El diseño original de la fábrica de software está en `docs/diseno-fabrica.md` (sus fases 0 a 6 ya están hechas).
 
 > Antes de exponer la API fuera de `127.0.0.1`: ponla detrás de HTTPS, deshabilita Swagger en
 > producción y usa una contraseña inicial fuerte. Si hay varias instancias, mueve el bloqueo de login

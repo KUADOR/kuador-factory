@@ -6,6 +6,7 @@ import { failPage } from "@/lib/page-errors";
 import { requireAdmin } from "@/lib/require-editor";
 
 import { AiConnection } from "./AiConnection";
+import { BusinessConnections } from "./BusinessConnections";
 import { GitHubConnections } from "./GitHubConnections";
 import { TelegramConnection } from "./TelegramConnection";
 
@@ -23,11 +24,13 @@ export default async function ConnectionsPage({ searchParams }: PageProps<"/conn
       boardApi.telegramSetup(),
       boardApi.workspaceAi(),
       boardApi.aiUsage().catch(() => null),
+      boardApi.connections().catch(() => []),
+      boardApi.projects().catch(() => []),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [github, workspace, telegram, ai, usage] = data;
+  const [github, workspace, telegram, ai, usage, connections, projects] = data;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
   return (
     <>
@@ -35,6 +38,7 @@ export default async function ConnectionsPage({ searchParams }: PageProps<"/conn
       <GitHubConnections overview={github} workspaceName={workspace.name} done={one(params.listo)} error={one(params.error)} />
       <div className="flex max-w-3xl flex-col gap-5 px-4 pb-5 sm:px-6 sm:pb-6">
         <AiConnection status={ai} usage={usage} />
+        <BusinessConnections connections={connections} boards={projects.map((p) => ({ key: p.key, name: p.name }))} />
         <TelegramConnection setup={telegram} />
       </div>
     </>

@@ -25,7 +25,7 @@ export function ProjectDetailsForm({ project }: { project: Project }) {
           const r = await updateProjectAction(project.key, { name, description: description.trim() || null });
           if (r.ok) {
             setError(null);
-            notify.ok("Proyecto actualizado");
+            notify.ok("Tablero actualizado");
             router.refresh();
           } else setError(r.error);
         });

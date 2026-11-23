@@ -74,7 +74,7 @@ export function IssueCard({
           )}
           <PriorityIcon priority={issue.priority} />
           {issue.storyPoints != null && (
-            <span title="Story points" className="tabular min-w-5 rounded-full bg-hover px-1.5 text-center font-mono text-[11px] text-fg">
+            <span title="Tamaño" className="tabular min-w-5 rounded-full bg-hover px-1.5 text-center font-mono text-[11px] text-fg">
               {issue.storyPoints}
             </span>
           )}

@@ -121,7 +121,7 @@ public class AgentKitService {
 
     private List<Target> targets(String projectKey) {
         ProjectView project = projects.find(projectKey).orElseThrow(() -> new NotFoundException("No existe el proyecto " + projectKey + "."));
-        if (!project.software()) throw new DomainException("El kit de agentes es para proyectos de software.");
+        if (!project.repository()) throw new DomainException("El kit de agentes es para tableros con repositorio de código.");
         Optional<RepositoryLink> link = records.findLink(projectKey).filter(l -> ComponentService.KIND.equals(l.kind()));
         if (link.isEmpty()) return List.of();
         long installationId = Long.parseLong(link.get().secret());

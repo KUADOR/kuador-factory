@@ -148,7 +148,17 @@ export function StageBar({
           {stage.gate && !isHuman && <p className="text-xs text-fg-muted">Esta puerta la cierra una persona.</p>}
         </div>
       )}
-      {stage?.gate && canApprove && canEdit && project.kind === "SOFTWARE" && !rejecting && <PullMerge projectKey={project.key} issueKey={issue.key} />}
+      {stage && (stage.checklist ?? []).length > 0 && (canApprove || mine) && !rejecting && (
+        <ul className="flex flex-col gap-1 text-xs text-fg-muted" aria-label={stage.gate ? "Antes de aprobar" : "Antes de entregar"}>
+          {(stage.checklist ?? []).map((item) => (
+            <li key={item} className="flex items-start gap-1.5">
+              <Check className="mt-0.5 size-3 shrink-0 text-fg-faint" aria-hidden />
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
+      {stage?.gate && canApprove && canEdit && project.capabilities.includes("REPOSITORY") && !rejecting && <PullMerge projectKey={project.key} issueKey={issue.key} />}
 
       {rejecting && (
         <form

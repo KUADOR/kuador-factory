@@ -18,7 +18,7 @@ class FactoryCatalogTest {
     @Test
     void bringsTheExpectedDefaults() {
         assertThat(factory.workflowTemplates()).extracting(t -> t.key()).containsExactly("SOFTWARE", "SOFTWARE_FACTORY", "SALES", "MARKETING", "TASKS");
-        assertThat(factory.methodologies()).extracting(Methodology::key).containsExactly("SDD", "ODD", "FREE");
+        assertThat(factory.methodologies()).extracting(Methodology::key).containsExactly("SDD", "ODD", "FREE", "MANUAL");
         assertThat(factory.roles()).extracting(AgentRole::key)
                 .contains("PRODUCT_OWNER", "ARCHITECT", "BACKEND", "FRONTEND", "QA", "DEVOPS", "RELEASE", "MARKETING");
         assertThat(factory.mcpServers()).extracting(s -> s.key()).contains("CONTEXT7", "GITHUB", "GITHUB_LOCAL");
@@ -70,7 +70,9 @@ class FactoryCatalogTest {
         assertThat(factory.addedAfter(8)).extracting(e -> e.getKey().name() + ":" + e.getValue()).first().isEqualTo("COMPONENT_TEMPLATE:MOBILE_FLUTTER");
         // La versión 10 suma la plantilla Marketing y el agente de Diseño que hace sus imágenes.
         assertThat(factory.addedAfter(9)).extracting(e -> e.getKey().name() + ":" + e.getValue())
-                .containsExactly("WORKFLOW_TEMPLATE:MARKETING", "AGENT_ROLE:DESIGNER");
+                .containsExactly("WORKFLOW_TEMPLATE:MARKETING", "AGENT_ROLE:DESIGNER", "AGENT_ROLE:REVIEWER", "METHODOLOGY:MANUAL");
+        // La versión 11 suma lo que usa un tablero que no es de software: un revisor de cualquier trabajo y un manual de procedimientos.
+        assertThat(factory.addedAfter(10)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_ROLE:REVIEWER", "METHODOLOGY:MANUAL");
         assertThat(factory.componentTemplates()).filteredOn(c -> c.key().equals("MOBILE_FLUTTER")).singleElement().satisfies(c -> {
             assertThat(c.kind()).isEqualTo(ec.kuador.board.catalog.ComponentTemplate.Kind.MOBILE);
             assertThat(c.commands().test()).isEqualTo("flutter analyze && flutter test");

@@ -120,7 +120,7 @@ public class BoardChat {
     String context(ProjectView p) {
         StringBuilder s = new StringBuilder("# Tablero ").append(p.key()).append(" — ").append(p.name()).append('\n');
         projects.goal(p.key()).filter(g -> !g.isBlank()).ifPresent(g -> s.append("Objetivo: ").append(clip(g, 1500)).append('\n'));
-        if (p.software()) {
+        if (p.documents()) {
             docs.ofProject(p.key()).stream().filter(d -> "PRODUCT".equals(d.kind())).findFirst()
                     .ifPresent(d -> s.append("\n## Documento de Producto (extracto)\n").append(clip(d.content(), 5000)).append('\n'));
         }

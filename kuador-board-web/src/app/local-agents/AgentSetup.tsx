@@ -152,7 +152,7 @@ export function AgentSetup({
 
   return (
     <div className="flex max-w-3xl flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
-      <Section title="1 · Conecta tu cliente de IA" description={`Trabaja en nombre de ${personName} y solo los issues que supervisas.`}>
+      <Section title="1 · Conecta tu cliente de IA" description={`Trabaja en nombre de ${personName} y solo las tarjetas que supervisas.`}>
         <div className="flex flex-col gap-5">
           <ChoiceCards
             name="agent-client"

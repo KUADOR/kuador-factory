@@ -82,6 +82,17 @@ class SalesAndTasksStagesMigrationIT {
             assertThat(parsed.limits().questionRounds()).isEqualTo(2);
             assertThat(parsed).as("igual a la semilla").usingRecursiveComparison().ignoringFields("id", "builtIn", "version")
                     .isEqualTo(new ec.kuador.board.catalog.infrastructure.defaults.YamlFactoryCatalog().agentPolicies().getFirst());
+            // V57: el Revisor y el Manual de procedimientos llegan iguales a la semilla, con el agente que nace con el rol.
+            var seed = new ec.kuador.board.catalog.infrastructure.defaults.YamlFactoryCatalog();
+            Object reviewer = ec.kuador.board.catalog.infrastructure.platform.DbFactoryCatalog.parse(ec.kuador.board.catalog.domain.CatalogType.AGENT_ROLE, "REVIEWER",
+                    one(s, "select published_payload from platform_catalog_entry where type = 'AGENT_ROLE' and entry_key = 'REVIEWER'"));
+            assertThat(reviewer).usingRecursiveComparison().ignoringFields("id", "builtIn", "version")
+                    .isEqualTo(seed.roles().stream().filter(r -> r.key().equals("REVIEWER")).findFirst().orElseThrow());
+            assertThat(one(s, "select extra from platform_catalog_entry where type = 'AGENT_ROLE' and entry_key = 'REVIEWER'")).contains("Agente Revisor");
+            Object manual = ec.kuador.board.catalog.infrastructure.platform.DbFactoryCatalog.parse(ec.kuador.board.catalog.domain.CatalogType.METHODOLOGY, "MANUAL",
+                    one(s, "select published_payload from platform_catalog_entry where type = 'METHODOLOGY' and entry_key = 'MANUAL'"));
+            assertThat(manual).usingRecursiveComparison().ignoringFields("id", "builtIn", "version")
+                    .isEqualTo(seed.methodologies().stream().filter(m -> m.key().equals("MANUAL")).findFirst().orElseThrow());
         }
     }
 

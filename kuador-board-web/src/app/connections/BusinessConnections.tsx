@@ -1,0 +1,173 @@
+"use client";
+
+import { Plus, RefreshCw } from "lucide-react";
+import { useState, useTransition } from "react";
+
+import {
+  deleteConnectionAction,
+  refreshConnectionAction,
+  saveConnectionAction,
+  setConnectionBoardsAction,
+  setConnectionWritesAction,
+} from "@/app/actions";
+import { Button } from "@/components/ui/Button";
+import { ChipPicker } from "@/components/ui/ChipPicker";
+import { ConfirmDialog } from "@/components/ui/Dialog";
+import { Field, PasswordInput, Switch, TextInput } from "@/components/ui/Field";
+import { Badge, Section } from "@/components/ui/Section";
+import { notify } from "@/components/ui/Toaster";
+import type { BusinessConnection } from "@/lib/types";
+
+const BLANK = { key: "", name: "", url: "", secret: "" };
+
+/** «Agenda de la clínica» → AGENDA_DE_LA_CLINICA (la clave con la que los agentes ven sus herramientas). */
+function keyFrom(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^[^A-Z]+|_+$/g, "")
+    .slice(0, 24);
+}
+
+/**
+ * Sistemas de la empresa que los agentes pueden usar (correo, agenda, facturación): cada uno es un servidor MCP. Lo que
+ * solo lee se puede usar apenas se asigna a un tablero; lo que cambia datos, solo si se habilita aquí.
+ */
+export function BusinessConnections({ connections: initial, boards }: { connections: BusinessConnection[]; boards: { key: string; name: string }[] }) {
+  const [connections, setConnections] = useState(initial);
+  const [draft, setDraft] = useState<typeof BLANK | null>(null);
+  const [removing, setRemoving] = useState<BusinessConnection | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const replace = (c: BusinessConnection) => setConnections((all) => (all.some((x) => x.key === c.key) ? all.map((x) => (x.key === c.key ? c : x)) : [...all, c]));
+
+  const create = () =>
+    start(async () => {
+      if (!draft) return;
+      const r = await saveConnectionAction(draft.key || keyFrom(draft.name), { name: draft.name, url: draft.url, header: null, secret: draft.secret || null });
+      if (!r.ok) return setError(r.error);
+      replace(r.data);
+      setDraft(null);
+      setError(null);
+      notify.ok(`${r.data.name} conectado`, `${r.data.tools.length} herramientas. Elige en qué tableros se usa.`);
+    });
+
+  const apply = (work: () => Promise<{ ok: true; data: BusinessConnection } | { ok: false; error: string }>, done?: string) =>
+    start(async () => {
+      const r = await work();
+      if (r.ok) {
+        replace(r.data);
+        if (done) notify.ok(done);
+      } else notify.error("No se pudo guardar", r.error);
+    });
+
+  return (
+    <Section
+      title="Sistemas de la empresa"
+      description="Lo que los agentes pueden consultar o usar: correo, agenda, facturación. Se conectan por MCP."
+      actions={
+        !draft && (
+          <Button size="sm" icon={Plus} onClick={() => setDraft(BLANK)}>
+            Conectar
+          </Button>
+        )
+      }
+    >
+      <div className="flex flex-col gap-5">
+        {draft && (
+          <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); create(); }}>
+            <Field label="Nombre">
+              {(id) => <TextInput id={id} required maxLength={80} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Agenda de la clínica" />}
+            </Field>
+            <Field label="Dirección del servidor MCP" error={error}>
+              {(id) => <TextInput id={id} required type="url" maxLength={500} value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://…/mcp" />}
+            </Field>
+            <Field label="Credencial" hint="Se guarda cifrada y no se vuelve a mostrar. Vacía si el servidor no la pide.">
+              {(id) => <PasswordInput id={id} autoComplete="off" value={draft.secret} onChange={(e) => setDraft({ ...draft, secret: e.target.value })} />}
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button tone="ghost" onClick={() => { setDraft(null); setError(null); }}>Cancelar</Button>
+              <Button type="submit" tone="primary" loading={pending} disabled={!draft.name.trim() || !draft.url.trim()}>Conectar</Button>
+            </div>
+          </form>
+        )}
+
+        {!draft && connections.length === 0 && <p className="text-[13px] text-fg-muted">Todavía no hay ninguno conectado.</p>}
+
+        {connections.map((c) => {
+          const writes = c.tools.filter((t) => !t.readOnly);
+          const reads = c.tools.length - writes.length;
+          return (
+            <div key={c.key} className="flex flex-col gap-3 border-t border-line pt-4 first:border-t-0 first:pt-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="min-w-0 flex-1 text-[13px] font-medium text-fg-strong">
+                  {c.name} <span className="font-mono text-xs font-normal text-fg-faint">{c.url}</span>
+                </p>
+                <Badge tone="neutral">{reads} de consulta</Badge>
+                <Button size="sm" tone="ghost" icon={RefreshCw} loading={pending} onClick={() => apply(() => refreshConnectionAction(c.key), "Herramientas actualizadas")}>
+                  Actualizar
+                </Button>
+                <Button size="sm" tone="ghost" onClick={() => setRemoving(c)}>Quitar</Button>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-fg-muted">Tableros que lo usan</span>
+                <ChipPicker
+                  value={c.boards.map((b) => b.projectKey)}
+                  options={boards.map((b) => ({ value: b.key, label: b.name }))}
+                  onChange={(keys) =>
+                    apply(() => setConnectionBoardsAction(c.key, keys.map((k) => ({ projectKey: k, roles: c.boards.find((b) => b.projectKey === k)?.roles ?? [] }))))
+                  }
+                  placeholder="Agregar tablero"
+                  ariaLabel={`Tableros que usan ${c.name}`}
+                  empty="Ninguno: los agentes aún no lo ven."
+                />
+              </div>
+              {writes.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-medium text-fg-muted">Acciones que cambian datos (apagadas, el agente deja el borrador y lo hace una persona)</span>
+                  {writes.map((t) => (
+                    <div key={t.name} className="flex items-center justify-between gap-4">
+                      <span className="min-w-0 text-[13px] text-fg">
+                        <span className="font-mono text-xs">{t.name}</span> <span className="text-fg-muted">{t.description}</span>
+                      </span>
+                      <Switch
+                        checked={t.allowed}
+                        disabled={pending}
+                        label={`Permitir ${t.name}`}
+                        hideLabel
+                        onChange={(on) => {
+                          const names = writes.filter((w) => (w.name === t.name ? on : w.allowed)).map((w) => w.name);
+                          apply(() => setConnectionWritesAction(c.key, names));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <ConfirmDialog
+        open={removing != null}
+        onCancel={() => setRemoving(null)}
+        onConfirm={() =>
+          start(async () => {
+            if (!removing) return;
+            const r = await deleteConnectionAction(removing.key);
+            if (r.ok) setConnections((all) => all.filter((x) => x.key !== removing.key));
+            else notify.error("No se pudo quitar", r.error);
+            setRemoving(null);
+          })
+        }
+        title={`Quitar ${removing?.name ?? ""}`}
+        message="Los agentes dejan de ver sus herramientas en todos los tableros. La credencial se borra."
+        confirmLabel="Quitar"
+        pending={pending}
+      />
+    </Section>
+  );
+}

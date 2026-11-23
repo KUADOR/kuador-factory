@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 
 import { canAdminister } from "@/lib/access";
 import { boardApi } from "@/lib/api";
-import { PROJECT_KIND_LABEL } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
 
 import { SettingsSection } from "../SettingsSection";
+import { CapabilitiesForm } from "./CapabilitiesForm";
 import { DeleteProject } from "./DeleteProject";
 import { GoalForm } from "./GoalForm";
 import { ProjectDetailsForm } from "./ProjectDetailsForm";
@@ -34,9 +34,8 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
   const template = templates.find((t) => t.key === project.templateKey);
   const facts = [
     { label: "Clave", value: <span className="font-mono">{project.key}</span>, hint: "No se cambia." },
-    { label: "Tipo", value: PROJECT_KIND_LABEL[project.kind], hint: "" },
     { label: "Plantilla de origen", value: template?.name ?? project.templateKey, hint: "" },
-    { label: "Issues", value: <span className="tabular font-mono">{issues.length}</span>, hint: `${project.columns.length} columnas` },
+    { label: "Tarjetas", value: <span className="tabular font-mono">{issues.length}</span>, hint: `${project.columns.length} columnas` },
   ];
   return (
     <SettingsSection title="General">
@@ -51,6 +50,7 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
           </div>
         ))}
       </dl>
+      {canAdminister(me) && <CapabilitiesForm project={project} />}
       {/* Borrar un tablero es de quien administra el espacio. */}
       {canAdminister(me) && <DeleteProject projectKey={project.key} projectName={project.name} issues={issues.length} software={project.kind === "SOFTWARE"} />}
     </SettingsSection>

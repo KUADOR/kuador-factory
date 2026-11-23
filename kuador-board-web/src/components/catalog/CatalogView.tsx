@@ -272,7 +272,7 @@ function detail(type: CatalogType, e: AnyEntry): React.ReactNode {
     case "methodologies": {
       const m = e as Methodology;
       const issue = m.documents.filter((d) => d.scope === "ISSUE").length;
-      return `${m.documents.length - issue} del proyecto · ${issue} por issue`;
+      return `${m.documents.length - issue} del proyecto · ${issue} por tarjeta`;
     }
     case "roles": {
       const r = e as AgentRole;
@@ -280,7 +280,7 @@ function detail(type: CatalogType, e: AnyEntry): React.ReactNode {
         "Sin automatización"
       ) : (
         <span className="inline-flex items-center gap-1 text-sol-text">
-          <Sparkle className="size-3" aria-hidden /> Refina issues asignados
+          <Sparkle className="size-3" aria-hidden /> Refina las tarjetas asignadas
         </span>
       );
     }

@@ -6,7 +6,7 @@ function fieldLabel(field: string | null, project: Project): string {
     title: "el título",
     type: "el tipo",
     priority: "la prioridad",
-    storyPoints: project.kind === "SOFTWARE" ? "los story points" : "los puntos",
+    storyPoints: project.estimate === "HOURS" ? "las horas" : "los puntos",
     parent: `la ${parentLabel(project).toLowerCase()}`,
     labels: "las etiquetas",
     reviewBy: "quién la revisa en las puertas",
@@ -65,7 +65,7 @@ export function describe(
     case "COMMENTED":
       return { text: "comentó", quote: a.to ?? undefined };
     case "DELETED":
-      return { text: `eliminó el issue «${a.from ?? ""}»` };
+      return { text: `eliminó la tarjeta «${a.from ?? ""}»` };
     case "DOCUMENT": {
       // from = id del documento, to = versión guardada.
       const doc = DOC_LABEL[a.field ?? ""] ?? "un documento";

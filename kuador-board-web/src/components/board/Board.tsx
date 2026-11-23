@@ -316,14 +316,14 @@ export function Board({
       <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 sm:px-6 md:py-3">
         <div className="relative min-w-0 flex-1 md:w-56 md:flex-none">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 z-10 size-4 -translate-y-1/2 text-fg-faint" aria-hidden />
-          <TextInput size="sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="Buscar en el tablero" aria-label="Buscar issues" className="pl-8" />
+          <TextInput size="sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="Buscar en el tablero" aria-label="Buscar tarjetas" className="pl-8" />
         </div>
         {/* Celular: responsable y tipo en una hoja; la fila de avatares no cabe. */}
         <Button tone={assignee || type ? "primary" : "secondary"} size="sm" icon={SlidersHorizontal} className="md:hidden" onClick={() => setFiltersOpen(true)}>
           Filtros{assignee || type ? ` · ${Number(!!assignee) + Number(!!type)}` : ""}
         </Button>
         {canEdit && (
-          <Button tone="primary" size="sm" icon={Plus} iconOnly label="Crear issue" className="md:hidden" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)} />
+          <Button tone="primary" size="sm" icon={Plus} iconOnly label="Crear tarjeta" className="md:hidden" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)} />
         )}
         <div role="group" aria-label="Filtrar por responsable" className="hidden items-center gap-1 pl-1 md:flex">
           {quickMembers.map((m) => (
@@ -367,7 +367,7 @@ export function Board({
         )}
         {canEdit && (
           <Button tone="primary" size="sm" icon={Plus} className="ml-auto hidden md:inline-flex" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)}>
-            Crear issue
+            Crear tarjeta
           </Button>
         )}
       </div>
@@ -525,7 +525,7 @@ export function Board({
         open={creatingIn != null}
         onClose={() => setCreatingIn(null)}
         width="narrow"
-        title={`Nuevo issue en ${project.key}`}
+        title={`Nueva tarjeta en ${project.key}`}
       >
         {creatingIn && (
           <IssueForm
@@ -535,7 +535,7 @@ export function Board({
             members={members}
             epics={epics}
             layout="stacked"
-            submitLabel="Crear issue"
+            submitLabel="Crear tarjeta"
             pending={creating}
             error={createError}
             onSubmit={(values) =>

@@ -111,7 +111,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         Transitions transitions = template.transitions().isEmpty() ? Transitions.FREE
                 : new Transitions(true, template.transitions().stream().map(t -> new Transitions.Transition(t.from(), t.to())).toList());
         Project project = Project.create(key, name, description, template.capabilities(), template.key(), template.issueTypes(), transitions,
-                template.stages(), clock.instant());
+                template.stages(), template.estimate(), clock.instant());
         if (projects.existsByKey(project.key())) {
             throw new ConflictException("Ya existe un proyecto con la clave " + project.key() + ".");
         }
@@ -204,6 +204,14 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         return new ProjectWithColumns(updated, projects.findColumns(key));
     }
 
+    /** La forma de la tarjeta: nombres de los tipos, sus datos propios y la unidad de medida (solo personas). */
+    @Transactional
+    public ProjectWithColumns setCard(String key, List<ec.kuador.board.catalog.IssueTypeDef> issueTypes, ec.kuador.board.catalog.EstimateUnit estimate) {
+        Project updated = load(key).withCard(issueTypes, estimate);
+        projects.updateCard(key, updated.issueTypes(), updated.estimate());
+        return new ProjectWithColumns(updated, projects.findColumns(key));
+    }
+
     @Transactional
     public ProjectWithColumns setMethodology(String key, String methodologyKey) {
         if (methodologyKey != null && catalog.methodology(methodologyKey).isEmpty()) {
@@ -235,7 +243,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Transactional(readOnly = true)
     public Optional<ProjectView> find(String projectKey) {
         return projects.findByKey(projectKey).map(p -> new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(),
-                projects.findColumns(p.key()), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.capabilities()));
+                projects.findColumns(p.key()), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.capabilities(), p.estimate()));
     }
 
     @Override

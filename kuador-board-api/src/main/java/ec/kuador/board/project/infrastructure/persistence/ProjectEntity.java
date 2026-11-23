@@ -57,6 +57,10 @@ class ProjectEntity {
     /** Lista JSON de {@link Capability}; nulo en tableros anteriores (valen las de su tipo). */
     String capabilities;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estimate_unit")
+    ec.kuador.board.catalog.EstimateUnit estimateUnit;
+
     @Column(name = "max_rework")
     int maxRework;
 
@@ -82,6 +86,7 @@ class ProjectEntity {
         e.transitions = Json.write(p.transitions().allowed());
         e.stages = Json.write(p.stages());
         e.capabilities = Json.write(p.capabilities());
+        e.estimateUnit = p.estimate();
         e.maxRework = p.maxRework();
         e.nextIssueNumber = 1;
         e.createdAt = p.createdAt();
@@ -92,6 +97,6 @@ class ProjectEntity {
         return new Project(id, key, name, description, kind, templateKey, methodology, Json.readList(issueTypes, IssueTypeDef.class),
                 new Transitions(transitionsRestricted, Json.readList(transitions, Transitions.Transition.class)),
                 Json.readList(stages, StageDef.class), maxRework == 0 ? Project.DEFAULT_MAX_REWORK : maxRework, createdAt,
-                capabilities == null ? null : Json.readList(capabilities, Capability.class));
+                capabilities == null ? null : Json.readList(capabilities, Capability.class), estimateUnit);
     }
 }

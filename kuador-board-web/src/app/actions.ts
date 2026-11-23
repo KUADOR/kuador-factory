@@ -10,6 +10,8 @@ import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
   BusinessConnection,
   Capability,
+  EstimateUnit,
+  IssueTypeDef,
   Routine,
   RoutineInput,
   CatalogRevision,
@@ -856,6 +858,10 @@ export async function setConnectionBoardsAction(key: string, boards: { projectKe
 
 export async function deleteConnectionAction(key: string): Promise<ActionResult<void>> {
   return run(() => boardApi.deleteConnection(key), "/connections");
+}
+
+export async function setCardAction(key: string, issueTypes: IssueTypeDef[], estimate: EstimateUnit): Promise<ActionResult<Project>> {
+  return run(() => boardApi.setCard(key, issueTypes, estimate), `/projects/${key}`);
 }
 
 export async function setCapabilitiesAction(key: string, capabilities: Capability[]): Promise<ActionResult<Project>> {

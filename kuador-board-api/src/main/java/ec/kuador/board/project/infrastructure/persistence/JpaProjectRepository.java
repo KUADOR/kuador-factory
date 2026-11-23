@@ -50,6 +50,10 @@ interface SpringDataProjectRepository extends JpaRepository<ProjectEntity, UUID>
     int setStages(UUID workspaceId, String key, String stages, int maxRework);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update ProjectEntity p set p.issueTypes = :issueTypes, p.estimateUnit = :estimate where p.workspaceId = :workspaceId and p.key = :key")
+    int setCard(UUID workspaceId, String key, String issueTypes, ec.kuador.board.catalog.EstimateUnit estimate);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update ProjectEntity p set p.capabilities = :capabilities, p.kind = :kind where p.workspaceId = :workspaceId and p.key = :key")
     int setCapabilities(UUID workspaceId, String key, String capabilities, ec.kuador.board.catalog.ProjectKind kind);
 }
@@ -120,6 +124,11 @@ class JpaProjectRepository implements ProjectRepository {
     @Override
     public void updateStages(String projectKey, java.util.List<ec.kuador.board.catalog.StageDef> stages, int maxRework) {
         jpa.setStages(TenantContext.require(), projectKey, ec.kuador.board.shared.json.Json.write(stages), maxRework);
+    }
+
+    @Override
+    public void updateCard(String projectKey, java.util.List<ec.kuador.board.catalog.IssueTypeDef> issueTypes, ec.kuador.board.catalog.EstimateUnit estimate) {
+        jpa.setCard(TenantContext.require(), projectKey, ec.kuador.board.shared.json.Json.write(issueTypes), estimate);
     }
 
     @Override

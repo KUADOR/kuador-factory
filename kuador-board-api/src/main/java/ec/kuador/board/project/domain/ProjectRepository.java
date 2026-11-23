@@ -27,6 +27,8 @@ public interface ProjectRepository {
 
     void updateStages(String projectKey, java.util.List<ec.kuador.board.catalog.StageDef> stages, int maxRework);
 
+    void updateCard(String projectKey, java.util.List<ec.kuador.board.catalog.IssueTypeDef> issueTypes, ec.kuador.board.catalog.EstimateUnit estimate);
+
     void updateCapabilities(String projectKey, java.util.List<ec.kuador.board.catalog.Capability> capabilities);
 
     long countUsingMethodology(String methodology);

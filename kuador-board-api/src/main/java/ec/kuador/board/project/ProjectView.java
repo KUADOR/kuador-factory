@@ -15,9 +15,11 @@ import java.util.Optional;
  */
 public record ProjectView(
         String key, String name, ProjectKind kind, String templateKey, String methodology, List<ColumnDef> columns,
-        List<IssueTypeDef> issueTypes, Transitions transitions, List<StageDef> stages, int maxRework, List<Capability> capabilities) {
+        List<IssueTypeDef> issueTypes, Transitions transitions, List<StageDef> stages, int maxRework, List<Capability> capabilities,
+        ec.kuador.board.catalog.EstimateUnit estimate) {
 
     public ProjectView {
+        estimate = estimate == null ? ec.kuador.board.catalog.EstimateUnit.POINTS : estimate;
         capabilities = capabilities == null ? Capability.defaultsFor(kind) : Capability.normalize(capabilities);
         kind = Capability.kindOf(capabilities);
     }
@@ -25,7 +27,22 @@ public record ProjectView(
     /** Tablero sin capacidades declaradas: valen las de su tipo. */
     public ProjectView(String key, String name, ProjectKind kind, String templateKey, String methodology, List<ColumnDef> columns,
             List<IssueTypeDef> issueTypes, Transitions transitions, List<StageDef> stages, int maxRework) {
-        this(key, name, kind, templateKey, methodology, columns, issueTypes, transitions, stages, maxRework, null);
+        this(key, name, kind, templateKey, methodology, columns, issueTypes, transitions, stages, maxRework, null, null);
+    }
+
+    public ProjectView(String key, String name, ProjectKind kind, String templateKey, String methodology, List<ColumnDef> columns,
+            List<IssueTypeDef> issueTypes, Transitions transitions, List<StageDef> stages, int maxRework, List<Capability> capabilities) {
+        this(key, name, kind, templateKey, methodology, columns, issueTypes, transitions, stages, maxRework, capabilities, null);
+    }
+
+    /** Los datos propios del tipo de tarjeta (vacío si no tiene). */
+    public List<ec.kuador.board.catalog.FieldDef> fieldsOf(IssueType type) {
+        return issueTypes.stream().filter(t -> t.type() == type).findFirst().map(IssueTypeDef::fields).orElse(List.of());
+    }
+
+    /** Si el tablero estima el tamaño de sus tarjetas. */
+    public boolean estimates() {
+        return estimate != ec.kuador.board.catalog.EstimateUnit.NONE;
     }
 
     public boolean can(Capability capability) {

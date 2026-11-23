@@ -12,7 +12,7 @@ import java.util.UUID;
 public record WorkflowTemplate(
         UUID id, String key, String name, String description, ProjectKind kind, List<ColumnDef> columns,
         List<IssueTypeDef> issueTypes, List<StageDef> stages, List<TransitionDef> transitions, List<String> agents, List<Capability> capabilities,
-        boolean builtIn, long version) {
+        EstimateUnit estimate, boolean builtIn, long version) {
 
     /** Plantillas guardadas antes de las etapas o del equipo no los traen: quedan vacíos. */
     public WorkflowTemplate {
@@ -23,12 +23,21 @@ public record WorkflowTemplate(
         if (capabilities == null) capabilities = kind == null ? null : Capability.defaultsFor(kind);
         else capabilities = Capability.normalize(capabilities);
         if (capabilities != null) kind = Capability.kindOf(capabilities);
+        // Plantillas guardadas antes de la unidad de medida: puntos, como siempre.
+        estimate = estimate == null ? EstimateUnit.POINTS : estimate;
+    }
+
+    /** Plantilla sin unidad de medida declarada: puntos. */
+    public WorkflowTemplate(UUID id, String key, String name, String description, ProjectKind kind, List<ColumnDef> columns,
+            List<IssueTypeDef> issueTypes, List<StageDef> stages, List<TransitionDef> transitions, List<String> agents, List<Capability> capabilities,
+            boolean builtIn, long version) {
+        this(id, key, name, description, kind, columns, issueTypes, stages, transitions, agents, capabilities, null, builtIn, version);
     }
 
     /** Plantilla sin capacidades declaradas: valen las de su tipo. */
     public WorkflowTemplate(UUID id, String key, String name, String description, ProjectKind kind, List<ColumnDef> columns,
             List<IssueTypeDef> issueTypes, List<StageDef> stages, List<TransitionDef> transitions, List<String> agents, boolean builtIn, long version) {
-        this(id, key, name, description, kind, columns, issueTypes, stages, transitions, agents, null, builtIn, version);
+        this(id, key, name, description, kind, columns, issueTypes, stages, transitions, agents, null, null, builtIn, version);
     }
 
     public boolean can(Capability capability) {

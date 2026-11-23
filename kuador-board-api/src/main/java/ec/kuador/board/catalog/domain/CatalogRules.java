@@ -59,6 +59,7 @@ public final class CatalogRules {
             if (d.label() == null || d.label().isBlank() || d.label().length() > 40) {
                 throw new DomainException("Cada tipo de issue necesita un nombre de hasta 40 caracteres.");
             }
+            ec.kuador.board.catalog.FieldDef.validate(d.fields(), d.label());
         }
         if (seen.stream().allMatch(x -> x == IssueType.EPIC)) {
             throw new DomainException("La plantilla necesita algún tipo de issue además de las épicas.");

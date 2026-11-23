@@ -12,7 +12,7 @@ import { issueTemplates } from "./issueTemplates";
 import { firstStageAhead } from "./nextStep";
 import { stageOf } from "./stages";
 import { PriorityIcon, TypeIcon } from "@/components/ui/IssueIcons";
-import { PRIORITY_LABEL, allowedTypes, parentLabel, typeLabel, type TypeSource } from "@/lib/labels";
+import { ESTIMATE_LABEL, PRIORITY_LABEL, allowedTypes, fieldsOf, parentLabel, typeLabel, type TypeSource } from "@/lib/labels";
 import { PRIORITIES, type Issue, type IssueInput, type IssueStatus, type IssueType, type Member, type Priority, type Project } from "@/lib/types";
 
 export interface IssueFormValues extends IssueInput {
@@ -33,13 +33,14 @@ export function emptyValues(status: IssueStatus, projectType: TypeSource): Issue
     assigneeId: null,
     parentKey: null,
     labels: [],
+    fields: {},
     status,
   };
 }
 
 export function valuesOf(issue: Issue): IssueFormValues {
   const { title, description, type, priority, storyPoints, assigneeId, parentKey, labels, status } = issue;
-  return { title, description, type, priority, storyPoints, assigneeId, parentKey, labels, status };
+  return { title, description, type, priority, storyPoints, assigneeId, parentKey, labels, fields: issue.fields ?? {}, status };
 }
 
 const CATEGORY_DOT = { TODO: "bg-fg-faint", IN_PROGRESS: "bg-info", DONE: "bg-ok" } as const;
@@ -100,6 +101,8 @@ export function IssueForm({
     if (!readOnly && window.matchMedia("(pointer: fine)").matches) titleRef.current?.focus();
   }, [readOnly]);
   const set = <K extends keyof IssueFormValues>(key: K, value: IssueFormValues[K]) => setValues((v) => ({ ...v, [key]: value }));
+  // Los datos propios del tipo elegido (monto, cliente, fecha…): los define el tablero.
+  const setField = (key: string, value: string) => setValues((v) => ({ ...v, fields: { ...(v.fields ?? {}), [key]: value } }));
   // En una tarjeta nueva, «Épica: …» en el título la crea como épica (MED-10 nació historia por el tipo por defecto),
   // salvo que la persona haya elegido el tipo a mano.
   const [typeTouched, setTypeTouched] = useState(false);
@@ -113,6 +116,7 @@ export function IssueForm({
   const dirty = formKey(values, labelsText) !== formKey(base, base.labels.join(", "));
   const newAgent = values.assigneeId !== base.assigneeId ? members.find((m) => m.id === values.assigneeId && m.kind === "AGENT") : undefined;
 
+  const cardFields = fieldsOf(project, values.type);
   const typeOptions: SelectOption<IssueType>[] = allowedTypes(project).map((t) => ({
     value: t,
     label: typeLabel(t, project),
@@ -207,22 +211,52 @@ export function IssueForm({
       <Field label="Prioridad">
         {(id) => <SelectInput id={id} size="sm" disabled={readOnly} options={priorityOptions} value={values.priority} onChange={(v) => v && set("priority", v)} />}
       </Field>
-      <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3">
-        <Field label="Puntos">
-          {(id) => (
-            <TextInput
-              id={id}
-              size="sm"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={100}
-              value={values.storyPoints ?? ""}
-              onChange={(e) => set("storyPoints", e.target.value === "" ? null : Number(e.target.value))}
-              className="tabular"
-            />
-          )}
+      {cardFields.map((f) => (
+        <Field key={f.key} label={f.label}>
+          {(id) =>
+            f.kind === "CHOICE" ? (
+              <SelectInput
+                id={id}
+                size="sm"
+                disabled={readOnly}
+                options={[{ value: "", label: "—" }, ...f.options.map((o) => ({ value: o, label: o }))]}
+                value={values.fields?.[f.key] ?? ""}
+                onChange={(v) => setField(f.key, v ?? "")}
+              />
+            ) : (
+              <TextInput
+                id={id}
+                size="sm"
+                type={f.kind === "DATE" ? "date" : f.kind === "TEXT" ? "text" : "number"}
+                inputMode={f.kind === "NUMBER" || f.kind === "MONEY" ? "decimal" : undefined}
+                step={f.kind === "MONEY" ? "0.01" : f.kind === "NUMBER" ? "any" : undefined}
+                maxLength={f.kind === "TEXT" ? 500 : undefined}
+                value={values.fields?.[f.key] ?? ""}
+                onChange={(e) => setField(f.key, e.target.value)}
+                className={f.kind === "TEXT" ? undefined : "tabular"}
+              />
+            )
+          }
         </Field>
+      ))}
+      <div className={project.estimate === "NONE" ? "grid gap-3" : "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3"}>
+        {project.estimate !== "NONE" && (
+          <Field label={ESTIMATE_LABEL[project.estimate ?? "POINTS"]}>
+            {(id) => (
+              <TextInput
+                id={id}
+                size="sm"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={100}
+                value={values.storyPoints ?? ""}
+                onChange={(e) => set("storyPoints", e.target.value === "" ? null : Number(e.target.value))}
+                className="tabular"
+              />
+            )}
+          </Field>
+        )}
         <Field label={parentLabel(project)}>
           {(id) => (
             <SelectInput

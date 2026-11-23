@@ -24,6 +24,7 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
             title: "Flujo de trabajo",
             items: [
               { slug: "columns", label: "Columnas" },
+              { slug: "card", label: "Tarjeta" },
               { slug: "stages", label: "Etapas y responsables" },
               { slug: "agents", label: "Equipo de agentes" },
               { slug: "routines", label: "Rutinas" },
@@ -37,6 +38,7 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
             title: "Tablero",
             items: [
               { slug: "columns", label: "Columnas" },
+              { slug: "card", label: "Tarjeta" },
               { slug: "agents", label: "Equipo de agentes" },
               { slug: "routines", label: "Rutinas" },
             ],

@@ -43,6 +43,11 @@ public interface IssueApi {
 
     Optional<IssueContext> context(String issueKey);
 
+    /** Los datos propios de la tarjeta con el nombre que les puso el tablero («Monto» → «1250.50»), en su orden. */
+    default java.util.Map<String, String> cardFields(String issueKey) {
+        return java.util.Map.of();
+    }
+
     /** Comenta como {@code authorId} (persona o agente); queda en el historial. */
     void addComment(String issueKey, UUID authorId, String body);
 

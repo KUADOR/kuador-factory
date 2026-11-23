@@ -3,15 +3,17 @@
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 
+import { FieldsEditor } from "@/components/board/FieldsEditor";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, SelectInput, Switch, TextArea, TextInput } from "@/components/ui/Field";
 import { TypeIcon } from "@/components/ui/IssueIcons";
 import { Badge } from "@/components/ui/Section";
-import { CAPABILITY_LABEL, CATEGORY_LABEL, typeLabel } from "@/lib/labels";
+import { CAPABILITY_LABEL, CATEGORY_LABEL, ESTIMATE_LABEL, typeLabel } from "@/lib/labels";
 import {
   CAPABILITIES,
   COLUMN_CATEGORIES,
+  ESTIMATE_UNITS,
   ISSUE_TYPES,
   type AgentRole,
   type BoardColumn,
@@ -259,11 +261,34 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
                   value={current?.label ?? typeLabel(type)}
                   onChange={(e) => onChange({ ...value, issueTypes: value.issueTypes.map((t) => (t.type === type ? { ...t, label: e.target.value } : t)) })}
                 />
+                {current && (
+                  <div className="col-span-3 pb-2 pl-7">
+                    <FieldsEditor
+                      typeLabel={current.label}
+                      value={current.fields ?? []}
+                      onChange={(fields) => onChange({ ...value, issueTypes: value.issueTypes.map((t) => (t.type === type ? { ...t, fields } : t)) })}
+                    />
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       </Group>
+
+      <div className="max-w-64">
+        <Field label="Tamaño de la tarjeta">
+          {(id) => (
+            <SelectInput
+              id={id}
+              size="sm"
+              options={ESTIMATE_UNITS.map((u) => ({ value: u, label: ESTIMATE_LABEL[u] }))}
+              value={value.estimate ?? "POINTS"}
+              onChange={(estimate) => estimate && onChange({ ...value, estimate })}
+            />
+          )}
+        </Field>
+      </div>
     </div>
   );
 }

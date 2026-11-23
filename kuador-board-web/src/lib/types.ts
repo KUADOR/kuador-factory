@@ -32,9 +32,26 @@ interface CatalogEntry {
   version: number;
 }
 
+export const FIELD_KINDS = ["TEXT", "NUMBER", "MONEY", "DATE", "CHOICE"] as const;
+export type FieldKind = (typeof FIELD_KINDS)[number];
+
+/** Un dato propio de un tipo de tarjeta (p. ej. «Monto»). `options` solo en CHOICE. */
+export interface FieldDef {
+  key: string;
+  label: string;
+  kind: FieldKind;
+  options: string[];
+}
+
+export const ESTIMATE_UNITS = ["POINTS", "HOURS", "NONE"] as const;
+/** En qué mide el tablero el tamaño de sus tarjetas; NONE = no estima. */
+export type EstimateUnit = (typeof ESTIMATE_UNITS)[number];
+
 export interface IssueTypeDef {
   type: IssueType;
   label: string;
+  /** Datos propios del tipo; la API los completa con una lista vacía si faltan. */
+  fields?: FieldDef[];
 }
 
 /**
@@ -74,6 +91,7 @@ export interface WorkflowTemplate extends CatalogEntry {
   kind: ProjectKind;
   /** Lo que usa el tablero; la API las completa si faltan. */
   capabilities?: Capability[];
+  estimate?: EstimateUnit;
   columns: BoardColumn[];
   issueTypes: IssueTypeDef[];
   stages: StageDef[];
@@ -359,6 +377,7 @@ export interface Project {
   maxRework: number;
   createdAt: string;
   capabilities: Capability[];
+  estimate: EstimateUnit;
 }
 
 /**
@@ -406,6 +425,8 @@ export interface Issue {
   reviewBy: "PERSON" | "AGENT" | null;
   createdAt: string;
   updatedAt: string;
+  /** Datos propios del tipo de tarjeta (clave → valor como texto). */
+  fields: Record<string, string>;
 }
 
 export interface Comment {
@@ -427,6 +448,8 @@ export interface IssueInput {
   assigneeId: string | null;
   parentKey: string | null;
   labels: string[];
+  /** Datos propios del tipo; sin enviar, la API conserva los que tiene. */
+  fields?: Record<string, string>;
 }
 
 export interface Me {

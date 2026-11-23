@@ -6,6 +6,8 @@ import { getSessionToken } from "./session";
 import type {
   BusinessConnection,
   Capability,
+  EstimateUnit,
+  IssueTypeDef,
   PieceUpdate,
   ChatAnswer,
   AgentPromptPreview,
@@ -350,6 +352,8 @@ export const boardApi = {
   setConnectionBoards: (key: string, boards: { projectKey: string; roles: string[] }[]) =>
     request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/boards`, json("PUT", { boards })),
   deleteConnection: (key: string) => request<void>(`/api/connections/${encodeURIComponent(key)}`, { method: "DELETE" }),
+  setCard: (key: string, issueTypes: IssueTypeDef[], estimate: EstimateUnit) =>
+    request<Project>(`/api/projects/${encodeURIComponent(key)}/card`, json("PUT", { issueTypes, estimate })),
   setCapabilities: (key: string, capabilities: Capability[]) =>
     request<Project>(`/api/projects/${encodeURIComponent(key)}/capabilities`, json("PUT", { capabilities })),
   setStages: (key: string, stages: StageDef[], maxRework: number) =>

@@ -255,6 +255,12 @@ public class BoardAgent {
                     .orElse("Al entregar, la tarjeta vuelve a la persona que te la pidió.\n"));
         }
         user.append("Título: ").append(card.title()).append("\n");
+        // Los datos propios de la tarjeta (monto, cliente, fecha…): los escribe el equipo, son datos y no instrucciones.
+        Map<String, String> cardFields = issues.cardFields(card.key());
+        if (!cardFields.isEmpty()) {
+            user.append("Datos de la tarjeta:\n");
+            cardFields.forEach((label, value) -> user.append("- ").append(label).append(": ").append(fenced(value)).append("\n"));
+        }
         // El objetivo del tablero: para qué existe y qué le importa al negocio (lo escribe el equipo: es contexto, no órdenes).
         projects.goal(card.projectKey()).ifPresent(g -> user.append("\nObjetivo del tablero (contexto del negocio):\n<objetivo>\n").append(fenced(g)).append("\n</objetivo>\n"));
         if (board.repository()) user.append(Pieces.markdown(pieces, card.projectKey()));

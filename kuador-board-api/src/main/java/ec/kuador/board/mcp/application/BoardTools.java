@@ -282,6 +282,8 @@ public class BoardTools {
         m.put("type", c.type());
         m.put("priority", c.priority());
         if (c.storyPoints() != null) m.put("storyPoints", c.storyPoints());
+        Map<String, String> cardFields = issues.cardFields(c.key());
+        if (!cardFields.isEmpty()) m.put("fields", cardFields);
         if (!c.labels().isEmpty()) m.put("labels", c.labels());
         if (c.parentKey() != null) m.put("epic", c.parentKey());
         m.put("assignee", c.assigneeId() == null ? null : name(c.assigneeId()));
@@ -490,10 +492,16 @@ public class BoardTools {
         } catch (NumberFormatException e) {
             throw new ToolException("«points» debe ser un número: 1, 2, 3, 5, 8 o 13.");
         }
-        if (!POINTS.contains(points)) throw new ToolException("Usa la escala 1, 2, 3, 5, 8 o 13.");
+        // La unidad la decide el tablero: puntos (la escala de siempre), horas o nada.
+        ec.kuador.board.catalog.EstimateUnit unit = projects.find(c.projectKey()).map(ProjectView::estimate).orElse(ec.kuador.board.catalog.EstimateUnit.POINTS);
+        if (unit == ec.kuador.board.catalog.EstimateUnit.NONE) return Map.of("ok", false, "message", "Este tablero no estima sus tarjetas: sigue sin estimar.");
+        boolean hours = unit == ec.kuador.board.catalog.EstimateUnit.HOURS;
+        if (hours && (points < 1 || points > 100)) throw new ToolException("Este tablero estima en horas: usa un número de 1 a 100.");
+        if (!hours && !POINTS.contains(points)) throw new ToolException("Usa la escala 1, 2, 3, 5, 8 o 13.");
+        String name = hours ? " horas" : " puntos";
         boolean set = issues.setStoryPointsIfEmpty(c.key(), points, agent.id());
-        return Map.of("ok", set, "message", set ? c.key() + " quedó en " + points + " puntos."
-                : c.key() + " ya tenía " + c.storyPoints() + " puntos: no se cambian. Si crees que no corresponde, dilo en un comentario.");
+        return Map.of("ok", set, "message", set ? c.key() + " quedó en " + points + name + "."
+                : c.key() + " ya tenía " + c.storyPoints() + name + ": no se cambian. Si crees que no corresponde, dilo en un comentario.");
     }
 
     private Object ask(Map<String, String> a, UUID person) {

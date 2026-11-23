@@ -28,21 +28,21 @@ public class InMemoryProjects implements ProjectApi {
         java.util.List<ec.kuador.board.catalog.Capability> merged = new java.util.ArrayList<>(p.capabilities());
         merged.addAll(java.util.List.of(capabilities));
         all.put(key, new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(), p.columns(), p.issueTypes(),
-                p.transitions(), p.stages(), p.maxRework(), merged));
+                p.transitions(), p.stages(), p.maxRework(), merged, p.estimate()));
     }
 
     /** Restringe el flujo del proyecto a estas reglas. */
     public void restrict(String key, Transitions.Transition... allowed) {
         ProjectView p = all.get(key);
         all.put(key, new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(), p.columns(), p.issueTypes(),
-                new Transitions(true, java.util.List.of(allowed)), p.stages(), p.maxRework(), p.capabilities()));
+                new Transitions(true, java.util.List.of(allowed)), p.stages(), p.maxRework(), p.capabilities(), p.estimate()));
     }
 
     /** Configura las etapas (roles, puertas) y el freno de bucles del proyecto. */
     public void stages(String key, int maxRework, ec.kuador.board.catalog.StageDef... stages) {
         ProjectView p = all.get(key);
         all.put(key, new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(), p.columns(), p.issueTypes(),
-                p.transitions(), java.util.List.of(stages), maxRework, p.capabilities()));
+                p.transitions(), java.util.List.of(stages), maxRework, p.capabilities(), p.estimate()));
     }
 
     @Override

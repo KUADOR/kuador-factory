@@ -138,6 +138,14 @@ class ProjectController {
 
     record CapabilitiesRequest(@Size(max = 8) List<ec.kuador.board.catalog.Capability> capabilities) {}
 
+    /** La forma de la tarjeta: nombre de cada tipo, sus datos propios y en qué se mide. */
+    @PutMapping("/{key}/card")
+    ProjectResponse setCard(@PathVariable String key, @RequestBody CardRequest r) {
+        return ProjectResponse.from(service.setCard(key, r.issueTypes(), r.estimate()));
+    }
+
+    record CardRequest(@Size(max = 4) List<IssueTypeDef> issueTypes, ec.kuador.board.catalog.EstimateUnit estimate) {}
+
     record StagesRequest(@Size(max = 12) List<StageDef> stages, int maxRework) {}
 
     record DetailsRequest(@NotBlank @Size(max = 120) String name, @Size(max = 2000) String description) {}
@@ -161,12 +169,12 @@ class ProjectController {
     record ProjectResponse(
             UUID id, String key, String name, String description, ProjectKind kind, String templateKey, String methodology,
             List<ColumnDef> columns, List<IssueTypeDef> issueTypes, Transitions transitions, List<StageDef> stages, int maxRework,
-            Instant createdAt, List<ec.kuador.board.catalog.Capability> capabilities) {
+            Instant createdAt, List<ec.kuador.board.catalog.Capability> capabilities, ec.kuador.board.catalog.EstimateUnit estimate) {
 
         static ProjectResponse from(ProjectWithColumns pc) {
             var p = pc.project();
             return new ProjectResponse(p.id(), p.key(), p.name(), p.description(), p.kind(), p.templateKey(), p.methodology(),
-                    pc.columns(), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.createdAt(), p.capabilities());
+                    pc.columns(), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.createdAt(), p.capabilities(), p.estimate());
         }
     }
 }

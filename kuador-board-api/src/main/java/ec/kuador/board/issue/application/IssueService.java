@@ -88,6 +88,19 @@ public class IssueService implements IssueApi {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<String, String> cardFields(String issueKey) {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        issues.findByKey(issueKey).ifPresent(i -> projects.find(i.projectKey()).ifPresent(p -> {
+            for (ec.kuador.board.catalog.FieldDef f : p.fieldsOf(i.type())) {
+                String v = i.fields().get(f.key());
+                if (v != null) out.put(f.label(), v);
+            }
+        }));
+        return out;
+    }
+
+    @Override
     @Transactional
     public void addComment(String issueKey, UUID authorId, String body) {
         comment(issueKey, authorId, body);
@@ -169,6 +182,8 @@ public class IssueService implements IssueApi {
     public Issue create(String projectKey, IssueDetails details, UUID actorId, String status) {
         ProjectView project = project(projectKey);
         validateReferences(project, details, null, null);
+        // Los datos propios se validan contra los del tipo en este tablero; lo que no está definido se descarta.
+        details = details.withFields(ec.kuador.board.catalog.FieldDef.clean(project.fieldsOf(details.type()), details.fields()));
         if (actorId != null) {
             requireMember(actorId);
         }
@@ -193,6 +208,9 @@ public class IssueService implements IssueApi {
     public Issue edit(String key, IssueDetails details, UUID actorId) {
         Issue issue = load(key);
         validateReferences(project(issue.projectKey()), details, issue.key(), issue.assigneeId());
+        // Sin datos propios en el pedido se conservan los que tiene; al cambiar de tipo quedan los que el nuevo tipo define.
+        details = details.withFields(ec.kuador.board.catalog.FieldDef.clean(project(issue.projectKey()).fieldsOf(details.type()),
+                details.fields() == null ? issue.fields() : details.fields()));
         UUID previousAssignee = issue.assigneeId();
         Instant now = now();
         List<FieldChange> changes = issue.edit(details, now);

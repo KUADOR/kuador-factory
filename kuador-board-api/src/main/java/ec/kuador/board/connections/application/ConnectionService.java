@@ -128,7 +128,15 @@ public class ConnectionService implements ConnectionsApi {
     public View saveMail(String key, String name, ec.kuador.board.connections.domain.MailAccount account) {
         UUID ws = TenantContext.require();
         String k = key == null ? "" : key.strip().toUpperCase(Locale.ROOT);
+        // Otro buzón con la misma clave (facturas@ de otro dominio): se busca una libre en vez de reemplazarlo.
+        String base = k.length() > 21 ? k.substring(0, 21) : k;
+        for (int n = 2; n < 100 && store.find(ws, k).filter(c -> !sameMailbox(c, account.email())).isPresent(); n++) k = base + "_" + n;
         return save(k, name, account.url(), null, ec.kuador.board.shared.json.Json.write(account));
+    }
+
+    private boolean sameMailbox(Connection c, String email) {
+        if (c.secret() == null || !c.url().startsWith(ec.kuador.board.connections.domain.MailAccount.SCHEME)) return false;
+        return email.equalsIgnoreCase(ec.kuador.board.shared.json.Json.readMap(secrets.decrypt(c.secret())).getOrDefault("email", ""));
     }
 
     /** La contraseña guardada de un buzón IMAP, para editarlo sin volver a escribirla. */

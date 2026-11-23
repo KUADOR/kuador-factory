@@ -162,7 +162,8 @@ class HttpMcpClient implements McpClient {
                 throw new McpException("Se interrumpió la llamada al servidor.");
             }
             int status = response.statusCode();
-            if (status == 401 || status == 403) throw new McpException("El servidor rechazó la credencial (" + status + ").");
+            if (status == 401) throw new UnauthorizedException("El servidor rechazó la credencial (401).");
+            if (status == 403) throw new McpException("El servidor no permite esa operación con esta credencial (403).");
             if (status >= 300 && status < 400) throw new McpException("El servidor redirige a otra dirección: usa la dirección final.");
             if (status < 200 || status >= 300) throw new McpException("El servidor respondió " + status + ".");
             response.headers().firstValue("Mcp-Session-Id").ifPresent(s -> sessionId = s);

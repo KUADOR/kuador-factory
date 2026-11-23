@@ -1,5 +1,6 @@
 package ec.kuador.board.connections.infrastructure.web;
 
+import ec.kuador.board.auth.AuthenticatedMember;
 import ec.kuador.board.connections.application.ConnectionService;
 import ec.kuador.board.connections.domain.ConnectionStore;
 import jakarta.validation.Valid;
@@ -7,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +44,26 @@ class ConnectionController {
     @PutMapping("/api/connections/{key}")
     ConnectionService.View save(@PathVariable String key, @Valid @RequestBody SaveRequest r) {
         return service.save(key, r.name(), r.url(), r.header(), r.secret());
+    }
+
+    /** {@code clientId} vacío: el tablero se registra solo en el servidor. {@code scope} vacío: los permisos que sugiere el servidor. */
+    record LoginRequest(@NotBlank @Size(max = 80) String name, @NotBlank @Size(max = 500) String url, @Size(max = 300) String clientId,
+            @Size(max = 1000) String clientSecret, @Size(max = 1000) String scope) {}
+
+    record LoginStarted(String authorizationUrl) {}
+
+    record LoginCallback(@NotBlank @Size(max = 500) String state, @NotBlank @Size(max = 4000) String code) {}
+
+    /** Conexión que pide iniciar sesión (OAuth): devuelve la dirección a la que debe ir el navegador. */
+    @PostMapping("/api/connections/{key}/login")
+    LoginStarted startLogin(@PathVariable String key, @Valid @RequestBody LoginRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        return new LoginStarted(service.startLogin(key, r.name(), r.url(), r.clientId(), r.clientSecret(), r.scope(), who.memberId()));
+    }
+
+    /** El sistema devolvió a la persona con su código: se cierra el inicio de sesión. */
+    @PostMapping("/api/connection-logins")
+    ConnectionService.View finishLogin(@Valid @RequestBody LoginCallback r, @AuthenticationPrincipal AuthenticatedMember who) {
+        return service.finishLogin(r.state(), r.code(), who.memberId());
     }
 
     @PostMapping("/api/connections/{key}/refresh")

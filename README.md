@@ -32,7 +32,10 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
   empresa (correo, agenda, ERP). El tablero hace de intermediario: la credencial va cifrada y nunca sale del servidor,
   sirve con cualquier proveedor de IA, y los agentes locales las usan con `business_tools` / `use_business_tool`. Lo que
   solo lee se ofrece; lo que escribe, solo si quien administra lo habilitó. Solo HTTPS hacia Internet
-  (`board.connections.allow-private=true` para desarrollo local). Todavía no hay servidores que pidan OAuth.
+  (`board.connections.allow-private=true` para desarrollo local). Los servidores que piden iniciar sesión (OAuth, p. ej.
+  Outlook o Gmail) se conectan con «Pide iniciar sesión»: el tablero descubre el servidor de autorización, se registra
+  solo si se lo permiten (si no, se pega el identificador de una aplicación ya registrada, con la dirección de retorno
+  `BOARD_WEB_URL/connections/oauth/callback`), usa PKCE y renueva el acceso solo.
 - **Armar un tablero con IA** (`/design`, `BoardDesigner`): la persona cuenta a qué se dedica su empresa y la IA propone
   pasos, roles, aprobaciones y datos de la tarjeta; se valida como cualquier plantilla y nada se crea hasta aceptarlo.
 - **Catálogo para cualquier negocio**: rol **Revisor** (revisa cualquier trabajo en una puerta) y **Manual de

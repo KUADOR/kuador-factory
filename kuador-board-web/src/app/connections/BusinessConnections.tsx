@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, RefreshCw } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import {
   deleteConnectionAction,
@@ -9,6 +9,7 @@ import {
   saveConnectionAction,
   setConnectionBoardsAction,
   setConnectionWritesAction,
+  startConnectionLoginAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { ChipPicker } from "@/components/ui/ChipPicker";
@@ -18,7 +19,7 @@ import { Badge, Section } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
 import type { BusinessConnection } from "@/lib/types";
 
-const BLANK = { key: "", name: "", url: "", secret: "" };
+const BLANK = { key: "", name: "", url: "", secret: "", login: false, clientId: "", clientSecret: "", scope: "" };
 
 /** «Agenda de la clínica» → AGENDA_DE_LA_CLINICA (la clave con la que los agentes ven sus herramientas). */
 function keyFrom(name: string) {
@@ -35,18 +36,55 @@ function keyFrom(name: string) {
  * Sistemas de la empresa que los agentes pueden usar (correo, agenda, facturación): cada uno es un servidor MCP. Lo que
  * solo lee se puede usar apenas se asigna a un tablero; lo que cambia datos, solo si se habilita aquí.
  */
-export function BusinessConnections({ connections: initial, boards }: { connections: BusinessConnection[]; boards: { key: string; name: string }[] }) {
+export function BusinessConnections({
+  connections: initial,
+  boards,
+  done,
+  error: failed,
+}: {
+  connections: BusinessConnection[];
+  boards: { key: string; name: string }[];
+  /** Nombre del sistema en el que se acaba de iniciar sesión (vuelta del sistema). */
+  done?: string | null;
+  error?: string | null;
+}) {
   const [connections, setConnections] = useState(initial);
   const [draft, setDraft] = useState<typeof BLANK | null>(null);
   const [removing, setRemoving] = useState<BusinessConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  useEffect(() => {
+    if (done) notify.ok(`${done} conectado`, "Elige en qué tableros se usa.");
+    if (failed) notify.error("No se pudo iniciar sesión", failed);
+  }, [done, failed]);
+
+  /** Lleva el navegador al sistema para iniciar sesión; al volver, la conexión queda lista. */
+  const login = (key: string, body: { name: string; url: string; clientId: string | null; clientSecret: string | null; scope: string | null }) =>
+    start(async () => {
+      const r = await startConnectionLoginAction(key, body);
+      if (!r.ok) {
+        if (draft) setError(r.error);
+        else notify.error("No se pudo iniciar sesión", r.error);
+        return;
+      }
+      window.location.assign(r.data.authorizationUrl);
+    });
+
   const replace = (c: BusinessConnection) => setConnections((all) => (all.some((x) => x.key === c.key) ? all.map((x) => (x.key === c.key ? c : x)) : [...all, c]));
 
   const create = () =>
     start(async () => {
       if (!draft) return;
+      if (draft.login) {
+        return login(draft.key || keyFrom(draft.name), {
+          name: draft.name,
+          url: draft.url,
+          clientId: draft.clientId.trim() || null,
+          clientSecret: draft.clientSecret || null,
+          scope: draft.scope.trim() || null,
+        });
+      }
       const r = await saveConnectionAction(draft.key || keyFrom(draft.name), { name: draft.name, url: draft.url, header: null, secret: draft.secret || null });
       if (!r.ok) return setError(r.error);
       replace(r.data);
@@ -85,12 +123,31 @@ export function BusinessConnections({ connections: initial, boards }: { connecti
             <Field label="Dirección del servidor MCP" error={error}>
               {(id) => <TextInput id={id} required type="url" maxLength={500} value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://…/mcp" />}
             </Field>
-            <Field label="Credencial" hint="Se guarda cifrada y no se vuelve a mostrar. Vacía si el servidor no la pide.">
-              {(id) => <PasswordInput id={id} autoComplete="off" value={draft.secret} onChange={(e) => setDraft({ ...draft, secret: e.target.value })} />}
-            </Field>
+            <Switch checked={draft.login} label="Pide iniciar sesión (Outlook, Gmail…)" onChange={(on) => setDraft({ ...draft, login: on })} />
+            {!draft.login && (
+              <Field label="Credencial" hint="Se guarda cifrada y no se vuelve a mostrar. Vacía si el servidor no la pide.">
+                {(id) => <PasswordInput id={id} autoComplete="off" value={draft.secret} onChange={(e) => setDraft({ ...draft, secret: e.target.value })} />}
+              </Field>
+            )}
+            {draft.login && (
+              <details className="text-[13px] text-fg-muted">
+                <summary className="cursor-pointer select-none">El sistema ya tiene una aplicación registrada</summary>
+                <div className="mt-3 flex flex-col gap-3">
+                  <Field label="Identificador de la aplicación" hint="Solo si el sistema no deja que el tablero se registre solo (por ejemplo, Microsoft).">
+                    {(id) => <TextInput id={id} maxLength={300} autoComplete="off" value={draft.clientId} onChange={(e) => setDraft({ ...draft, clientId: e.target.value })} />}
+                  </Field>
+                  <Field label="Secreto de la aplicación">
+                    {(id) => <PasswordInput id={id} autoComplete="off" value={draft.clientSecret} onChange={(e) => setDraft({ ...draft, clientSecret: e.target.value })} />}
+                  </Field>
+                  <Field label="Permisos" hint="Separados por espacio. Vacío: los que sugiere el sistema.">
+                    {(id) => <TextInput id={id} maxLength={1000} value={draft.scope} onChange={(e) => setDraft({ ...draft, scope: e.target.value })} placeholder="Mail.Read offline_access" />}
+                  </Field>
+                </div>
+              </details>
+            )}
             <div className="flex justify-end gap-2">
               <Button tone="ghost" onClick={() => { setDraft(null); setError(null); }}>Cancelar</Button>
-              <Button type="submit" tone="primary" loading={pending} disabled={!draft.name.trim() || !draft.url.trim()}>Conectar</Button>
+              <Button type="submit" tone="primary" loading={pending} disabled={!draft.name.trim() || !draft.url.trim()}>{draft.login ? "Iniciar sesión" : "Conectar"}</Button>
             </div>
           </form>
         )}
@@ -106,10 +163,17 @@ export function BusinessConnections({ connections: initial, boards }: { connecti
                 <p className="min-w-0 flex-1 text-[13px] font-medium text-fg-strong">
                   {c.name} <span className="font-mono text-xs font-normal text-fg-faint">{c.url}</span>
                 </p>
-                <Badge tone="neutral">{reads} de consulta</Badge>
-                <Button size="sm" tone="ghost" icon={RefreshCw} loading={pending} onClick={() => apply(() => refreshConnectionAction(c.key), "Herramientas actualizadas")}>
-                  Actualizar
-                </Button>
+                {c.connected ? <Badge tone="neutral">{reads} de consulta</Badge> : <Badge tone="warn">Falta iniciar sesión</Badge>}
+                {c.auth === "OAUTH" && (
+                  <Button size="sm" tone="ghost" loading={pending} onClick={() => login(c.key, { name: c.name, url: c.url, clientId: null, clientSecret: null, scope: null })}>
+                    {c.connected ? "Volver a iniciar sesión" : "Iniciar sesión"}
+                  </Button>
+                )}
+                {c.connected && (
+                  <Button size="sm" tone="ghost" icon={RefreshCw} loading={pending} onClick={() => apply(() => refreshConnectionAction(c.key), "Herramientas actualizadas")}>
+                    Actualizar
+                  </Button>
+                )}
                 <Button size="sm" tone="ghost" onClick={() => setRemoving(c)}>Quitar</Button>
               </div>
               <div className="flex flex-col gap-1.5">

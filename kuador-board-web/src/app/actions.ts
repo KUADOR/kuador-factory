@@ -853,6 +853,14 @@ export async function saveConnectionAction(
   return run(() => boardApi.saveConnection(key, body), "/connections");
 }
 
+/** Conexión que pide iniciar sesión: devuelve la dirección del sistema a la que debe ir el navegador. */
+export async function startConnectionLoginAction(
+  key: string,
+  body: { name: string; url: string; clientId: string | null; clientSecret: string | null; scope: string | null },
+): Promise<ActionResult<{ authorizationUrl: string }>> {
+  return run(() => boardApi.startConnectionLogin(key, body), "/connections");
+}
+
 export async function refreshConnectionAction(key: string): Promise<ActionResult<BusinessConnection>> {
   return run(() => boardApi.refreshConnection(key), "/connections");
 }

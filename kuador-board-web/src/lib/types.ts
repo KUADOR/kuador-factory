@@ -1267,6 +1267,10 @@ export interface BusinessConnection {
   tools: BusinessTool[];
   checkedAt: string | null;
   boards: { projectKey: string; roles: string[] }[];
+  /** `OAUTH`: se entra iniciando sesión en el sistema; `TOKEN`: con una clave (o sin nada). */
+  auth: "OAUTH" | "TOKEN";
+  /** Falso mientras falte iniciar sesión. */
+  connected: boolean;
 }
 
 /** `readOnly`: solo lee; `allowed`: los agentes la pueden usar (las que escriben, solo si se habilitaron). */

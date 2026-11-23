@@ -8,6 +8,8 @@ import type {
   BusinessConnection,
   ConnectionLogin,
   Connector,
+  MailConnectionInput,
+  MailDetection,
   Capability,
   EstimateUnit,
   IssueTypeDef,
@@ -353,6 +355,9 @@ export const boardApi = {
   saveConnection: (key: string, body: { name: string; url: string; header: string | null; secret: string | null }) =>
     request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}`, json("PUT", body)),
   connectionDirectory: () => request<Connector[]>("/api/connection-directory"),
+  detectMail: (email: string) => request<MailDetection>(`/api/connection-directory/detect?email=${encodeURIComponent(email)}`),
+  saveMailConnection: (key: string, body: MailConnectionInput) =>
+    request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/mail`, json("PUT", body)),
   startConnectionLogin: (key: string, body: ConnectionLogin) =>
     request<{ authorizationUrl: string }>(`/api/connections/${encodeURIComponent(key)}/login`, json("POST", body)),
   finishConnectionLogin: (state: string, code: string) => request<BusinessConnection>("/api/connection-logins", json("POST", { state, code })),

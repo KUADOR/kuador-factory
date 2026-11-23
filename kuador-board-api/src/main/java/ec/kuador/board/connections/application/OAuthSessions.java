@@ -152,7 +152,7 @@ class OAuthSessions {
         }
         OAuthClient.Tokens tokens;
         try {
-            tokens = oauth.refresh(s.get("token"), client(s), refresh, s.get("resource"));
+            tokens = oauth.refresh(s.get("token"), client(s), refresh, s.get("resource"), s.get("scope"));
         } catch (OAuthClient.OAuthException e) {
             throw new DomainException("La sesión venció y no se pudo renovar: vuelve a iniciar sesión en Conexiones.");
         }

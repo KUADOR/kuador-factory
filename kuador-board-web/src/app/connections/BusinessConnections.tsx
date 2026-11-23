@@ -9,6 +9,7 @@ import {
   saveConnectionAction,
   setConnectionBoardsAction,
   setConnectionWritesAction,
+  detectMailAction,
   startConnectionLoginAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +18,9 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Field, PasswordInput, Switch, TextInput } from "@/components/ui/Field";
 import { Badge, Section } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
-import type { BusinessConnection, ConnectionLogin, Connector } from "@/lib/types";
+import type { BusinessConnection, ConnectionLogin, Connector, MailDetection } from "@/lib/types";
+
+import { MailboxForm } from "./MailboxForm";
 
 const BLANK = { key: "", name: "", url: "", secret: "", login: false, clientId: "", clientSecret: "", scope: "", connector: null as Connector | null };
 
@@ -55,6 +58,9 @@ export function BusinessConnections({
   const [draft, setDraft] = useState<typeof BLANK | null>(null);
   const [picking, setPicking] = useState(false);
   const [search, setSearch] = useState("");
+  const [email, setEmail] = useState("");
+  const [found, setFound] = useState<MailDetection | null>(null);
+  const [mailbox, setMailbox] = useState<MailDetection | null>(null);
   const [removing, setRemoving] = useState<BusinessConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -75,6 +81,40 @@ export function BusinessConnections({
       }
       window.location.assign(r.data.authorizationUrl);
     });
+
+  /** Elige un conector de la lista: de un clic si la plataforma tiene su aplicación; si no, pide la de la empresa. */
+  const choose = (d: Connector) => {
+    if (d.ready) {
+      login(d.key, { name: d.name, url: null, clientId: null, clientSecret: null, scope: null, connector: d.key });
+      return;
+    }
+    setPicking(false);
+    setDraft({ ...BLANK, key: d.key, name: d.name, url: d.url, login: true, connector: d });
+  };
+
+  /** Mira dónde está el correo y lleva al conector que corresponde. */
+  const detect = () =>
+    start(async () => {
+      const r = await detectMailAction(email.trim());
+      if (!r.ok) {
+        notify.error("No se pudo revisar el correo", r.error);
+        return;
+      }
+      if (r.data.connector === "IMAP") {
+        setPicking(false);
+        setFound(null);
+        setMailbox(r.data);
+      } else {
+        setFound(r.data);
+      }
+    });
+
+  const closePicker = () => {
+    setPicking(false);
+    setSearch("");
+    setEmail("");
+    setFound(null);
+  };
 
   const replace = (c: BusinessConnection) => setConnections((all) => (all.some((x) => x.key === c.key) ? all.map((x) => (x.key === c.key ? c : x)) : [...all, c]));
 
@@ -113,7 +153,7 @@ export function BusinessConnections({
       title="Sistemas de la empresa"
       description="Lo que los agentes pueden consultar o usar: correo, agenda, facturación. Se conectan por MCP."
       actions={
-        !draft && !picking && (
+        !draft && !picking && !mailbox && (
           <Button size="sm" icon={Plus} onClick={() => (directory.length > 0 ? setPicking(true) : setDraft(BLANK))}>
             Conectar
           </Button>
@@ -121,8 +161,39 @@ export function BusinessConnections({
       }
     >
       <div className="flex flex-col gap-5">
+        {mailbox && (
+          <MailboxForm
+            detected={mailbox}
+            onCancel={() => setMailbox(null)}
+            onDone={(c) => {
+              replace(c);
+              setMailbox(null);
+              closePicker();
+              notify.ok(`${c.name} conectado`, "Elige en qué tableros se usa.");
+            }}
+          />
+        )}
+
         {picking && (
           <div className="flex flex-col gap-3">
+            <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); detect(); }}>
+              <span className="text-xs font-medium text-fg-muted">Correo de la empresa: escríbelo y te decimos cómo se conecta</span>
+              <div className="flex gap-2">
+                <TextInput type="email" aria-label="Correo de la empresa" placeholder="facturas@empresa.com" value={email} onChange={(e) => { setEmail(e.target.value); setFound(null); }} />
+                <Button type="submit" loading={pending} disabled={!email.includes("@")}>Revisar</Button>
+              </div>
+              {found && (
+                <div className="flex items-center gap-3 text-[13px]">
+                  <span className="min-w-0 flex-1 text-fg-muted">
+                    Este correo está en <span className="font-medium text-fg-strong">{found.provider}</span>: se conecta iniciando sesión.
+                  </span>
+                  {(() => {
+                    const d = directory.find((x) => x.key === (found.connector === "GMAIL" ? "GMAIL" : "OUTLOOK"));
+                    return d ? <Button size="sm" tone="primary" loading={pending} onClick={() => choose(d)}>Conectar {d.name}</Button> : null;
+                  })()}
+                </div>
+              )}
+            </form>
             <TextInput type="search" aria-label="Buscar un sistema" placeholder="Buscar: correo, agenda, pagos…" value={search} onChange={(e) => setSearch(e.target.value)} />
             <ul className="flex flex-col">
               {directory
@@ -138,21 +209,28 @@ export function BusinessConnections({
                       {has ? (
                         <Badge tone="neutral">Conectado</Badge>
                       ) : (
-                        <Button
-                          size="sm"
-                          loading={pending}
-                          onClick={() => {
-                            if (d.ready) return login(d.key, { name: d.name, url: null, clientId: null, clientSecret: null, scope: null, connector: d.key });
-                            setPicking(false);
-                            setDraft({ ...BLANK, key: d.key, name: d.name, url: d.url, login: true, connector: d });
-                          }}
-                        >
+                        <Button size="sm" loading={pending} onClick={() => choose(d)}>
                           Conectar
                         </Button>
                       )}
                     </li>
                   );
                 })}
+              <li className="flex items-center gap-3 border-t border-line py-2">
+                <span className="min-w-0 flex-1 text-[13px]">
+                  <span className="font-medium text-fg-strong">Correo con contraseña</span> <span className="text-fg-faint">Correo</span>
+                  <span className="block truncate text-fg-muted">Hostinger, cPanel, Zoho y cualquier correo con IMAP y SMTP.</span>
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setPicking(false);
+                    setMailbox({ email: "", connector: "IMAP", provider: "Correo por IMAP", imapHost: null, imapPort: 993, smtpHost: null, smtpPort: 465, smtpSsl: true, sure: false });
+                  }}
+                >
+                  Conectar
+                </Button>
+              </li>
               <li className="flex items-center gap-3 border-t border-line py-2">
                 <span className="min-w-0 flex-1 text-[13px]">
                   <span className="font-medium text-fg-strong">Otro sistema</span>
@@ -162,7 +240,7 @@ export function BusinessConnections({
               </li>
             </ul>
             <div className="flex justify-end">
-              <Button tone="ghost" onClick={() => { setPicking(false); setSearch(""); }}>Cancelar</Button>
+              <Button tone="ghost" onClick={closePicker}>Cancelar</Button>
             </div>
           </div>
         )}
@@ -211,7 +289,7 @@ export function BusinessConnections({
           </form>
         )}
 
-        {!draft && !picking && connections.length === 0 && <p className="text-[13px] text-fg-muted">Todavía no hay ninguno conectado.</p>}
+        {!draft && !picking && !mailbox && connections.length === 0 && <p className="text-[13px] text-fg-muted">Todavía no hay ninguno conectado.</p>}
 
         {connections.map((c) => {
           const writes = c.tools.filter((t) => !t.readOnly);

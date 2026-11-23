@@ -92,8 +92,8 @@ class HttpOAuthClientTest {
         assertThat(forms.getLast()).contains("grant_type=authorization_code", "code=codigo", "code_verifier=verificador", "client_id=cliente-1", "resource=http")
                 .doesNotContain("client_secret");
 
-        client.refresh(found.tokenEndpoint(), new OAuthClient.Client("app", "secreto"), "renovar", found.resource());
-        assertThat(forms.getLast()).contains("grant_type=refresh_token", "refresh_token=renovar", "client_secret=secreto");
+        client.refresh(found.tokenEndpoint(), new OAuthClient.Client("app", "secreto"), "renovar", found.resource(), "mail.read offline_access");
+        assertThat(forms.getLast()).contains("grant_type=refresh_token", "refresh_token=renovar", "client_secret=secreto", "scope=mail.read+offline_access");
 
         assertThatThrownBy(() -> client.exchange(found, registered, "malo", "v", "https://go.example/x")).isInstanceOf(OAuthClient.OAuthException.class)
                 .hasMessageContaining("El código venció");

@@ -11,6 +11,8 @@ import type {
   BoardDesign,
   BusinessConnection,
   ConnectionLogin,
+  MailConnectionInput,
+  MailDetection,
   Capability,
   EstimateUnit,
   IssueTypeDef,
@@ -852,6 +854,16 @@ export async function saveConnectionAction(
   body: { name: string; url: string; header: string | null; secret: string | null },
 ): Promise<ActionResult<BusinessConnection>> {
   return run(() => boardApi.saveConnection(key, body), "/connections");
+}
+
+/** Con qué conector se conecta un correo, según dónde está alojado su dominio. */
+export async function detectMailAction(email: string): Promise<ActionResult<MailDetection>> {
+  return run(() => boardApi.detectMail(email));
+}
+
+/** Un buzón por IMAP y SMTP con su correo y contraseña (Hostinger, cPanel…). */
+export async function saveMailConnectionAction(key: string, body: MailConnectionInput): Promise<ActionResult<BusinessConnection>> {
+  return run(() => boardApi.saveMailConnection(key, body), "/connections");
 }
 
 /** Conexión que pide iniciar sesión: devuelve la dirección del sistema a la que debe ir el navegador. */

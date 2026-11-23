@@ -41,6 +41,24 @@ public final class SafeUrls {
         return uri;
     }
 
+    /**
+     * Un servidor al que se llama por otro protocolo (IMAP, SMTP): su nombre tiene que resolver solo a direcciones de
+     * Internet. {@link DomainException} con el motivo si no.
+     */
+    public static void requirePublicHost(String host, boolean allowPrivate) {
+        if (host == null || host.isBlank() || !host.strip().matches("[A-Za-z0-9.\\-]{1,253}")) throw new DomainException("El nombre del servidor no es válido.");
+        if (allowPrivate) return;
+        InetAddress[] addresses;
+        try {
+            addresses = InetAddress.getAllByName(host.strip());
+        } catch (UnknownHostException e) {
+            throw new DomainException("No se encuentra el servidor " + host.strip() + ".");
+        }
+        for (InetAddress a : addresses) {
+            if (internal(a)) throw new DomainException("El servidor " + host.strip() + " apunta a una red interna: solo se permiten servidores públicos.");
+        }
+    }
+
     static boolean internal(InetAddress a) {
         if (a.isAnyLocalAddress() || a.isLoopbackAddress() || a.isLinkLocalAddress() || a.isSiteLocalAddress() || a.isMulticastAddress()) return true;
         byte[] b = a.getAddress();

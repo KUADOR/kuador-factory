@@ -133,11 +133,12 @@ class HttpOAuthClient implements OAuthClient {
     }
 
     @Override
-    public Tokens refresh(String tokenEndpoint, Client client, String refreshToken, String resource) {
+    public Tokens refresh(String tokenEndpoint, Client client, String refreshToken, String resource, String scope) {
         Map<String, String> form = new LinkedHashMap<>();
         form.put("grant_type", "refresh_token");
         form.put("refresh_token", refreshToken);
         form.put("resource", resource);
+        form.put("scope", scope);
         return tokens(tokenEndpoint, client, form);
     }
 

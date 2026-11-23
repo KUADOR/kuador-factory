@@ -10,6 +10,7 @@ import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
   BoardDesign,
   BusinessConnection,
+  ConnectionLogin,
   Capability,
   EstimateUnit,
   IssueTypeDef,
@@ -851,6 +852,14 @@ export async function saveConnectionAction(
   body: { name: string; url: string; header: string | null; secret: string | null },
 ): Promise<ActionResult<BusinessConnection>> {
   return run(() => boardApi.saveConnection(key, body), "/connections");
+}
+
+/** Conexión que pide iniciar sesión: devuelve la dirección del sistema a la que debe ir el navegador. */
+export async function startConnectionLoginAction(
+  key: string,
+  body: ConnectionLogin,
+): Promise<ActionResult<{ authorizationUrl: string }>> {
+  return run(() => boardApi.startConnectionLogin(key, body), "/connections");
 }
 
 export async function refreshConnectionAction(key: string): Promise<ActionResult<BusinessConnection>> {

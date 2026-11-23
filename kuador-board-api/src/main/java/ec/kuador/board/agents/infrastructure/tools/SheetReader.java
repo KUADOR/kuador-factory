@@ -1,5 +1,6 @@
 package ec.kuador.board.agents.infrastructure.tools;
 
+import ec.kuador.board.shared.files.ZipGuard;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;

@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 class JdbcConnectionStore implements ConnectionStore {
 
-    private static final String COLUMNS = "conn_key, name, url, header, secret, tools, allowed_writes, checked_at";
+    private static final String COLUMNS = "conn_key, name, url, header, secret, tools, allowed_writes, checked_at, oauth";
 
     private final JdbcClient jdbc;
 
@@ -40,13 +40,14 @@ class JdbcConnectionStore implements ConnectionStore {
     @Override
     public void save(UUID workspaceId, Connection c) {
         jdbc.sql("""
-                insert into business_connection (workspace_id, conn_key, name, url, header, secret, tools, allowed_writes, checked_at)
-                values (:ws, :key, :name, :url, :header, :secret, :tools, :writes, :checked)
+                insert into business_connection (workspace_id, conn_key, name, url, header, secret, tools, allowed_writes, checked_at, oauth)
+                values (:ws, :key, :name, :url, :header, :secret, :tools, :writes, :checked, :oauth)
                 on conflict (workspace_id, conn_key) do update set name = excluded.name, url = excluded.url, header = excluded.header,
-                    secret = excluded.secret, tools = excluded.tools, allowed_writes = excluded.allowed_writes, checked_at = excluded.checked_at""")
+                    secret = excluded.secret, tools = excluded.tools, allowed_writes = excluded.allowed_writes, checked_at = excluded.checked_at,
+                    oauth = excluded.oauth""")
                 .param("ws", workspaceId).param("key", c.key()).param("name", c.name()).param("url", c.url()).param("header", c.header())
                 .param("secret", c.secret()).param("tools", Json.write(c.tools())).param("writes", Json.write(c.allowedWrites().stream().sorted().toList()))
-                .param("checked", c.checkedAt() == null ? null : Timestamp.from(c.checkedAt()))
+                .param("checked", c.checkedAt() == null ? null : Timestamp.from(c.checkedAt())).param("oauth", c.oauth())
                 .update();
     }
 
@@ -85,7 +86,7 @@ class JdbcConnectionStore implements ConnectionStore {
         Timestamp checked = rs.getTimestamp("checked_at");
         return new Connection(rs.getString("conn_key"), rs.getString("name"), rs.getString("url"), rs.getString("header"), rs.getString("secret"),
                 Json.readList(rs.getString("tools"), Connection.ToolDef.class), new LinkedHashSet<>(Json.readList(rs.getString("allowed_writes"), String.class)),
-                checked == null ? null : checked.toInstant());
+                checked == null ? null : checked.toInstant(), rs.getString("oauth"));
     }
 
     private static Use use(ResultSet rs, int n) throws SQLException {

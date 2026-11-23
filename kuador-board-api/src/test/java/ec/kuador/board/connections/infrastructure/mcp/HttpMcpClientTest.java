@@ -22,9 +22,11 @@ class HttpMcpClientTest {
     private String url;
     private final List<String> seen = new ArrayList<>();
     private boolean events;
+    private String invoice;
 
     @BeforeEach
     void start() throws Exception {
+        invoice = java.util.Base64.getEncoder().encodeToString(ToolFilesTest.pdf("Factura 001-001-000012345", "Total: 1840.50 USD"));
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/mcp", exchange -> {
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
@@ -46,6 +48,14 @@ class HttpMcpClientTest {
                 reply = "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":["
                         + "{\"name\":\"buscar_citas\",\"description\":\"Citas de un día\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"dia\":{\"type\":\"string\"}}},\"annotations\":{\"readOnlyHint\":true}},"
                         + "{\"name\":\"crear_cita\",\"description\":\"Agenda una cita\",\"inputSchema\":{\"type\":\"object\"}}]}}";
+            } else if (body.contains("resources/read")) {
+                reply = "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"contents\":[{\"uri\":\"correo://adjuntos/9\",\"mimeType\":\"application/pdf\",\"blob\":\"" + invoice + "\"}]}}";
+            } else if (body.contains("\"leer_adjunto\"")) {
+                reply = "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Adjuntos del correo 77\"},"
+                        + "{\"type\":\"resource\",\"resource\":{\"uri\":\"correo://adjuntos/factura.xml\",\"mimeType\":\"application/xml\",\"text\":\"<factura><total>1840.50</total></factura>\"}},"
+                        + "{\"type\":\"resource\",\"resource\":{\"uri\":\"correo://adjuntos/factura.pdf\",\"mimeType\":\"application/pdf\",\"blob\":\"" + invoice + "\"}},"
+                        + "{\"type\":\"resource_link\",\"uri\":\"correo://adjuntos/9\",\"name\":\"guia.pdf\"},"
+                        + "{\"type\":\"image\",\"mimeType\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\"}]}}";
             } else if (body.contains("\"fallar\"")) {
                 reply = "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"isError\":true,\"content\":[{\"type\":\"text\",\"text\":\"No existe ese paciente\"}]}}";
             } else {
@@ -88,6 +98,18 @@ class HttpMcpClientTest {
         assertThat(new HttpMcpClient(true).callTool(url, null, "secreto", "buscar_citas", Map.of("dia", "lunes"))).isEqualTo("3 citas el lunes");
         events = true;
         assertThat(new HttpMcpClient(true).callTool(url, null, "secreto", "buscar_citas", Map.of("dia", "lunes"))).isEqualTo("3 citas el lunes");
+    }
+
+    @Test
+    void attachmentsComeBackAsTextTheAgentCanRead() {
+        String result = new HttpMcpClient(true).callTool(url, null, "secreto", "leer_adjunto", Map.of("correo", "77"));
+
+        assertThat(result).startsWith("Adjuntos del correo 77")
+                .contains("[Archivo «factura.xml» (texto)]", "<total>1840.50</total>")
+                .contains("[Archivo «factura.pdf» (PDF, 1 página)]", "Factura 001-001-000012345")
+                .as("un archivo que el servidor deja para leer aparte se pide y se lee").contains("[Archivo «guia.pdf» (PDF, 1 página)]")
+                .contains("es una imagen").doesNotContain("JVBERi0", "no se muestra");
+        assertThat(seen).anyMatch(s -> s.contains("resources/read") && s.contains("correo://adjuntos/9"));
     }
 
     @Test

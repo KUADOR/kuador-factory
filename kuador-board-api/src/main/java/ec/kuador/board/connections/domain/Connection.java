@@ -11,10 +11,11 @@ import java.util.regex.Pattern;
  * Un sistema de la empresa conectado por MCP. {@code secret}: la credencial cifrada (o nula si el servidor no pide);
  * {@code header}: en qué cabecera viaja (nulo = {@code Authorization: Bearer …}). {@code tools}: lo que el servidor
  * ofreció la última vez que se comprobó. {@code allowedWrites}: herramientas que escriben y que quien administra
- * habilitó para los agentes; las demás que escriben no se ofrecen.
+ * habilitó para los agentes; las demás que escriben no se ofrecen. {@code oauth}: si se entra iniciando sesión (OAuth)
+ * en vez de con una clave, los datos de esa sesión cifrados (cliente, tokens); nulo en las que usan clave.
  */
 public record Connection(String key, String name, String url, String header, String secret, List<ToolDef> tools, Set<String> allowedWrites,
-        Instant checkedAt) {
+        Instant checkedAt, String oauth) {
 
     public static final Pattern KEY = Pattern.compile("^[A-Z][A-Z0-9_]{1,23}$");
     private static final Pattern HEADER = Pattern.compile("^[A-Za-z][A-Za-z0-9-]{0,63}$");
@@ -47,12 +48,17 @@ public record Connection(String key, String name, String url, String header, Str
         // Una herramienta habilitada que ya no existe deja de estarlo.
         Set<String> names = fresh.stream().map(ToolDef::name).collect(java.util.stream.Collectors.toSet());
         Set<String> kept = allowedWrites.stream().filter(names::contains).collect(java.util.stream.Collectors.toSet());
-        return new Connection(key, name, url, header, secret, fresh, kept, now);
+        return new Connection(key, name, url, header, secret, fresh, kept, now, oauth);
     }
 
     public Connection withAllowedWrites(Set<String> writes) {
         Set<String> writable = tools.stream().filter(t -> !t.readOnly()).map(ToolDef::name).collect(java.util.stream.Collectors.toSet());
         for (String w : writes) if (!writable.contains(w)) throw new DomainException("«" + w + "» no es una herramienta que escriba en esta conexión.");
-        return new Connection(key, name, url, header, secret, tools, writes, checkedAt);
+        return new Connection(key, name, url, header, secret, tools, writes, checkedAt, oauth);
+    }
+
+    /** La misma conexión con otra sesión OAuth (cifrada). */
+    public Connection withOauth(String session) {
+        return new Connection(key, name, url, header, secret, tools, allowedWrites, checkedAt, session);
     }
 }

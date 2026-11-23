@@ -6,6 +6,8 @@ import { getSessionToken } from "./session";
 import type {
   BoardDesign,
   BusinessConnection,
+  ConnectionLogin,
+  Connector,
   Capability,
   EstimateUnit,
   IssueTypeDef,
@@ -350,6 +352,10 @@ export const boardApi = {
   connections: () => request<BusinessConnection[]>("/api/connections"),
   saveConnection: (key: string, body: { name: string; url: string; header: string | null; secret: string | null }) =>
     request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}`, json("PUT", body)),
+  connectionDirectory: () => request<Connector[]>("/api/connection-directory"),
+  startConnectionLogin: (key: string, body: ConnectionLogin) =>
+    request<{ authorizationUrl: string }>(`/api/connections/${encodeURIComponent(key)}/login`, json("POST", body)),
+  finishConnectionLogin: (state: string, code: string) => request<BusinessConnection>("/api/connection-logins", json("POST", { state, code })),
   refreshConnection: (key: string) => request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/refresh`, { method: "POST" }),
   setConnectionWrites: (key: string, tools: string[]) =>
     request<BusinessConnection>(`/api/connections/${encodeURIComponent(key)}/writes`, json("PUT", { tools })),

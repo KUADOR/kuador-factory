@@ -1,5 +1,6 @@
 package ec.kuador.board.agents.infrastructure.tools;
 
+import ec.kuador.board.shared.files.DocumentText;
 import ec.kuador.board.agents.domain.BoardAgentModel.InputFile;
 import ec.kuador.board.agents.domain.BoardAgentModel.OutputFile;
 import java.math.BigDecimal;

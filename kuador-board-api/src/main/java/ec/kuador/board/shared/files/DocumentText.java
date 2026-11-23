@@ -1,4 +1,4 @@
-package ec.kuador.board.agents.infrastructure.tools;
+package ec.kuador.board.shared.files;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -12,20 +12,20 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
 /** El texto de un adjunto (PDF, Word, texto plano), para que el agente lo lea. */
-final class DocumentText {
+public final class DocumentText {
 
     private static final Set<String> TEXT_EXTENSIONS = Set.of("txt", "md", "markdown", "json", "xml", "html", "htm", "yaml", "yml", "log");
     private static final Set<String> IMAGE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tif", "tiff");
 
     /** {@code text} nulo si no se pudo leer; {@code note} explica qué es o por qué no se leyó. */
-    record Extracted(String kind, String text, String note) {}
+    public record Extracted(String kind, String text, String note) {}
 
     /** Páginas que se leen de un PDF: más que eso es un libro, no un adjunto de trabajo. */
-    static final int MAX_PAGES = 500;
+    public static final int MAX_PAGES = 500;
 
     private DocumentText() {}
 
-    static Extracted extract(String name, String contentType, byte[] content) {
+    public static Extracted extract(String name, String contentType, byte[] content) {
         String ext = extension(name);
         try {
             if (ext.equals("pdf") || "application/pdf".equals(contentType)) return pdf(content);
@@ -89,7 +89,7 @@ final class DocumentText {
         return s.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&amp;", "&");
     }
 
-    static String extension(String name) {
+    public static String extension(String name) {
         int dot = name.lastIndexOf('.');
         return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
     }

@@ -85,9 +85,10 @@ class HttpMcpClient implements McpClient {
     }
 
     @Override
-    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recentMail(String url, String secret, String folder, java.time.Instant since, int max) {
+    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recentMail(String url, String secret, String folder, java.time.Instant since, int max,
+            java.util.Set<String> known) {
         return nativeFor(url).filter(BuiltInConnector::mailbox).orElseThrow(() -> new McpException("Esta conexión no es un buzón de correo."))
-                .recent(secret, folder, since, max);
+                .recent(secret, folder, since, max, known);
     }
 
     private java.util.Optional<BuiltInConnector> nativeFor(String url) {

@@ -41,9 +41,16 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
     private static final Logger log = LoggerFactory.getLogger(MailInboxService.class);
     /** Correos que se convierten en tarjetas por bandeja y por vuelta: el resto sigue en la próxima. */
     private static final int BATCH = 10;
+    /**
+     * Correos que se le piden al buzón por vuelta: más que BATCH, porque los primeros pueden ser ya vistos (se vuelve a
+     * mirar un rato antes de lo último); si no, una ráfaga de correos dejaría la bandeja trabada releyendo los mismos.
+     */
+    private static final int FETCH = 50;
     /** Se vuelve a mirar un poco antes de lo último visto: los relojes de los servidores no coinciden al segundo. */
     private static final Duration OVERLAP = Duration.ofMinutes(5);
     private static final int MAX_BACKFILL_DAYS = 7;
+    /** Tarjetas por bandeja en una hora: más que esto huele a bucle (un aviso que vuelve al buzón) y la bandeja se pausa. */
+    static final int MAX_PER_HOUR = 30;
 
     public record Input(String connection, String folder, String fromFilter, Boolean onlyAttachments, String status, UUID assigneeId, Boolean enabled,
             Integer backfillDays) {}
@@ -68,9 +75,12 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
     private final TransactionTemplate tx;
     private final Clock clock;
     private final ZoneId zone;
+    /** La dirección desde la que el tablero manda sus avisos: lo que llegue de ahí no es trabajo. */
+    private final String platformSender;
 
     MailInboxService(JdbcClient jdbc, ConnectionsApi connections, IssueApi issues, AttachmentApi attachments, ProjectApi projects, MemberApi members,
-            TransactionTemplate tx, Clock clock, @Value("${board.inbox.timezone:America/Guayaquil}") String zone) {
+            TransactionTemplate tx, Clock clock, @Value("${board.inbox.timezone:America/Guayaquil}") String zone,
+            @Value("${board.mail.from:Kuador Go <no-reply@kuador.com>}") String mailFrom) {
         this.jdbc = jdbc;
         this.connections = connections;
         this.issues = issues;
@@ -80,6 +90,8 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
         this.tx = tx;
         this.clock = clock;
         this.zone = ZoneId.of(zone);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("[^\\s<>@,;\"]+@[^\\s<>@,;\"]+").matcher(mailFrom == null ? "" : mailFrom);
+        this.platformSender = m.find() ? m.group().toLowerCase(Locale.ROOT) : null;
     }
 
     // ---- Lo que hace una persona ----
@@ -180,10 +192,21 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
         List<ConnectionsApi.IncomingMail> mail;
         try {
             Instant from = r.since().minus(OVERLAP);
-            mail = connections.recentMail(r.connection(), r.folder(), from, BATCH);
+            // Lo ya procesado en el último día se pide sin texto ni adjuntos: no se descarga cada minuto otra vez.
+            java.util.Set<String> known = new java.util.HashSet<>();
+            jdbc.sql("select mail_key from mail_inbox_seen where inbox_id = ? and seen_at > ?").params(r.id(), Timestamp.from(now.minus(Duration.ofDays(1))))
+                    .query(String.class).list().forEach(k -> known.add(k.substring(k.indexOf(':') + 1)));
+            mail = connections.recentMail(r.connection(), r.folder(), from, FETCH, known);
         } catch (RuntimeException e) {
             String error = e.getMessage() == null ? "No se pudo leer el buzón." : e.getMessage();
             jdbc.sql("update mail_inbox set last_checked_at = ?, last_error = ? where id = ?").params(Timestamp.from(now), error, r.id()).update();
+            return new Check(List.of(), error);
+        }
+        // Freno de bucles: si ya entraron demasiadas tarjetas en una hora, la bandeja se pausa y se avisa por qué.
+        long lastHour = jdbc.sql("select count(*) from mail_inbox_seen where inbox_id = ? and issue_key is not null and seen_at > ?")
+                .params(r.id(), Timestamp.from(now.minus(Duration.ofHours(1)))).query(Long.class).single();
+        if (lastHour >= MAX_PER_HOUR) {
+            String error = pause(r, now);
             return new Check(List.of(), error);
         }
         String mailbox = connections.mailboxes().stream().filter(m -> m.key().equals(r.connection())).map(ConnectionsApi.Mailbox::name).findFirst()
@@ -193,9 +216,17 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
         String error = null;
         for (ConnectionsApi.IncomingMail m : mail) {
             String key = key(m);
+            boolean already = seen(r.id(), key);
+            // Ya se crearon las de esta vuelta: este correo y los que siguen quedan para la próxima.
+            if (!already && created.size() >= BATCH) break;
+            // Pausada por exceso: este correo y los que siguen quedan para cuando se reactive.
+            if (!already && lastHour + created.size() >= MAX_PER_HOUR) {
+                error = pause(r, now);
+                break;
+            }
             if (m.receivedAt().isAfter(since)) since = m.receivedAt();
-            if (seen(r.id(), key)) continue;
-            if (!matches(r, m)) {
+            if (already) continue;
+            if (!matches(r, m) || m.automatic() || fromPlatform(m)) {
                 markSeen(r.id(), key, null, now);
                 continue;
             }
@@ -238,6 +269,18 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
         }
         markSeen(r.id(), key, issue.key(), now);
         return issue.key();
+    }
+
+    private String pause(Row r, Instant now) {
+        String error = "Se pausó: entraron " + MAX_PER_HOUR + " correos en una hora (¿un bucle?). Revisa los filtros y vuelve a activarla.";
+        jdbc.sql("update mail_inbox set enabled = false, last_error = ?, last_checked_at = ? where id = ?").params(error, Timestamp.from(now), r.id()).update();
+        log.warn("Bandeja {} de {} pausada por exceso de correos", r.id(), r.projectKey());
+        return error;
+    }
+
+    /** Los avisos del propio tablero (si el buzón conectado es el mismo que los envía) no son trabajo. */
+    private boolean fromPlatform(ConnectionsApi.IncomingMail m) {
+        return platformSender != null && m.from() != null && m.from().toLowerCase(Locale.ROOT).contains(platformSender);
     }
 
     private static boolean matches(Row r, ConnectionsApi.IncomingMail m) {

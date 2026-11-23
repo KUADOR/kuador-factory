@@ -30,15 +30,23 @@ class OutlookTools extends NativeConnector {
     }
 
     @Override
-    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String token, String carpeta, java.time.Instant since, int max) {
+    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String token, String carpeta, java.time.Instant since, int max,
+            java.util.Set<String> known) {
         String folder = carpeta == null || carpeta.isBlank() ? "inbox" : carpeta.strip();
         if (!folder.matches("[A-Za-z0-9_=\\-]{1,200}")) throw new McpException("Carpeta no válida: usa inbox, sentitems, drafts, archive o junkemail.");
         String filter = "receivedDateTime ge " + since.truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
-        JsonNode list = get(token, "/me/mailFolders/" + folder + "/messages?$select=id,internetMessageId,subject,from,receivedDateTime,body,hasAttachments&$top="
+        JsonNode list = get(token, "/me/mailFolders/" + folder + "/messages?$select=id,internetMessageId,subject,from,receivedDateTime,body,hasAttachments,internetMessageHeaders&$top="
                 + Math.max(1, Math.min(max, 50)) + "&$orderby=" + enc("receivedDateTime asc") + "&$filter=" + enc(filter), "Prefer", "outlook.body-content-type=\"text\"");
         List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> out = new ArrayList<>();
         for (JsonNode m : list.path("value")) {
             String id = m.path("id").asString("");
+            String messageId = blankToNull(m.path("internetMessageId").asString(""));
+            java.time.Instant received = java.time.Instant.parse(m.path("receivedDateTime").asString(since.toString()));
+            if (known.contains(id) || (messageId != null && known.contains(messageId))) {
+                // Ya procesado: solo lo necesario para avanzar, sin descargar sus adjuntos otra vez.
+                out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(id, messageId, "", "", received, "", List.of(), false));
+                continue;
+            }
             List<ec.kuador.board.connections.ConnectionsApi.MailFile> files = new ArrayList<>();
             if (m.path("hasAttachments").asBoolean(false)) {
                 for (JsonNode f : get(token, "/me/messages/" + enc(id) + "/attachments?$select=id,name,contentType,size,isInline").path("value")) {
@@ -60,9 +68,12 @@ class OutlookTools extends NativeConnector {
                 }
             }
             String body = m.path("body").path("content").asString("").strip();
+            Map<String, String> headers = new LinkedHashMap<>();
+            for (JsonNode h : m.path("internetMessageHeaders")) headers.putIfAbsent(h.path("name").asString("").toLowerCase(java.util.Locale.ROOT), h.path("value").asString(""));
             out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(id, blankToNull(m.path("internetMessageId").asString("")), address(m.path("from")),
                     m.path("subject").asString(""), java.time.Instant.parse(m.path("receivedDateTime").asString(since.toString())),
-                    body.length() > MAX_BODY_TEXT ? body.substring(0, MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files));
+                    body.length() > MAX_BODY_TEXT ? body.substring(0, MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files,
+                    ec.kuador.board.connections.ConnectionsApi.IncomingMail.automatic(headers)));
         }
         return out;
     }

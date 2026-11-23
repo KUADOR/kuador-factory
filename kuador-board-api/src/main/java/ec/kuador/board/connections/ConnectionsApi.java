@@ -17,7 +17,25 @@ public interface ConnectionsApi {
      * Un correo que llegó a un buzón conectado. {@code id}: el del proveedor (para leerlo o responderlo con las
      * herramientas); {@code messageId}: el Message-ID del correo, que no cambia aunque se mueva de carpeta (puede faltar).
      */
-    record IncomingMail(String id, String messageId, String from, String subject, java.time.Instant receivedAt, String body, List<MailFile> files) {}
+    record IncomingMail(String id, String messageId, String from, String subject, java.time.Instant receivedAt, String body, List<MailFile> files,
+            boolean automatic) {
+
+        /** Un correo escrito por una persona. */
+        public IncomingMail(String id, String messageId, String from, String subject, java.time.Instant receivedAt, String body, List<MailFile> files) {
+            this(id, messageId, from, subject, receivedAt, body, files, false);
+        }
+
+        /**
+         * Si lo mandó una máquina (avisos, respuestas automáticas, listas de correo), según sus cabeceras (nombre en
+         * minúsculas → valor): no se vuelve tarjeta, así un aviso del tablero que llega al buzón no arma un bucle.
+         */
+        public static boolean automatic(java.util.Map<String, String> headers) {
+            String auto = headers.getOrDefault("auto-submitted", "").strip().toLowerCase(java.util.Locale.ROOT);
+            String precedence = headers.getOrDefault("precedence", "").strip().toLowerCase(java.util.Locale.ROOT);
+            return (!auto.isEmpty() && !auto.equals("no")) || headers.containsKey("x-kuador-mail") || headers.containsKey("x-autoreply")
+                    || headers.containsKey("x-autorespond") || java.util.Set.of("bulk", "junk", "list", "auto_reply").contains(precedence);
+        }
+    }
 
     /** Un adjunto de un correo. {@code content} nulo si pesaba demasiado para traerlo. */
     record MailFile(String name, String contentType, long size, byte[] content) {}
@@ -40,7 +58,15 @@ public interface ConnectionsApi {
      * Los correos que llegaron a una carpeta desde {@code since}, del más antiguo al más nuevo (hasta {@code max}), con
      * su texto y sus adjuntos. {@code folder} nulo = la bandeja de entrada.
      */
-    List<IncomingMail> recentMail(String connection, String folder, java.time.Instant since, int max);
+    default List<IncomingMail> recentMail(String connection, String folder, java.time.Instant since, int max) {
+        return recentMail(connection, folder, since, max, java.util.Set.of());
+    }
+
+    /**
+     * {@code known}: Message-ID (o id del proveedor) de correos ya procesados: vuelven solo con sus datos básicos, sin
+     * texto ni adjuntos, para no descargarlos otra vez.
+     */
+    List<IncomingMail> recentMail(String connection, String folder, java.time.Instant since, int max, java.util.Set<String> known);
 
     /** Que el tablero pueda usar la conexión (todos sus roles), si todavía no la usa. */
     void useOnBoard(String connection, String projectKey);

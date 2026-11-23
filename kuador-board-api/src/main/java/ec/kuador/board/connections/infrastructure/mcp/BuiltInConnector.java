@@ -14,4 +14,14 @@ interface BuiltInConnector {
     List<Connection.ToolDef> tools(String secret);
 
     String call(String secret, String tool, Map<String, Object> arguments);
+
+    /** Si es un buzón de correo (sabe entregar los correos nuevos). */
+    default boolean mailbox() {
+        return false;
+    }
+
+    /** Los correos que llegaron a una carpeta desde {@code since}, del más antiguo al más nuevo, con sus adjuntos. */
+    default List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String secret, String folder, java.time.Instant since, int max) {
+        throw new ec.kuador.board.connections.domain.McpClient.McpException("Esta conexión no es un buzón de correo.");
+    }
 }

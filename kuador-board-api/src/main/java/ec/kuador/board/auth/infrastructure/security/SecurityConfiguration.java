@@ -124,6 +124,8 @@ class SecurityConfiguration {
                         // Rutinas: el webhook es público (lleva su secreto); configurarlas, personas que editan.
                         .requestMatchers(HttpMethod.POST, "/api/routines/*/hook").permitAll()
                         .requestMatchers("/api/routines/**", "/api/projects/*/routines").access(HUMAN_EDITOR)
+                        // Bandeja de correo: usa los buzones de la empresa, así que la configura quien administra.
+                        .requestMatchers("/api/inboxes", "/api/inboxes/**", "/api/projects/*/inboxes").access(HUMAN_ADMIN)
                         // El dashboard: cómo va la empresa y su ajuste, quien administra; «mi trabajo», cada persona.
                         .requestMatchers("/api/insights/company", "/api/insights/settings").access(HUMAN_ADMIN)
                         .requestMatchers("/api/insights/**").hasRole("HUMAN")

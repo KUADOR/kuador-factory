@@ -273,7 +273,39 @@ public class ConnectionService implements ConnectionsApi {
         return view(c, store.uses(ws));
     }
 
-    // ---- ConnectionsApi: lo que usan los agentes ----
+    // ---- ConnectionsApi: lo que usan los agentes y la bandeja de los tableros ----
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Mailbox> mailboxes() {
+        UUID ws = TenantContext.require();
+        return store.all(ws).stream().filter(c -> mcp.isMailbox(c.url()) && (c.oauth() == null || sessions.connected(c.oauth())))
+                .map(c -> new Mailbox(c.key(), c.name())).toList();
+    }
+
+    @Override
+    public List<IncomingMail> recentMail(String connection, String folder, java.time.Instant since, int max) {
+        UUID ws = TenantContext.require();
+        Connection c = require(ws, connection);
+        if (!mcp.isMailbox(c.url())) throw new DomainException("«" + c.name() + "» no es un buzón de correo.");
+        try {
+            return withCredential(ws, c, secret -> mcp.recentMail(c.url(), secret, folder, since, max));
+        } catch (McpClient.McpException e) {
+            throw new DomainException("No se pudo leer «" + c.name() + "»: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public void useOnBoard(String connection, String projectKey) {
+        UUID ws = TenantContext.require();
+        Connection c = require(ws, connection);
+        String project = projectKey.toUpperCase(Locale.ROOT);
+        List<ConnectionStore.Use> uses = new ArrayList<>(store.usesOf(ws, project));
+        if (uses.stream().anyMatch(u -> u.connection().equals(c.key()))) return;
+        uses.add(new ConnectionStore.Use(c.key(), project, List.of()));
+        store.saveUses(ws, project, uses);
+    }
 
     @Override
     @Transactional(readOnly = true)

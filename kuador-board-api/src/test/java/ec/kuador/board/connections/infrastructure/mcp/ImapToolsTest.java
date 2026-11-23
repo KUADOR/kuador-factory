@@ -7,6 +7,7 @@ import com.icegreen.greenmail.junit5.GreenMailExtension;
 import com.icegreen.greenmail.user.GreenMailUser;
 import com.icegreen.greenmail.util.DummySSLSocketFactory;
 import com.icegreen.greenmail.util.ServerSetupTest;
+import ec.kuador.board.connections.ConnectionsApi;
 import ec.kuador.board.connections.domain.Connection;
 import ec.kuador.board.connections.domain.McpClient;
 import jakarta.mail.Folder;
@@ -97,6 +98,18 @@ class ImapToolsTest {
         assertThat(client.callTool(url, null, secret, "marcar_leido", Map.of("id", id))).isEqualTo("Marcado como leído.");
         assertThat(client.callTool(url, null, secret, "buscar_correos", Map.of("solo_no_leidos", true, "con_adjuntos", true))).isEqualTo("No hay correos que cumplan eso.");
         assertThat(client.callTool(url, null, secret, "buscar_correos", Map.of("texto", "4471"))).contains("Factura pedido 4471").doesNotContain("Hola");
+    }
+
+    @Test
+    void deliversNewMailWithItsFilesForTheBoardInbox() {
+        var mail = client.recentMail(url, secret, null, java.time.Instant.now().minusSeconds(600), 10);
+        assertThat(mail).extracting(ConnectionsApi.IncomingMail::subject).containsExactly("Factura pedido 4471", "Hola");
+        assertThat(mail.getFirst().messageId()).isEqualTo("<abc@cartones.example>");
+        assertThat(mail.getFirst().files()).singleElement().satisfies(f -> {
+            assertThat(f.name()).isEqualTo("factura.pdf");
+            assertThat(new String(f.content(), 0, 4, java.nio.charset.StandardCharsets.US_ASCII)).isEqualTo("%PDF");
+        });
+        assertThat(client.recentMail(url, secret, null, java.time.Instant.now().plusSeconds(600), 10)).as("nada desde después").isEmpty();
     }
 
     @Test

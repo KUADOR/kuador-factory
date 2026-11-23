@@ -105,6 +105,21 @@ class OutlookToolsTest {
     }
 
     @Test
+    void deliversNewMailWithItsFilesForTheBoardInbox() {
+        assertThat(client.isMailbox(url)).isTrue();
+        var mail = client.recentMail(url, "acceso", null, java.time.Instant.parse("2026-11-23T09:00:00Z"), 10);
+        assertThat(mail).singleElement().satisfies(m -> {
+            assertThat(m.id()).isEqualTo("AAMk=1");
+            assertThat(m.from()).isEqualTo("Cartones del Sur <ventas@cartones.example>");
+            assertThat(m.files()).as("sin las imágenes de la firma").singleElement().satisfies(f -> {
+                assertThat(f.name()).isEqualTo("factura.pdf");
+                assertThat(new String(f.content(), 0, 4, java.nio.charset.StandardCharsets.US_ASCII)).isEqualTo("%PDF");
+            });
+        });
+        assertThat(seen).anyMatch(s -> s.contains("$orderby=receivedDateTime asc") && s.contains("receivedDateTime ge 2026-11-23T09:00:00Z"));
+    }
+
+    @Test
     void writesOnlyWhatItIsAskedTo() {
         assertThat(client.callTool(url, null, "acceso", "marcar_leido", Map.of("id", "AAMk=1"))).isEqualTo("Marcado como leído.");
         assertThat(seen.getLast()).startsWith("PATCH /v1.0/me/messages/AAMk%3D1").contains("{\"isRead\":true}");

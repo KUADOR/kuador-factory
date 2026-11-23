@@ -33,6 +33,54 @@ class GmailTools extends NativeConnector {
     }
 
     @Override
+    public boolean mailbox() {
+        return true;
+    }
+
+    @Override
+    public List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> recent(String token, String carpeta, java.time.Instant since, int max) {
+        String folder = carpeta == null || carpeta.isBlank() ? "in:inbox" : FOLDERS.getOrDefault(carpeta.strip().toLowerCase(Locale.ROOT), null);
+        if (folder == null) {
+            if (!carpeta.matches("[\\p{L}\\p{N} _/\\-]{1,100}")) throw new McpException("Carpeta no válida.");
+            folder = "label:\"" + carpeta.strip() + "\"";
+        }
+        // Gmail entrega del más nuevo al más antiguo: se piden los nuevos desde «since» y se dan vuelta.
+        JsonNode found = get(token, "/users/me/messages?maxResults=" + Math.max(1, Math.min(max, 50)) + "&q=" + enc(folder + " after:" + since.getEpochSecond()));
+        List<ec.kuador.board.connections.ConnectionsApi.IncomingMail> out = new ArrayList<>();
+        for (JsonNode ref : found.path("messages")) {
+            String id = ref.path("id").asString("");
+            JsonNode m = get(token, "/users/me/messages/" + enc(id) + "?format=full");
+            java.time.Instant received = java.time.Instant.ofEpochMilli(m.path("internalDate").asLong(since.toEpochMilli()));
+            if (received.isBefore(since)) continue;
+            Map<String, String> h = headers(m.path("payload"));
+            List<ec.kuador.board.connections.ConnectionsApi.MailFile> files = new ArrayList<>();
+            for (JsonNode f : files(m.path("payload"), new ArrayList<>())) {
+                if (files.size() >= MAX_FILES) break;
+                long size = f.path("body").path("size").asLong(0);
+                byte[] content = null;
+                if (size <= MAX_FILE) {
+                    String data = f.path("body").path("data").asString("");
+                    if (data.isBlank()) data = get(token, "/users/me/messages/" + enc(id) + "/attachments/" + enc(f.path("body").path("attachmentId").asString("")))
+                            .path("data").asString("");
+                    content = decode(data);
+                }
+                files.add(new ec.kuador.board.connections.ConnectionsApi.MailFile(f.path("filename").asString("adjunto"), f.path("mimeType").asString("application/octet-stream"),
+                        size, content));
+            }
+            String body = body(m.path("payload"), "text/plain");
+            if (body == null) {
+                String html = body(m.path("payload"), "text/html");
+                body = html == null ? m.path("snippet").asString("") : plain(html);
+            }
+            body = body.strip();
+            out.add(new ec.kuador.board.connections.ConnectionsApi.IncomingMail(id, h.get("message-id"), h.getOrDefault("from", ""), h.getOrDefault("subject", ""), received,
+                    body.length() > MAX_BODY_TEXT ? body.substring(0, MAX_BODY_TEXT) + "\n… (correo recortado)" : body, files));
+        }
+        out.sort(java.util.Comparator.comparing(ec.kuador.board.connections.ConnectionsApi.IncomingMail::receivedAt));
+        return out;
+    }
+
+    @Override
     public List<Connection.ToolDef> tools(String token) {
         get(token, "/users/me/profile");
         return mailTools();

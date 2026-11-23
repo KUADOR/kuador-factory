@@ -28,6 +28,7 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
               { slug: "stages", label: "Etapas y responsables" },
               { slug: "agents", label: "Equipo de agentes" },
               { slug: "routines", label: "Rutinas" },
+              { slug: "inbox", label: "Correo entrante" },
               { slug: "transitions", label: "Reglas de transición" },
             ],
           },
@@ -41,6 +42,7 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
               { slug: "card", label: "Tarjeta" },
               { slug: "agents", label: "Equipo de agentes" },
               { slug: "routines", label: "Rutinas" },
+              { slug: "inbox", label: "Correo entrante" },
             ],
           },
           {

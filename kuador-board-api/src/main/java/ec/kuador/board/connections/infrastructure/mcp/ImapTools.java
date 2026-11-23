@@ -195,7 +195,7 @@ class ImapTools implements BuiltInConnector {
                     reply.saveChanges();
                     send(account, reply);
                     m.setFlag(Flags.Flag.ANSWERED, true);
-                    keepSent(store, reply);
+                    keepSent(account, store, reply);
                     return "Respuesta enviada.";
                 });
                 case "enviar_correo" -> {
@@ -208,7 +208,7 @@ class ImapTools implements BuiltInConnector {
                     mail.setSentDate(new Date());
                     mail.saveChanges();
                     send(account, mail);
-                    keepSent(store, mail);
+                    keepSent(account, store, mail);
                     yield "Correo enviado a " + to.size() + (to.size() == 1 ? " destinatario." : " destinatarios.");
                 }
                 default -> throw new McpException("El correo no tiene la herramienta «" + tool + "».");
@@ -370,7 +370,9 @@ class ImapTools implements BuiltInConnector {
     }
 
     /** Guarda una copia de lo enviado en «Enviados» (SMTP no lo hace). Si no se puede, el correo igual salió. */
-    private static void keepSent(Store store, MimeMessage sent) {
+    private static void keepSent(MailAccount a, Store store, MimeMessage sent) {
+        // Gmail ya guarda en «Enviados» lo que sale por su SMTP: otra copia sería un duplicado.
+        if (a.smtpHost().equals("smtp.gmail.com") || a.smtpHost().endsWith(".gmail.com")) return;
         try {
             Folder f = special(store, SPECIAL.get("sentitems"));
             if (f == null) return;
@@ -473,7 +475,7 @@ class ImapTools implements BuiltInConnector {
             store.connect(a.imapHost(), a.imapPort(), a.email(), a.password());
             return store;
         } catch (AuthenticationFailedException e) {
-            throw new UnauthorizedException("El servidor de correo rechazó el correo o la contraseña.");
+            throw new UnauthorizedException(rejected(a));
         } catch (MessagingException e) {
             throw new McpException("No se pudo conectar con " + a.imapHost() + ":" + a.imapPort() + " (IMAP por SSL): " + e.getMessage());
         }
@@ -517,10 +519,25 @@ class ImapTools implements BuiltInConnector {
             t.connect(a.smtpHost(), a.smtpPort(), a.email(), a.password());
             return t;
         } catch (AuthenticationFailedException e) {
-            throw new UnauthorizedException("El servidor de envío (SMTP) rechazó el correo o la contraseña.");
+            throw new UnauthorizedException(rejected(a));
         } catch (MessagingException e) {
             throw new McpException("No se pudo conectar con el servidor de envío " + a.smtpHost() + ":" + a.smtpPort() + ": " + e.getMessage());
         }
+    }
+
+    /** Por qué se rechaza la contraseña, con lo que pide cada proveedor conocido. */
+    private static String rejected(MailAccount a) {
+        if (a.imapHost().equals("imap.gmail.com")) {
+            return "Gmail rechazó la contraseña: usa una contraseña de aplicación (16 letras), no la de la cuenta. Se crea en "
+                    + "myaccount.google.com/apppasswords con la verificación en dos pasos activa.";
+        }
+        if (a.imapHost().endsWith("yahoo.com") || a.imapHost().equals("imap.mail.me.com")) {
+            return "El correo rechazó la contraseña: este proveedor pide una contraseña de aplicación, no la de la cuenta.";
+        }
+        if (a.imapHost().endsWith("office365.com") || a.imapHost().endsWith("outlook.com")) {
+            return "Microsoft ya no deja entrar con contraseña: conecta este correo con «Outlook» (iniciar sesión).";
+        }
+        return "El servidor de correo rechazó el correo o la contraseña.";
     }
 
     private void secure(Properties p, String protocol) {

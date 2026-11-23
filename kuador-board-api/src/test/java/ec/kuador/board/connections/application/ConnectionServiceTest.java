@@ -32,8 +32,40 @@ class ConnectionServiceTest {
     private final FakeOAuth oauth = new FakeOAuth();
     private final MutableClock clock = new MutableClock();
     private final ConnectionService service = new ConnectionService(store, mcp, box, new OAuthSessions(oauth, box, clock, "https://go.example/"),
-            new ConnectorDirectory(new org.springframework.mock.env.MockEnvironment().withProperty("board.connectors.google.client-id", "app-kuador")
-                    .withProperty("board.connectors.google.client-secret", "secreto-kuador")), new MailDetector(domain -> MX.getOrDefault(domain, List.of())), clock, true);
+            DIRECTORY_WITH_GOOGLE, new MailDetector(domain -> MX.getOrDefault(domain, List.of()), DIRECTORY_WITH_GOOGLE), clock, true);
+
+    private static final ConnectorDirectory DIRECTORY_WITH_GOOGLE = new ConnectorDirectory(new org.springframework.mock.env.MockEnvironment()
+            .withProperty("board.connectors.google.client-id", "app-kuador").withProperty("board.connectors.google.client-secret", "secreto-kuador"));
+
+    @Test
+    void withoutAGoogleAppGmailAndWorkspaceGoThroughImapWithAnAppPassword() {
+        MailDetector noGoogle = new MailDetector(domain -> MX.getOrDefault(domain, List.of()), new ConnectorDirectory(new org.springframework.mock.env.MockEnvironment()));
+        for (String email : List.of("diego@gmail.com", "ana@andes.example")) {
+            assertThat(noGoogle.detect(email)).satisfies(d -> {
+                assertThat(d.connector()).isEqualTo("IMAP");
+                assertThat(d).extracting(MailDetector.Detected::imapHost, MailDetector.Detected::imapPort, MailDetector.Detected::smtpHost,
+                        MailDetector.Detected::smtpPort, MailDetector.Detected::smtpSsl, MailDetector.Detected::sure)
+                        .containsExactly("imap.gmail.com", 993, "smtp.gmail.com", 465, true, true);
+                assertThat(d.help()).contains("contraseña de aplicación");
+                assertThat(d.helpUrl()).isEqualTo("https://myaccount.google.com/apppasswords");
+            });
+        }
+        assertThat(noGoogle.detect("ana@andes.example").provider()).isEqualTo("Google Workspace");
+        assertThat(noGoogle.detect("compras@flores.example").connector()).as("Microsoft siempre inicia sesión").isEqualTo("OUTLOOK");
+        assertThat(noGoogle.detect("facturas@kuador.example").help()).as("Hostinger usa la contraseña del correo").isNull();
+    }
+
+    @Test
+    void twoMailboxesWithTheSameNameDoNotReplaceEachOther() {
+        TenantContext.run(WS, () -> {
+            var a = new ec.kuador.board.connections.domain.MailAccount("facturas@uno.example", "c1", "imap.uno.example", 993, "smtp.uno.example", 465, null);
+            var b = new ec.kuador.board.connections.domain.MailAccount("facturas@dos.example", "c2", "imap.dos.example", 993, "smtp.dos.example", 465, null);
+            assertThat(service.saveMail("CORREO_FACTURAS", "Uno", a).key()).isEqualTo("CORREO_FACTURAS");
+            assertThat(service.saveMail("CORREO_FACTURAS", "Dos", b).key()).isEqualTo("CORREO_FACTURAS_2");
+            assertThat(service.saveMail("CORREO_FACTURAS", "Uno otra vez", a.withPassword("nueva")).key()).as("el mismo buzón se actualiza").isEqualTo("CORREO_FACTURAS");
+            assertThat(service.list()).hasSize(2);
+        });
+    }
 
     private static final Map<String, List<String>> MX = Map.of(
             "flores.example", List.of("floresexample-com.mail.protection.outlook.com"),

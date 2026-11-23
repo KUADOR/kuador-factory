@@ -219,13 +219,13 @@ export function BusinessConnections({
               <li className="flex items-center gap-3 border-t border-line py-2">
                 <span className="min-w-0 flex-1 text-[13px]">
                   <span className="font-medium text-fg-strong">Correo con contraseña</span> <span className="text-fg-faint">Correo</span>
-                  <span className="block truncate text-fg-muted">Hostinger, cPanel, Zoho y cualquier correo con IMAP y SMTP.</span>
+                  <span className="block truncate text-fg-muted">Gmail, Hostinger, cPanel, Zoho y cualquier correo con IMAP y SMTP.</span>
                 </span>
                 <Button
                   size="sm"
                   onClick={() => {
                     setPicking(false);
-                    setMailbox({ email: "", connector: "IMAP", provider: "Correo por IMAP", imapHost: null, imapPort: 993, smtpHost: null, smtpPort: 465, smtpSsl: true, sure: false });
+                    setMailbox({ email: "", connector: "IMAP", provider: "Correo por IMAP", imapHost: null, imapPort: 993, smtpHost: null, smtpPort: 465, smtpSsl: true, sure: false, help: null, helpUrl: null });
                   }}
                 >
                   Conectar

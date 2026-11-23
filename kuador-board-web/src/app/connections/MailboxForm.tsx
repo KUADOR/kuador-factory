@@ -53,13 +53,26 @@ export function MailboxForm({ detected, onDone, onCancel }: { detected: MailDete
       <p className="text-[13px] text-fg-muted">
         {detected.provider}. Se conecta con el correo y su contraseña; conviene un buzón dedicado (por ejemplo, facturas@) y no el personal de alguien.
       </p>
+      {detected.help && (
+        <p className="rounded-md bg-hover px-3 py-2 text-[13px] text-fg">
+          {detected.help}
+          {detected.helpUrl && (
+            <>
+              {" "}
+              <a href={detected.helpUrl} target="_blank" rel="noreferrer" className="k-link">
+                Crear la contraseña
+              </a>
+            </>
+          )}
+        </p>
+      )}
       <Field label="Nombre">
         {(id) => <TextInput id={id} required maxLength={80} value={form.name} onChange={(e) => set({ name: e.target.value })} />}
       </Field>
       <Field label="Correo">
         {(id) => <TextInput id={id} required type="email" maxLength={254} autoComplete="off" value={form.email} onChange={(e) => set({ email: e.target.value })} />}
       </Field>
-      <Field label="Contraseña del correo" hint="Se guarda cifrada y no se vuelve a mostrar." error={error}>
+      <Field label={detected.help ? "Contraseña de aplicación" : "Contraseña del correo"} hint="Se guarda cifrada y no se vuelve a mostrar." error={error}>
         {(id) => <PasswordInput id={id} required autoComplete="new-password" value={form.password} onChange={(e) => set({ password: e.target.value })} />}
       </Field>
       <details className="text-[13px] text-fg-muted" open={!detected.sure}>

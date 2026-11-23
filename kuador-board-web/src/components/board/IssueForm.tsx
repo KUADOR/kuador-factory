@@ -271,7 +271,7 @@ export function IssueForm({
         </Field>
       </div>
       <Field label="Etiquetas" hint="Separadas por coma.">
-        {(id) => <TextInput id={id} size="sm" value={labelsText} onChange={(e) => setLabelsText(e.target.value)} placeholder={readOnly ? undefined : "backend, seguridad"} />}
+        {(id) => <TextInput id={id} size="sm" value={labelsText} onChange={(e) => setLabelsText(e.target.value)} placeholder={readOnly ? undefined : "urgente, cliente nuevo"} />}
       </Field>
       {meta}
     </fieldset>

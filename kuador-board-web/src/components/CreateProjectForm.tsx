@@ -45,7 +45,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
       }}
     >
       <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3">
-        <Field label="Clave" hint="Prefijo de los issues.">
+        <Field label="Clave" hint="Prefijo de las tarjetas.">
           {(id) => (
             <TextInput
               id={id}
@@ -55,13 +55,13 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
               title="2 a 10 letras o números, empezando por letra"
               value={key}
               onChange={(e) => setKey(e.target.value.toUpperCase())}
-              placeholder="MED"
+              placeholder="ATE"
               className="font-mono uppercase"
               autoFocus
             />
           )}
         </Field>
-        <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Medical para Clínica Andes" />}</Field>
+        <Field label="Nombre">{(id) => <TextInput id={id} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Atención de pacientes" />}</Field>
       </div>
       <Field label="Descripción" hint="Opcional.">{(id) => <TextInput id={id} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} />}</Field>
       <div className="flex flex-col gap-2">

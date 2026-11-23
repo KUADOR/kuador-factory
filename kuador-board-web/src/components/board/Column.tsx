@@ -71,7 +71,7 @@ function SortableIssue({
           else listeners?.onKeyDown?.(e);
         }}
         aria-label={`${issue.key}: ${issue.title}`}
-        aria-roledescription={readOnly ? undefined : "issue arrastrable"}
+        aria-roledescription={readOnly ? undefined : "tarjeta arrastrable"}
         className={clsx("block w-full touch-manipulation rounded-md", readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing")}
       >
         <IssueCard issue={issue} assignee={assignee} epicTitle={epicTitle} projectType={projectType} workingAgent={workingAgent} waiting={waiting} plan={plan} />
@@ -165,7 +165,7 @@ export function Column({
         {!renaming && (
           <span className="tabular font-mono text-[11px] text-fg-faint">
             {issues.length}
-            {points > 0 && <span title="Story points de la columna"> · {points} pts</span>}
+            {points > 0 && <span title="Tamaño de la columna"> · {points} pts</span>}
           </span>
         )}
         {onCreate && (
@@ -192,7 +192,7 @@ export function Column({
               { label: "Mover a la derecha", icon: ArrowRight, disabled: !actions.canMoveRight, onSelect: () => actions.move(1) },
               "separator",
               {
-                label: issues.length > 0 ? "Quitar (mueve antes sus issues)" : "Quitar columna",
+                label: issues.length > 0 ? "Quitar (mueve antes sus tarjetas)" : "Quitar columna",
                 icon: Trash,
                 danger: true,
                 disabled: !actions.canRemove || issues.length > 0,
@@ -242,7 +242,7 @@ export function Column({
             />
           ))}
           {issues.length === 0 && (
-            <li className="rounded-md border border-dashed border-line px-3 py-3 text-center text-xs text-fg-faint">Sin issues</li>
+            <li className="rounded-md border border-dashed border-line px-3 py-3 text-center text-xs text-fg-faint">Sin tarjetas</li>
           )}
         </ul>
       </SortableContext>

@@ -643,7 +643,7 @@ public class BoardAgent {
 
     /** Texto de la tarjeta sin las marcas que lo delimitan (para que no pueda «cerrarlas» y escribir fuera). */
     static String fenced(String text) {
-        return text.strip().replaceAll("(?i)</?(pedido|comentarios)>", "");
+        return text.strip().replaceAll("(?i)</?(pedido|comentarios|objetivo|epica)>", "");
     }
 
     static String pullsText(List<CodeReviewApi.PullSummary> pulls, String search) {

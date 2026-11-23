@@ -346,7 +346,7 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2 text-[13px] font-medium text-fg-strong">
                       {d.label || "Documento sin nombre"}
-                      <Badge>{d.scope === "PROJECT" ? "Proyecto" : "Issue"}</Badge>
+                      <Badge>{d.scope === "PROJECT" ? "Tablero" : "Tarjeta"}</Badge>
                       {d.required && <Badge tone="warn">Obligatorio</Badge>}
                     </span>
                     <code className="block truncate font-mono text-[11px] text-fg-faint">{d.pathPattern}</code>
@@ -370,8 +370,8 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
                             id={id}
                             size="sm"
                             options={[
-                              { value: "PROJECT", label: "Del proyecto" },
-                              { value: "ISSUE", label: "De cada issue" },
+                              { value: "PROJECT", label: "Del tablero" },
+                              { value: "ISSUE", label: "De cada tarjeta" },
                             ]}
                             value={d.scope}
                             onChange={(scope) => scope && setDoc(i, { scope })}
@@ -394,7 +394,7 @@ export function MethodologyEditor({ value, onChange, isNew, roles }: { value: Me
                         )}
                       </Field>
                     </div>
-                    <Field label="Ruta en el repositorio" hint={d.scope === "ISSUE" ? "Lleva una vez {feature} (carpeta por issue) o {task} (un archivo) y termina en .md." : "Ruta fija que termina en .md."}>
+                    <Field label="Ruta en el repositorio" hint={d.scope === "ISSUE" ? "Lleva una vez {feature} (carpeta por tarjeta) o {task} (un archivo) y termina en .md." : "Ruta fija que termina en .md."}>
                       {(id) => <TextInput id={id} size="sm" required value={d.pathPattern} onChange={(e) => setDoc(i, { pathPattern: e.target.value })} className="font-mono text-xs" />}
                     </Field>
                     <Field label="Para qué sirve">{(id) => <TextInput id={id} size="sm" value={d.purpose} onChange={(e) => setDoc(i, { purpose: e.target.value })} />}</Field>
@@ -458,7 +458,7 @@ export function RoleEditor({ value, onChange, isNew }: { value: AgentRole; onCha
           onChange={(automation) => onChange({ ...value, automation })}
           choices={[
             { value: "NONE", label: "Ninguna", hint: "Trabaja desde su entorno." },
-            { value: "REFINE_ISSUE", label: "Refinar issues", hint: "Propone historia, criterios y estimación, y lo devuelve." },
+            { value: "REFINE_ISSUE", label: "Refinar tarjetas", hint: "Propone historia, criterios y estimación, y lo devuelve." },
           ]}
         />
       </div>

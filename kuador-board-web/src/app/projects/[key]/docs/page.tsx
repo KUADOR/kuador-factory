@@ -82,7 +82,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
       </p>
 
       <Section
-        title="Del proyecto"
+        title="Del tablero"
         actions={
           <Button href={`/projects/${project.key}/docs/draft`} tone={projectRules.some((r) => !projectDocs.some((d) => d.kind === r.kind)) ? "primary" : "secondary"} size="sm">
             Redactar con IA
@@ -142,19 +142,19 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
       </Section>
 
       <Section
-        title="De los issues"
-        description={issueRules.map((r) => r.label).join(", ") || "Esta metodología no pide documentos por issue."}
+        title="De las tarjetas"
+        description={issueRules.map((r) => r.label).join(", ") || "Esta metodología no pide documentos por tarjeta."}
         flush
       >
         {byIssue.size === 0 ? (
-          <p className="px-5 py-4 text-[13px] text-fg-faint">Aún no hay documentos de issues.</p>
+          <p className="px-5 py-4 text-[13px] text-fg-faint">Aún no hay documentos de tarjetas.</p>
         ) : (
           <ul className="divide-y divide-line">
             {[...byIssue.entries()].map(([issueKey, docs]) => (
               <li key={issueKey} className="py-1.5">
                 <Link href={`/projects/${project.key}?issue=${issueKey}`} className="flex items-center gap-2 px-5 pt-1.5 pb-0.5 text-xs text-fg-muted hover:text-fg-strong">
                   <span className="tabular font-mono text-fg-strong">{issueKey}</span>
-                  <span className="truncate">{titles.get(issueKey) ?? "(issue eliminado)"}</span>
+                  <span className="truncate">{titles.get(issueKey) ?? "(tarjeta eliminada)"}</span>
                 </Link>
                 {docs.map((doc) => (
                   <DocRow key={doc.id} projectKey={project.key} doc={doc} />

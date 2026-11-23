@@ -107,7 +107,7 @@ export function BrandFields({ value, onChange, nameLabel = "Nombre de la empresa
             </label>
           </div>
           <span className="inline-flex items-center rounded-md px-3 py-1.5 text-[13px] font-medium" style={{ backgroundColor: brand.color, color: brand.on }}>
-            + Crear issue
+            + Crear tarjeta
           </span>
           <span className={clsx("text-xs", ratio >= 4.5 ? "text-ok" : ratio >= 3 ? "text-warn" : "text-danger")}>
             Contraste {ratio.toFixed(1)}:1 · {ratio >= 4.5 ? "se lee bien" : ratio >= 3 ? "justo: mejor otro" : "no se lee"}

@@ -12,7 +12,7 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
   const base = `/projects/${projectKey}/settings`;
   const groups = [
     {
-      title: "Proyecto",
+      title: "Tablero",
       items: [
         { slug: "general", label: "General" },
         { slug: "people", label: "Personas" },
@@ -35,7 +35,7 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
       : [
           // Sin repositorio de código, lo de todos los días primero; etapas y reglas quedan como opciones avanzadas.
           {
-            title: "Tablero",
+            title: "Flujo de trabajo",
             items: [
               { slug: "columns", label: "Columnas" },
               { slug: "card", label: "Tarjeta" },
@@ -69,7 +69,7 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
     <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <SectionNav
-          label="Configuración del proyecto"
+          label="Configuración del tablero"
           pickerLabel="Ajustes"
           groups={groups.map((g) => ({ title: g.title, items: g.items.map((item) => ({ href: `${base}/${item.slug}`, label: item.label })) }))}
         />

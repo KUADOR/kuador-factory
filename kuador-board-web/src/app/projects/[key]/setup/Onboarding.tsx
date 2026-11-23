@@ -581,7 +581,7 @@ function FirstWork({ project, existing, onCreated }: { project: Project; existin
         });
       }}
     >
-      {existing > 0 && <p className="text-xs text-fg-muted">El proyecto ya tiene {existing} issue(s).</p>}
+      {existing > 0 && <p className="text-xs text-fg-muted">El tablero ya tiene {existing} tarjeta(s).</p>}
       <Field label={epic ? "Épica" : "Título"}>{(id) => <TextInput id={id} required maxLength={255} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
       <Field label="Qué se espera">
         {(id) => <TextArea id={id} rows={7} value={description} onChange={(e) => setDescription(e.target.value)} />}
@@ -594,7 +594,7 @@ function FirstWork({ project, existing, onCreated }: { project: Project; existin
       )}
       <div className="flex justify-end">
         <Button type="submit" tone="primary" loading={pending} disabled={title.trim().length === 0}>
-          Crear {epic ? "épica" : "issue"}
+          Crear {epic ? "épica" : "tarjeta"}
         </Button>
       </div>
     </form>
@@ -604,7 +604,7 @@ function FirstWork({ project, existing, onCreated }: { project: Project; existin
 function Finish({ project, issueCount, pending }: { project: Project; issueCount: number; pending: StepId[] }) {
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
-      <h2 className="text-base font-semibold text-fg-strong">{pending.length === 0 ? "El proyecto está listo" : "Casi listo"}</h2>
+      <h2 className="text-base font-semibold text-fg-strong">{pending.length === 0 ? "El tablero está listo" : "Casi listo"}</h2>
       {pending.length > 0 && (
         <p className="text-[13px] text-fg-muted">
           Quedaron sin hacer: {pending.map((s) => stepTitle(s, project).charAt(0).toLowerCase() + stepTitle(s, project).slice(1)).join(", ")}.

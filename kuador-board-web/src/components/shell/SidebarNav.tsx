@@ -133,13 +133,13 @@ export function SidebarNav({
                 path === "/projects" ? "text-fg-strong" : "text-fg-faint hover:text-fg-strong",
               )}
             >
-              Proyectos
+              Tableros
             </Link>
             {editor && (
               <Link
                 href="/projects?nuevo=1"
-                aria-label="Nuevo proyecto"
-                title="Nuevo proyecto"
+                aria-label="Nuevo tablero"
+                title="Nuevo tablero"
                 className="grid size-6 place-items-center rounded text-fg-faint hover:bg-hover hover:text-fg-strong"
               >
                 <Plus className="size-3.5" aria-hidden />

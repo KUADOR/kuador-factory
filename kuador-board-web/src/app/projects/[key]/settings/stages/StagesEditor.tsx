@@ -165,7 +165,7 @@ export function StagesEditor({
                     <div className="w-44">
                       <SelectInput
                         size="sm"
-                        ariaLabel={`A dónde vuelve un issue rechazado en ${c.name}`}
+                        ariaLabel={`A dónde vuelve una tarjeta rechazada en ${c.name}`}
                         placeholder="La etapa anterior"
                         options={columnOptions(c.key)}
                         value={s.rejectTo}
@@ -204,7 +204,7 @@ export function StagesEditor({
 
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-5 py-4">
         <span className="text-[13px] font-medium text-fg-strong">Freno de bucles</span>
-        <span className="text-[13px] text-fg-muted">Si un issue vuelve atrás más de</span>
+        <span className="text-[13px] text-fg-muted">Si una tarjeta vuelve atrás más de</span>
         <span className="w-16 shrink-0">
           <TextInput
             size="sm"

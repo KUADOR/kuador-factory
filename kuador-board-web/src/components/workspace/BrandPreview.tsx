@@ -36,7 +36,7 @@ export function BrandPreview({ value }: { value: BrandDraft }) {
           <div className="flex items-center justify-between">
             <span className="font-semibold text-fg-strong">Tablero</span>
             <span className="rounded px-2 py-1 font-medium" style={{ backgroundColor: brand.color, color: brand.on }}>
-              + Crear issue
+              + Crear tarjeta
             </span>
           </div>
           <div className="mt-1 h-0.5 w-12 rounded" style={{ backgroundColor: brand.color }} />

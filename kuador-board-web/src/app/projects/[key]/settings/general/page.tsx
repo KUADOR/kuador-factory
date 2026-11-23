@@ -35,7 +35,7 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
   const facts = [
     { label: "Clave", value: <span className="font-mono">{project.key}</span>, hint: "No se cambia." },
     { label: "Plantilla de origen", value: template?.name ?? project.templateKey, hint: "" },
-    { label: "Issues", value: <span className="tabular font-mono">{issues.length}</span>, hint: `${project.columns.length} columnas` },
+    { label: "Tarjetas", value: <span className="tabular font-mono">{issues.length}</span>, hint: `${project.columns.length} columnas` },
   ];
   return (
     <SettingsSection title="General">

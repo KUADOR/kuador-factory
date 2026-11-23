@@ -6,7 +6,7 @@ import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Proyectos" };
+export const metadata: Metadata = { title: "Tableros" };
 
 export default async function ProjectsPage() {
   let data;

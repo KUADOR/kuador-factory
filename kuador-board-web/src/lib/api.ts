@@ -154,6 +154,10 @@ async function request<T>(path: string, init?: RequestInit & { anonymous?: boole
     } catch {
       // Cuerpo vacío o no JSON: se queda el mensaje genérico.
     }
+    // La web es más nueva que la API: la ruta todavía no existe allá. Que se entienda qué hacer.
+    if (res.status === 404 && message.startsWith("No static resource")) {
+      message = "Esta función todavía no está en el servidor: falta desplegar la versión nueva de la API.";
+    }
     throw new ApiError(res.status, message);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;

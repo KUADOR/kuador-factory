@@ -46,7 +46,11 @@ class AiBudgetTest {
         final Set<String> alerts = new HashSet<>();
 
         void spend(UUID agent, String issue, long input, long output) {
-            Usage u = new Usage(agent, MODEL, 1, input, output);
+            spend(agent, issue, MODEL, input, output);
+        }
+
+        void spend(UUID agent, String issue, String model, long input, long output) {
+            Usage u = new Usage(agent, model, 1, input, output);
             month.add(u);
             byIssue.computeIfAbsent(issue, k -> new ArrayList<>()).add(u);
         }
@@ -125,5 +129,16 @@ class AiBudgetTest {
         assertThat(sent).extracting(AiBudgetAlert::agentName).containsExactly("Agente Backend");
         assertThat(sent.getFirst().level()).as("llegó directo al tope: se avisa el 100 %, no el 80 %").isEqualTo(100);
         assertThat(usage.report().byAgent()).anySatisfy(a -> assertThat(a.budgetUsd()).isEqualByComparingTo("4"));
+    }
+
+    @Test
+    void aModelWithoutPriceCountsAtTheHighestPriceInsteadOfStoppingEverything() {
+        store.saveBudget(WS, new BigDecimal("20"));
+        store.spend(QA, "MED-1", "claude-haiku-5-5", 1_000_000, 100_000); // sin precio: al más alto, 2 + 1 = USD 3
+        assertThat(usage.blockReason(QA, "MED-2")).as("antes frenaba aunque se subiera el tope").isEmpty();
+        store.spend(BACKEND, "MED-1", 5_000_000, 1_000_000); // USD 20 más: 23
+        assertThat(usage.blockReason(QA, "MED-2")).hasValueSatisfying(why -> assertThat(why).contains("23.00 de 20", "claude-haiku-5-5"));
+        store.saveBudget(WS, new BigDecimal("50"));
+        assertThat(usage.blockReason(QA, "MED-2")).as("al subir el tope, vuelve a trabajar").isEmpty();
     }
 }

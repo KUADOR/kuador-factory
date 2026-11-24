@@ -193,7 +193,7 @@ class ProductOwnerAgentTest {
         issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "CRUD de pacientes", "Registro y búsqueda", "EPIC", "DESIGN", "HIGH", 8,
                 List.of(), null, PO, PERSON, List.of()));
         modelBehaviour = c -> new ProductOwnerModel.Result(new PoProposal("Plan del CRUD.", "Como personal quiero registrar pacientes",
-                List.of("Dado…, cuando…, entonces…"), List.of(), List.of(), 8, PoProposal.Complexity.SUBSTANTIAL, "# Plan",
+                List.of("Dado…, cuando…, entonces…"), List.of(), List.of(), 8, PoProposal.Complexity.SUBSTANTIAL, PLAN_WITH_DIAGRAM,
                 List.of(new PoProposal.PlannedTask("API de pacientes", "BACKEND", "Endpoints y reglas", List.of()),
                         new PoProposal.PlannedTask("Pantallas de pacientes", "FRONTEND", "Listado y ficha", List.of(1)))), "m", 1, 1);
 
@@ -216,7 +216,7 @@ class ProductOwnerAgentTest {
             boolean corrected = c.comments().stream().anyMatch(x -> x.body().contains("no se pudo crear"));
             String role = corrected ? "BACKEND" : "ARCHITECT";
             return new ProductOwnerModel.Result(new PoProposal("Plan.", "Como equipo quiero el esqueleto", List.of("Dado…"), List.of(), List.of(), 8,
-                    PoProposal.Complexity.SUBSTANTIAL, "# Plan", List.of(new PoProposal.PlannedTask("Contrato OpenAPI y ADR", role, "Contrato primero", List.of()))),
+                    PoProposal.Complexity.SUBSTANTIAL, PLAN_WITH_DIAGRAM, List.of(new PoProposal.PlannedTask("Contrato OpenAPI y ADR", role, "Contrato primero", List.of()))),
                     "m", 100, 10);
         };
 
@@ -229,6 +229,49 @@ class ProductOwnerAgentTest {
         assertThat(planned).extracting(IssueApi.PlannedTask::role).containsExactly("BACKEND");
         assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);
         assertThat(onlyRun().inputTokens()).as("cuenta las dos llamadas").isEqualTo(200);
+    }
+
+    static final String PLAN_WITH_DIAGRAM = "# Plan\n\n## Diagrama de la solución\n\n```mermaid\nflowchart LR\n  app --> api\n```\n";
+
+    @Test
+    void anEpicPlanWithoutTheDiagramIsRedoneOnceWithTheReason() {
+        projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
+        issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "Esqueleto", null, "EPIC", "DESIGN", "HIGH", 8, List.of(), null, PO, PERSON,
+                List.of()));
+        modelBehaviour = c -> {
+            boolean corrected = c.comments().stream().anyMatch(x -> x.body().contains("Corrígelo"));
+            return new ProductOwnerModel.Result(new PoProposal("Plan.", "Como equipo quiero el esqueleto", List.of("Dado…"), List.of(), List.of(), 8,
+                    PoProposal.Complexity.SUBSTANTIAL, corrected ? PLAN_WITH_DIAGRAM : "# Plan sin diagrama",
+                    List.of(new PoProposal.PlannedTask("API", "BACKEND", "Endpoints", List.of()))), "m", 100, 10);
+        };
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(seen.getFirst().comments()).as("se le avisa antes de proponer").anyMatch(x -> x.body().contains("```mermaid"));
+        assertThat(seen).hasSize(2);
+        assertThat(seen.get(1).comments().getLast().body()).contains("diagrama de la solución", "Corrígelo");
+        assertThat(writes).as("solo se escribe el plan corregido").hasSize(1);
+        assertThat(planned).extracting(IssueApi.PlannedTask::role).containsExactly("BACKEND");
+        assertThat(onlyRun().status()).isEqualTo(AgentRun.Status.SUCCEEDED);
+    }
+
+    @Test
+    void anEpicPlanThatTwiceComesWithoutTheDiagramGoesBackToThePersonWithTheReason() {
+        projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
+        issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "Esqueleto", null, "EPIC", "DESIGN", "HIGH", 8, List.of(), null, PO, PERSON,
+                List.of()));
+        modelBehaviour = c -> new ProductOwnerModel.Result(new PoProposal("Plan.", "Como equipo quiero el esqueleto", List.of("Dado…"), List.of(), List.of(), 8,
+                PoProposal.Complexity.SUBSTANTIAL, "# Plan sin diagrama", List.of(new PoProposal.PlannedTask("API", "BACKEND", "Endpoints", List.of()))),
+                "m", 100, 10);
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(seen).hasSize(2);
+        assertThat(writes).as("nada a medias").isEmpty();
+        assertThat(planned).isEmpty();
+        assertThat(comments.getLast()).contains("no pude cerrar mi parte").contains("diagrama de la solución");
+        assertThat(issueStore.get("KUA-8").assigneeId()).as("vuelve a la persona").isEqualTo(PERSON);
+        assertThat(issueStore.get("KUA-8").status()).as("sigue en Diseño").isEqualTo("DESIGN");
     }
 
     @Test

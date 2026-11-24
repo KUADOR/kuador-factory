@@ -297,7 +297,13 @@ export function Column({
               <span className="truncate">Aprueba {roleList(stage.approvers, roleName, "una persona")}</span>
             </>
           ) : (
-            <span className="truncate">{roleList(stage.roles, roleName)}</span>
+            <span
+              className="truncate"
+              title={stage.epicFirst?.length ? `En las épicas, primero ${roleList(stage.epicFirst, roleName)} y después ${roleList(stage.roles, roleName)}.` : undefined}
+            >
+              {stage.epicFirst?.length ? `${roleList(stage.epicFirst, roleName)} → ` : ""}
+              {roleList(stage.roles, roleName)}
+            </span>
           )}
         </p>
       )}

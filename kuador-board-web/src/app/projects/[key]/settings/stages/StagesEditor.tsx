@@ -184,6 +184,15 @@ export function StagesEditor({
                         label="El reparto de una épica arranca solo"
                       />
                       <p className="text-xs text-fg-faint">Las tareas empiezan sin que nadie apruebe el reparto.</p>
+                      <span className="mt-1 text-xs font-medium text-fg-muted">En épicas, antes trabaja</span>
+                      <ChipPicker
+                        value={s.epicFirst ?? []}
+                        options={roleOptions.filter((o) => !s.roles.includes(o.value))}
+                        onChange={(epicFirst) => set(c.key, { epicFirst })}
+                        placeholder="Agregar rol…"
+                        ariaLabel={`Roles que trabajan antes las épicas en ${c.name}`}
+                        empty="nadie: la toman directo quienes cubren la etapa"
+                      />
                     </>
                   )}
                 </div>
@@ -206,6 +215,7 @@ export function StagesEditor({
                 <LeaveFields
                   stage={s}
                   columnName={c.name}
+                  repository={repository}
                   fieldOptions={fieldOptions}
                   documentOptions={documentOptions}
                   onChange={(patch) => set(c.key, patch)}
@@ -388,12 +398,14 @@ function ReviewFields({
 function LeaveFields({
   stage,
   columnName,
+  repository,
   fieldOptions,
   documentOptions,
   onChange,
 }: {
   stage: StageDef;
   columnName: string;
+  repository: boolean;
   fieldOptions: Option[];
   documentOptions: Option[];
   onChange: (patch: Partial<StageDef>) => void;
@@ -425,6 +437,13 @@ function LeaveFields({
           onChange={(on) => replace("ATTACHMENT", on ? [null] : [])}
           label="Un archivo adjunto"
         />
+        {repository && !stage.gate && (
+          <Switch
+            checked={requires.some((r) => r.kind === "DIAGRAM")}
+            onChange={(on) => replace("DIAGRAM", on ? [null] : [])}
+            label="En épicas, el diagrama de la solución"
+          />
+        )}
         {fieldOptions.length > 0 && (
           <ChipPicker
             value={refs("FIELD")}

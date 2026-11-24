@@ -67,6 +67,18 @@ class AgentChain {
         if (event.changes().stream().anyMatch(c -> c.field().equals("reviewBy"))) chain(event.workspaceId(), event.projectKey(), event.issueKey(), event.actorId());
     }
 
+    /**
+     * Un agente soltó la tarjeta sin cambiarla de columna (p. ej. UI/UX terminó sus pantallas en Diseño y sigue el
+     * Arquitecto): el que viene la toma.
+     */
+    @Async
+    @TransactionalEventListener
+    void on(ec.kuador.board.issue.IssueAssigned event) {
+        if (event.toAssigneeId() != null || event.fromAssigneeId() == null || !event.fromAssigneeId().equals(event.actorId())) return;
+        boolean byAgent = TenantContext.call(event.workspaceId(), () -> tx.execute(s -> members.find(event.actorId()).map(MemberView::agent).orElse(false)));
+        if (byAgent) chain(event.workspaceId(), event.projectKey(), event.issueKey(), event.actorId());
+    }
+
     private void chain(UUID workspaceId, String projectKey, String issueKey, UUID actorId) {
         TenantContext.run(workspaceId, () -> {
             try {

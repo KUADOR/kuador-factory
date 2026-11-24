@@ -137,8 +137,13 @@ class EpicTasksIT {
                 o = again.get("tasks").get(2).get("key").asString();
         assertThat(f).isNotBlank();
 
+        // Sin el diagrama de la solución, la épica no sale de Diseño.
+        assertThat(tool(runner, "deliver", Map.of("key", epic, "agent", "ARCHITECT", "comment", "Plan listo."), true).asString())
+                .contains("diagrama de la solución");
+
         // Al entregar la épica, el reparto espera a una persona: nada arranca y la épica no es de ningún agente.
-        assertThat(tool(runner, "deliver", Map.of("key", epic, "agent", "ARCHITECT", "comment", "Plan listo."), false).get("column").asString()).isEqualTo("DEVELOPMENT");
+        String plan = "Plan listo.\n\n```mermaid\nflowchart LR\n  Web --> API --> DB[(Base)]\n```";
+        assertThat(tool(runner, "deliver", Map.of("key", epic, "agent", "ARCHITECT", "comment", plan), false).get("column").asString()).isEqualTo("DEVELOPMENT");
         assertThat(column(owner, b)).isEqualTo("BACKLOG");
         assertThat(queue(runner)).isEmpty();
         assertThat(call("GET", "/api/issues/" + epic + "/tasks", null, owner).body()).hasSize(3);

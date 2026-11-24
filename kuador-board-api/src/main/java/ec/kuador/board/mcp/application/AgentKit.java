@@ -243,7 +243,7 @@ public class AgentKit implements RepositoryInstructions {
     /** Para clientes sin subagentes: una sola sesión trabaja los issues de a uno, tomando el rol que pide cada uno. */
     private String agentsMd(Identity ws, Connection c) {
         return AgentRules.fill(catalog.agentPolicy().repo().agentsMd(),
-                Map.of("empresa", ws.name(), "servidor", c.server(), "reglas", AgentRules.bullets(rules.all())));
+                Map.of("empresa", ws.name(), "servidor", c.server(), "reglas", AgentRules.bullets(rules.allWithCode())));
     }
 
     private String claudeCommand(Identity ws, Connection c) {
@@ -271,7 +271,7 @@ public class AgentKit implements RepositoryInstructions {
         List<String> allowed = Stream.concat(role.tools().stream(), WORK_TOOLS.stream().map(t -> "mcp__" + c.server() + "__" + t)).toList();
         String description = (role.description() + " Atiende los issues del tablero de " + ws.name() + " que esperan al rol «" + role.name() + "» ("
                 + role.key() + ").").replace("\n", " ").replace("\"", "'");
-        List<String> all = rules.all();
+        List<String> all = rules.forRole(role);
         // El encabezado (nombre, descripción y herramientas) lo arma el tablero: de él depende que el cliente encuentre al subagente.
         String body = AgentRules.fill(catalog.agentPolicy().repo().subagent(), Map.of("rol", role.name(), "empresa", ws.name(),
                 "herramientas_tablero", "mcp__" + c.server() + "__*", "clave_rol", role.key(), "reglas", String.join(" ", all.subList(1, all.size()))));
@@ -295,7 +295,7 @@ public class AgentKit implements RepositoryInstructions {
         Connection c = connection();
         AgentRole role = catalog.role(roleKey).orElseThrow(() -> new IllegalArgumentException("No existe el rol " + roleKey + "."));
         List<String> allowed = Stream.concat(role.tools().stream(), WORK_TOOLS.stream().map(t -> "mcp__" + c.server() + "__" + t)).toList();
-        List<String> all = rules.all();
+        List<String> all = rules.forRole(role);
         String body = AgentRules.fill(catalog.agentPolicy().repo().subagent(), Map.of("rol", role.name(), "empresa", ws.name(),
                 "herramientas_tablero", "mcp__" + c.server() + "__*", "clave_rol", role.key(), "reglas", String.join(" ", all.subList(1, all.size()))));
         return new RunPlan(c.server(), body, allowed);

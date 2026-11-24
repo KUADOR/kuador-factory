@@ -467,7 +467,7 @@ public class DraftService implements AiJobsApi {
 
     /** Los documentos del tablero según su manual. «Despliegue» solo existe donde hay un repositorio de código. */
     private static List<DocumentDef> projectDocuments(ProjectView p, Methodology m) {
-        return m.documents(DocumentDef.Scope.PROJECT).stream().filter(d -> p.repository() || !Methodology.DEPLOYMENT_KIND.equals(d.kind())).toList();
+        return m.documents(DocumentDef.Scope.PROJECT).stream().filter(d -> p.repository() || !ec.kuador.board.catalog.SoftwareDocuments.softwareOnly(d.kind())).toList();
     }
 
     private String context(ProjectView p) {

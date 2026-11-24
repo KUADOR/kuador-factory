@@ -10,16 +10,32 @@ public record Methodology(
         UUID id, String key, String name, String summary, List<String> agentRules, List<DocumentDef> documents, boolean builtIn,
         long version) {
 
-    /** El documento del tipo: de la metodología o, si no lo trae, uno propio del tablero (Despliegue). */
+    /** El documento del tipo: de la metodología o, si no lo trae, uno propio del tablero ({@link SoftwareDocuments}). */
     public Optional<DocumentDef> document(String kind) {
         return documents.stream().filter(d -> d.kind().equals(kind)).findFirst().or(() -> builtIn(kind));
     }
 
-    /** Los de la metodología y, en los del proyecto, también Despliegue (lo trae el tablero si la metodología no). */
+    /**
+     * Los de la metodología más los que trae el tablero si ella no: Despliegue e Identidad visual en el proyecto;
+     * Diseño de la solución y Pantallas en la tarjeta, solo si ningún documento de la metodología lo escribe ese rol.
+     */
     public List<DocumentDef> documents(DocumentDef.Scope scope) {
         List<DocumentDef> own = new ArrayList<>(documents.stream().filter(d -> d.scope() == scope).toList());
-        if (scope == DocumentDef.Scope.PROJECT && own.stream().noneMatch(d -> d.kind().equals(DEPLOYMENT_KIND))) own.add(DEPLOYMENT);
+        List<DocumentDef> extra = scope == DocumentDef.Scope.PROJECT
+                ? List.of(DEPLOYMENT, SoftwareDocuments.IDENTITY)
+                : List.of(SoftwareDocuments.SOLUTION, SoftwareDocuments.SCREENS);
+        for (DocumentDef d : extra) {
+            boolean covered = own.stream().anyMatch(o -> o.kind().equals(d.kind())
+                    || (scope == DocumentDef.Scope.ISSUE && d.writtenBy().equals(o.writtenBy())));
+            if (!covered) own.add(d);
+        }
         return List.copyOf(own);
+    }
+
+    /** El documento de tarjeta que escribe un rol (el de la metodología o el del tablero), si tiene uno. */
+    public Optional<DocumentDef> issueDocumentOf(String role) {
+        if (role == null) return Optional.empty();
+        return documents(DocumentDef.Scope.ISSUE).stream().filter(d -> role.equals(d.writtenBy())).findFirst();
     }
 
     /** Lo mínimo de ODD: el resto de sus documentos se escribe cuando hace falta. */
@@ -32,7 +48,7 @@ public record Methodology(
      */
     public List<DocumentDef> baseDocuments() {
         return documents(DocumentDef.Scope.PROJECT).stream()
-                .filter(d -> !d.kind().equals(DEPLOYMENT_KIND))
+                .filter(d -> !SoftwareDocuments.growsWithProject(d.kind()))
                 .filter(d -> !"ODD".equals(key) || ODD_MINIMUM.contains(d.kind())).toList();
     }
 
@@ -123,7 +139,8 @@ public record Methodology(
                     + " tarjeta en «Cambios»). Un cambio de una tarjeta no edita este documento: deja su nota en " + AgentRules.DEPLOYMENT_CHANGES
                     + "<clave>.md, para que los PR en paralelo no choquen.");
 
-    private static Optional<DocumentDef> builtIn(String kind) {
-        return DEPLOYMENT_KIND.equals(kind) ? Optional.of(DEPLOYMENT) : Optional.empty();
+    private Optional<DocumentDef> builtIn(String kind) {
+        return java.util.stream.Stream.concat(documents(DocumentDef.Scope.PROJECT).stream(), documents(DocumentDef.Scope.ISSUE).stream())
+                .filter(d -> d.kind().equals(kind)).findFirst();
     }
 }

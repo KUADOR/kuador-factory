@@ -75,11 +75,13 @@ export interface StageDef {
   requires?: Requirement[];
   /** Qué hace el agente en esta etapa (qué mira, qué sistema usa, qué hace si algo no cuadra). */
   instructions?: string | null;
+  /** Roles que trabajan las épicas antes que los de `roles` (p. ej. UI/UX en Diseño). */
+  epicFirst?: string[];
 }
 
-/** Un requisito de etapa: un adjunto, un documento de tipo `ref` o el dato propio `ref` lleno. */
+/** Un requisito de etapa: un adjunto, un documento de tipo `ref`, el dato propio `ref` lleno o, en épicas, un diagrama. */
 export interface Requirement {
-  kind: "ATTACHMENT" | "DOCUMENT" | "FIELD";
+  kind: "ATTACHMENT" | "DOCUMENT" | "FIELD" | "DIAGRAM";
   ref: string | null;
 }
 
@@ -261,6 +263,8 @@ export interface AgentPolicy extends CatalogEntry {
     gateReview?: string;
     gateEscalate?: string;
     gateDecide?: string;
+    /** Criterio de código: lo reciben Backend, Frontend y DevOps; el revisor de PR revisa contra él. */
+    code?: string;
   };
   limits: { questionRounds: number; commentsRead: number; filesRead: number; webSearches: number; turnsClaude: number; turnsOther: number };
   messages: {

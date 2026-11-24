@@ -70,9 +70,12 @@ class FactoryCatalogTest {
         assertThat(factory.addedAfter(8)).extracting(e -> e.getKey().name() + ":" + e.getValue()).first().isEqualTo("COMPONENT_TEMPLATE:MOBILE_FLUTTER");
         // La versión 10 suma la plantilla Marketing y el agente de Diseño que hace sus imágenes.
         assertThat(factory.addedAfter(9)).extracting(e -> e.getKey().name() + ":" + e.getValue())
-                .containsExactly("WORKFLOW_TEMPLATE:MARKETING", "AGENT_ROLE:DESIGNER", "AGENT_ROLE:REVIEWER", "METHODOLOGY:MANUAL");
+                .containsExactly("WORKFLOW_TEMPLATE:MARKETING", "AGENT_ROLE:DESIGNER", "AGENT_ROLE:REVIEWER", "METHODOLOGY:MANUAL", "AGENT_ROLE:UX_UI");
         // La versión 11 suma lo que usa un tablero que no es de software: un revisor de cualquier trabajo y un manual de procedimientos.
-        assertThat(factory.addedAfter(10)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_ROLE:REVIEWER", "METHODOLOGY:MANUAL");
+        assertThat(factory.addedAfter(10)).extracting(e -> e.getKey().name() + ":" + e.getValue())
+                .containsExactly("AGENT_ROLE:REVIEWER", "METHODOLOGY:MANUAL", "AGENT_ROLE:UX_UI");
+        // La versión 12 suma el diseño UI/UX: la identidad visual y las pantallas de cada épica.
+        assertThat(factory.addedAfter(11)).extracting(e -> e.getKey().name() + ":" + e.getValue()).containsExactly("AGENT_ROLE:UX_UI");
         assertThat(factory.componentTemplates()).filteredOn(c -> c.key().equals("MOBILE_FLUTTER")).singleElement().satisfies(c -> {
             assertThat(c.kind()).isEqualTo(ec.kuador.board.catalog.ComponentTemplate.Kind.MOBILE);
             assertThat(c.commands().test()).isEqualTo("flutter analyze && flutter test");

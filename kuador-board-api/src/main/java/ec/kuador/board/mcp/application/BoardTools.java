@@ -130,8 +130,8 @@ public class BoardTools {
                 List.of("key", "agent", "tool"), this::useBusinessTool);
         Map<String, Object> taskItem = Map.of("type", "object", "additionalProperties", false, "required", List.of("title", "role"), "properties", Map.of(
                 "title", Map.of("type", "string", "description", "Título corto de la tarea."),
-                "role", Map.of("type", "string", "description", "Clave del rol que la trabaja. Con repositorio de código, uno que escribe en el repo (p. ej. BACKEND,"
-                        + " FRONTEND o DEVOPS): quien solo planea no; el contrato, el modelo de datos y los ADR van en el plan, y si deben quedar en el repo son la"
+                "role", Map.of("type", "string", "description", "Clave del rol que la trabaja. Con repositorio de código, uno del equipo del tablero que escribe en el repo (p. ej. BACKEND,"
+                        + " FRONTEND o DEVOPS): quien solo planea o diseña no; el contrato, el modelo de datos y los ADR van en el plan, y si deben quedar en el repo son la"
                         + " primera tarea. Sin repositorio, cualquier rol del equipo del tablero."),
                 "description", Map.of("type", "string", "description", "Qué hacer, archivos o módulos, criterio de terminado y las líneas del tasks.md que cubre."),
                 "dependsOn", Map.of("type", "array", "items", Map.of("type", "integer"), "description", "Números (desde 1) de tareas de esta lista que deben terminar antes.")));
@@ -377,7 +377,7 @@ public class BoardTools {
         }
         m.put("tools", role.tools());
         m.put("languages", rules.languages());
-        m.put("factoryRules", rules.all());
+        m.put("factoryRules", rules.forRole(role));
         return m;
     }
 
@@ -530,7 +530,7 @@ public class BoardTools {
         List<String> allowed = docs.allowedKinds(c.projectKey());
         if (!allowed.contains(kind)) {
             // Despliegue es del proyecto (se actualiza en el PR), no de la metodología: no cuenta como «tipo posible» del issue.
-            List<String> own = allowed.stream().filter(k -> !ec.kuador.board.catalog.Methodology.DEPLOYMENT_KIND.equals(k)).toList();
+            List<String> own = allowed.stream().filter(k -> !ec.kuador.board.catalog.SoftwareDocuments.growsWithProject(k)).toList();
             throw new ToolException("La metodología del proyecto no pide documentos " + kind + ". Tipos posibles: "
                     + (own.isEmpty() ? "ninguno (el proyecto no tiene metodología)" : String.join(", ", own)) + ".");
         }

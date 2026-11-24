@@ -65,6 +65,7 @@ import type {
   AgentClient,
   AgentKit,
   EpicTask,
+  EpicPlanStatus,
   Language,
   NotificationSettings,
   NotificationView,
@@ -949,6 +950,11 @@ export async function deliverIssueAction(projectKey: string, key: string, commen
 
 export async function listEpicTasksAction(key: string): Promise<ActionResult<EpicTask[]>> {
   return run(() => boardApi.epicTasks(key));
+}
+
+/** El reparto de la épica y si ya se puede aprobar (la misma regla que aplica la API al aprobar). */
+export async function epicPlanAction(key: string): Promise<ActionResult<EpicPlanStatus>> {
+  return run(() => boardApi.epicPlan(key));
 }
 
 export async function reviewPlanAction(projectKey: string, key: string, approve: boolean, comment: string | null): Promise<ActionResult<Issue>> {

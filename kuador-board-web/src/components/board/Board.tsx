@@ -14,10 +14,10 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Check, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Check, ListChecks, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { clsx } from "clsx";
 import { useSearchParams } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
 
@@ -34,7 +34,7 @@ import { useAccess } from "@/components/shell/AccessContext";
 import { roleLabel } from "@/lib/labels";
 import type { AgentMode, AgentRole, AgentRun, BoardColumn, CardPlan, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
 
-import { AddColumn, Column, type ColumnActions } from "./Column";
+import { AddColumn, Column, type ColumnActions, type Selection } from "./Column";
 import { COLUMN_DROP_PREFIX } from "./dnd";
 import { IssueCard } from "./IssueCard";
 import { IssueDetail } from "./IssueDetail";
@@ -136,6 +136,48 @@ export function Board({
   const [, startColumns] = useTransition();
   const origin = useRef<Columns | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Selección de varias tarjetas para cambiarlas de columna de una vez.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [bulkTarget, setBulkTarget] = useState<string | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+    setBulkTarget(null);
+  };
+  const selection: Selection = {
+    selected,
+    toggle: (key) => {
+      setSelecting(true);
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return next;
+      });
+    },
+    toggleAll: (keys) =>
+      setSelected((prev) => {
+        const next = new Set(prev);
+        const all = keys.every((k) => next.has(k));
+        keys.forEach((k) => (all ? next.delete(k) : next.add(k)));
+        return next;
+      }),
+  };
+  // Escape sale del modo selección (salvo con el detalle abierto, que se cierra primero).
+  useEffect(() => {
+    if (!selecting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !bulkProgress) {
+        setSelecting(false);
+        setSelected(new Set());
+        setBulkTarget(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selecting, bulkProgress]);
   // Celular: qué columna está a la vista (el tablero se desliza de a una) y sus chips.
   const scrollerRef = useRef<HTMLDivElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
@@ -294,6 +336,48 @@ export function Board({
     });
   }
 
+  /**
+   * Mueve las tarjetas seleccionadas a una columna, una por una y con las mismas reglas que arrastrar (transiciones,
+   * puertas, épicas que esperan sus tareas). Lo que no se pudo mover queda marcado, con el motivo.
+   */
+  async function moveSelected(to: string) {
+    const target = project.columns.find((c) => c.key === to);
+    if (!target) return;
+    const keys = [...selected].filter((k) => byKey.has(k));
+    const failures: { key: string; reason: string }[] = [];
+    let moved = 0;
+    setBulkProgress({ done: 0, total: keys.length });
+    for (const [i, key] of keys.entries()) {
+      const issue = byKey.get(key)!;
+      if (issue.status === to) {
+        moved++;
+      } else if (!canMove(issue.status, to)) {
+        failures.push({ key, reason: `el flujo no deja pasar de «${project.columns.find((c) => c.key === issue.status)?.name}» a «${target.name}»` });
+      } else {
+        // Al final de la columna destino: la API ajusta la posición al largo real.
+        const result = await moveIssueAction(project.key, key, to, 100_000);
+        if (result.ok) moved++;
+        else failures.push({ key, reason: result.error });
+      }
+      setBulkProgress({ done: i + 1, total: keys.length });
+    }
+    setBulkProgress(null);
+    if (failures.length === 0) {
+      notify.ok(`${moved} ${moved === 1 ? "tarjeta pasó" : "tarjetas pasaron"} a ${target.name}`);
+      stopSelecting();
+      return;
+    }
+    notify.error(
+      `${moved} movidas, ${failures.length} no`,
+      failures
+        .slice(0, 3)
+        .map((f) => `${f.key}: ${f.reason}`)
+        .join(" · ") + (failures.length > 3 ? ` · y ${failures.length - 3} más` : ""),
+    );
+    // Quedan marcadas solo las que no se movieron, para revisarlas.
+    setSelected(new Set(failures.map((f) => f.key)));
+  }
+
   const openIssue = openKey ? byKey.get(openKey) : undefined;
   const activeIssue = activeKey ? byKey.get(activeKey) : undefined;
   const filtering = Boolean(query || assignee || type);
@@ -366,7 +450,20 @@ export function Board({
           </Button>
         )}
         {canEdit && (
-          <Button tone="primary" size="sm" icon={Plus} className="ml-auto hidden md:inline-flex" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)}>
+          <Button
+            tone={selecting ? "primary" : "ghost"}
+            size="sm"
+            icon={ListChecks}
+            className="md:ml-auto"
+            aria-pressed={selecting}
+            title={selecting ? "Salir de la selección (Esc)" : "Marcar varias tarjetas para cambiarlas de columna (también ⌘/Ctrl + clic)"}
+            onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+          >
+            {selecting ? "Terminar selección" : "Seleccionar"}
+          </Button>
+        )}
+        {canEdit && (
+          <Button tone="primary" size="sm" icon={Plus} className="hidden md:inline-flex" onClick={() => setCreatingIn(project.columns[0]?.key ?? null)}>
             Crear tarjeta
           </Button>
         )}
@@ -480,6 +577,8 @@ export function Board({
               working={working}
               onOpen={showIssue}
               onCreate={canEdit ? setCreatingIn : undefined}
+              showAll={filtering}
+              selection={canEdit ? { ...selection, active: selecting } : undefined}
             />
           ))}
           {canEdit && (
@@ -517,8 +616,46 @@ export function Board({
           onClose={() => showIssue(null)}
           modes={modes}
           everyone={everyone}
+          tasksVersion={issues
+            .filter((i) => i.parentKey === openIssue.key && i.workRole)
+            .map((i) => `${i.key}:${i.status}`)
+            .join(",")}
           lastRun={runs.filter((r) => r.issueKey === openIssue.key).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]}
         />
+      )}
+
+      {selecting && (
+        <div
+          role="toolbar"
+          aria-label="Acciones con las tarjetas marcadas"
+          className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-xl flex-wrap items-center gap-2 rounded-lg border border-line-strong bg-raised px-3 py-2 shadow-float"
+        >
+          <span className="tabular text-[13px] text-fg-strong">
+            {bulkProgress ? `Moviendo ${bulkProgress.done}/${bulkProgress.total}…` : selected.size === 0 ? "Marca las tarjetas" : `${selected.size} ${selected.size === 1 ? "marcada" : "marcadas"}`}
+          </span>
+          <div className="ml-auto w-44">
+            <SelectInput
+              size="sm"
+              ariaLabel="Columna destino"
+              placeholder="Mover a…"
+              options={project.columns.map((c) => ({ value: c.key, label: c.name }))}
+              value={bulkTarget}
+              disabled={!!bulkProgress}
+              onChange={(v) => setBulkTarget(v ?? null)}
+            />
+          </div>
+          <Button
+            size="sm"
+            tone="primary"
+            icon={ArrowRight}
+            loading={!!bulkProgress}
+            disabled={!bulkTarget || selected.size === 0}
+            onClick={() => bulkTarget && void moveSelected(bulkTarget)}
+          >
+            Mover
+          </Button>
+          <Button size="sm" tone="ghost" icon={X} iconOnly label="Cancelar selección" disabled={!!bulkProgress} onClick={stopSelecting} />
+        </div>
       )}
 
       <SidePanel
@@ -574,7 +711,8 @@ function cardPlans(issues: Issue[], byKey: Map<string, Issue>, project: Project,
       const current = plans.get(epic.key) ?? {};
       const progress = current.progress ?? { done: 0, total: 0 };
       const stage = project.stages.find((st) => st.column === epic.status);
-      const awaiting = issue.status === first && !epic.assigneeId && !!stage && !stage.gate && stage.roles.length > 0;
+      // La API no exige que la épica esté libre para aprobar el reparto: el aviso tampoco.
+      const awaiting = issue.status === first && !!stage && !stage.gate && stage.roles.length > 0;
       plans.set(epic.key, {
         ...current,
         progress: { done: progress.done + (done.has(issue.status) ? 1 : 0), total: progress.total + 1 },

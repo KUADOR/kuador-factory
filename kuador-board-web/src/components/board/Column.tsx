@@ -3,7 +3,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, ArrowRight, Ban, CircleCheck, CircleDashed, CircleDot, Ellipsis, Lock, Pencil, Plus, Trash } from "lucide-react";
+import { ArrowLeft, ArrowRight, Ban, Check, CircleCheck, CircleDashed, CircleDot, Ellipsis, Lock, Pencil, Plus, Trash } from "lucide-react";
 import { clsx } from "clsx";
 import { useState } from "react";
 
@@ -16,6 +16,20 @@ import type { BoardColumn, CardPlan, ColumnCategory, Issue, IssueStatus, Member,
 import { COLUMN_DROP_PREFIX } from "./dnd";
 import { IssueCard } from "./IssueCard";
 import { roleList } from "./stages";
+
+/**
+ * Como en Jira: una columna terminada muestra solo lo que terminó en los últimos días; lo anterior queda a un clic.
+ * Se usa la última actualización de la tarjeta (al terminar, moverla la actualiza).
+ */
+export const DONE_RECENT_DAYS = 14;
+
+/** Selección de varias tarjetas para cambiarlas de columna de una vez. */
+export interface Selection {
+  selected: ReadonlySet<string>;
+  toggle: (key: string) => void;
+  /** Marca todas las claves dadas o, si ya estaban todas, las desmarca. */
+  toggleAll: (keys: string[]) => void;
+}
 
 const ACCENT: Record<ColumnCategory, string> = {
   TODO: "bg-fg-faint",
@@ -44,6 +58,9 @@ function SortableIssue({
   plan,
   readOnly,
   onOpen,
+  selecting,
+  selected,
+  onSelect,
 }: {
   issue: Issue;
   assignee: Member | undefined;
@@ -54,8 +71,44 @@ function SortableIssue({
   plan?: CardPlan;
   readOnly?: boolean;
   onOpen: (key: string) => void;
+  /** Modo selección: un clic marca la tarjeta en vez de abrirla, y no se arrastra. */
+  selecting?: boolean;
+  selected?: boolean;
+  /** Marca o desmarca la tarjeta (también con ⌘/Ctrl + clic fuera del modo selección). */
+  onSelect?: (key: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.key, disabled: readOnly });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.key, disabled: readOnly || selecting });
+  if (selecting) {
+    return (
+      <li ref={setNodeRef}>
+        <div
+          role="checkbox"
+          aria-checked={!!selected}
+          tabIndex={0}
+          onClick={() => onSelect?.(issue.key)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelect?.(issue.key);
+            }
+          }}
+          aria-label={`${issue.key}: ${issue.title}`}
+          className={clsx("relative block w-full cursor-pointer touch-manipulation rounded-md ring-2 transition-shadow", selected ? "ring-sol" : "ring-transparent")}
+        >
+          <span
+            aria-hidden
+            className={clsx(
+              "absolute top-2 right-2 z-10 grid size-4 place-items-center rounded border",
+              selected ? "border-sol bg-sol text-on-sol" : "border-line-hover bg-raised",
+            )}
+          >
+            {selected && <Check className="size-3" strokeWidth={3} />}
+          </span>
+          <IssueCard issue={issue} assignee={assignee} epicTitle={epicTitle} projectType={projectType} workingAgent={workingAgent} waiting={waiting} plan={plan} />
+        </div>
+      </li>
+    );
+  }
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }} className={isDragging ? "opacity-30" : undefined}>
       {/* dnd-kit aporta role="button" y tabIndex. Enter abre el detalle; Espacio arrastra con teclado. */}
@@ -65,7 +118,11 @@ function SortableIssue({
         // En solo lectura no se arrastra, pero la tarjeta sigue abriendo el detalle: no está «deshabilitada».
         aria-disabled={readOnly ? undefined : attributes["aria-disabled"]}
         aria-describedby={readOnly ? undefined : attributes["aria-describedby"]}
-        onClick={() => onOpen(issue.key)}
+        onClick={(e) => {
+          // ⌘/Ctrl + clic empieza a seleccionar varias, como en un explorador de archivos.
+          if ((e.metaKey || e.ctrlKey) && onSelect) onSelect(issue.key);
+          else onOpen(issue.key);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") onOpen(issue.key);
           else listeners?.onKeyDown?.(e);
@@ -95,8 +152,14 @@ export function Column({
   actions,
   onOpen,
   onCreate,
+  showAll = false,
+  selection,
 }: {
   column: BoardColumn;
+  /** Con búsqueda o filtros: una columna terminada muestra también lo antiguo que coincida. */
+  showAll?: boolean;
+  /** Modo selección del tablero (solo quien edita). */
+  selection?: Selection & { active: boolean };
   projectType: TypeSource;
   issues: Issue[];
   members: Map<string, Member>;
@@ -118,7 +181,16 @@ export function Column({
   onCreate?: (status: IssueStatus) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: COLUMN_DROP_PREFIX + column.key, disabled: !!blocked });
+  const [showOld, setShowOld] = useState(false);
+  // Terminadas: solo las recientes, salvo que se pidan las demás o se esté buscando.
+  const [now] = useState(() => Date.now());
+  const recentSince = now - DONE_RECENT_DAYS * 24 * 60 * 60 * 1000;
+  const folds = column.category === "DONE" && !showAll;
+  const old = folds ? issues.filter((i) => Date.parse(i.updatedAt) < recentSince) : [];
+  const shown = folds && !showOld && old.length > 0 ? issues.filter((i) => Date.parse(i.updatedAt) >= recentSince) : issues;
   const points = issues.reduce((sum, i) => sum + (i.storyPoints ?? 0), 0);
+  const selecting = !!selection?.active;
+  const allShownSelected = shown.length > 0 && shown.every((i) => selection?.selected.has(i.key));
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(column.name);
 
@@ -163,12 +235,21 @@ export function Column({
           </h2>
         )}
         {!renaming && (
-          <span className="tabular font-mono text-[11px] text-fg-faint">
-            {issues.length}
+          <span className="tabular font-mono text-[11px] text-fg-faint" title={shown.length !== issues.length ? `${issues.length} en total` : undefined}>
+            {shown.length !== issues.length ? `${shown.length}/${issues.length}` : issues.length}
             {points > 0 && <span title="Tamaño de la columna"> · {points} pts</span>}
           </span>
         )}
-        {onCreate && (
+        {selecting && shown.length > 0 && (
+          <button
+            type="button"
+            onClick={() => selection!.toggleAll(shown.map((i) => i.key))}
+            className="k-link ml-auto shrink-0 pr-2 text-[11px]"
+          >
+            {allShownSelected ? "Quitar todas" : "Marcar todas"}
+          </button>
+        )}
+        {onCreate && !selecting && (
         <span className="ml-auto flex shrink-0">
           <button
             type="button"
@@ -225,9 +306,9 @@ export function Column({
           <Ban className="size-3 shrink-0" aria-hidden /> {blocked}
         </p>
       )}
-      <SortableContext id={column.key} items={issues.map((i) => i.key)} strategy={verticalListSortingStrategy}>
-        <ul ref={setNodeRef} className="flex min-h-24 flex-1 flex-col gap-1.5 overflow-y-auto px-1.5 pb-2">
-          {issues.map((issue) => (
+      <SortableContext id={column.key} items={shown.map((i) => i.key)} strategy={verticalListSortingStrategy}>
+        <ul ref={setNodeRef} className="flex min-h-24 flex-1 flex-col gap-1.5 overflow-y-auto px-1.5 pt-0.5 pb-2">
+          {shown.map((issue) => (
             <SortableIssue
               key={issue.key}
               issue={issue}
@@ -239,10 +320,26 @@ export function Column({
               readOnly={!onCreate}
               waiting={!issue.assigneeId && stage && (stage.gate || stage.roles.length > 0) ? (stage.gate && stage.roles.length === 0 ? "Por aprobar" : "Por tomar") : undefined}
               onOpen={onOpen}
+              selecting={selecting}
+              selected={selection?.selected.has(issue.key)}
+              onSelect={selection?.toggle}
             />
           ))}
-          {issues.length === 0 && (
-            <li className="rounded-md border border-dashed border-line px-3 py-3 text-center text-xs text-fg-faint">Sin tarjetas</li>
+          {shown.length === 0 && (
+            <li className="rounded-md border border-dashed border-line px-3 py-3 text-center text-xs text-fg-faint">
+              {issues.length > 0 ? `Nada terminado en los últimos ${DONE_RECENT_DAYS} días` : "Sin tarjetas"}
+            </li>
+          )}
+          {old.length > 0 && (
+            <li>
+              <button
+                type="button"
+                onClick={() => setShowOld((v) => !v)}
+                className="w-full rounded-md px-2 py-1.5 text-center text-[11px] text-fg-muted hover:bg-hover hover:text-fg-strong"
+              >
+                {showOld ? `Ocultar las de hace más de ${DONE_RECENT_DAYS} días` : `Ver ${old.length} más antiguas (más de ${DONE_RECENT_DAYS} días)`}
+              </button>
+            </li>
           )}
         </ul>
       </SortableContext>

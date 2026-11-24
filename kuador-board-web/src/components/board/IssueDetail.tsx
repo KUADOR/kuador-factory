@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Ellipsis, FileText, Link2, Trash } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 
 import {
   addCommentAction,
@@ -39,7 +39,7 @@ import type { Activity, AgentRun, Comment, DocumentMeta, Issue, Me, Member, Meth
 import { EpicPlan } from "./EpicPlan";
 import { IssueAttachments } from "./IssueAttachments";
 import { IssueForm, valuesOf } from "./IssueForm";
-import { quickActions, StageBar, type QuickAction } from "./StageBar";
+import { quickActions, showsPulls, StageBar, type QuickAction } from "./StageBar";
 import { decisionsChanged } from "@/components/shell/useDecisionsCount";
 
 const dateFormat = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeStyle: "short" });
@@ -58,7 +58,10 @@ export function IssueDetail({
   modes = {},
   lastRun,
   everyone,
+  tasksVersion,
 }: {
+  /** Cambia cuando el tablero ve tareas nuevas o movidas de esta épica (para volver a pedir su reparto). */
+  tasksVersion?: string;
   /**
    * Todos los miembros del espacio, para mostrar nombres: un comentario puede ser de un agente que no está en el equipo
    * de este tablero (y no por eso es un «miembro eliminado»).
@@ -87,6 +90,15 @@ export function IssueDetail({
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const reporter = issue.reporterId ? byId.get(issue.reporterId) : undefined;
+  // Lo que el detalle carga aparte (comentarios, PRs y CI en GitHub, reparto de la épica). Hasta que llega todo, los
+  // botones de la tarjeta no actúan: aprobar o entregar sin ver los comentarios o el CI llevaba a errores.
+  const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
+  const markLoaded = useCallback((part: string) => setLoaded((prev) => (prev.has(part) ? prev : new Set(prev).add(part))), []);
+  const commentsLoaded = useCallback(() => markLoaded("comments"), [markLoaded]);
+  const pullsLoaded = useCallback(() => markLoaded("pulls"), [markLoaded]);
+  const planLoaded = useCallback(() => markLoaded("plan"), [markLoaded]);
+  const needs = ["comments", ...(showsPulls({ issue, project, me, canEdit }) ? ["pulls"] : []), ...(issue.type === "EPIC" ? ["plan"] : [])];
+  const ready = needs.every((part) => loaded.has(part));
 
   return (
     <SidePanel
@@ -121,8 +133,30 @@ export function IssueDetail({
         />
       }
     >
-      <StageBar issue={issue} project={project} me={me} members={members} roleName={roleName} modes={modes} lastRun={lastRun} workingAgent={workingAgent} />
-      {issue.type === "EPIC" && <EpicPlan epic={issue} project={project} roleName={roleName} onOpen={onOpenIssue} />}
+      <StageBar
+        issue={issue}
+        project={project}
+        me={me}
+        members={members}
+        roleName={roleName}
+        modes={modes}
+        lastRun={lastRun}
+        workingAgent={workingAgent}
+        ready={ready}
+        onPullsLoaded={pullsLoaded}
+      />
+      {issue.type === "EPIC" && (
+        <EpicPlan
+          epic={issue}
+          project={project}
+          roleName={roleName}
+          onOpen={onOpenIssue}
+          tasksVersion={tasksVersion}
+          ready={ready}
+          workingAgent={workingAgent}
+          onLoaded={planLoaded}
+        />
+      )}
       <IssueForm
         project={project}
         initial={valuesOf(issue)}
@@ -161,7 +195,16 @@ export function IssueDetail({
             <dd className="text-fg">{dateFormat.format(new Date(issue.updatedAt))}</dd>
           </dl>
         }
-        below={<IssueTabs issueKey={issue.key} members={known} project={project} actions={quickActions({ issue, project, me, canEdit, workingAgent })} />}
+        below={
+          <IssueTabs
+            issueKey={issue.key}
+            members={known}
+            project={project}
+            actions={quickActions({ issue, project, me, canEdit, workingAgent })}
+            ready={ready}
+            onCommentsLoaded={commentsLoaded}
+          />
+        }
       />
       <ConfirmDialog
         open={confirming}
@@ -189,7 +232,21 @@ export function IssueDetail({
   );
 }
 
-function IssueTabs({ issueKey, members, project, actions }: { issueKey: string; members: Member[]; project: Project; actions: QuickAction[] }) {
+function IssueTabs({
+  issueKey,
+  members,
+  project,
+  actions,
+  ready,
+  onCommentsLoaded,
+}: {
+  issueKey: string;
+  members: Member[];
+  project: Project;
+  actions: QuickAction[];
+  ready: boolean;
+  onCommentsLoaded: () => void;
+}) {
   const [tab, setTab] = useState<"comments" | "files" | "history" | "docs">("comments");
   // Documentos en tableros que los usan y ya eligieron su manual.
   const withDocs = project.capabilities.includes("DOCUMENTS") && project.methodology != null;
@@ -200,7 +257,7 @@ function IssueTabs({ issueKey, members, project, actions }: { issueKey: string; 
         value={tab}
         onChange={setTab}
         items={[
-          { value: "comments", label: "Comentarios", content: <Comments issueKey={issueKey} members={members} actions={actions} /> },
+          { value: "comments", label: "Comentarios", content: <Comments issueKey={issueKey} members={members} actions={actions} ready={ready} onLoaded={onCommentsLoaded} /> },
           { value: "files", label: "Adjuntos", content: <IssueAttachments issueKey={issueKey} members={members} /> },
           { value: "history", label: "Historial", content: <IssueHistory issueKey={issueKey} members={members} project={project} /> },
           ...(withDocs ? [{ value: "docs" as const, label: "Documentos", content: <IssueDocs issueKey={issueKey} project={project} /> }] : []),
@@ -332,7 +389,20 @@ function IssueHistory({ issueKey, members, project }: { issueKey: string; member
   );
 }
 
-function Comments({ issueKey, members, actions = [] }: { issueKey: string; members: Member[]; actions?: QuickAction[] }) {
+function Comments({
+  issueKey,
+  members,
+  actions = [],
+  ready = true,
+  onLoaded,
+}: {
+  issueKey: string;
+  members: Member[];
+  actions?: QuickAction[];
+  /** Todo lo del detalle ya cargó: hasta entonces, aprobar o rechazar desde aquí espera. */
+  ready?: boolean;
+  onLoaded?: () => void;
+}) {
   const live = useLiveVersion(issueKey);
   const byId = new Map(members.map((m) => [m.id, m]));
   const [comments, setComments] = useState<Comment[] | null>(null);
@@ -357,7 +427,7 @@ function Comments({ issueKey, members, actions = [] }: { issueKey: string; membe
 
   /** Aprobar, rechazar o entregar desde aquí: lo escrito en la caja viaja como comentario (o como motivo del rechazo). */
   function runAction(a: QuickAction) {
-    if (pending || (a.needsNote && !body.trim())) return;
+    if (pending || !ready || (a.needsNote && !body.trim())) return;
     startTransition(async () => {
       const result = await a.run(body.trim() || null);
       if (result.ok) {
@@ -372,6 +442,8 @@ function Comments({ issueKey, members, actions = [] }: { issueKey: string; membe
   useEffect(() => {
     let active = true;
     listCommentsAction(issueKey).then((result) => {
+      // Aunque se haya cambiado de pestaña, el detalle ya sabe que llegaron: sus botones no quedan esperando.
+      onLoaded?.();
       if (!active) return;
       if (result.ok) setComments(result.data);
       else setLoadError(result.error);
@@ -379,7 +451,7 @@ function Comments({ issueKey, members, actions = [] }: { issueKey: string; membe
     return () => {
       active = false;
     };
-  }, [issueKey, live]);
+  }, [issueKey, live, onLoaded]);
 
   return (
     <section aria-label="Comentarios" className="flex flex-col gap-3">
@@ -416,7 +488,7 @@ function Comments({ issueKey, members, actions = [] }: { issueKey: string; membe
         />
         <div className="flex flex-wrap items-center justify-end gap-2">
           {error && <p className="mr-auto text-xs text-danger">{error}</p>}
-          <Button size="sm" tone={actions.length > 0 ? "secondary" : "primary"} onClick={send} loading={pending} disabled={!body.trim()}>
+          <Button size="sm" tone={actions.length > 0 ? "secondary" : "primary"} onClick={send} loading={pending} disabled={!body.trim() || (comments === null && !loadError)}>
             Comentar
           </Button>
           {actions.map((a) => (
@@ -425,8 +497,16 @@ function Comments({ issueKey, members, actions = [] }: { issueKey: string; membe
               size="sm"
               tone={a.tone}
               icon={a.icon}
-              disabled={pending || (a.needsNote && !body.trim())}
-              title={a.needsNote && !body.trim() ? "Escribe arriba el motivo" : body.trim() ? "Lo escrito va como comentario" : undefined}
+              disabled={pending || !ready || (a.needsNote && !body.trim())}
+              title={
+                !ready
+                  ? "Cargando comentarios y estado de la tarjeta…"
+                  : a.needsNote && !body.trim()
+                    ? "Escribe arriba el motivo"
+                    : body.trim()
+                      ? "Lo escrito va como comentario"
+                      : undefined
+              }
               onClick={() => runAction(a)}
             >
               {a.label}

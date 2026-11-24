@@ -202,7 +202,7 @@ class NotifyIT {
     @Test
     void aPersonGetsEmailAndTelegramWhenSomethingNeedsThem() throws Exception {
         signup.requestCode("noa@nt.test");
-        signup.complete(signup.verifyCode("noa@nt.test", INBOX.get("noa@nt.test")),
+        Workspace ws = signup.complete(signup.verifyCode("noa@nt.test", INBOX.get("noa@nt.test")),
                 new SignupService.Company("Nt", null, null, null, null, null), "Noa", "clave-de-noa-123", "FACTORY");
         String owner = auth.login("noa@nt.test", "clave-de-noa-123").token();
         JsonNode view = call("GET", "/api/notifications", null, owner).body();
@@ -252,6 +252,19 @@ class NotifyIT {
         tool(runner, "deliver", Map.of("key", other, "agent", "PRODUCT_OWNER"), false);
         Thread.sleep(1500);
         assertThat(MAILS.subList(before, MAILS.size())).as("sin avisos de puertas").noneMatch(m -> m.getSubject().contains("espera tu aprobación"));
+
+        // Una mención con «@» en un comentario: le avisa a la persona nombrada, no a quien escribe ni a quien no existe.
+        String leo = person(ws, "Leo Mora", "leo@nt.test");
+        String leoId = call("GET", "/api/members", null, owner).body().valueStream().filter(m -> "Leo Mora".equals(m.get("name").asString()))
+                .findFirst().orElseThrow().get("id").asString();
+        call("POST", "/api/projects/NT/people", Map.of("memberId", leoId), owner);
+        call("POST", "/api/issues/" + key + "/comments", Map.of("body", "@leo revisa el horario, por favor. Copia a @nadie."), owner);
+        eventually("aviso de la mención", () -> MAILS.stream().anyMatch(m -> m.getSubject().equals(key + " · Noa te mencionó")
+                && java.util.Arrays.asList(m.getTo()).contains("leo@nt.test") && m.getText().contains("@leo revisa el horario")));
+        int mentions = MAILS.size();
+        call("POST", "/api/issues/" + key + "/comments", Map.of("body", "Le escribí a leo@nt.test"), leo);
+        Thread.sleep(1000);
+        assertThat(MAILS.subList(mentions, MAILS.size())).noneMatch(m -> m.getSubject().contains("te mencionó"));
 
         // Prueba de canales y desvincular.
         assertThat(call("POST", "/api/notifications/test", null, owner).body().get("channels").toString()).contains("EMAIL", "TELEGRAM");

@@ -13,7 +13,7 @@ import { notify } from "@/components/ui/Toaster";
 import type { NotificationSettings, NotificationView } from "@/lib/types";
 
 const EVENTS: { key: "onAssigned" | "onGates" | "onPlans"; label: string; hint?: string }[] = [
-  { key: "onAssigned", label: "Te asignan una tarjeta", hint: "Incluye cuando un agente te pide una decisión." },
+  { key: "onAssigned", label: "Te asignan una tarjeta o te mencionan", hint: "Incluye cuando un agente te pide una decisión o alguien te nombra con @ en un comentario." },
   { key: "onGates", label: "Algo espera tu aprobación" },
   { key: "onPlans", label: "Un reparto de tareas espera tu aprobación" },
 ];

@@ -15,7 +15,7 @@ public record NotificationSettings(
 
     public boolean wants(NoticeKind kind) {
         return switch (kind) {
-            case ASSIGNED -> onAssigned;
+            case ASSIGNED, MENTION -> onAssigned;
             case GATE, REVIEW -> onGates;
             case PLAN -> onPlans;
             case BILLING, BUDGET, TEST -> true;

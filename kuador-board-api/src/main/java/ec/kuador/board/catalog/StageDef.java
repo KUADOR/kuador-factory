@@ -27,11 +27,15 @@ import java.util.regex.Pattern;
  *       qué hacer si algo no coincide). La escribe quien configura el tablero: es una orden del equipo, no un dato.
  *   <li>{@code autoPlan}: en una etapa de trabajo, el reparto de tareas de una épica arranca solo al llegar aquí (sin
  *       esperar que una persona lo apruebe). El spec ya pasó por su puerta; el reparto se puede corregir después.
+ *   <li>{@code epicFirst}: en una etapa de trabajo, roles que trabajan antes las épicas, uno tras otro, y después los de
+ *       {@code roles} (p. ej. en Diseño: UI/UX dibuja las pantallas y luego el Arquitecto planea con ellas). Cada uno
+ *       termina al escribir el documento de tarjeta de su rol; si el equipo no tiene ese agente, se salta.
  * </ul>
  */
 public record StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan,
         List<String> checklist, List<Requirement> requires,
-        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String instructions) {
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String instructions,
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY) List<String> epicFirst) {
 
     public static final int MAX_INSTRUCTIONS = 3_000;
 
@@ -104,6 +108,14 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
         checklist = checklist == null ? List.of() : checklist.stream().filter(x -> x != null && !x.isBlank()).map(String::strip).distinct().toList();
         requires = requires == null ? List.of() : requires.stream().filter(java.util.Objects::nonNull).distinct().toList();
         instructions = instructions == null || instructions.isBlank() ? null : instructions.strip();
+        // Etapas guardadas antes de este campo no lo traen (null); una puerta no tiene quién trabaje antes.
+        epicFirst = epicFirst == null || gate ? List.of()
+                : epicFirst.stream().filter(r -> r != null && !r.isBlank()).map(String::strip).distinct().toList();
+    }
+
+    public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan,
+            List<String> checklist, List<Requirement> requires, String instructions) {
+        this(column, roles, gate, approvers, rejectTo, review, autoPlan, checklist, requires, instructions, null);
     }
 
     public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan,
@@ -113,7 +125,7 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
 
     /** La misma etapa con otras instrucciones. */
     public StageDef withInstructions(String text) {
-        return new StageDef(column, roles, gate, approvers, rejectTo, review, autoPlan, checklist, requires, text);
+        return new StageDef(column, roles, gate, approvers, rejectTo, review, autoPlan, checklist, requires, text, epicFirst);
     }
 
     public StageDef(String column, List<String> roles, boolean gate, List<String> approvers, String rejectTo, AgentReview review, Boolean autoPlan) {
@@ -150,6 +162,11 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
         return review != null ? review : new AgentReview(ReviewMode.AGENT_ESCALATE, null, null, null);
     }
 
+    /** Si el rol trabaja las épicas en esta etapa antes que los de {@code roles}. */
+    public boolean worksEpicsFirst(String role) {
+        return role != null && epicFirst.contains(role);
+    }
+
     public boolean coveredBy(String role) {
         return roles.isEmpty() || roles.contains(role);
     }
@@ -169,6 +186,11 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
             }
             if (!seen.add(s.column())) throw new DomainException("La columna " + s.column() + " tiene dos configuraciones de etapa.");
             for (String r : s.roles()) if (!ROLE.matcher(r).matches()) throw new DomainException("Rol no válido en la etapa " + s.column() + ": " + r + ".");
+            for (String r : s.epicFirst()) {
+                if (!ROLE.matcher(r).matches()) throw new DomainException("Rol no válido en la etapa " + s.column() + ": " + r + ".");
+                if (s.roles().contains(r)) throw new DomainException("En " + s.column() + ", " + r + " ya cubre la etapa: no puede trabajar también antes.");
+            }
+            if (s.epicFirst().size() > 3) throw new DomainException("Hasta 3 roles trabajan antes las épicas en " + s.column() + ".");
             for (String r : s.approvers()) if (!ROLE.matcher(r).matches()) throw new DomainException("Rol aprobador no válido en " + s.column() + ": " + r + ".");
             if (!s.gate() && !s.approvers().isEmpty()) throw new DomainException("Solo una puerta tiene aprobadores (columna " + s.column() + ").");
             if (s.review() != null) {
@@ -209,7 +231,7 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
     public static List<StageDef> prunedTo(List<StageDef> stages, List<ColumnDef> columns) {
         Set<String> keys = new HashSet<>(columns.stream().map(ColumnDef::key).toList());
         return stages.stream().filter(s -> keys.contains(s.column()))
-                .map(s -> s.rejectTo() != null && !keys.contains(s.rejectTo()) ? new StageDef(s.column(), s.roles(), s.gate(), s.approvers(), null, s.review(), s.autoPlan(), s.checklist(), s.requires()) : s)
+                .map(s -> s.rejectTo() != null && !keys.contains(s.rejectTo()) ? new StageDef(s.column(), s.roles(), s.gate(), s.approvers(), null, s.review(), s.autoPlan(), s.checklist(), s.requires(), s.instructions(), s.epicFirst()) : s)
                 .toList();
     }
 }

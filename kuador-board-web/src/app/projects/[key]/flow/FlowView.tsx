@@ -241,6 +241,7 @@ function StepEditor({ project, column, roleOptions, onDone }: { project: Project
         checklist: checklist.split("\n").map((x) => x.trim()).filter(Boolean),
         requires: gate ? [] : (current?.requires ?? []),
         instructions: gate || roles.length === 0 ? null : instructions.trim() || null,
+        epicFirst: gate ? [] : (current?.epicFirst ?? []),
       };
       const others = project.stages.filter((s) => s.column !== column);
       const meaningful = edited.gate || edited.roles.length > 0 || (edited.checklist ?? []).length > 0 || (edited.requires ?? []).length > 0;

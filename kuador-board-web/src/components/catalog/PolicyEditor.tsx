@@ -94,6 +94,9 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
             <Text label="Repartir una épica en tareas" value={value.rules.taskSplit} onChange={(taskSplit) => rules({ taskSplit })} />
             <Text label="Cómo llenar la propuesta" value={value.rules.proposalFields} onChange={(proposalFields) => rules({ proposalFields })} rows={9} />
           </Group>
+          <Group title="Quienes escriben código">
+            <Text label="Criterio de código (Backend, Frontend, DevOps; lo revisa el revisor de PR)" value={value.rules.code ?? ""} onChange={(code) => rules({ code })} rows={12} />
+          </Group>
           <Group title="Puertas que revisa un agente">
             <Text label="Cómo revisar la puerta" vars="{puerta}, {avanza}, {devolver}, {decidir}" value={value.rules.gateReview ?? ""} onChange={(gateReview) => rules({ gateReview })} rows={7} />
             <Text label="Con escalamiento: cuándo dejarla a una persona" vars="{aprobadores}, {sensibles}" value={value.rules.gateEscalate ?? ""} onChange={(gateEscalate) => rules({ gateEscalate })} />

@@ -1,8 +1,8 @@
 package ec.kuador.board.catalog;
 
 /**
- * Algo que la tarjeta debe tener para salir de una etapa: un archivo adjunto, un documento de cierto tipo o un dato
- * propio lleno. Lo comprueba el tablero al entregar o aprobar, sea quien sea (persona o agente).
+ * Algo que la tarjeta debe tener para salir de una etapa: un archivo adjunto, un documento de cierto tipo, un dato
+ * propio lleno o, en las épicas, un diagrama. Lo comprueba el tablero al entregar o aprobar, sea quien sea (persona o agente).
  * {@code ref}: el tipo de documento ({@link Kind#DOCUMENT}) o la clave del dato ({@link Kind#FIELD}); nulo en adjuntos.
  */
 public record Requirement(Kind kind, String ref) {
@@ -13,7 +13,12 @@ public record Requirement(Kind kind, String ref) {
         /** Un documento de la tarjeta del tipo {@code ref} (p. ej. SPEC, PROPUESTA). */
         DOCUMENT,
         /** El dato propio {@code ref} de la tarjeta tiene valor (p. ej. monto). */
-        FIELD
+        FIELD,
+        /**
+         * Solo en las épicas: un diagrama Mermaid (un bloque {@code ```mermaid}) en un documento o un comentario de la
+         * tarjeta, p. ej. el diagrama de la solución que dibuja el arquitecto. Las demás tarjetas no lo necesitan.
+         */
+        DIAGRAM
     }
 
     public Requirement {

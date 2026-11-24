@@ -15,4 +15,14 @@ public interface CardEvidence {
     default boolean hasDocument(String issueKey, String kind) {
         return false;
     }
+
+    /** Si algún documento de la tarjeta tiene un diagrama Mermaid. */
+    default boolean hasDiagram(String issueKey) {
+        return false;
+    }
+
+    /** Si la tarjeta ya tiene el documento que escribe ese rol según la metodología del tablero (vacío: el rol no escribe ninguno). */
+    default java.util.Optional<Boolean> hasDocumentOf(String projectKey, String issueKey, String role) {
+        return java.util.Optional.empty();
+    }
 }

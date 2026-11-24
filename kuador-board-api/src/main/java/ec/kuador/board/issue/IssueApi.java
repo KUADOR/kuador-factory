@@ -111,6 +111,15 @@ public interface IssueApi {
         return false;
     }
 
+    /**
+     * Lo que el tablero no dejaría pasar si el agente entregara ahora y que él mismo puede resolver: el diagrama de una
+     * épica que su etapa exige, o el documento de su parte si trabaja la épica antes que los roles de la etapa. Vacío si
+     * puede entregar.
+     */
+    default Optional<String> notReadyToDeliver(String issueKey, UUID agentId) {
+        return Optional.empty();
+    }
+
     /** Si el issue es una tarea del plan de una épica, su rol y dependencias. */
     Optional<TaskInfo> taskInfo(String issueKey);
 

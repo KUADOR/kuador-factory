@@ -88,8 +88,8 @@ public class DocumentService implements DocsApi {
     private WithContent createDocument(String projectKey, String kind, String issueKey, String importedPath, String content, UUID actorId) {
         ProjectView project = documentsBoard(projectKey);
         DocumentDef def;
-        if (Methodology.DEPLOYMENT_KIND.equals(kind) && !project.repository()) {
-            throw new DomainException("«Despliegue» es de los tableros con repositorio de código.");
+        if (ec.kuador.board.catalog.SoftwareDocuments.softwareOnly(kind) && !project.repository()) {
+            throw new DomainException("Ese documento es de los tableros con repositorio de código.");
         }
         if (Methodology.DEPLOYMENT_KIND.equals(kind) && project.methodology() == null) {
             def = Methodology.DEPLOYMENT; // Despliegue no depende de la metodología
@@ -210,10 +210,14 @@ public class DocumentService implements DocsApi {
     @Override
     @Transactional(readOnly = true)
     public List<String> allowedKinds(String projectKey) {
-        // Despliegue lo trae el tablero aunque la metodología no lo tenga (o no haya metodología).
-        return catalog.methodology(documentsBoard(projectKey).methodology())
+        // Despliegue lo trae el tablero aunque la metodología no lo tenga (o no haya metodología). Los propios del tablero de
+        // software (Identidad visual, Diseño de la solución, Pantallas) solo valen con repositorio de código.
+        ProjectView board = documentsBoard(projectKey);
+        return catalog.methodology(board.methodology())
                 .map(m -> java.util.stream.Stream.concat(m.documents(DocumentDef.Scope.PROJECT).stream(), m.documents(DocumentDef.Scope.ISSUE).stream())
-                        .map(DocumentDef::kind).toList())
+                        .map(DocumentDef::kind)
+                        .filter(k -> board.repository() || !ec.kuador.board.catalog.SoftwareDocuments.softwareOnly(k) || Methodology.DEPLOYMENT_KIND.equals(k))
+                        .toList())
                 .orElse(List.of(Methodology.DEPLOYMENT_KIND));
     }
 

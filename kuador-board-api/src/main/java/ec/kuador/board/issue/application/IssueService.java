@@ -753,7 +753,7 @@ public class IssueService implements IssueApi {
             boolean preparesGate = stage.get().gate() && !stage.get().roles().isEmpty() && stage.get().roles().contains(actor.role());
             if (stage.get().gate() && !preparesGate) {
                 requireApprover(project, stage.get(), actorId, issue);
-            } else if (!stage.get().coveredBy(actor.role())) {
+            } else if (!stage.get().coveredBy(actor.role()) && !(issue.type() == IssueType.EPIC && stage.get().worksEpicsFirst(actor.role()))) {
                 throw new ForbiddenException("«" + columnName(project, issue.status()) + "» la cubren: " + roleNames(stage.get().roles()) + ".");
             }
         }
@@ -782,12 +782,15 @@ public class IssueService implements IssueApi {
         if (actor.agent() && !actorId.equals(issue.assigneeId())) {
             throw new ForbiddenException("Un agente solo entrega los issues que tomó.");
         }
+        if (column == null && actor.agent() && issue.type() == IssueType.EPIC && stage.isPresent() && stage.get().worksEpicsFirst(actor.role())) {
+            return handOverInStage(issue, project, comment, actorId);
+        }
         ColumnDef next = column != null ? requireColumn(project, column) : project.nextAfter(issue.status())
                 .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay una etapa siguiente permitida."));
         if (column != null && project.indexOf(next.key()) <= project.indexOf(issue.status())) {
             throw new DomainException("«" + next.name() + "» no está después de «" + columnName(project, issue.status()) + "».");
         }
-        stage.ifPresent(st -> requireEvidence(project, st, issue));
+        stage.ifPresent(st -> requireEvidence(project, st, issue, comment));
         if (comment != null && !comment.isBlank()) saveComment(issue, actorId, comment.strip(), now());
         Issue moved = move(key, next.key(), Integer.MAX_VALUE, actorId);
         if (actor.agent() && actorId.equals(moved.assigneeId())) {
@@ -833,8 +836,65 @@ public class IssueService implements IssueApi {
         this.evidence = evidence == null ? List.of() : evidence;
     }
 
+    /**
+     * Un rol que trabaja las épicas antes en la etapa (p. ej. UI/UX en Diseño) terminó su parte: la épica sigue en la
+     * misma columna, sin asignar, para el rol que viene (otro previo o los de la etapa). La cadena de agentes la toma.
+     */
+    private Issue handOverInStage(Issue issue, ProjectView project, String comment, UUID actorId) {
+        if (pendingFirstRole(issue, project, project.stage(issue.status()).orElseThrow()).filter(r -> r.equals(requireMember(actorId).role())).isPresent()) {
+            throw new DomainException("Antes de entregar, escribe tu documento en " + issue.key() + ": es lo que deja tu parte lista para el rol que sigue.");
+        }
+        Instant now = now();
+        if (comment != null && !comment.isBlank()) saveComment(issue, actorId, comment.strip(), now);
+        issue.assign(null, now);
+        Issue saved = issues.save(issue);
+        publishAssignmentIfChanged(saved, actorId, actorId, now);
+        return saved;
+    }
+
+    /**
+     * En una épica, el primer rol de {@code epicFirst} de la etapa que todavía no escribió su documento y que algún agente
+     * del espacio cubre. Vacío si ya pasaron todos (o no hay a quién esperar): entonces trabajan los roles de la etapa.
+     */
+    private Optional<String> pendingFirstRole(Issue issue, ProjectView project, StageDef stage) {
+        if (issue.type() != IssueType.EPIC || stage.epicFirst().isEmpty()) return Optional.empty();
+        List<String> agentRoles = members.agents().stream().map(MemberView::role).toList();
+        for (String role : stage.epicFirst()) {
+            if (!agentRoles.contains(role)) continue;
+            boolean done = evidence.stream().map(e -> e.hasDocumentOf(issue.projectKey(), issue.key(), role)).flatMap(Optional::stream)
+                    .findFirst().orElse(true); // un rol sin documento propio no tiene cómo marcar su parte: no se le espera
+            if (!done) return Optional.of(role);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> notReadyToDeliver(String issueKey, UUID agentId) {
+        Issue issue = load(issueKey);
+        ProjectView project = project(issue.projectKey());
+        Optional<StageDef> stage = project.stage(issue.status());
+        Optional<MemberView> agent = members.find(agentId);
+        if (stage.isEmpty() || stage.get().gate() || agent.isEmpty()) return Optional.empty();
+        if (issue.type() == IssueType.EPIC && stage.get().worksEpicsFirst(agent.get().role())) {
+            return pendingFirstRole(issue, project, stage.get()).filter(r -> r.equals(agent.get().role()))
+                    .map(r -> "Antes de entregar, escribe tu documento de " + issue.key() + " con write_document: es lo que deja tu parte lista para el rol que sigue.");
+        }
+        boolean diagram = stage.get().requires().stream().anyMatch(r -> r.kind() == ec.kuador.board.catalog.Requirement.Kind.DIAGRAM);
+        if (diagram && issue.type() == IssueType.EPIC && !hasDiagram(issue, null)) {
+            return Optional.of("El tablero no deja salir " + issue.key() + " de «" + columnName(project, issue.status()) + "» sin el diagrama de la solución:"
+                    + " escribe en tu documento (write_document) la sección «Diagrama de la solución» con un bloque ```mermaid de la solución completa.");
+        }
+        return Optional.empty();
+    }
+
     /** Lo que le falta a la tarjeta de lo que su etapa exige para salir (vacío = cumple). En palabras para una persona. */
     List<String> missingEvidence(ProjectView project, StageDef stage, Issue issue) {
+        return missingEvidence(project, stage, issue, null);
+    }
+
+    /** {@code delivering}: el comentario con que se entrega, que también cuenta (p. ej. trae el diagrama). */
+    List<String> missingEvidence(ProjectView project, StageDef stage, Issue issue, String delivering) {
         List<String> missing = new ArrayList<>();
         for (ec.kuador.board.catalog.Requirement r : stage.requires()) {
             switch (r.kind()) {
@@ -853,13 +913,29 @@ public class IssueService implements IssueApi {
                         if (label != null) missing.add("el dato «" + label + "»");
                     }
                 }
+                case DIAGRAM -> {
+                    if (issue.type() == IssueType.EPIC && !hasDiagram(issue, delivering)) {
+                        missing.add("el diagrama de la solución (un bloque ```mermaid en su documento)");
+                    }
+                }
             }
         }
         return missing;
     }
 
+    private boolean hasDiagram(Issue issue, String delivering) {
+        String mermaid = "```mermaid";
+        if (delivering != null && delivering.contains(mermaid)) return true;
+        if (evidence.stream().anyMatch(e -> e.hasDiagram(issue.key()))) return true;
+        return issues.findComments(issue).stream().anyMatch(c -> c.body() != null && c.body().contains(mermaid));
+    }
+
     private void requireEvidence(ProjectView project, StageDef stage, Issue issue) {
-        List<String> missing = missingEvidence(project, stage, issue);
+        requireEvidence(project, stage, issue, null);
+    }
+
+    private void requireEvidence(ProjectView project, StageDef stage, Issue issue, String delivering) {
+        List<String> missing = missingEvidence(project, stage, issue, delivering);
         if (!missing.isEmpty()) {
             throw new DomainException("Para salir de «" + columnName(project, issue.status()) + "», a " + issue.key() + " le falta " + String.join(", ", missing) + ".");
         }
@@ -1159,7 +1235,9 @@ public class IssueService implements IssueApi {
         } else {
             // Una tarea del plan que aún no arranca (sigue en la primera columna) no es de nadie todavía.
             if (i.workRole() != null && i.status().equals(project.columns().getFirst().key())) return Optional.empty();
-            roles = agentRolesOf(stage);
+            // Una épica en una etapa con roles previos (UI/UX en Diseño): primero el que falta, después los de la etapa.
+            Optional<String> first = stage.flatMap(st -> pendingFirstRole(i, project, st));
+            roles = first.isPresent() ? List.of(first.get()) : agentRolesOf(stage);
             if (roles.isEmpty()) return Optional.empty();
         }
         return Optional.of(new QueueItem(i.key(), i.projectKey(), i.title(), i.type().name(), i.priority().name(), i.status(), column.get().name(),

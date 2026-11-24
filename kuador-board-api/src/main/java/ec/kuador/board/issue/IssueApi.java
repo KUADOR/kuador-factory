@@ -64,6 +64,11 @@ public interface IssueApi {
         return java.util.Map.of();
     }
 
+    /** El texto completo de un comentario (el evento trae solo el comienzo). */
+    default Optional<String> commentBody(UUID commentId) {
+        return Optional.empty();
+    }
+
     /** Comenta como {@code authorId} (persona o agente); queda en el historial. */
     void addComment(String issueKey, UUID authorId, String body);
 

@@ -67,5 +67,6 @@ test("un conflicto en código queda para la IA y no se sube nada", () => {
   assert.match(r.reason, /App\.java/);
   assert.equal(sh(remote, "rev-parse", "feature/KUA-2"), before);
   assert.equal(sh(work, "status", "--porcelain"), "", "la carpeta queda limpia");
-  assert.equal(readFileSync(join(work, "App.java"), "utf8"), "# Título\n\nlínea de la tarjeta\n");
+  // En Windows git escribe los saltos de línea como \r\n.
+  assert.equal(readFileSync(join(work, "App.java"), "utf8").replaceAll("\r\n", "\n"), "# Título\n\nlínea de la tarjeta\n");
 });

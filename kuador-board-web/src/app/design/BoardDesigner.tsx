@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { createDesignedBoardAction, designBoardAction, designQuestionsAction } from "@/app/actions";
+import { createDesignedBoardAction, designBoardAction, designQuestionsAction, setMethodologyAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { Field, TextArea, TextInput } from "@/components/ui/Field";
 import { FIELD_KIND_LABEL } from "@/lib/labels";
@@ -33,6 +33,8 @@ export function BoardDesigner({
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [other, setOther] = useState<Record<string, string>>({});
   const [change, setChange] = useState("");
+  // Con la plantilla de software: si el sistema ya existe, se lee su repo antes de cambiar nada (como al crear a mano).
+  const [existing, setExisting] = useState(false);
   const [key, setKey] = useState("");
   const [name, setName] = useState("");
   // Las acciones que cambian datos que la persona deja habilitar al crear (vienen todas marcadas: las propuso para el trabajo).
@@ -103,6 +105,11 @@ export function BoardDesigner({
       if (!design) return;
       const r = await createDesignedBoardAction({ ...design, writes }, key, name);
       if (!r.ok) return setError(r.error);
+      if (design.baseTemplate && existing) {
+        await setMethodologyAction(r.data.key, "ODD");
+        router.push(`/projects/${r.data.key}/setup?step=repository&origen=existente`);
+        return;
+      }
       router.push(`/projects/${r.data.key}/setup`);
     });
 
@@ -201,6 +208,18 @@ export function BoardDesigner({
   return (
     <form className="flex flex-col gap-5 px-4 py-5 sm:px-6" onSubmit={(e) => { e.preventDefault(); create(); }}>
       {design.summary && <p className="text-[13px] leading-relaxed text-fg">{design.summary}</p>}
+      {design.baseTemplate && (
+        <div className="flex flex-col gap-2 rounded-lg border border-sol/40 bg-sol/10 px-4 py-3 text-[13px] text-fg">
+          <p>
+            Para desarrollar software se usa la plantilla <span className="font-medium text-fg-strong">«{design.template.name}»</span>: agentes que programan,
+            revisión de código, repositorio y metodología. Al crearlo sigues con su asistente de inicio.
+          </p>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" checked={existing} onChange={(e) => setExisting(e.target.checked)} />
+            El sistema ya existe (el agente lee su repositorio antes de cambiar nada)
+          </label>
+        </div>
+      )}
       <ol className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface">
         {t.columns.map((c, i) => {
           const stage = t.stages.find((s) => s.column === c.key);

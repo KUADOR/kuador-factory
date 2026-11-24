@@ -3,44 +3,74 @@
 import { Check, RotateCcw } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
-import { listEpicTasksAction, reviewPlanAction } from "@/app/actions";
+import { epicPlanAction, reviewPlanAction } from "@/app/actions";
 import { useLiveVersion } from "@/components/live/LiveUpdates";
 import { useAccess } from "@/components/shell/AccessContext";
 import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Section";
 import { notify } from "@/components/ui/Toaster";
-import type { EpicTask, Issue, Project } from "@/lib/types";
-
-import { stageOf } from "./stages";
+import type { EpicPlanStatus, Issue, Member, Project } from "@/lib/types";
 
 /**
  * Reparto de tareas de una épica: qué tarea hace cada rol y qué espera a qué. Cuando la épica llega a una etapa de
- * trabajo, nada arranca hasta que una persona apruebe el reparto o pida cambios al arquitecto.
+ * trabajo, nada arranca hasta que una persona apruebe el reparto o pida cambios al arquitecto. Si el reparto espera
+ * aprobación lo dice la API, con la misma regla que aplica al aprobar: el botón aparece justo cuando se puede.
  */
-export function EpicPlan({ epic, project, roleName, onOpen }: { epic: Issue; project: Project; roleName: (key: string) => string; onOpen?: (key: string) => void }) {
+export function EpicPlan({
+  epic,
+  project,
+  roleName,
+  onOpen,
+  tasksVersion,
+  ready = true,
+  workingAgent,
+  onLoaded,
+}: {
+  epic: Issue;
+  project: Project;
+  roleName: (key: string) => string;
+  onOpen?: (key: string) => void;
+  /** Cambia cuando el tablero ve tareas nuevas o movidas de esta épica: se vuelve a pedir el reparto. */
+  tasksVersion?: string;
+  /** Falta cargar algo del detalle (comentarios, GitHub): los botones esperan. */
+  ready?: boolean;
+  /** Agente que está trabajando la épica ahora: aprobar en medio de su trabajo lo pisaría. */
+  workingAgent?: Member;
+  /** Avisa que el reparto ya llegó (o falló), para habilitar los botones del detalle. */
+  onLoaded?: () => void;
+}) {
   const live = useLiveVersion(epic.key);
   const { canEdit } = useAccess();
-  const [tasks, setTasks] = useState<EpicTask[] | null>(null);
+  const [plan, setPlan] = useState<EpicPlanStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
 
   useEffect(() => {
     let active = true;
-    listEpicTasksAction(epic.key).then((r) => active && r.ok && setTasks(r.data));
+    epicPlanAction(epic.key).then((r) => {
+      onLoaded?.();
+      if (!active) return;
+      if (r.ok) {
+        setPlan(r.data);
+        setError(null);
+      } else setError(r.error);
+    });
     return () => {
       active = false;
     };
-  }, [epic.key, epic.status, live]);
+  }, [epic.key, epic.status, live, tasksVersion, onLoaded]);
 
-  if (!tasks || tasks.length === 0) return null;
-  const first = project.columns[0]?.key;
-  const waiting = tasks.filter((t) => t.status === first);
-  const stage = stageOf(project, epic.status);
-  const awaiting = waiting.length > 0 && !!stage && !stage.gate && stage.roles.length > 0 && !epic.assigneeId;
+  if (error && !plan) return <p className="mb-4 text-xs text-danger">No se pudo cargar el reparto: {error}</p>;
+  if (!plan) return <p className="mb-4 text-xs text-fg-faint">Cargando el reparto…</p>;
+  const tasks = plan.tasks;
+  if (tasks.length === 0) return null;
+  const awaiting = plan.awaitingApproval;
   const done = new Set(project.columns.filter((c) => c.category === "DONE").map((c) => c.key));
   const finished = tasks.filter((t) => done.has(t.status)).length;
+  const blocked = !ready ? "Cargando la tarjeta…" : workingAgent ? `${workingAgent.name} está trabajando en la épica: espera a que termine.` : undefined;
 
   const decide = (approve: boolean) =>
     start(async () => {
@@ -76,6 +106,9 @@ export function EpicPlan({ epic, project, roleName, onOpen }: { epic: Issue; pro
           </li>
         ))}
       </ol>
+      {!awaiting && plan.notYet && (
+        <p className="border-t border-line px-3.5 py-2.5 text-xs text-fg-muted">{plan.notYet}</p>
+      )}
       {awaiting && canEdit && (
         <div className="flex flex-col gap-2 border-t border-line px-3.5 py-3">
           <p className="text-xs text-fg-muted">
@@ -88,17 +121,17 @@ export function EpicPlan({ epic, project, roleName, onOpen }: { epic: Issue; pro
                 <Button size="sm" tone="ghost" disabled={pending} onClick={() => setChanging(false)}>
                   Cancelar
                 </Button>
-                <Button size="sm" tone="secondary" icon={RotateCcw} loading={pending} disabled={reason.trim().length === 0} onClick={() => decide(false)}>
+                <Button size="sm" tone="secondary" icon={RotateCcw} loading={pending} disabled={reason.trim().length === 0 || !!blocked} title={blocked} onClick={() => decide(false)}>
                   Devolver al arquitecto
                 </Button>
               </div>
             </>
           ) : (
             <div className="flex justify-end gap-2">
-              <Button size="sm" tone="ghost" icon={RotateCcw} disabled={pending} onClick={() => setChanging(true)}>
+              <Button size="sm" tone="ghost" icon={RotateCcw} disabled={pending || !!blocked} title={blocked} onClick={() => setChanging(true)}>
                 Pedir cambios
               </Button>
-              <Button size="sm" tone="primary" icon={Check} loading={pending} onClick={() => decide(true)}>
+              <Button size="sm" tone="primary" icon={Check} loading={pending} disabled={!!blocked} title={blocked} onClick={() => decide(true)}>
                 Aprobar reparto
               </Button>
             </div>

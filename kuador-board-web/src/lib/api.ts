@@ -61,6 +61,7 @@ import type {
   AgentClient,
   AgentKit,
   EpicTask,
+  EpicPlanStatus,
   Language,
   NotificationSettings,
   NotificationView,
@@ -399,6 +400,7 @@ export const boardApi = {
   deliverIssue: (key: string, comment: string | null) =>
     request<Issue>(`/api/issues/${encodeURIComponent(key)}/deliver`, json("POST", { comment })),
   epicTasks: (key: string) => request<EpicTask[]>(`/api/issues/${encodeURIComponent(key)}/tasks`),
+  epicPlan: (key: string) => request<EpicPlanStatus>(`/api/issues/${encodeURIComponent(key)}/plan`),
   reviewPlan: (key: string, approve: boolean, comment: string | null) =>
     request<Issue>(`/api/issues/${encodeURIComponent(key)}/plan`, json("POST", { approve, comment })),
   reviewIssue: (key: string, approve: boolean, comment: string | null) =>

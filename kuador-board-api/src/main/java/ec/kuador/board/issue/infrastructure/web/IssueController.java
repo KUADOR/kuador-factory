@@ -130,6 +130,12 @@ class IssueController {
         return service.epicTasks(key);
     }
 
+    /** El reparto de una épica para el tablero: sus tareas y si ya se puede aprobar (la misma regla que al aprobar). */
+    @GetMapping("/api/issues/{key}/plan")
+    ec.kuador.board.issue.application.IssueService.PlanStatus plan(@PathVariable String key) {
+        return service.planStatus(key);
+    }
+
     record StepRequest(@Size(max = 10_000) String comment) {}
 
     record ReviewRequest(boolean approve, @Size(max = 10_000) String comment) {}

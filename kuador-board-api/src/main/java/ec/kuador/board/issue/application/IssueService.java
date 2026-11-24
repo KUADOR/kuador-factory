@@ -407,8 +407,26 @@ public class IssueService implements IssueApi {
         }
         // Si la épica ya está donde se construye (p. ej. se repartió estando en Desarrollo), el reparto se revisa ya:
         // moverla «a la siguiente columna» la llevaría a QA.
-        if (planStage(project, epic.status())) announcePendingPlan(epic, project, actorId);
+        if (planStage(project, epic.status())) {
+            releaseEpicFromAgent(epic, actorId);
+            announcePendingPlan(epic, project, actorId);
+        }
         return created.stream().map(c -> new IssueRef(c.key(), c.projectKey(), Integer.parseInt(c.key().substring(c.key().lastIndexOf('-') + 1)), c.title())).toList();
+    }
+
+    /**
+     * La épica llegó a la etapa de construcción antes de tener tareas (p. ej. la movieron mientras el arquitecto aún
+     * repartía) y otro agente la tomó como si fuera una tarjeta más. Ya repartida, la trabajan sus tareas: queda libre, el
+     * agente deja de trabajarla y el reparto espera la aprobación de una persona.
+     */
+    private void releaseEpicFromAgent(Issue epic, UUID actorId) {
+        UUID holder = epic.assigneeId();
+        if (holder == null || holder.equals(actorId) || members.find(holder).map(m -> !m.agent()).orElse(true)) return;
+        Instant now = now();
+        Issue current = load(epic.key());
+        current.assign(null, now);
+        issues.save(current);
+        publishAssignmentIfChanged(current, holder, actorId, now);
     }
 
     /** Una historia o tarea suelta (sin épica ni rol de reparto) que el plan puede repartir: pasa a ser épica. */
@@ -489,13 +507,8 @@ public class IssueService implements IssueApi {
         if (epic.type() != IssueType.EPIC) throw new DomainException(epicKey + " no es una épica.");
         List<Issue> waiting = waitingTasks(epic, project);
         if (waiting.isEmpty()) throw new DomainException(epicKey + " no tiene un reparto de tareas por aprobar.");
-        Optional<String> build = buildColumn(project);
-        boolean ready = build.map(b -> project.indexOf(epic.status()) >= project.indexOf(b) && !isDone(project, epic.status()))
-                .orElse(workStage(project, epic.status()));
-        if (!ready) {
-            throw new DomainException("El reparto se aprueba cuando la épica llega a «" + build.map(b -> columnName(project, b)).orElse("una etapa de trabajo")
-                    + "»; ahora está en «" + columnName(project, epic.status()) + "».");
-        }
+        Optional<String> notYet = planNotReady(epic, project);
+        if (notYet.isPresent()) throw new DomainException(notYet.get());
         if (approve) {
             saveComment(epic, actorId, "**Reparto aprobado** por " + person.name() + "." + (comment == null || comment.isBlank() ? "" : "\n\n" + comment.strip()), now());
             releaseTasks(epic, project, actorId);
@@ -518,6 +531,36 @@ public class IssueService implements IssueApi {
         }
         return moved;
     }
+
+    /**
+     * Por qué todavía no se puede aprobar el reparto (vacío si ya se puede): la épica debe estar donde se construye o más
+     * adelante sin haber terminado; sin columna de construcción, en una etapa de trabajo.
+     */
+    private Optional<String> planNotReady(Issue epic, ProjectView project) {
+        Optional<String> build = buildColumn(project);
+        boolean ready = build.map(b -> project.indexOf(epic.status()) >= project.indexOf(b) && !isDone(project, epic.status()))
+                .orElse(workStage(project, epic.status()));
+        if (ready) return Optional.empty();
+        return Optional.of("El reparto se aprueba cuando la épica llega a «" + build.map(b -> columnName(project, b)).orElse("una etapa de trabajo")
+                + "»; ahora está en «" + columnName(project, epic.status()) + "».");
+    }
+
+    /**
+     * El reparto de una épica para el tablero: sus tareas y si ya se puede aprobar, con la misma regla que
+     * {@link #reviewPlan}. Así el botón aparece exactamente cuando la API lo acepta.
+     */
+    @Transactional(readOnly = true)
+    public PlanStatus planStatus(String epicKey) {
+        Issue epic = load(epicKey);
+        ProjectView project = project(epic.projectKey());
+        List<TaskInfo> tasks = epicTasks(epicKey);
+        if (epic.type() != IssueType.EPIC || waitingTasks(epic, project).isEmpty()) return new PlanStatus(tasks, false, null);
+        Optional<String> notYet = planNotReady(epic, project);
+        return new PlanStatus(tasks, notYet.isEmpty(), notYet.orElse(null));
+    }
+
+    /** Tareas del plan, si el reparto espera aprobación y, si todavía no se puede aprobar, por qué. */
+    public record PlanStatus(List<TaskInfo> tasks, boolean awaitingApproval, String notYet) {}
 
     /**
      * Reparto aprobado: las tareas del plan arrancan donde se construye (Desarrollo), cada una para su rol, y la épica

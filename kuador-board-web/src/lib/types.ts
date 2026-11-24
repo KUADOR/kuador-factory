@@ -1017,6 +1017,13 @@ export interface EpicTask {
   assigneeName: string | null;
 }
 
+/** Reparto de una épica: sus tareas y si ya se puede aprobar; si no, por qué. */
+export interface EpicPlanStatus {
+  tasks: EpicTask[];
+  awaitingApproval: boolean;
+  notYet: string | null;
+}
+
 /** Avisos de una persona: canales y qué avisos recibe. */
 export interface NotificationSettings {
   email: boolean;

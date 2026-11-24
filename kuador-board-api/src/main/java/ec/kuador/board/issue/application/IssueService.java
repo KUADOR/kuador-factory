@@ -81,6 +81,12 @@ public class IssueService implements IssueApi {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<String> commentBody(UUID commentId) {
+        return issues.findComment(commentId).map(Comment::body);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<IssueContext> context(String issueKey) {
         return issues.findByKey(issueKey).map(i -> new IssueContext(i.key(), i.projectKey(), i.title(), i.description(), i.type().name(),
                 i.status(), i.priority().name(), i.storyPoints(), i.labels(), i.parentKey(), i.assigneeId(), i.reporterId(),

@@ -21,12 +21,13 @@ import { WorkingLine } from "@/components/agents/WorkingLine";
 import { AgentRunItem, usd } from "@/components/agents/AgentRunItem";
 import { CreateDocButton } from "@/components/docs/CreateDocButton";
 import { Markdown } from "@/components/docs/Markdown";
+import { MentionTextArea } from "./MentionTextArea";
+import { mentionedIds } from "@/lib/mentions";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { useAccess } from "@/components/shell/AccessContext";
 import { DropdownMenu } from "@/components/ui/DropdownMenu";
-import { TextArea } from "@/components/ui/Field";
 import { TypeIcon } from "@/components/ui/IssueIcons";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { Tabs } from "@/components/ui/Tabs";
@@ -392,23 +393,25 @@ function Comments({ issueKey, members, actions = [] }: { issueKey: string; membe
             issueKey={issueKey}
             comment={c}
             author={byId.get(c.authorId)}
+            members={members}
             onChange={(next) => setComments((prev) => (prev ?? []).map((x) => (x.id === next.id ? next : x)))}
             onDelete={() => setComments((prev) => (prev ?? []).filter((x) => x.id !== c.id))}
           />
         ))}
       </ol>
       <div className="flex flex-col gap-2">
-        <TextArea
+        <MentionTextArea
           rows={3}
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onValueChange={setBody}
+          members={members}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();
               send();
             }
           }}
-          placeholder="Escribe un comentario… (Markdown, ⌘/Ctrl + Enter para enviar)"
+          placeholder="Escribe un comentario… (@ para mencionar, ⌘/Ctrl + Enter para enviar)"
           aria-label="Nuevo comentario"
         />
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -443,12 +446,14 @@ function CommentItem({
   issueKey,
   comment: c,
   author,
+  members,
   onChange,
   onDelete,
 }: {
   issueKey: string;
   comment: Comment;
   author: Member | undefined;
+  members: Member[];
   onChange: (c: Comment) => void;
   onDelete: () => void;
 }) {
@@ -458,6 +463,8 @@ function CommentItem({
   const [draft, setDraft] = useState(c.body);
   const [pending, start] = useTransition();
   const mine = me?.id === c.authorId;
+  // Un comentario que te nombra se distingue del resto.
+  const forMe = !mine && !!me && mentionedIds(c.body, members).has(me.id);
 
   const save = () =>
     start(async () => {
@@ -475,7 +482,7 @@ function CommentItem({
     });
 
   return (
-    <li className="group flex gap-2.5">
+    <li className={forMe ? "group -mx-2 flex gap-2.5 rounded-md border-l-2 border-sol bg-sol/10 px-2 py-1.5" : "group flex gap-2.5"}>
       <Avatar member={author} size="md" />
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
@@ -511,7 +518,7 @@ function CommentItem({
         </p>
         {editing ? (
           <div className="mt-1 flex flex-col gap-2">
-            <TextArea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Editar comentario" />
+            <MentionTextArea rows={4} value={draft} onValueChange={setDraft} members={members} aria-label="Editar comentario" />
             <div className="flex justify-end gap-2">
               <Button size="sm" tone="ghost" onClick={() => setEditing(false)}>
                 Cancelar
@@ -523,7 +530,7 @@ function CommentItem({
           </div>
         ) : (
           <div className="mt-0.5">
-            <Markdown content={c.body} compact />
+            <Markdown content={c.body} compact mentions={members} meId={me?.id} />
           </div>
         )}
       </div>

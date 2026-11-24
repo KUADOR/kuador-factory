@@ -10,7 +10,7 @@ public record TelegramGroup(UUID id, UUID workspaceId, long chatId, String title
             case ASSIGNED -> onAssigned;
             case GATE, REVIEW -> onGates;
             case PLAN -> onPlans;
-            case BILLING, BUDGET -> false;
+            case BILLING, BUDGET, MENTION -> false;
             case TEST -> true;
         };
     }

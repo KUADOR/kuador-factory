@@ -5,6 +5,7 @@ import ec.kuador.board.catalog.StageDef;
 import ec.kuador.board.issue.IssueApi;
 import ec.kuador.board.issue.IssueApi.IssueContext;
 import ec.kuador.board.issue.IssueAssigned;
+import ec.kuador.board.issue.IssueCommented;
 import ec.kuador.board.issue.IssueMoved;
 import ec.kuador.board.member.MemberApi;
 import ec.kuador.board.member.MemberView;
@@ -113,6 +114,32 @@ class NoticeRouter {
                 }
                 notifications.enqueueGroups(e.workspaceId(), NoticeKind.PLAN, e.issueKey() + " · el reparto de " + waiting.size() + " tareas espera aprobación",
                         body, link(e.projectKey(), e.issueKey()));
+            }
+        });
+    }
+
+    /**
+     * Un comentario que nombra a personas con «@» (de una persona o de un agente): les avisa a ellas, salvo a quien lo
+     * escribió y a quien no ve el tablero.
+     */
+    @Async
+    @TransactionalEventListener(fallbackExecution = true)
+    void on(IssueCommented e) {
+        // El evento trae el comienzo del texto: sin «@» y sin cortar («…»), no nombra a nadie.
+        if (e.excerpt() == null || e.excerpt().indexOf('@') < 0 && !e.excerpt().endsWith("…")) return;
+        safely(e.workspaceId(), () -> {
+            String text = issues.commentBody(e.commentId()).orElse(null);
+            IssueContext issue = issues.context(e.issueKey()).orElse(null);
+            if (text == null || issue == null) return;
+            Set<UUID> people = Mentions.of(text, members.humans());
+            people.remove(e.actorId());
+            people.removeIf(id -> !projects.canAccess(id, e.projectKey()));
+            if (people.isEmpty()) return;
+            String who = Optional.ofNullable(e.actorId()).flatMap(members::find).map(MemberView::name).orElse("Alguien");
+            String subject = e.issueKey() + " · " + who + " te mencionó";
+            String body = "«" + issue.title() + "»\n\n" + excerpt(text);
+            for (UUID person : people) {
+                notifications.enqueue(e.workspaceId(), person, NoticeKind.MENTION, subject, body, link(e.projectKey(), e.issueKey()));
             }
         });
     }

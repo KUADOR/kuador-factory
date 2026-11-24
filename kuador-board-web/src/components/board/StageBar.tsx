@@ -38,12 +38,21 @@ export function StageBar({
   modes = {},
   lastRun,
   workingAgent,
+  ready = true,
+  onPullsLoaded,
 }: {
   issue: Issue;
   project: Project;
   me: Me;
   members: Member[];
   roleName: (key: string) => string;
+  /**
+   * Ya llegó todo lo del detalle (comentarios, estado de GitHub, reparto): hasta entonces ningún botón actúa, para no
+   * aprobar ni entregar sin ver lo que falta.
+   */
+  ready?: boolean;
+  /** Avisa que el estado de los PRs en GitHub ya llegó. */
+  onPullsLoaded?: () => void;
   /** Dónde trabaja cada agente del equipo (tablero o PC de una persona). */
   modes?: Record<string, AgentMode>;
   /** Última ejecución de un agente en esta tarjeta. */
@@ -74,6 +83,8 @@ export function StageBar({
       } else notify.error("No se pudo completar", r.error);
     });
 
+  // Mientras falta cargar algo, los botones se ven pero no actúan.
+  const waitHint = ready ? undefined : "Cargando comentarios y estado de la tarjeta…";
   const step = nextStep({ issue, project, me, members, modes, lastRun, workingAgent, canEdit, roleName });
   const runStep = (a: StepAction) => {
     switch (a.kind) {
@@ -92,7 +103,7 @@ export function StageBar({
 
   return (
     <div className="flex flex-col gap-3 border-b border-line bg-sunken px-5 py-3">
-      <NextStepCallout step={step} pending={pending} onAction={runStep} />
+      <NextStepCallout step={step} pending={pending} disabled={!ready} onAction={runStep} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="flex items-center gap-1.5 text-[13px] font-medium text-fg-strong">
           {stage?.gate && <Lock className="size-3.5 text-sol-text" aria-hidden />}
@@ -120,32 +131,37 @@ export function StageBar({
         </span>
       </div>
       {canEdit && isHuman && project.stages.some((s) => s.gate) && (
-        <ReviewByPicker issue={issue} project={project} disabled={pending} onPick={(v, msg) => act(() => setReviewByAction(project.key, issue.key, v), msg)} />
+        <ReviewByPicker issue={issue} project={project} disabled={pending || !ready} onPick={(v, msg) => act(() => setReviewByAction(project.key, issue.key, v), msg)} />
       )}
 
       {stage && !rejecting && (
         <div className="flex flex-wrap items-center gap-2 max-md:[&>button]:min-h-10 max-md:[&>button]:grow">
           {canTake && !step.actions.some((a) => a.kind === "take") && (
-            <Button size="sm" tone={canApprove ? "secondary" : "primary"} icon={Hand} loading={pending} onClick={() => act(() => takeIssueAction(project.key, issue.key), `Tomaste ${issue.key}`)}>
+            <Button size="sm" tone={canApprove ? "secondary" : "primary"} icon={Hand} loading={pending} disabled={!ready} title={waitHint} onClick={() => act(() => takeIssueAction(project.key, issue.key), `Tomaste ${issue.key}`)}>
               Tomar
             </Button>
           )}
           {canEdit && !stage.gate && !workingAgent && (mine || (isHuman && !!issue.assigneeId)) && next && (
-            <Button size="sm" tone={step.actions.length > 0 ? "secondary" : "primary"} icon={ArrowRight} loading={pending} className="max-md:order-first max-md:basis-full" onClick={() => act(() => deliverIssueAction(project.key, issue.key, null), `${issue.key} pasó a ${next.name}`)}>
+            <Button size="sm" tone={step.actions.length > 0 ? "secondary" : "primary"} icon={ArrowRight} loading={pending} disabled={!ready} title={waitHint} className="max-md:order-first max-md:basis-full" onClick={() => act(() => deliverIssueAction(project.key, issue.key, null), `${issue.key} pasó a ${next.name}`)}>
               Entregar a {next.name}
             </Button>
           )}
           {canApprove && (
             <>
-              <Button size="sm" tone="primary" icon={Check} loading={pending} disabled={!next} className="max-md:order-first max-md:basis-full" onClick={() => act(() => reviewIssueAction(project.key, issue.key, true, null), `${issue.key} aprobado`)}>
+              <Button size="sm" tone="primary" icon={Check} loading={pending} disabled={!next || !ready} title={waitHint} className="max-md:order-first max-md:basis-full" onClick={() => act(() => reviewIssueAction(project.key, issue.key, true, null), `${issue.key} aprobado`)}>
                 Aprobar{next ? ` y pasar a ${next.name}` : ""}
               </Button>
-              <Button size="sm" tone="danger" icon={Undo2} disabled={pending} onClick={() => setRejecting(true)}>
+              <Button size="sm" tone="danger" icon={Undo2} disabled={pending || !ready} title={waitHint} onClick={() => setRejecting(true)}>
                 Rechazar
               </Button>
             </>
           )}
           {stage.gate && !isHuman && <p className="text-xs text-fg-muted">Esta puerta la cierra una persona.</p>}
+          {!ready && (
+            <span className="flex items-center gap-1.5 text-xs text-fg-faint">
+              <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> Cargando…
+            </span>
+          )}
         </div>
       )}
       {stage && (stage.checklist ?? []).length > 0 && (canApprove || mine) && !rejecting && (
@@ -158,7 +174,7 @@ export function StageBar({
           ))}
         </ul>
       )}
-      {stage?.gate && canApprove && canEdit && project.capabilities.includes("REPOSITORY") && !rejecting && <PullMerge projectKey={project.key} issueKey={issue.key} />}
+      {showsPulls({ issue, project, me, canEdit }) && !rejecting && <PullMerge projectKey={project.key} issueKey={issue.key} onLoaded={onPullsLoaded} />}
 
       {rejecting && (
         <form
@@ -194,7 +210,7 @@ const STEP_STYLE: Record<NextStep["tone"], { icon: React.ComponentType<{ classNa
 };
 
 /** Lo que tiene que pasar ahora, siempre visible arriba del detalle (en cualquier tipo de tablero). */
-function NextStepCallout({ step, pending, onAction }: { step: NextStep; pending: boolean; onAction: (a: StepAction) => void }) {
+function NextStepCallout({ step, pending, disabled, onAction }: { step: NextStep; pending: boolean; disabled?: boolean; onAction: (a: StepAction) => void }) {
   const style = STEP_STYLE[step.tone];
   const Icon = style.icon;
   return (
@@ -208,7 +224,7 @@ function NextStepCallout({ step, pending, onAction }: { step: NextStep; pending:
       {step.actions.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {step.actions.map((a, i) => (
-            <Button key={a.label} size="sm" tone={i === 0 ? "primary" : "secondary"} loading={pending && i === 0} disabled={pending} onClick={() => onAction(a)}>
+            <Button key={a.label} size="sm" tone={i === 0 ? "primary" : "secondary"} loading={pending && i === 0} disabled={pending || disabled} onClick={() => onAction(a)}>
               {a.label}
             </Button>
           ))}
@@ -256,6 +272,13 @@ function ReviewByPicker({
   );
 }
 
+
+/** La puerta muestra los PRs de la tarjeta (y su CI) a quien puede aprobarla en un tablero con repositorio. */
+export function showsPulls({ issue, project, me, canEdit }: { issue: Issue; project: Project; me: Me; canEdit: boolean }): boolean {
+  const stage = stageOf(project, issue.status);
+  const canApprove = !!stage?.gate && me.kind === "HUMAN" && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
+  return canApprove && canEdit && project.capabilities.includes("REPOSITORY");
+}
 
 /** Una acción de la etapa que se puede hacer desde la caja de comentarios: lo escrito viaja como comentario (o motivo). */
 export type QuickAction = {

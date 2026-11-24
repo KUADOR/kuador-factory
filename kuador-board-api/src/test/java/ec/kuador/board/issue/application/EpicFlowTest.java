@@ -139,4 +139,34 @@ class EpicFlowTest {
         assertThat(service.comments(epic.key())).as("no hace falta moverla (eso la llevaría a QA)")
                 .anyMatch(c -> c.body().startsWith("**Reparto por aprobar:**"));
     }
+
+    @Test
+    void thePlanStatusSaysWhenTheSplitCanBeApproved() {
+        Issue epic = card(IssueType.EPIC, "TODO");
+        split(epic.key());
+
+        IssueService.PlanStatus inDesign = service.planStatus(epic.key());
+        assertThat(inDesign.tasks()).hasSize(2);
+        assertThat(inDesign.awaitingApproval()).as("en Diseño todavía no").isFalse();
+        assertThat(inDesign.notYet()).contains("El reparto se aprueba cuando");
+
+        service.move(epic.key(), "IN_PROGRESS", 0, OWNER);
+        IssueService.PlanStatus inDevelopment = service.planStatus(epic.key());
+        assertThat(inDevelopment.awaitingApproval()).isTrue();
+        assertThat(inDevelopment.notYet()).isNull();
+
+        service.reviewPlan(epic.key(), true, null, OWNER);
+        assertThat(service.planStatus(epic.key()).awaitingApproval()).as("ya aprobado").isFalse();
+    }
+
+    @Test
+    void anAgentThatTookTheEpicBeforeItWasSplitLetsItGo() {
+        Issue epic = card(IssueType.EPIC, "IN_PROGRESS"); // la movieron a Desarrollo mientras el arquitecto repartía
+        service.assign(epic.key(), BACKEND, OWNER); // y un agente de Desarrollo la tomó como una tarjeta más
+
+        split(epic.key());
+
+        assertThat(service.get(epic.key()).assigneeId()).as("la trabajan sus tareas").isNull();
+        assertThat(service.planStatus(epic.key()).awaitingApproval()).isTrue();
+    }
 }

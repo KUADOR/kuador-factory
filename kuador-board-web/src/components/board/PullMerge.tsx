@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, GitMerge } from "lucide-react";
+import { ExternalLink, GitMerge, LoaderCircle } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
 import { cardPullsAction, mergePullAction } from "@/app/actions";
@@ -21,14 +21,21 @@ const CI: Record<CardPull["ci"], { label: string; tone: string }> = {
  * Los PRs de la tarjeta en su puerta, con «Aprobar y fusionar» si el CI está en verde: quien aprueba cierra el ciclo sin
  * abrir GitHub (también desde el celular). Si la tarjeta no tiene PRs, no se muestra.
  */
-export function PullMerge({ projectKey, issueKey }: { projectKey: string; issueKey: string }) {
+export function PullMerge({ projectKey, issueKey, onLoaded }: { projectKey: string; issueKey: string; onLoaded?: () => void }) {
   const [pulls, setPulls] = useState<CardPull[] | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const running = (pulls ?? []).some((p) => !p.merged && p.ci === "PENDING");
   useEffect(() => {
     let alive = true;
-    const load = () => cardPullsAction(issueKey).then((r) => alive && setPulls(r.ok ? r.data : []));
+    const load = () =>
+      cardPullsAction(issueKey).then((r) => {
+        onLoaded?.();
+        if (!alive) return;
+        setPulls(r.ok ? r.data : []);
+        setFailed(r.ok ? null : r.error);
+      });
     load();
     // Mientras el CI corre, se vuelve a mirar: el botón se habilita solo apenas queda en verde.
     const timer = running ? setInterval(load, 20_000) : undefined;
@@ -36,7 +43,16 @@ export function PullMerge({ projectKey, issueKey }: { projectKey: string; issueK
       alive = false;
       clearInterval(timer);
     };
-  }, [issueKey, running]);
+  }, [issueKey, running, onLoaded]);
+
+  if (pulls === null) {
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-fg-faint">
+        <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> Revisando los PRs en GitHub…
+      </p>
+    );
+  }
+  if (failed) return <p className="text-xs text-warn">No se pudo leer GitHub: {failed}</p>;
 
   const open = (pulls ?? []).filter((p) => !p.merged && p.state.toLowerCase() === "open");
   if (open.length === 0) return null;

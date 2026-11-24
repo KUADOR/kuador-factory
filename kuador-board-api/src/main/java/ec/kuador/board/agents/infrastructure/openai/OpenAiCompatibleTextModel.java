@@ -54,10 +54,8 @@ class OpenAiCompatibleTextModel implements TextModel {
         if (res.statusCode() >= 300) throw new AgentModelException("El proveedor de IA respondió " + res.statusCode() + ".");
         JsonNode r = json.readTree(res.body());
         JsonNode choice = r.path("choices").path(0);
-        if ("length".equals(choice.path("finish_reason").asString(""))) {
-            throw new AgentModelException("La respuesta del modelo se cortó por largo: pide documentos más cortos o de a uno.");
-        }
+        boolean cut = "length".equals(choice.path("finish_reason").asString(""));
         return new Reply(choice.path("message").path("content").asString(""), r.path("model").asString(model), r.path("usage").path("prompt_tokens").asLong(0),
-                r.path("usage").path("completion_tokens").asLong(0), r.path("usage").path("prompt_tokens_details").path("cached_tokens").asLong(0), 0);
+                r.path("usage").path("completion_tokens").asLong(0), r.path("usage").path("prompt_tokens_details").path("cached_tokens").asLong(0), 0, cut);
     }
 }

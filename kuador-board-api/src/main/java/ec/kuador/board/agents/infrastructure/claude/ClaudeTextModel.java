@@ -51,12 +51,10 @@ class ClaudeTextModel implements TextModel {
             }
             Message m = acc.message();
             if (StopReason.REFUSAL.equals(m.stopReason().orElse(null))) throw new AgentModelException("El modelo declinó la solicitud.");
-            if (StopReason.MAX_TOKENS.equals(m.stopReason().orElse(null))) {
-                throw new AgentModelException("La respuesta del modelo se cortó por largo: pide documentos más cortos o de a uno.");
-            }
+            boolean cut = StopReason.MAX_TOKENS.equals(m.stopReason().orElse(null));
             String text = m.content().stream().flatMap(c -> c.text().stream()).map(t -> t.text()).collect(Collectors.joining());
             return new Reply(text, m.model().asString(), m.usage().inputTokens(), m.usage().outputTokens(), m.usage().cacheReadInputTokens().orElse(0L),
-                    m.usage().cacheCreationInputTokens().orElse(0L));
+                    m.usage().cacheCreationInputTokens().orElse(0L), cut);
         } catch (UnauthorizedException | PermissionDeniedException e) {
             throw new AgentModelException("Anthropic rechazó la clave de IA del espacio (Conexiones → IA).", e);
         } catch (RateLimitException e) {

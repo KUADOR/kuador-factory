@@ -62,4 +62,26 @@ class BoardChatTest {
 
         assertThat(chat.parse("Solo texto, sin JSON.").text()).isEqualTo("Solo texto, sin JSON.");
     }
+
+    @Test
+    void aReplyCutForLengthKeepsWhatWasWrittenAndTheEpicsThatClosed() {
+        var chat = chat(List.of());
+        var answer = chat.salvage("""
+                {"answer": "Pasar a **hexagonal**:\\n- puertos de entrada y salida", "epics": [
+                  {"title": "Monolito modular", "description": "Módulos con eventos de Spring"},
+                  {"title": "Puertos y adaptadores", "descrip""");
+
+        assertThat(answer.text()).startsWith("Pasar a **hexagonal**:\n- puertos de entrada y salida").contains("se cortó por largo");
+        assertThat(answer.epics()).extracting(BoardChat.SuggestedEpic::title).containsExactly("Monolito modular");
+    }
+
+    @Test
+    void aReplyCutInsideTheAnswerShowsTheBeginning() {
+        var chat = chat(List.of());
+
+        var answer = chat.salvage("{\"answer\": \"La arquitectura actual mezcla capas y conviene sep");
+
+        assertThat(answer.text()).startsWith("La arquitectura actual mezcla capas y conviene sep").contains("se cortó por largo");
+        assertThat(answer.epics()).isEmpty();
+    }
 }

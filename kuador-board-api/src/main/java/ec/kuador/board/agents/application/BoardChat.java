@@ -40,7 +40,12 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class BoardChat {
 
-    static final int MAX_TOKENS = 1_500;
+    /**
+     * Tope de la respuesta. Con 1.500 una pregunta amplia (p. ej. «cambiemos la arquitectura») más sus épicas sugeridas
+     * se cortaba y la persona solo veía un error; el modelo liviano lo hace barato igual.
+     */
+    static final int MAX_TOKENS = 4_000;
+    static final String CUT_NOTE = "\n\n_(La respuesta se cortó por largo. Pide el detalle por partes, o crea la épica y deja que el equipo lo diseñe.)_";
     static final int MAX_QUESTION = 1_000;
     static final int MAX_TURNS = 6;
     static final int MAX_EPICS = 3;
@@ -97,8 +102,9 @@ public class BoardChat {
         try {
             TextModel.Reply reply = model.complete(key.endpoint(), key.modelFor(chatModel), SYSTEM, user, MAX_TOKENS);
             runs.save(run.succeeded(reply.model(), reply.inputTokens(), reply.outputTokens(), reply.cacheReadTokens(), reply.cacheWriteTokens(),
-                    "Respondió en el chat del tablero.", clock.instant()));
-            return parse(reply.text());
+                    reply.truncated() ? "Respondió en el chat del tablero (la respuesta se cortó por largo)." : "Respondió en el chat del tablero.",
+                    clock.instant()));
+            return reply.truncated() ? salvage(reply.text()) : parse(reply.text());
         } catch (AgentModelException e) {
             runs.save(run.failed(e.getMessage(), clock.instant()));
             throw new DomainException(e.getMessage());
@@ -110,6 +116,8 @@ public class BoardChat {
             (máximo 10 líneas, viñetas cortas), solo con lo que muestra el contexto: no inventes tarjetas ni avances.
             Cita las tarjetas por su clave (p. ej. ABC-12).
             Si te preguntan dónde quedaron o cómo va: qué está hecho, qué está en curso o esperando a una persona, y qué sigue.
+            Si piden un cambio grande (de arquitectura, de tecnología, rehacer un módulo), no lo diseñes aquí: di en pocas
+            líneas qué implica y propónlo como épicas; el diseño lo hace el equipo en la tarjeta.
             Si conviene avanzar con trabajo nuevo, o te lo piden, sugiere hasta 3 épicas que acerquen el tablero a su
             objetivo y que no repitan las que ya existen; si no hace falta, no sugieras ninguna.
             Responde SOLO con JSON, sin texto alrededor:
@@ -189,6 +197,71 @@ public class BoardChat {
         if (t.isEmpty()) throw new DomainException("La IA no respondió: vuelve a intentarlo.");
         return new Answer(t, List.of());
     }
+
+    /**
+     * Respuesta que se cortó por largo: el JSON quedó sin cerrar. Se rescata lo que alcanzó a escribir de «answer» y las
+     * épicas que sí quedaron completas, con un aviso; mejor eso que un error que tira lo que ya se pagó.
+     */
+    Answer salvage(String text) {
+        String t = text == null ? "" : text.strip();
+        int at = t.indexOf("\"answer\"");
+        int open = at < 0 ? -1 : t.indexOf('"', t.indexOf(':', at) + 1);
+        if (at < 0 || open < 0) {
+            if (t.isEmpty() || t.startsWith("{")) throw new DomainException("La respuesta se cortó antes de empezar: haz una pregunta más acotada.");
+            return new Answer(t + CUT_NOTE, List.of());
+        }
+        StringBuilder answer = new StringBuilder();
+        int i = open + 1;
+        boolean closed = false;
+        for (; i < t.length(); i++) {
+            char c = t.charAt(i);
+            if (c == '"') {
+                closed = true;
+                break;
+            }
+            if (c != '\\' || i + 1 >= t.length()) {
+                if (c != '\\') answer.append(c);
+                continue;
+            }
+            char e = t.charAt(++i);
+            switch (e) {
+                case 'n' -> answer.append('\n');
+                case 't' -> answer.append('\t');
+                case 'r' -> { }
+                case 'u' -> {
+                    if (i + 4 < t.length()) {
+                        try {
+                            answer.append((char) Integer.parseInt(t.substring(i + 1, i + 5), 16));
+                        } catch (NumberFormatException ignored) {
+                            // Escape incompleto al final: se descarta.
+                        }
+                    }
+                    i += 4;
+                }
+                default -> answer.append(e);
+            }
+        }
+        // Si «answer» quedó completo, las épicas que alcanzaron a cerrarse también sirven.
+        List<SuggestedEpic> epics = new ArrayList<>();
+        if (closed) {
+            java.util.regex.Matcher m = EPIC.matcher(t.substring(i));
+            while (m.find() && epics.size() < MAX_EPICS) {
+                try {
+                    JsonNode e = json.readTree(m.group());
+                    String title = clip(e.path("title").asString("").strip(), 200);
+                    if (!title.isEmpty()) epics.add(new SuggestedEpic(title, clip(e.path("description").asString("").strip(), 1000)));
+                } catch (RuntimeException ignored) {
+                    // Una épica a medias no se sugiere.
+                }
+            }
+        }
+        String shown = answer.toString().strip();
+        if (shown.isEmpty() && epics.isEmpty()) throw new DomainException("La respuesta se cortó antes de empezar: haz una pregunta más acotada.");
+        return new Answer(shown + CUT_NOTE, epics);
+    }
+
+    /** Un objeto de épica completo dentro del JSON cortado. */
+    private static final java.util.regex.Pattern EPIC = java.util.regex.Pattern.compile("\\{\\s*\"title\"(?:[^{}\"]|\"(?:[^\"\\\\]|\\\\.)*\")*\\}");
 
     /** El agente al que se carga el gasto: el PO; si no hay, el primer agente del espacio. */
     private MemberView accountable() {

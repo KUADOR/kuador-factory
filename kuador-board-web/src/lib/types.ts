@@ -1449,4 +1449,6 @@ export interface BoardDesign {
   writes: string[];
   /** Lo que hace falta conectar y todavía no está. */
   missing: string[];
+  /** Si se usa una plantilla del espacio tal cual (p. ej. la de software): su clave. */
+  baseTemplate?: string | null;
 }

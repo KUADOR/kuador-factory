@@ -149,4 +149,18 @@ class BoardDesignerTest {
                 .as("a pasos que existen, con condición, también hacia atrás").containsExactly("CRUCE→INGRESADA: si todo coincide",
                         "CRUCE→DESFASE: si algo no coincide", "CRUCE→RECIBIDA: si la factura no se puede leer");
     }
+
+    @Test
+    void softwareDevelopmentUsesTheSoftwareTemplateAsIs() {
+        var factory = ec.kuador.board.testing.InMemoryCatalog.factoryTemplate("SOFTWARE_FACTORY");
+        var sales = ec.kuador.board.testing.InMemoryCatalog.factoryTemplate("SALES");
+        BoardDesigner.Design d = designer.design("""
+                {"template":"software_factory","name":"Mi SaaS","key":"saas","goal":"Lanzar la primera versión.","summary":"Usa la fábrica de software."}
+                """, ROLES, List.of(), List.of(sales, factory));
+        assertThat(d.baseTemplate()).isEqualTo("SOFTWARE_FACTORY");
+        assertThat(d.template()).as("la plantilla tal cual, con sus pasos").isSameAs(factory);
+        assertThat(d.key()).isEqualTo("SAAS");
+        assertThatThrownBy(() -> designer.design("{\"template\":\"NO_EXISTE\",\"name\":\"x\",\"steps\":[]}", ROLES, List.of(), List.of(factory)))
+                .as("una plantilla que no existe no se usa: hacen falta los pasos").isInstanceOf(DomainException.class);
+    }
 }

@@ -58,6 +58,10 @@ class StageHandoff {
         Optional<StageDef> stage = project.stage(issue.status());
         if (stage.isEmpty()) return reviewAhead(project, issue.status());
         if (stage.get().gate()) return Optional.empty();
+        // Trabaja la épica antes que los roles de la etapa (UI/UX en Diseño): al entregar sigue en la misma columna con el que viene.
+        if ("EPIC".equals(issue.type()) && stage.get().worksEpicsFirst(agent.role())) {
+            return Optional.of(new Next(null, current.get().name(), false, true));
+        }
         boolean task = issues.taskInfo(issueKey).map(t -> agent.role().equals(t.workRole())).orElse(false);
         if (!task && !stage.get().roles().contains(agent.role())) return Optional.empty();
         Optional<ColumnDef> next = project.nextAfter(issue.status());

@@ -64,7 +64,7 @@ export function roleLabel(key: string, catalogName?: string): string {
 
 /** Roles que pueden cubrir etapas: los del catálogo (agentes) y los de las personas del espacio. */
 /** Roles de la fábrica de software: en un tablero que no es de software no se ofrecen (confunden). */
-const SOFTWARE_ROLE_KEYS = new Set(["PRODUCT_OWNER", "ARCHITECT", "BACKEND", "FRONTEND", "DEVOPS", "QA", "RELEASE", "PR_REVIEWER"]);
+const SOFTWARE_ROLE_KEYS = new Set(["PRODUCT_OWNER", "ARCHITECT", "UX_UI", "BACKEND", "FRONTEND", "DEVOPS", "QA", "RELEASE", "PR_REVIEWER"]);
 
 /** Si el rol es de desarrollo de software: los de la fábrica o cualquiera que escriba código. */
 export function isSoftwareRole(role: { key: string; tools?: string[] }): boolean {

@@ -38,6 +38,24 @@ public class FactoryRules {
         return List.copyOf(rules);
     }
 
+    /** Las de {@link #all()} y, si el rol escribe en el repo, el criterio de código del espacio. */
+    public List<String> forRole(ec.kuador.board.catalog.AgentRole role) {
+        List<String> rules = new ArrayList<>(all());
+        String code = catalog.agentPolicy().rules().code();
+        if (role != null && role.worksOnCode() && code != null && !code.isBlank()) rules.add(CODE_HEADING + code.strip());
+        return List.copyOf(rules);
+    }
+
+    /** El criterio de código para quien trabaja todos los roles en una sola sesión (AGENTS.md). */
+    public List<String> allWithCode() {
+        List<String> rules = new ArrayList<>(all());
+        String code = catalog.agentPolicy().rules().code();
+        if (code != null && !code.isBlank()) rules.add("Cuando escribas código: " + CODE_HEADING + code.strip());
+        return List.copyOf(rules);
+    }
+
+    static final String CODE_HEADING = "Criterio de código (lo revisa el revisor de PR):\n";
+
     /** Idiomas del espacio, para el manual del rol. */
     public Map<String, String> languages() {
         Identity ws = workspace.identity();

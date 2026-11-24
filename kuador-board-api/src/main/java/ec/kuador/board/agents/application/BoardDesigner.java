@@ -347,6 +347,7 @@ public class BoardDesigner {
         AgentRun run = AgentRun.start(c.agent().id(), DESIGN_RUN + "-DISENO", DESIGN_RUN, UUID.randomUUID(), who.memberId(), clock.instant());
         try {
             TextModel.Reply reply = c.model().complete(c.key().endpoint(), c.key().defaultModel(), system, user, maxTokens);
+            if (reply.truncated()) throw new AgentModelException(TextModel.CUT_MESSAGE); // una propuesta a medias no sirve
             tx.executeWithoutResult(s -> runs.save(run.succeeded(reply.model(), reply.inputTokens(), reply.outputTokens(), reply.cacheReadTokens(),
                     reply.cacheWriteTokens(), note, clock.instant())));
             return reply.text();

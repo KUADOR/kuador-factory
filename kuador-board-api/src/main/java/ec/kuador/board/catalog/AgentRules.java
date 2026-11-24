@@ -36,6 +36,8 @@ public final class AgentRules {
      */
     /** Carpeta de las notas de despliegue por tarjeta (una por PR, sin tocar el documento común). */
     public static final String DEPLOYMENT_CHANGES = "docs/deployment/changes/";
+    /** Lo que una tarjeta aporta a los documentos compartidos (arquitectura, README, AGENTS.md): un archivo por tarjeta. */
+    public static final String DOC_CHANGES = "docs/changes/";
 
     public static List<String> softwareProject(boolean hasDeployment) {
         List<String> rules = new java.util.ArrayList<>();
@@ -48,6 +50,15 @@ public final class AgentRules {
                         + " main pasa esas notas a «Despliegue» (en sus secciones y una fila por tarjeta en «Cambios») y borra los archivos, en un PR a develop."
                 : "Si tu trabajo cambia cómo se despliega el proyecto (servicios, dependencias, variables, secretos), dilo en tu entrega: el proyecto todavía"
                         + " no tiene documento de Despliegue.");
+        rules.add("Documentos compartidos: una tarea no edita README.md, AGENTS.md ni los documentos del proyecto en docs/ (arquitectura, glosario,"
+                + " producto...), porque los PR en paralelo chocan en ellos. Si tu trabajo los cambia (un módulo, un contrato, un comando, una"
+                + " decisión), en el mismo PR crea " + DOC_CHANGES + "<clave de la tarjeta>.md con una sección por documento (p. ej. «## docs/architecture.md»)"
+                + " y qué agregar o cambiar en él. Los archivos nuevos y propios de la tarjeta (su spec, su ADR, su plan) sí van directo. La excepción"
+                + " es la tarea cuyo trabajo es justamente escribir ese documento. Si preparas el release, antes del PR de develop a main pasa esas notas"
+                + " a sus documentos y borra los archivos, en un PR a develop.");
+        rules.add("CI por pieza: cada pieza tiene su propio workflow en .github/workflows/<pieza>.yml (filtrado por su carpeta con «paths»); créalo"
+                + " si no existe. No edites .github/workflows/ci.yml (el job «ci» que exigen las ramas protegidas) ni el workflow de otra pieza:"
+                + " así dos PR de piezas distintas no chocan.");
         return List.copyOf(rules);
     }
 

@@ -94,6 +94,10 @@ class FactoryCatalogTest {
         // Cada PR deja su nota en un archivo propio: sumar filas a la misma tabla hacía chocar a los PR en paralelo.
         assertThat(ec.kuador.board.catalog.AgentRules.softwareProject(true)).anySatisfy(r -> assertThat(r)
                 .contains("docs/deployment/changes/<clave de la tarjeta>.md", "no edites «Despliegue»", "Si preparas el release"));
+        // Lo mismo con los documentos compartidos y el CI: cada tarjeta escribe sus archivos, así sus PR no chocan.
+        assertThat(ec.kuador.board.catalog.AgentRules.softwareProject(true)).anySatisfy(r -> assertThat(r)
+                .contains("docs/changes/<clave de la tarjeta>.md", "no edita README.md, AGENTS.md"))
+                .anySatisfy(r -> assertThat(r).contains(".github/workflows/<pieza>.yml", "No edites .github/workflows/ci.yml"));
     }
 
     @Test

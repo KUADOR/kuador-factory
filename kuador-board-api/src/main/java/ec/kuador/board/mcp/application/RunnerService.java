@@ -77,7 +77,11 @@ public class RunnerService {
     /** Lo que el runner necesita para lanzar el cliente de IA con esa tarjeta. */
     public record Claim(String issueKey, String projectKey, String projectKind, String title, String role, String roleName, boolean worksOnCode,
             UUID agentId, String agentName, String model, String effort, String prompt, String instructions, List<String> allowedTools,
-            String mcpServer, String mcpUrl, long leaseSeconds, String runToken, int reworkCount, String resumePrompt, List<String> repositories) {}
+            String mcpServer, String mcpUrl, long leaseSeconds, String runToken, int reworkCount, String resumePrompt, List<String> repositories,
+            Sync sync) {}
+
+    /** Para actualizar una rama en conflicto: el runner prueba primero sin IA (si solo chocó documentación, lo resuelve él). */
+    public record Sync(String repository, int number, String branch, String baseBranch) {}
 
     private final RunnerStore store;
     private final RunnerHub hub;
@@ -349,7 +353,7 @@ public class RunnerService {
         AgentKit.Connection c = kit.connection();
         return new Claim(sync.issueKey(), sync.projectKey(), project.kind().name(), context.title(), r.key(), r.name(), true, agent.id(), agent.name(),
                 profile.model(), profile.effort(), prompt, plan.instructions(), tools, c.server(), c.url(), LEASE.toSeconds(), runToken, 0, prompt,
-                List.of(sync.repository()));
+                List.of(sync.repository()), new Sync(sync.repository(), sync.number(), sync.branch(), sync.baseBranch()));
     }
 
     static String syncPrompt(ec.kuador.board.issue.BranchSyncApi.BranchSync sync, String title) {
@@ -357,7 +361,7 @@ public class RunnerService {
                 Actualiza la rama del Pull Request %1$s #%2$d de la tarjeta %3$s («%4$s»): quedó en conflicto con «%5$s» porque se fusionó otro cambio antes.
                 Solo eso: no cambies el alcance de la tarjeta ni uses las herramientas del tablero (la tarjeta no se mueve; el tablero comprueba el PR en GitHub).
                 1. git fetch origin. Pasa a la rama «%6$s» y trae lo último de ella (git checkout %6$s && git pull --no-rebase origin %6$s).
-                2. git merge origin/%5$s. Resuelve cada conflicto conservando los dos cambios: lo de la tarjeta y lo que llegó de «%5$s» (por ejemplo, las dos entradas nuevas de un enum o de una lista de rutas).
+                2. git merge origin/%5$s. Resuelve cada conflicto conservando los dos cambios: lo de la tarjeta y lo que llegó de «%5$s» (por ejemplo, las dos entradas nuevas de un enum o de una lista de rutas). En documentación (.md) conserva los dos lados sin reescribir nada.
                 3. Compila y corre las pruebas del proyecto; arregla solo lo que el merge rompió.
                 4. Haz commit del merge y git push origin %6$s (nunca --force).
                 Si un conflicto exige decidir algo de producto o no puedes dejarlo compilando, no subas nada: termina y explica por qué en una línea.
@@ -384,7 +388,7 @@ public class RunnerService {
         AgentKit.Connection c = kit.connection();
         return new Claim(item.key(), item.projectKey(), project.kind().name(), item.title(), r.key(), r.name(), r.worksOnCode(), agent.id(), agent.name(),
                 profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds(), runToken,
-                item.reworkCount(), resume, repositoriesOf(project));
+                item.reworkCount(), resume, repositoriesOf(project), null);
     }
 
     // ---- Trabajos de IA de la persona (sin tarjeta) ----

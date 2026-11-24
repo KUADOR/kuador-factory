@@ -531,6 +531,7 @@ public class DraftService implements AiJobsApi {
         AgentRun run = AgentRun.start(agent.id(), p.key() + "-DOCS", p.key(), UUID.randomUUID(), null, now);
         try {
             TextModel.Reply reply = model.complete(new BoardAgentModel.Endpoint(key.provider().baseUrl(), key.apiKey()), chosen, system, user, MAX_TOKENS);
+            if (reply.truncated()) throw new AgentModelException(TextModel.CUT_MESSAGE); // un documento a medias no sirve
             runs.save(run.succeeded(reply.model(), reply.inputTokens(), reply.outputTokens(), reply.cacheReadTokens(), reply.cacheWriteTokens(),
                     "Redactó documentos base del tablero.", clock.instant()));
             return reply.text();

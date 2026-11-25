@@ -8,8 +8,6 @@ import ec.kuador.board.shared.tenant.TenantContext;
 import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -20,10 +18,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Despierta a los agentes. Escucha después del commit, en otro hilo y sin transacción propia: el
  * agente fija el espacio del evento y abre transacciones cortas alrededor de la llamada al modelo.
  * Spring Modulith registra el evento: si la API se cae antes de terminar, se reentrega y el agente lo
- * descarta por su id.
+ * descarta por su id. Si la réplica se cae a mitad de una ejecución, la retoma {@link AgentRunRecovery}.
  */
 @Component
-class AgentDispatcher implements ApplicationRunner {
+class AgentDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(AgentDispatcher.class);
 
@@ -76,19 +74,5 @@ class AgentDispatcher implements ApplicationRunner {
                 .flatMap(m -> catalog.role(m.role()))
                 .map(r -> r.automation() == ec.kuador.board.catalog.AgentRole.Automation.REFINE_ISSUE)
                 .orElse(false))));
-    }
-
-    /** Al arrancar, una ejecución en RUNNING quedó a medias por un reinicio (de cualquier espacio). */
-    @Override
-    public void run(ApplicationArguments args) {
-        var now = clock.instant();
-        TenantContext.asRoot(() -> tx.execute(s -> {
-            // Las ejecuciones en el cliente de IA de una persona siguen vivas en la máquina de su persona: no se tocan.
-            runs.findStuck(now).stream().filter(r -> !r.isLocal()).forEach(r -> {
-                runs.save(r.failed("La API se reinició mientras el agente trabajaba. Vuelve a asignarle el issue para reintentar.", now));
-                log.warn("Ejecución {} del agente en {} marcada como interrumpida", r.id(), r.issueKey());
-            });
-            return null;
-        }));
     }
 }

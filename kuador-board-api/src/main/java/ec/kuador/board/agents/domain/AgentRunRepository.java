@@ -16,7 +16,4 @@ public interface AgentRunRepository {
     void deleteByProject(java.util.UUID workspaceId, String projectKey);
 
     List<AgentRun> findRecent(UUID agentId, String issueKey, int limit);
-
-    /** Ejecuciones que quedaron en RUNNING antes de {@code before} (la API se reinició a mitad). */
-    List<AgentRun> findStuck(Instant before);
 }

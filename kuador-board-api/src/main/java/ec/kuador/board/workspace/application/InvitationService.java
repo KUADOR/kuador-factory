@@ -48,7 +48,8 @@ public class InvitationService {
     private final SecureRandom random = new SecureRandom();
 
     InvitationService(InvitationStore invitations, MemberApi members, AuthApi auth, WorkspaceRepository workspaces, Mailer mailer,
-            ProjectApi projects, PlatformTransactionManager txManager, Clock clock, @Value("${board.web-url:http://localhost:3600}") String webUrl) {
+            ProjectApi projects, PlatformTransactionManager txManager, Clock clock, @Value("${board.web-url:http://localhost:3600}") String webUrl, ec.kuador.board.shared.web.RateLimits limits) {
+        this.perWorkspace = limits.limiter("invitaciones-espacio", 30, java.time.Duration.ofDays(1));
         this.projects = projects;
         this.invitations = invitations;
         this.members = members;
@@ -151,7 +152,7 @@ public class InvitationService {
     }
 
     /** Invitaciones por espacio y día: los correos salen con el dominio de Kuador, no se usan para enviar en masa. */
-    private final ec.kuador.board.shared.web.RateLimiter perWorkspace = new ec.kuador.board.shared.web.RateLimiter(30, java.time.Duration.ofDays(1));
+    private final ec.kuador.board.shared.web.RateLimiter perWorkspace;
 
     private Pending send(MemberView person, String email, UUID inviterId) {
         UUID ws = TenantContext.require();

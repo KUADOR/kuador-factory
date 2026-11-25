@@ -18,6 +18,12 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/kuador_board}
     username: ${SPRING_DATASOURCE_USERNAME:kuador}
     password: ${SPRING_DATASOURCE_PASSWORD:kuador}
+    hikari:
+      # Por réplica. Las peticiones y los listeners de eventos comparten el pool: con 10 (lo de fábrica), una ráfaga de
+      # cambios dejaba a las peticiones esperando. Postgres admite 100 en total: dos réplicas usan 42 con la escucha.
+      maximum-pool-size: ${BOARD_DB_POOL:20}
+      # Si de verdad no hay conexión, fallar en 10 s y no en 30: una petición colgada medio minuto es peor que un error.
+      connection-timeout: 10000
   jpa:
     open-in-view: false
     hibernate:

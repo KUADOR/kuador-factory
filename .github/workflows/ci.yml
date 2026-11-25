@@ -369,9 +369,13 @@ jobs:
           fi
           for id in "$API_ID" "$WEB_ID"; do
             [ -n "$id" ] || continue
-            curl -fsS -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
+            # Solo un 200 es un despliegue pedido: una redirección (p. ej. al login de otra aplicación) es una URL equivocada.
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
               -H "x-api-key: ${DOKPLOY_API_KEY}" -H "Content-Type: application/json" \
-              -d "{\"applicationId\":\"${id}\"}"
+              -d "{\"applicationId\":\"${id}\"}")
+            if [ "$code" != "200" ]; then
+              echo "::error::Dokploy respondió $code al pedir el despliegue: revisa DOKPLOY_URL (la del panel de Dokploy), la clave y los IDs."; exit 1
+            fi
           done
 
   # Producción: después de promover (lo normal) o de publicar un hotfix. La clave de Dokploy vale todo el servidor:
@@ -397,7 +401,11 @@ jobs:
           fi
           for id in "$API_ID" "$WEB_ID"; do
             [ -n "$id" ] || continue
-            curl -fsS -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
+            # Solo un 200 es un despliegue pedido: una redirección (p. ej. al login de otra aplicación) es una URL equivocada.
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
               -H "x-api-key: ${DOKPLOY_API_KEY}" -H "Content-Type: application/json" \
-              -d "{\"applicationId\":\"${id}\"}"
+              -d "{\"applicationId\":\"${id}\"}")
+            if [ "$code" != "200" ]; then
+              echo "::error::Dokploy respondió $code al pedir el despliegue: revisa DOKPLOY_URL (la del panel de Dokploy), la clave y los IDs."; exit 1
+            fi
           done

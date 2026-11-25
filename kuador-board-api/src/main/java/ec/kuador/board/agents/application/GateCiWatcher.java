@@ -28,13 +28,15 @@ class GateCiWatcher {
     static final Duration EVERY = Duration.ofMinutes(2);
 
     private final GateCiWaits waits;
+    private final ec.kuador.board.shared.cluster.ClusterLock lock;
     private final CodeReviewApi code;
     private final IssueApi issues;
     private final AgentDispatcher dispatcher;
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    GateCiWatcher(GateCiWaits waits, CodeReviewApi code, IssueApi issues, AgentDispatcher dispatcher, PlatformTransactionManager txManager, Clock clock) {
+    GateCiWatcher(GateCiWaits waits, CodeReviewApi code, IssueApi issues, AgentDispatcher dispatcher, PlatformTransactionManager txManager, Clock clock, ec.kuador.board.shared.cluster.ClusterLock lock) {
+        this.lock = lock;
         this.waits = waits;
         this.code = code;
         this.issues = issues;
@@ -44,6 +46,10 @@ class GateCiWatcher {
     }
 
     @Scheduled(fixedDelay = 60_000, initialDelay = 90_000)
+    void pollOnOneReplica() {
+        lock.runExclusive("ci-de-la-puerta", java.time.Duration.ofMinutes(10), this::poll);
+    }
+
     void poll() {
         Instant now = clock.instant();
         for (GateCiWaits.Wait w : TenantContext.asRoot(() -> waits.due(now.minus(EVERY), 50))) {

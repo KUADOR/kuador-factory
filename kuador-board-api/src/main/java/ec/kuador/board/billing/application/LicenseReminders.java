@@ -29,10 +29,12 @@ public class LicenseReminders {
     static final Duration EXPIRED_WINDOW = Duration.ofDays(3);
 
     private final PlanStore store;
+    private final ec.kuador.board.shared.cluster.ClusterLock lock;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    LicenseReminders(PlanStore store, ApplicationEventPublisher events, Clock clock) {
+    LicenseReminders(PlanStore store, ApplicationEventPublisher events, Clock clock, ec.kuador.board.shared.cluster.ClusterLock lock) {
+        this.lock = lock;
         this.store = store;
         this.events = events;
         this.clock = clock;
@@ -53,6 +55,10 @@ public class LicenseReminders {
     }
 
     @Scheduled(fixedDelayString = "${board.billing.reminders-every:3600000}", initialDelayString = "${board.billing.reminders-delay:60000}")
+    void scheduledOnOneReplica() {
+        lock.runExclusive("vencimientos", java.time.Duration.ofMinutes(15), this::scheduled);
+    }
+
     void scheduled() {
         try {
             int sent = run();

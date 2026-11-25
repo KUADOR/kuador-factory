@@ -3,11 +3,14 @@ import type { Metadata } from "next";
 import { CatalogTabs } from "@/components/catalog/CatalogTabs";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { SettingsArea } from "@/components/shell/SettingsArea";
+import { boardApi } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Catálogo" };
 
 /** Catálogo del espacio: viene con valores de fábrica y cada equipo lo adapta. Solo personas lo editan. */
-export default function CatalogLayout({ children }: LayoutProps<"/catalog">) {
+export default async function CatalogLayout({ children }: LayoutProps<"/catalog">) {
+  const projects = await boardApi.projects().catch(() => []);
+  const software = projects.some((p) => p.kind === "SOFTWARE");
   return (
     <SettingsArea>
     <div className="flex min-h-full flex-col">
@@ -15,7 +18,7 @@ export default function CatalogLayout({ children }: LayoutProps<"/catalog">) {
         title="Catálogo del espacio"
         description="Flujos, manuales de trabajo, roles y herramientas de este espacio."
       >
-        <CatalogTabs />
+        <CatalogTabs software={software} />
       </PageHeader>
       {children}
     </div>

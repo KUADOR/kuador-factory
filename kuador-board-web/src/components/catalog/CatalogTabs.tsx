@@ -6,11 +6,12 @@ import { clsx } from "clsx";
 
 import { CATALOG_SECTIONS } from "./catalogTypes";
 
-export function CatalogTabs({ base = "/catalog" }: { base?: string }) {
+/** {@code software}: el espacio tiene tableros con repositorio; sin ellos, lo que solo sirve para código no se muestra. */
+export function CatalogTabs({ base = "/catalog", software = true }: { base?: string; software?: boolean }) {
   const path = usePathname();
   return (
     <nav aria-label="Secciones del catálogo" className="-mb-px flex gap-5 overflow-x-auto">
-      {CATALOG_SECTIONS.map((s) => {
+      {CATALOG_SECTIONS.filter((s) => software || !s.software).map((s) => {
         const active = path === `${base}/${s.slug}`;
         return (
           <Link

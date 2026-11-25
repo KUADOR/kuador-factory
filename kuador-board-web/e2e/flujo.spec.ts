@@ -18,10 +18,10 @@ test("la fábrica de software muestra quién trabaja cada paso y en qué orden",
 
   // Un paso se cambia aquí mismo, con todo lo suyo: no hay otra pantalla para el flujo.
   await page.getByRole("button", { name: /^Diseño/ }).first().click();
-  const paso = page.getByRole("dialog");
-  await expect(paso.getByText("Quién lo hace")).toBeVisible();
-  await paso.getByText("Más opciones").click();
-  await expect(paso.getByText("Diseño UI/UX").first()).toBeVisible();
+  await expect(page.getByText("Quién lo hace")).toBeVisible();
+  await page.getByText("Más opciones").click();
+  await expect(page.getByText("En épicas, antes trabaja")).toBeVisible();
+  await expect(page.getByText("Diseño UI/UX").first()).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Agregar, ordenar o quitar pasos" })).toBeVisible();
 

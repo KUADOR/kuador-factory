@@ -51,7 +51,7 @@ export function TeamEditor({ projectKey, software, team: initial, roles, ai }: {
       {serverWithoutKey && (
         <p role="status" className="text-[13px] text-warn">
           Falta la clave de IA de la empresa.{" "}
-          <Link href="/connections" className="k-link">Configúrala en Conexiones → IA</Link>.
+          <Link href="/connections?ver=ia" className="k-link">Configúrala en Conexiones → Inteligencia artificial</Link>.
         </p>
       )}
 

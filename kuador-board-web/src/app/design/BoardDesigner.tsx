@@ -117,7 +117,7 @@ export function BoardDesigner({
     return (
       <p className="px-4 py-5 text-[13px] text-fg-muted sm:px-6">
         Primero conecta la IA de tu empresa en{" "}
-        <Link href="/connections" className="k-link">
+        <Link href="/connections?ver=ia" className="k-link">
           Conexiones
         </Link>
         .
@@ -275,7 +275,7 @@ export function BoardDesigner({
           </ul>
           <p className="mt-1 text-xs text-fg-muted">
             Puedes conectarlo ahora en{" "}
-            <a href="/connections" target="_blank" rel="noreferrer" className="k-link">
+            <a href="/connections?ver=sistemas" target="_blank" rel="noreferrer" className="k-link">
               Conexiones
             </a>{" "}
             (se abre aparte; vuelve aquí y pulsa «Ajustar la propuesta» con «ya conecté…») o crear el tablero igual y conectarlo después.

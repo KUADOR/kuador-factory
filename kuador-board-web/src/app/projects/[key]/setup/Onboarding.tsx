@@ -221,7 +221,7 @@ function RepositoryStep({
         {github.connections.length === 0 && (
           <p className="text-xs text-fg-faint">
             Sin la app de GitHub en{" "}
-            <Link href="/connections" className="k-link">
+            <Link href="/connections?ver=github" className="k-link">
               Conexiones
             </Link>{" "}
             no llega el kit de agentes por PR.
@@ -237,7 +237,7 @@ function RepositoryStep({
       ) : (
         <p className="text-[13px] text-fg-muted">
           Conecta primero tu organización de GitHub en{" "}
-          <Link href="/connections" className="k-link">
+          <Link href="/connections?ver=github" className="k-link">
             Conexiones
           </Link>
           .

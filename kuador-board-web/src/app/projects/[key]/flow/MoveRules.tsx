@@ -16,11 +16,11 @@ const CATEGORY_FILL = { TODO: "var(--k-fg-faint)", IN_PROGRESS: "var(--k-info)",
 const key = (from: string, to: string) => `${from}>${to}`;
 
 /**
- * Reglas de transición como un flujo: las columnas son etapas en orden y cada regla es una flecha
- * (arriba las que avanzan, abajo las que regresan). Se edita sobre el diagrama —clic en una etapa
- * y luego en sus destinos— o en la lista «Desde… puede pasar a…». La API las aplica a todos.
+ * Por dónde puede moverse una tarjeta: los pasos en orden y cada regla como una flecha (arriba las que avanzan,
+ * abajo las que regresan). Se edita sobre el diagrama —clic en un paso y luego en sus destinos— o en la lista
+ * «Desde… puede pasar a…». La API las aplica a todos. Apagarlas no las borra: quedan guardadas por si se vuelven a fijar.
  */
-export function TransitionsEditor({ project }: { project: Project }) {
+export function MoveRules({ project }: { project: Project }) {
   const router = useRouter();
   const cols = project.columns;
   const [restricted, setRestricted] = useState(project.transitions.restricted);
@@ -68,7 +68,7 @@ export function TransitionsEditor({ project }: { project: Project }) {
       const r = await setTransitionsAction(project.key, { restricted, allowed: [...list, ...extra] });
       if (r.ok) {
         setError(null);
-        notify.ok(restricted ? "Flujo de trabajo guardado" : "Movimiento libre entre columnas");
+        notify.ok(restricted ? "Reglas guardadas" : "Las tarjetas se mueven libremente");
         router.refresh();
       } else setError(r.error);
     });
@@ -76,11 +76,11 @@ export function TransitionsEditor({ project }: { project: Project }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1 rounded-lg border border-line bg-surface px-5 py-4">
-        <Switch checked={restricted} onChange={setRestricted} label="Fijar el flujo de trabajo de este tablero" />
+        <Switch checked={restricted} onChange={setRestricted} label="Limitar por dónde puede moverse una tarjeta" />
         <p className="text-xs text-fg-muted">
           {restricted
-            ? "Solo se permiten los pasos que dibujes, para personas y agentes."
-            : "Cualquier tarjeta puede ir a cualquier columna."}
+            ? "Solo se permiten los movimientos que dibujes, para personas y agentes."
+            : "Cualquier tarjeta puede ir a cualquier paso."}
         </p>
       </div>
 
@@ -95,7 +95,7 @@ export function TransitionsEditor({ project }: { project: Project }) {
                     Desde <strong className="font-semibold text-fg-strong">{selectedColumn.name}</strong>: elige a dónde puede pasar.
                   </span>
                 ) : (
-                  <span>Elige una etapa de origen.</span>
+                  <span>Elige un paso de origen.</span>
                 )}
               </p>
               <div className="flex flex-wrap items-center gap-1">
@@ -124,7 +124,7 @@ export function TransitionsEditor({ project }: { project: Project }) {
                 <span aria-hidden className="h-0.5 w-5 rounded border-t-2 border-dashed border-fg-muted" /> Abajo: regresa
               </span>
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="h-0.5 w-5 rounded bg-sol" /> Desde la etapa elegida
+                <span aria-hidden className="h-0.5 w-5 rounded bg-sol" /> Desde el paso elegido
               </span>
             </div>
           </div>
@@ -141,11 +141,11 @@ export function TransitionsEditor({ project }: { project: Project }) {
                   </button>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs text-fg-muted">puede pasar a</span>
-                    {targets.length === 0 && <span className="text-xs text-fg-faint italic">{from.category === "DONE" ? "ninguna (es una etapa final)" : "ninguna todavía"}</span>}
+                    {targets.length === 0 && <span className="text-xs text-fg-faint italic">{from.category === "DONE" ? "ninguno (es un paso final)" : "ninguno todavía"}</span>}
                     {targets.map((t) => (
                       <span key={t.key} className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-raised py-0.5 pr-0.5 pl-2 text-xs text-fg-strong">
                         {t.name}
-                        <button type="button" onClick={() => toggle(from.key, t.key)} aria-label={`Quitar el paso de ${from.name} a ${t.name}`} className="grid size-5 place-items-center rounded text-fg-muted hover:bg-hover hover:text-fg-strong">
+                        <button type="button" onClick={() => toggle(from.key, t.key)} aria-label={`Quitar el movimiento de ${from.name} a ${t.name}`} className="grid size-5 place-items-center rounded text-fg-muted hover:bg-hover hover:text-fg-strong">
                           <X className="size-3" aria-hidden />
                         </button>
                       </span>
@@ -172,12 +172,12 @@ export function TransitionsEditor({ project }: { project: Project }) {
             <ul className="flex flex-col gap-1.5">
               {unreachable.map((c) => (
                 <li key={`u-${c.key}`} className="flex items-center gap-2 text-[13px] text-danger">
-                  <TriangleAlert className="size-4 shrink-0" aria-hidden /> A «{c.name}» no se llega desde ninguna etapa: agrégale al menos una entrada para poder guardar.
+                  <TriangleAlert className="size-4 shrink-0" aria-hidden /> A «{c.name}» no se llega desde ningún paso: agrégale al menos una entrada para poder guardar.
                 </li>
               ))}
               {deadEnds.map((c) => (
                 <li key={`d-${c.key}`} className="flex items-center gap-2 text-[13px] text-warn">
-                  <TriangleAlert className="size-4 shrink-0" aria-hidden /> De «{c.name}» no se puede salir: los issues que lleguen ahí quedarán detenidos.
+                  <TriangleAlert className="size-4 shrink-0" aria-hidden /> De «{c.name}» no se puede salir: las tarjetas que lleguen ahí quedarán detenidas.
                 </li>
               ))}
             </ul>
@@ -188,7 +188,7 @@ export function TransitionsEditor({ project }: { project: Project }) {
       {error && <p role="alert" className="text-[13px] text-danger">{error}</p>}
       <div className="flex justify-end">
         <Button tone="primary" size="sm" loading={pending} disabled={restricted && unreachable.length > 0} onClick={save}>
-          Guardar flujo
+          Guardar reglas
         </Button>
       </div>
     </div>
@@ -249,7 +249,7 @@ function FlowDiagram({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         role="group"
-        aria-label="Diagrama del flujo de trabajo"
+        aria-label="Diagrama de los movimientos permitidos"
         className="block h-auto w-full"
         style={{ minWidth: Math.round(width * 0.7), maxWidth: width }}
       >
@@ -293,7 +293,7 @@ function FlowDiagram({
               role="button"
               tabIndex={0}
               aria-pressed={isSelected || isTarget}
-              aria-label={selected && !isSelected ? `${isTarget ? "Quitar" : "Permitir"} el paso de ${columns.find((x) => x.key === selected)?.name} a ${c.name}` : `Elegir ${c.name} como origen`}
+              aria-label={selected && !isSelected ? `${isTarget ? "Quitar" : "Permitir"} el movimiento de ${columns.find((x) => x.key === selected)?.name} a ${c.name}` : `Elegir ${c.name} como origen`}
               onClick={() => onNode(c.key)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {

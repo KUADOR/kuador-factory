@@ -16,8 +16,20 @@ test("la fábrica de software muestra quién trabaja cada paso y en qué orden",
   await expect(page).toHaveURL(/\/flow$/);
   await expect(page.getByText("Diseño").first()).toBeVisible();
 
+  // Un paso se cambia aquí mismo, con todo lo suyo: no hay otra pantalla para el flujo.
+  await page.getByRole("button", { name: /^Diseño/ }).first().click();
+  const paso = page.getByRole("dialog");
+  await expect(paso.getByText("Quién lo hace")).toBeVisible();
+  await paso.getByText("Más opciones").click();
+  await expect(paso.getByText("Diseño UI/UX").first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Agregar, ordenar o quitar pasos" })).toBeVisible();
+
+  // La configuración queda en cuatro secciones; las rutas viejas del flujo llevan a la pestaña Flujo.
   await tabs.getByRole("link", { name: "Configuración" }).click();
   await expect(page).toHaveURL(/\/settings/);
+  const secciones = page.getByRole("navigation", { name: "Configuración del tablero" });
+  await expect(secciones.getByRole("link")).toHaveText(["General", "Quién trabaja aquí", "Tarjeta", "Entradas"]);
   await page.goto(`/projects/${key}/settings/stages`);
-  await expect(page.getByText("Diseño UI/UX").first()).toBeVisible();
+  await expect(page).toHaveURL(/\/flow$/);
 });

@@ -11,7 +11,8 @@ set -euo pipefail
 WEB_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 API_DIR="$WEB_DIR/../kuador-board-api"
 WORK="${E2E_WORK:-$(mktemp -d)}"
-PG_PORT=55432; API_PORT=18091; WEB_PORT=13600
+# El puerto de la base se puede cambiar si otro proyecto ya usa el 55432.
+PG_PORT=${E2E_PG_PORT:-55432}; API_PORT=18091; WEB_PORT=13600
 PG_NAME=kuador-e2e-pg
 
 export E2E_BASE_URL="http://127.0.0.1:$WEB_PORT"

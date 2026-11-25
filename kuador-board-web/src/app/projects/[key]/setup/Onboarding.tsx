@@ -204,7 +204,7 @@ function RepositoryStep({
         <p className="text-[13px] text-fg">
           Vinculado a <code className="font-mono text-xs">{link.location}</code>
           {link.branch ? ` · rama ${link.branch}` : ""}.{" "}
-          <Link href={`/projects/${project.key}/settings/repository`} className="k-link">
+          <Link href={`/projects/${project.key}/sync/setup`} className="k-link">
             Piezas y repositorio
           </Link>
         </p>
@@ -321,7 +321,7 @@ function PiecesStep({
     return (
       <p className="text-[13px] text-fg">
         {existing && !linked ? "Las propone el agente al leer el repo." : "Ya están en el repo."}{" "}
-        <Link href={`/projects/${project.key}/${existing && !linked ? "setup?step=repository&origen=existente" : "settings/repository"}`} className="k-link">
+        <Link href={`/projects/${project.key}/${existing && !linked ? "setup?step=repository&origen=existente" : "sync/setup"}`} className="k-link">
           {existing && !linked ? "Vincular el repo" : "Piezas y repositorio"}
         </Link>
       </p>
@@ -466,7 +466,7 @@ function FirstRequest({ project, agents, aiReady }: { project: Project; agents: 
     return (
       <p className="text-[13px] text-fg-muted">
         Este tablero no tiene agentes.{" "}
-        <Link href={`/projects/${project.key}/settings/agents`} className="k-link">
+        <Link href={`/projects/${project.key}/settings/people#agentes`} className="k-link">
           Súmalos en Configuración → Equipo de agentes
         </Link>
         .

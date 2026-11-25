@@ -20,7 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SyncPage({ params }: Props) {
   const projectKey = (await params).key.toUpperCase();
-  await requireAdmin(`/projects/${projectKey}`);
+  // Quien edita sin administrar no sincroniza, pero sí ve las piezas y el vínculo.
+  await requireAdmin(`/projects/${projectKey}/sync/setup`);
   let project, link;
   try {
     [project, link] = await Promise.all([boardApi.project(projectKey), boardApi.repository(projectKey)]);
@@ -32,7 +33,7 @@ export default async function SyncPage({ params }: Props) {
   if (notReady) {
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
-        <EmptyState title={notReady} action={<Button href={`/projects/${project.key}/settings/${link.linked ? "methodology" : "repository"}`} tone="primary" size="sm">{link.linked ? "Elegir manual de trabajo" : "Vincular repositorio"}</Button>} />
+        <EmptyState title={notReady} action={<Button href={link.linked ? `/projects/${project.key}/settings/general#manual` : `/projects/${project.key}/sync/setup`} tone="primary" size="sm">{link.linked ? "Elegir manual de trabajo" : "Vincular repositorio"}</Button>} />
       </div>
     );
   }

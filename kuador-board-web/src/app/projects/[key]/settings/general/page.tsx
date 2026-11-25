@@ -4,6 +4,7 @@ import { canAdminister } from "@/lib/access";
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
 
+import { ManualSection } from "../methodology/ManualSection";
 import { SettingsSection } from "../SettingsSection";
 import { CapabilitiesForm } from "./CapabilitiesForm";
 import { DeleteProject } from "./DeleteProject";
@@ -34,10 +35,11 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
   const template = templates.find((t) => t.key === project.templateKey);
   const facts = [
     { label: "Clave", value: <span className="font-mono">{project.key}</span>, hint: "No se cambia." },
-    { label: "Plantilla de origen", value: template?.name ?? project.templateKey, hint: "" },
-    { label: "Tarjetas", value: <span className="tabular font-mono">{issues.length}</span>, hint: `${project.columns.length} columnas` },
+    { label: "Plantilla de origen", value: template?.name ?? project.templateKey, hint: "El tablero es una copia: cambiar la plantilla no lo cambia." },
+    { label: "Tarjetas", value: <span className="tabular font-mono">{issues.length}</span>, hint: `${project.columns.length} pasos` },
   ];
   return (
+    <div className="flex flex-col gap-10">
     <SettingsSection title="General">
       <GoalForm projectKey={project.key} initial={goal.goal} />
       <ProjectDetailsForm project={project} />
@@ -50,9 +52,17 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/projec
           </div>
         ))}
       </dl>
-      {canAdminister(me) && <CapabilitiesForm project={project} />}
-      {/* Borrar un tablero es de quien administra el espacio. */}
-      {canAdminister(me) && <DeleteProject projectKey={project.key} projectName={project.name} issues={issues.length} software={project.kind === "SOFTWARE"} />}
     </SettingsSection>
+    <div id="manual" className="scroll-mt-4">
+      <ManualSection projectKey={project.key} />
+    </div>
+    {canAdminister(me) && (
+    <SettingsSection title="Avanzado">
+      <CapabilitiesForm project={project} />
+      {/* Borrar un tablero es de quien administra el espacio. */}
+      <DeleteProject projectKey={project.key} projectName={project.name} issues={issues.length} software={project.kind === "SOFTWARE"} />
+    </SettingsSection>
+    )}
+    </div>
   );
 }

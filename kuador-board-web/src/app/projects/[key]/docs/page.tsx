@@ -54,7 +54,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
         <EmptyState
           title="Este tablero aún no tiene manual de trabajo"
-          action={<Button href={`${settings}/methodology`} tone="primary" size="sm">Elegir manual de trabajo</Button>}
+          action={<Button href={`${settings}/general#manual`} tone="primary" size="sm">Elegir manual de trabajo</Button>}
         />
       </div>
     );
@@ -75,7 +75,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
     <div className="flex flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       <p className="text-[13px] text-fg-muted">
         Manual de trabajo <span className="font-medium text-fg-strong">{methodology.name}</span>.{" "}
-        <Link href={`${settings}/methodology`} className="k-link">
+        <Link href={`${settings}/general#manual`} className="k-link">
           Cambiar
         </Link>
         {canSync && (

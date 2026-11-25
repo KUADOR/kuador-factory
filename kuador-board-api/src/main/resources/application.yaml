@@ -9,6 +9,11 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: kuador-board-api
+  task:
+    scheduling:
+      # Las tareas programadas no comparten un solo hilo: revisar el correo no atrasa el latido del tablero en vivo.
+      pool:
+        size: 4
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/kuador_board}
     username: ${SPRING_DATASOURCE_USERNAME:kuador}
@@ -91,6 +96,9 @@ board:
     effort: ${BOARD_AGENTS_EFFORT:medium}
     # Si el modelo declina por sus clasificadores de seguridad, el servidor reintenta con otro modelo.
     refusal-fallback: ${BOARD_AGENTS_REFUSAL_FALLBACK:true}
+    # Cuántos agentes del servidor trabajan a la vez: en toda la instancia y por espacio. El resto espera su turno.
+    max-concurrent: ${BOARD_AGENTS_MAX_CONCURRENT:24}
+    max-per-workspace: ${BOARD_AGENTS_MAX_PER_WORKSPACE:6}
   # 32 bytes en base64 (openssl rand -base64 32). Cifra los tokens de GitHub guardados en la base.
   secrets-key: ${BOARD_SECRETS_KEY:}
   github:

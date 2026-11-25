@@ -9,6 +9,7 @@ import java.math.RoundingMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import ec.kuador.board.shared.config.AsyncExecutors;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -37,7 +38,7 @@ class BudgetNoticeRouter {
         this.aiUrl = webUrl.replaceAll("/+$", "") + "/connections";
     }
 
-    @Async
+    @Async(AsyncExecutors.NOTICES)
     @TransactionalEventListener(fallbackExecution = true)
     void on(AiBudgetAlert e) {
         String who = e.agentName() == null ? "El espacio" : e.agentName();

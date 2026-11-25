@@ -124,8 +124,8 @@ export function SidebarNav({
             <Link
               href="/projects"
               className={clsx(
-                "text-[11px] font-medium",
-                path === "/projects" ? "text-fg-strong" : "text-fg-faint hover:text-fg-strong",
+                "text-xs font-medium",
+                path === "/projects" || path === "/design" ? "text-fg-strong" : "text-fg-muted hover:text-fg-strong",
               )}
             >
               Tableros
@@ -176,12 +176,13 @@ export function SidebarNav({
       <div className="flex shrink-0 items-center gap-1 border-t border-line p-2">
         <Link
           href="/account"
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 hover:bg-hover"
+          aria-current={path === "/account" ? "page" : undefined}
+          className={clsx("flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 hover:bg-hover", path === "/account" && "bg-selected")}
         >
           <Avatar member={me} size="sm" />
           <span className="min-w-0">
             <span className="block truncate text-[13px] text-fg">{me.name}</span>
-            {!editor && <span className="block text-[11px] text-fg-faint">Solo lectura</span>}
+            <span className="block text-[11px] text-fg-faint">{editor ? "Mi cuenta" : "Mi cuenta · solo lectura"}</span>
           </span>
         </Link>
         <ThemeToggle initial={theme} />

@@ -31,7 +31,7 @@ export default async function AccountPage() {
             <Avatar member={me} size="lg" /> {me.name}
           </span>
         }
-        description={roleLabel(me.role)}
+        description={`Mi cuenta · ${roleLabel(me.role)}`}
       />
       <div className="flex max-w-xl flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
         {notifications && (

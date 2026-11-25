@@ -36,6 +36,8 @@ export function ProjectTabs({
     ...(capabilities.includes("REPOSITORY") && canEdit ? [{ href: `${base}/sync${canAdminister ? "" : "/setup"}`, label: "Repositorio", match: `${base}/sync` }] : []),
     // Tableros de ventas: los prospectos con su próxima acción, para el celular.
     ...(templateKey === "SALES" ? [{ href: `${base}/sales`, label: "En movimiento" }] : []),
+    // Quién está trabajando ahora mismo.
+    { href: `${base}/office`, label: "Oficina" },
     { href: `${base}/activity`, label: "Actividad" },
     ...(canEdit ? [{ href: `${base}/settings`, label: "Configuración" }] : []),
   ];

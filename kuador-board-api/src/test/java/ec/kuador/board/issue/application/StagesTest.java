@@ -71,7 +71,7 @@ class StagesTest {
         Issue issue = issueIn("TODO");
 
         assertThatThrownBy(() -> service.review(issue.key(), true, null, BACKEND)).isInstanceOf(ForbiddenException.class)
-                .hasMessageContaining("la cierra una persona, no un agente");
+                .hasMessageContaining("es un paso de aprobación: lo cierra una persona, no un agente");
         assertThatThrownBy(() -> service.move(issue.key(), "IN_PROGRESS", 0, BACKEND)).as("tampoco arrastrando").isInstanceOf(ForbiddenException.class);
         assertThatThrownBy(() -> service.review(issue.key(), true, null, CLIENT)).isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("Dueño del espacio");
@@ -158,8 +158,8 @@ class StagesTest {
 
     @Test
     void aGateCannotBeDeliveredAndTheLastStageHasNoNext() {
-        assertThatThrownBy(() -> service.deliver(issueIn("TODO").key(), null, OWNER)).hasMessageContaining("es una puerta");
-        assertThatThrownBy(() -> service.deliver(issueIn("DONE").key(), null, OWNER)).hasMessageContaining("no hay una etapa siguiente");
+        assertThatThrownBy(() -> service.deliver(issueIn("TODO").key(), null, OWNER)).hasMessageContaining("es un paso de aprobación");
+        assertThatThrownBy(() -> service.deliver(issueIn("DONE").key(), null, OWNER)).hasMessageContaining("no hay un paso siguiente");
     }
 
     @Test

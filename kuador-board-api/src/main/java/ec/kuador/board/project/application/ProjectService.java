@@ -217,12 +217,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Transactional
     public ProjectWithColumns setMethodology(String key, String methodologyKey) {
         if (methodologyKey != null && catalog.methodology(methodologyKey).isEmpty()) {
-            throw new NotFoundException("No existe la metodología " + methodologyKey + " en el catálogo.");
+            throw new NotFoundException("No existe el manual de trabajo " + methodologyKey + " en el catálogo.");
         }
         Project current = load(key);
         // El manual de un tablero sin repositorio (una clínica, ventas) no es la fábrica de software.
         if (methodologyKey != null && !FREE_METHODOLOGY.equals(methodologyKey) && current.can(Capability.REPOSITORY)) {
-            billing.requireFactory("Trabajar con una metodología de agentes");
+            billing.requireFactory("Trabajar con un manual de trabajo");
         }
         Project updated = current.withMethodology(methodologyKey); // valida que el tablero use documentos
         projects.updateMethodology(key, methodologyKey);

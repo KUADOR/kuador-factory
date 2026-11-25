@@ -120,7 +120,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
         />
         {template && (
           <p className="text-xs text-fg-faint">
-            Columnas: {template.columns.map((c) => c.name).join(" → ")}.
+            Pasos: {template.columns.map((c) => c.name).join(" → ")}.
           </p>
         )}
       </div>

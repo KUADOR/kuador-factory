@@ -218,7 +218,7 @@ public class RoutineService {
             throw new DomainException("Ponle un título a la rutina (máximo 200 caracteres); puede llevar {fecha}.");
         }
         if (in.status() != null && !in.status().isBlank() && board.column(in.status().strip()).isEmpty()) {
-            throw new DomainException("La columna " + in.status() + " no existe en el tablero.");
+            throw new DomainException("El paso " + in.status() + " no existe en el tablero.");
         }
         if (in.assigneeId() != null && members.find(in.assigneeId()).isEmpty()) throw new DomainException("La persona o el agente elegido no existe.");
         return Schedule.of(in.frequency(), in.weekdays(), in.monthDay(), in.at(), in.timezone());

@@ -61,9 +61,9 @@ public record Transitions(boolean restricted, List<Transition> allowed) {
         Set<String> keys = columns.stream().map(ColumnDef::key).collect(Collectors.toSet());
         for (Transition t : allowed) {
             if (!keys.contains(t.from()) || !keys.contains(t.to())) {
-                throw new DomainException("La regla " + t.from() + " → " + t.to() + " usa una columna que no existe en el flujo.");
+                throw new DomainException("La regla " + t.from() + " → " + t.to() + " usa un paso que no existe en el flujo.");
             }
-            if (t.from().equals(t.to())) throw new DomainException("Una columna no necesita regla hacia sí misma.");
+            if (t.from().equals(t.to())) throw new DomainException("Un paso no necesita regla hacia sí mismo.");
             if (t.when() != null && t.when().length() > MAX_CONDITION) {
                 throw new DomainException("La condición del camino " + t.from() + " → " + t.to() + " tiene hasta " + MAX_CONDITION + " caracteres.");
             }
@@ -72,7 +72,7 @@ public record Transitions(boolean restricted, List<Transition> allowed) {
             for (ColumnDef c : columns) {
                 boolean reachable = c == columns.getFirst() || allowed.stream().anyMatch(t -> t.to().equals(c.key()));
                 if (!reachable) {
-                    throw new DomainException("A «" + c.name() + "» no se puede llegar desde ninguna columna: agrega al menos una regla hacia ella.");
+                    throw new DomainException("A «" + c.name() + "» no se puede llegar desde ningún paso: agrega al menos una regla hacia él.");
                 }
             }
         }

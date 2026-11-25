@@ -13,7 +13,7 @@ export default function CatalogLayout({ children }: LayoutProps<"/catalog">) {
     <div className="flex min-h-full flex-col">
       <PageHeader
         title="Catálogo del espacio"
-        description="Flujos, metodologías, roles y herramientas de este espacio."
+        description="Flujos, manuales de trabajo, roles y herramientas de este espacio."
       >
         <CatalogTabs />
       </PageHeader>

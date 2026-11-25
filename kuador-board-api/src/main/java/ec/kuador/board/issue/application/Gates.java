@@ -59,7 +59,7 @@ final class Gates extends IssueSupport {
                 .or(() -> members.humans().stream().filter(m -> gate.approvableBy(m.role()) && "OWNER".equals(m.role())).findFirst())
                 .or(() -> members.humans().stream().filter(m -> gate.approvableBy(m.role())).findFirst())
                 .or(() -> responsibleHuman(issue))
-                .orElseThrow(() -> new DomainException("No hay una persona que pueda aprobar esta puerta."));
+                .orElseThrow(() -> new DomainException("No hay una persona que pueda aprobar este paso."));
     }
 
     String approverNames(ProjectView project, StageDef gate) {
@@ -90,7 +90,7 @@ final class Gates extends IssueSupport {
         String gateName = columnName(project, gate.column());
         if (actor.agent()) {
             if (gate.reviewFor(issue.reviewBy()) != StageDef.ReviewMode.PERSON && actor.role().equals(gate.reviewerRole())) return actor;
-            throw new ForbiddenException("«" + gateName + "» es una puerta: la cierra una persona, no un agente.");
+            throw new ForbiddenException("«" + gateName + "» es un paso de aprobación: lo cierra una persona, no un agente.");
         }
         if (!gate.approvableBy(actor.role())) {
             throw new ForbiddenException("«" + gateName + "» la aprueba: " + roleNames(gate.approvers()) + ".");

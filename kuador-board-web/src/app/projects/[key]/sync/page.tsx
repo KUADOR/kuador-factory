@@ -28,11 +28,11 @@ export default async function SyncPage({ params }: Props) {
     return failPage(e);
   }
   const where = link.linked ? `github.com/${link.location} · rama ${link.branch}` : null;
-  const notReady = !link.linked ? "Vincula primero el repositorio" : !project.methodology ? "Elige primero la metodología" : null;
+  const notReady = !link.linked ? "Vincula primero el repositorio" : !project.methodology ? "Elige primero el manual de trabajo" : null;
   if (notReady) {
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
-        <EmptyState title={notReady} action={<Button href={`/projects/${project.key}/settings/${link.linked ? "methodology" : "repository"}`} tone="primary" size="sm">{link.linked ? "Elegir metodología" : "Vincular repositorio"}</Button>} />
+        <EmptyState title={notReady} action={<Button href={`/projects/${project.key}/settings/${link.linked ? "methodology" : "repository"}`} tone="primary" size="sm">{link.linked ? "Elegir manual de trabajo" : "Vincular repositorio"}</Button>} />
       </div>
     );
   }

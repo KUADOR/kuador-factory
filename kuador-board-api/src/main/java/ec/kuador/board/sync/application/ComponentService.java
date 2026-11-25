@@ -423,7 +423,7 @@ public class ComponentService implements RepositoriesApi {
         }
         List<String> pending = docs.pendingBaseDocuments(project.key());
         if (!pending.isEmpty()) {
-            throw new DomainException("Antes de crear el repo, redacta y aprueba los documentos base de la metodología: " + String.join(", ", pending)
+            throw new DomainException("Antes de crear el repo, redacta y aprueba los documentos base del manual de trabajo: " + String.join(", ", pending)
                     + ". Van en el primer commit y guían a los agentes (Documentos → Redactar con IA).");
         }
     }

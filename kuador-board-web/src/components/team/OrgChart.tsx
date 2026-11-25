@@ -229,7 +229,7 @@ function BoardFlows({ projects, agents, roleNames }: { projects: Project[]; agen
             <li key={col.key} className="flex md:w-56 md:shrink-0 md:items-stretch">
               <div className="flex w-full flex-col gap-2 rounded-lg border border-line bg-surface px-3 py-2.5">
                 <p className="flex items-center gap-1.5 text-[13px] font-medium text-fg-strong">
-                  {stage?.gate && <Lock className="size-3.5 text-fg-faint" aria-label="Puerta" />}
+                  {stage?.gate && <Lock className="size-3.5 text-fg-faint" aria-label="Paso de aprobación" />}
                   {col.name}
                 </p>
                 {stage?.gate ? (
@@ -273,8 +273,8 @@ function BoardFlows({ projects, agents, roleNames }: { projects: Project[]; agen
       </ol>
       <p className="text-xs text-fg-faint">
         <Cloud className="inline size-3" aria-hidden /> servidor · <Laptop className="inline size-3" aria-hidden /> PC de una persona · número: entregas en 30 días. Cámbialo en{" "}
-        <Link href={`/projects/${project.key}/settings/columns#responsables`} className="k-link">
-          Pasos y responsables
+        <Link href={`/projects/${project.key}/flow`} className="k-link">
+          Flujo
         </Link>{" "}
         y{" "}
         <Link href={`/projects/${project.key}/settings/agents`} className="k-link">

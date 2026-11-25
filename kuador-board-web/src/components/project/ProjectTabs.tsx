@@ -36,7 +36,7 @@ export function ProjectTabs({
     // Tableros de ventas: los prospectos con su próxima acción, para el celular.
     ...(templateKey === "SALES" ? [{ href: `${base}/sales`, label: "En movimiento" }] : []),
     { href: `${base}/activity`, label: "Actividad" },
-    ...(canEdit ? [{ href: `${base}/settings`, label: "Ajustes" }] : []),
+    ...(canEdit ? [{ href: `${base}/settings`, label: "Configuración" }] : []),
   ];
   // Celular: la sección actual y, al tocar, todas; pestañas que no caben esconden «Configuración».
   if (variant === "picker")

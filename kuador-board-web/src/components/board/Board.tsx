@@ -229,22 +229,22 @@ export function Board({
     startColumns(async () => {
       const result = await updateColumnsAction(project.key, next);
       if (result.ok) notify.ok(success);
-      else notify.error("No se pudo cambiar el flujo", result.error);
+      else notify.error("No se pudieron cambiar los pasos", result.error);
     });
   const actionsFor = (index: number): ColumnActions => {
     const cols = project.columns;
     const column = cols[index];
     const replace = (patch: Partial<BoardColumn>) => cols.map((c, i) => (i === index ? { ...c, ...patch } : c));
     return {
-      rename: (name) => saveColumns(replace({ name }), `Columna renombrada a «${name}»`),
-      setCategory: (category: ColumnCategory) => saveColumns(replace({ category }), `«${column.name}» actualizada`),
+      rename: (name) => saveColumns(replace({ name }), `Paso renombrado a «${name}»`),
+      setCategory: (category: ColumnCategory) => saveColumns(replace({ category }), `«${column.name}» actualizado`),
       move: (delta) => {
         const next = [...cols];
         const [c] = next.splice(index, 1);
         next.splice(index + delta, 0, c);
-        saveColumns(next, `«${column.name}» movida`);
+        saveColumns(next, `«${column.name}» movido`);
       },
-      remove: () => saveColumns(cols.filter((_, i) => i !== index), `Columna «${column.name}» quitada`),
+      remove: () => saveColumns(cols.filter((_, i) => i !== index), `Paso «${column.name}» quitado`),
       canMoveLeft: index > 0,
       canMoveRight: index < cols.length - 1,
       canRemove: cols.length > 1,
@@ -327,7 +327,7 @@ export function Board({
     if (fromStatus === status && before[status].indexOf(id) === index) return;
     if (!canMove(fromStatus, status)) {
       setColumns(before);
-      notify.error("Movimiento no permitido", "Las reglas de este tablero no permiten ese paso.");
+      notify.error("Movimiento no permitido", "El flujo de este tablero no permite ese movimiento.");
       return;
     }
 
@@ -471,7 +471,7 @@ export function Board({
             icon={ListChecks}
             className=""
             aria-pressed={selecting}
-            title={selecting ? "Salir de la selección (Esc)" : "Marcar varias tarjetas para cambiarlas de columna (también ⌘/Ctrl + clic)"}
+            title={selecting ? "Salir de la selección (Esc)" : "Marcar varias tarjetas para cambiarlas de paso (también ⌘/Ctrl + clic)"}
             onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
           >
             {selecting ? "Terminar selección" : "Seleccionar"}
@@ -534,7 +534,7 @@ export function Board({
       </BottomSheet>
 
       {/* Celular: una columna a la vez; los chips dicen dónde estás y saltan a las demás. */}
-      <div role="tablist" aria-label="Columnas" className="flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-2 md:hidden" ref={chipsRef}>
+      <div role="tablist" aria-label="Pasos" className="flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-2 md:hidden" ref={chipsRef}>
         {project.columns.map((c, i) => {
           const count = (columns[c.key] ?? []).map((k) => byKey.get(k)).filter(filtering ? visible : (x): x is Issue => !!x).length;
           return (
@@ -600,7 +600,7 @@ export function Board({
           {canEdit && (
             <AddColumn
               disabled={project.columns.length >= 12}
-              onAdd={(name) => saveColumns([...project.columns, { key: null, name, category: "IN_PROGRESS" }], `Columna «${name}» agregada`)}
+              onAdd={(name) => saveColumns([...project.columns, { key: null, name, category: "IN_PROGRESS" }], `Paso «${name}» agregado`)}
             />
           )}
         </div>
@@ -652,7 +652,7 @@ export function Board({
           <div className="ml-auto w-44">
             <SelectInput
               size="sm"
-              ariaLabel="Columna destino"
+              ariaLabel="Paso destino"
               placeholder="Mover a…"
               options={project.columns.map((c) => ({ value: c.key, label: c.name }))}
               value={bulkTarget}

@@ -54,7 +54,7 @@ export function SettingsNav({ projectKey, capabilities }: { projectKey: string; 
       <div className="min-w-0 flex-1">
         <SectionNav
           label="Configuración del tablero"
-          pickerLabel="Ajustes"
+          pickerLabel="Configuración"
           groups={groups.map((g) => ({ title: g.title, items: g.items.map((item) => ({ href: `${base}/${item.slug}`, label: item.label })) }))}
         />
       </div>

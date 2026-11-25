@@ -36,7 +36,7 @@ import { PiecesPlanForm, PiecesSetupForm } from "../settings/repository/Pieces";
 
 const STEPS: Record<StepId, { title: string; description: string }> = {
   ai: { title: "IA de la empresa", description: "El proveedor y la clave con la que trabajan tus agentes. El consumo va a tu cuenta." },
-  methodology: { title: "Metodología", description: "Qué documentos pide el proyecto y qué escribe cada agente." },
+  methodology: { title: "Manual de trabajo", description: "Qué documentos pide el proyecto y qué escribe cada agente." },
   pieces: { title: "Piezas", description: "De qué está hecho el proyecto: es la única fuente del stack." },
   docs: { title: "Documentos base", description: "Guían a los agentes desde el primer commit. Obligatorio antes del repo." },
   repository: { title: "Repositorio y piezas", description: "El tablero crea los repos con sus bases, o vinculas uno que ya existe." },
@@ -276,7 +276,7 @@ function DocsStep({ project, draft }: { project: Project; draft: DraftPlan | nul
           ))}
         </ul>
       ) : (
-        <p className="text-[13px] text-fg">{draft.goal ? draft.goal : "Sin metodología basta con el objetivo del tablero."}</p>
+        <p className="text-[13px] text-fg">{draft.goal ? draft.goal : "Sin manual de trabajo basta con el objetivo del tablero."}</p>
       )}
       {deployment && (
         <p className="flex items-center gap-2.5 text-[13px]">

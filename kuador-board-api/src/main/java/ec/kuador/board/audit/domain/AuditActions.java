@@ -62,7 +62,7 @@ public final class AuditActions {
         security("DELETE /api/projects/{key}", "Eliminó un tablero");
         security("POST /api/projects/{key}/restore", "Restauró un tablero");
         security("PUT /api/projects/{key}/transitions", "Cambió las reglas de transición");
-        security("PUT /api/projects/{key}/stages", "Cambió etapas y aprobaciones");
+        security("PUT /api/projects/{key}/stages", "Cambió pasos y aprobaciones");
         security("PUT /api/agents/{memberId}/profile", "Cambió dónde trabaja un agente");
         security("POST /api/projects/{key}/team", "Sumó un agente al tablero");
         security("POST /api/projects/{key}/team/agents", "Creó un agente");
@@ -94,7 +94,7 @@ public final class AuditActions {
         work("POST /api/issues/{key}/review", "Aprobó o devolvió una tarjeta");
         work("POST /api/issues/{key}/attachments", "Adjuntó un archivo");
         work("PUT /api/projects/{key}", "Cambió un tablero");
-        work("PUT /api/projects/{key}/columns", "Cambió las columnas");
+        work("PUT /api/projects/{key}/columns", "Cambió los pasos");
         work("PUT /api/docs/{id}", "Editó un documento");
         work("POST /api/projects/{projectKey}/docs", "Creó un documento");
     }

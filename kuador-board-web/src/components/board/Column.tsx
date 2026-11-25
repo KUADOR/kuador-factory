@@ -217,7 +217,7 @@ export function Column({
             autoFocus
             maxLength={40}
             value={name}
-            aria-label="Nombre de la columna"
+            aria-label="Nombre del paso"
             onChange={(e) => setName(e.target.value)}
             onBlur={finishRename}
             onKeyDown={(e) => {
@@ -236,7 +236,7 @@ export function Column({
         {!renaming && (
           <span className="tabular font-mono text-[11px] text-fg-faint" title={hidden > 0 ? `${total} en total; el tablero muestra las últimas` : undefined}>
             {hidden > 0 ? `${issues.length}/${total}` : issues.length}
-            {points > 0 && <span title="Tamaño de la columna"> · {points} pts</span>}
+            {points > 0 && <span title="Tamaño del paso"> · {points} pts</span>}
           </span>
         )}
         {selecting && shown.length > 0 && (
@@ -272,7 +272,7 @@ export function Column({
               { label: "Mover a la derecha", icon: ArrowRight, disabled: !actions.canMoveRight, onSelect: () => actions.move(1) },
               "separator",
               {
-                label: issues.length > 0 ? "Quitar (mueve antes sus tarjetas)" : "Quitar columna",
+                label: issues.length > 0 ? "Quitar (mueve antes sus tarjetas)" : "Quitar paso",
                 icon: Trash,
                 danger: true,
                 disabled: !actions.canRemove || issues.length > 0,
@@ -361,10 +361,10 @@ export function AddColumn({ disabled, onAdd }: { disabled: boolean; onAdd: (name
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        title={disabled ? "Máximo 12 columnas" : undefined}
+        title={disabled ? "Máximo 12 pasos" : undefined}
         className="flex h-10 w-48 shrink-0 items-center gap-2 rounded-lg border border-dashed border-line-strong px-3 text-xs text-fg-muted hover:border-line-hover hover:text-fg-strong disabled:opacity-50"
       >
-        <Plus className="size-4" aria-hidden /> Agregar columna
+        <Plus className="size-4" aria-hidden /> Agregar paso
       </button>
     );
   }
@@ -379,7 +379,7 @@ export function AddColumn({ disabled, onAdd }: { disabled: boolean; onAdd: (name
         setOpen(false);
       }}
     >
-      <TextInput size="sm" autoFocus required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre, ej. En revisión" aria-label="Nombre de la columna nueva" onKeyDown={(e) => e.key === "Escape" && setOpen(false)} />
+      <TextInput size="sm" autoFocus required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre, ej. En revisión" aria-label="Nombre del paso nuevo" onKeyDown={(e) => e.key === "Escape" && setOpen(false)} />
       <div className="flex justify-end gap-1">
         <Button size="sm" tone="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
         <Button size="sm" tone="primary" type="submit">Agregar</Button>

@@ -109,7 +109,7 @@ export function FlowChart({ flow }: { flow: InsightsCompany["flow"] }) {
           return (
             <li key={s.column} className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_3.5rem] items-center gap-2 sm:grid-cols-[10rem_minmax(0,1fr)_4rem]">
               <span className="flex min-w-0 items-center gap-1 truncate text-xs text-fg" title={s.name}>
-                {s.gate && <Lock className="size-3 shrink-0 text-fg-faint" aria-label="Puerta" />}
+                {s.gate && <Lock className="size-3 shrink-0 text-fg-faint" aria-label="Paso de aprobación" />}
                 <span className="truncate">{s.name}</span>
               </span>
               <div className="relative h-5" onMouseLeave={() => setHover(null)}>
@@ -142,7 +142,7 @@ export function FlowChart({ flow }: { flow: InsightsCompany["flow"] }) {
         })}
       </ul>
       <DataTable
-        head={["Columna", "Agente", "Persona", "Esperando"]}
+        head={["Paso", "Agente", "Persona", "Esperando"]}
         rows={current.stages.map((s) => [s.name, hours(s.agentHours), hours(s.personHours), hours(s.waitingHours)])}
       />
     </div>

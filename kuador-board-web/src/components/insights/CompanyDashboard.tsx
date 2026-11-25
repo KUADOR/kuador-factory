@@ -81,7 +81,7 @@ export function CompanyDashboard({ data, canEditSettings }: { data: InsightsComp
         {s.unestimated > 0 && ` ${s.unestimated} terminada${s.unestimated === 1 ? "" : "s"} sin puntos no cuenta${s.unestimated === 1 ? "" : "n"}: estímala${s.unestimated === 1 ? "" : "s"} para medirla${s.unestimated === 1 ? "" : "s"}.`}
       </p>
 
-      <Section title="¿Dónde se atasca el trabajo?" description={`Últimos ${data.days} días, por columna: con agente, con persona o esperando.`}>
+      <Section title="¿Dónde se atasca el trabajo?" description={`Últimos ${data.days} días, por paso: con agente, con persona o esperando.`}>
         <FlowChart flow={data.flow} />
       </Section>
 

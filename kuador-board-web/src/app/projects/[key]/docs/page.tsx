@@ -53,8 +53,8 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
         <EmptyState
-          title={project.capabilities.includes("REPOSITORY") ? "Este tablero aún no tiene metodología" : "Este tablero aún no tiene manual de trabajo"}
-          action={<Button href={`${settings}/methodology`} tone="primary" size="sm">{project.capabilities.includes("REPOSITORY") ? "Elegir metodología" : "Elegir manual"}</Button>}
+          title="Este tablero aún no tiene manual de trabajo"
+          action={<Button href={`${settings}/methodology`} tone="primary" size="sm">Elegir manual de trabajo</Button>}
         />
       </div>
     );
@@ -74,7 +74,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
   return (
     <div className="flex flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       <p className="text-[13px] text-fg-muted">
-        Metodología <span className="font-medium text-fg-strong">{methodology.name}</span>.{" "}
+        Manual de trabajo <span className="font-medium text-fg-strong">{methodology.name}</span>.{" "}
         <Link href={`${settings}/methodology`} className="k-link">
           Cambiar
         </Link>
@@ -150,7 +150,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
 
       <Section
         title="De las tarjetas"
-        description={issueRules.map((r) => r.label).join(", ") || "Esta metodología no pide documentos por tarjeta."}
+        description={issueRules.map((r) => r.label).join(", ") || "Este manual de trabajo no pide documentos por tarjeta."}
         flush
       >
         {byIssue.size === 0 ? (

@@ -40,7 +40,7 @@ const STATUS_BADGE: Record<PlatformEntryStatus, { label: string; tone: "neutral"
 /** Qué pasa al borrar, por tipo: lo que la API comprueba de verdad. */
 const DELETE_NOTE: Record<CatalogSection["type"], string> = {
   "workflow-templates": "Los tableros que nacieron de ella no cambian: cada uno tiene su copia. No se puede deshacer.",
-  methodologies: "Solo se puede borrar si ningún tablero la usa. No se puede deshacer.",
+  methodologies: "Solo se puede borrar si ningún tablero lo usa. No se puede deshacer.",
   roles: "Solo se puede borrar si ningún miembro tiene este rol. No se puede deshacer.",
   "component-templates": "Solo se puede borrar si ninguna pieza de un tablero salió de ella. No se puede deshacer.",
   "mcp-servers": "Solo se puede borrar si ninguna pieza del catálogo lo lleva en su kit. No se puede deshacer.",

@@ -70,7 +70,7 @@ class WorkflowTest {
         assertThatThrownBy(() -> Workflow.replace(TASKS, List.of(), k -> 0)).isInstanceOf(DomainException.class);
         assertThatThrownBy(() -> Workflow.replace(TASKS, List.of(
                 new Workflow.Draft(null, "A", TODO), new Workflow.Draft(null, "a", DONE)), k -> 0))
-                .hasMessageContaining("dos columnas");
+                .hasMessageContaining("dos pasos");
         assertThatThrownBy(() -> Workflow.replace(TASKS, List.of(new Workflow.Draft("WON", "Ganado", DONE)), k -> 0))
                 .hasMessageContaining("no existe");
         assertThatThrownBy(() -> Workflow.replace(TASKS, List.of(new Workflow.Draft(null, " ", TODO)), k -> 0))

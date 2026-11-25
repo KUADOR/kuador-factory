@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 class StackDocs {
 
     static final String KIND = "ARCHITECTURE";
-    static final String NOTE = "_Lo escribe el tablero a partir de las piezas del proyecto (Configuración → Piezas y repositorio): no lo edites a mano._";
+    static final String NOTE = "_Lo escribe el tablero a partir de las piezas del proyecto (pestaña Repositorio → Piezas y vínculo): no lo edites a mano._";
     private static final Pattern SECTION = Pattern.compile("(?m)^##\\s+Stack\\s*$");
     private static final Pattern NEXT = Pattern.compile("(?m)^##\\s");
 

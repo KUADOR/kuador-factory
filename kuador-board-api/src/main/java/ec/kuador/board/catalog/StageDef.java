@@ -182,20 +182,20 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
         Set<String> seen = new HashSet<>();
         for (StageDef s : stages) {
             if (s.column() == null || !keys.contains(s.column())) {
-                throw new DomainException("La etapa " + s.column() + " no corresponde a ninguna columna del flujo.");
+                throw new DomainException("La configuración del paso " + s.column() + " no corresponde a ningún paso del flujo.");
             }
-            if (!seen.add(s.column())) throw new DomainException("La columna " + s.column() + " tiene dos configuraciones de etapa.");
-            for (String r : s.roles()) if (!ROLE.matcher(r).matches()) throw new DomainException("Rol no válido en la etapa " + s.column() + ": " + r + ".");
+            if (!seen.add(s.column())) throw new DomainException("El paso " + s.column() + " tiene dos configuraciones.");
+            for (String r : s.roles()) if (!ROLE.matcher(r).matches()) throw new DomainException("Rol no válido en el paso " + s.column() + ": " + r + ".");
             for (String r : s.epicFirst()) {
-                if (!ROLE.matcher(r).matches()) throw new DomainException("Rol no válido en la etapa " + s.column() + ": " + r + ".");
-                if (s.roles().contains(r)) throw new DomainException("En " + s.column() + ", " + r + " ya cubre la etapa: no puede trabajar también antes.");
+                if (!ROLE.matcher(r).matches()) throw new DomainException("Rol no válido en el paso " + s.column() + ": " + r + ".");
+                if (s.roles().contains(r)) throw new DomainException("En " + s.column() + ", " + r + " ya cubre el paso: no puede trabajar también antes.");
             }
             if (s.epicFirst().size() > 3) throw new DomainException("Hasta 3 roles trabajan antes las épicas en " + s.column() + ".");
             for (String r : s.approvers()) if (!ROLE.matcher(r).matches()) throw new DomainException("Rol aprobador no válido en " + s.column() + ": " + r + ".");
-            if (!s.gate() && !s.approvers().isEmpty()) throw new DomainException("Solo una puerta tiene aprobadores (columna " + s.column() + ").");
+            if (!s.gate() && !s.approvers().isEmpty()) throw new DomainException("Solo un paso de aprobación tiene aprobadores (paso " + s.column() + ").");
             if (s.review() != null) {
                 if (!ROLE.matcher(s.review().reviewerRole()).matches()) throw new DomainException("Rol revisor no válido en " + s.column() + ".");
-                if (s.review().sensitive().size() > 30) throw new DomainException("Hasta 30 rutas sensibles por puerta.");
+                if (s.review().sensitive().size() > 30) throw new DomainException("Hasta 30 rutas sensibles por paso de aprobación.");
                 for (String g : s.review().sensitive()) {
                     if (g.length() > 120) throw new DomainException("Una ruta sensible es demasiado larga: " + g.substring(0, 40) + "…");
                     try {
@@ -210,7 +210,7 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
                 throw new DomainException("Las instrucciones de " + s.column() + " tienen hasta " + MAX_INSTRUCTIONS + " caracteres.");
             }
             for (String item : s.checklist()) if (item.length() > 200) throw new DomainException("Un punto de la lista de verificación de " + s.column() + " es demasiado largo (máximo 200).");
-            if (s.requires().size() > 8) throw new DomainException("Hasta 8 requisitos por etapa (" + s.column() + ").");
+            if (s.requires().size() > 8) throw new DomainException("Hasta 8 requisitos por paso (" + s.column() + ").");
             for (Requirement r : s.requires()) {
                 if (r.kind() == null) throw new DomainException("Requisito sin tipo en " + s.column() + ".");
                 if (r.kind() == Requirement.Kind.DOCUMENT && (r.ref() == null || !ROLE.matcher(r.ref()).matches())) {
@@ -221,7 +221,7 @@ public record StageDef(String column, List<String> roles, boolean gate, List<Str
                 }
             }
             if (s.rejectTo() != null && (!keys.contains(s.rejectTo()) || s.rejectTo().equals(s.column()))) {
-                throw new DomainException("«Rechazar a» de " + s.column() + " debe ser otra columna del flujo.");
+                throw new DomainException("«Rechazar a» de " + s.column() + " debe ser otro paso del flujo.");
             }
         }
         return List.copyOf(stages);

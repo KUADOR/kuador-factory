@@ -113,12 +113,12 @@ export function StageBar({
           <span className="text-xs text-fg-muted">
             {stage.gate ? (
               <>
-                Puerta · aprueba {roleList(stage.approvers, roleName, "cualquier persona")}
+                Quién aprueba: {roleList(stage.approvers, roleName, "cualquier persona")}
                 {stage.roles.length > 0 && <> · prepara {roleList(stage.roles, roleName)}</>}
               </>
             ) : (
               <>
-                La cubre {issue.type === "EPIC" && stage.epicFirst?.length ? `${roleList(stage.epicFirst, roleName)}; después, ` : ""}
+                Quién lo hace: {issue.type === "EPIC" && stage.epicFirst?.length ? `${roleList(stage.epicFirst, roleName)}; después, ` : ""}
                 {roleList(stage.roles, roleName, "cualquiera del equipo")}
               </>
             )}
@@ -159,7 +159,7 @@ export function StageBar({
               </Button>
             </>
           )}
-          {stage.gate && !isHuman && <p className="text-xs text-fg-muted">Esta puerta la cierra una persona.</p>}
+          {stage.gate && !isHuman && <p className="text-xs text-fg-muted">Este paso lo aprueba una persona.</p>}
           {!ready && (
             <span className="flex items-center gap-1.5 text-xs text-fg-faint">
               <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> Cargando…
@@ -252,10 +252,10 @@ function ReviewByPicker({
   const anyAgent = project.stages.some((s) => s.gate && s.review && s.review.mode !== "PERSON");
   return (
     <div className="hidden flex-wrap items-center gap-2 text-xs text-fg-muted md:flex">
-      <span>Revisión en las puertas</span>
+      <span>Revisión en las aprobaciones</span>
       <div className="w-64 max-w-full">
         <SelectInput<"BOARD" | "PERSON" | "AGENT">
-          ariaLabel="Revisión en las puertas"
+          ariaLabel="Revisión en las aprobaciones"
           size="sm"
           value={issue.reviewBy ?? "BOARD"}
           disabled={disabled}

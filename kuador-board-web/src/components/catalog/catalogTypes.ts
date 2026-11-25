@@ -2,8 +2,8 @@ import type { CatalogType } from "@/lib/types";
 
 /** Secciones del catálogo: ruta corta en la URL ↔ tipo de la API. */
 export const CATALOG_SECTIONS = [
-  { slug: "templates", type: "workflow-templates", label: "Plantillas de flujo", singular: "plantilla", newLabel: "Nueva plantilla", description: "Columnas y tipos de trabajo con los que nace un proyecto." },
-  { slug: "methodologies", type: "methodologies", label: "Metodologías", singular: "metodología", newLabel: "Nueva metodología", description: "Qué documentos pide un proyecto y quién los escribe." },
+  { slug: "templates", type: "workflow-templates", label: "Plantillas de flujo", singular: "plantilla", newLabel: "Nueva plantilla", description: "Pasos y tipos de trabajo con los que nace un proyecto." },
+  { slug: "methodologies", type: "methodologies", label: "Manuales de trabajo", singular: "manual de trabajo", newLabel: "Nuevo manual de trabajo", description: "Qué documentos pide un proyecto y quién los escribe." },
   { slug: "roles", type: "roles", label: "Roles de agentes", singular: "rol", newLabel: "Nuevo rol", description: "Instrucciones y herramientas de cada especialista." },
   { slug: "components", type: "component-templates", label: "Piezas", singular: "pieza", newLabel: "Nueva pieza", description: "APIs, webs y servicios con su código base y comandos." },
   { slug: "rules", type: "agent-policies", label: "Reglas de agentes", singular: "reglas", newLabel: "", description: "Reglas comunes, límites de costo y textos de todos los agentes." },

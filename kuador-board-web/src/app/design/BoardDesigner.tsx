@@ -212,7 +212,7 @@ export function BoardDesigner({
         <div className="flex flex-col gap-2 rounded-lg border border-sol/40 bg-sol/10 px-4 py-3 text-[13px] text-fg">
           <p>
             Para desarrollar software se usa la plantilla <span className="font-medium text-fg-strong">«{design.template.name}»</span>: agentes que programan,
-            revisión de código, repositorio y metodología. Al crearlo sigues con su asistente de inicio.
+            revisión de código, repositorio y manual de trabajo. Al crearlo sigues con su asistente de inicio.
           </p>
           <label className="flex cursor-pointer items-center gap-2">
             <input type="checkbox" checked={existing} onChange={(e) => setExisting(e.target.checked)} />

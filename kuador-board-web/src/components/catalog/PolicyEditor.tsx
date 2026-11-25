@@ -86,7 +86,7 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
             <Text label="Épica: el plan crea sus tareas" value={value.rules.epicPlan} onChange={(epicPlan) => rules({ epicPlan })} />
             <Text label="Tarjeta demasiado grande" value={value.rules.bigCard} onChange={(bigCard) => rules({ bigCard })} />
             <Text label="Revisar el código en GitHub (QA en el tablero)" vars="{repos}, {clave}" value={value.rules.codeReview} onChange={(codeReview) => rules({ codeReview })} />
-            <Text label="Devolver a la etapa anterior" vars="{columna}" value={value.rules.sendBack} onChange={(sendBack) => rules({ sendBack })} />
+            <Text label="Devolver al paso anterior" vars="{columna}" value={value.rules.sendBack} onChange={(sendBack) => rules({ sendBack })} />
             <Text label="Búsqueda en Internet (roles con WebSearch)" value={value.rules.web} onChange={(web) => rules({ web })} />
           </Group>
           <Group title="PO y Arquitecto">
@@ -97,8 +97,8 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
           <Group title="Quienes escriben código">
             <Text label="Criterio de código (Backend, Frontend, DevOps; lo revisa el revisor de PR)" value={value.rules.code ?? ""} onChange={(code) => rules({ code })} rows={12} />
           </Group>
-          <Group title="Puertas que revisa un agente">
-            <Text label="Cómo revisar la puerta" vars="{puerta}, {avanza}, {devolver}, {decidir}" value={value.rules.gateReview ?? ""} onChange={(gateReview) => rules({ gateReview })} rows={7} />
+          <Group title="Aprobaciones que revisa un agente">
+            <Text label="Cómo revisar la aprobación" vars="{puerta}, {avanza}, {devolver}, {decidir}" value={value.rules.gateReview ?? ""} onChange={(gateReview) => rules({ gateReview })} rows={7} />
             <Text label="Con escalamiento: cuándo dejarla a una persona" vars="{aprobadores}, {sensibles}" value={value.rules.gateEscalate ?? ""} onChange={(gateEscalate) => rules({ gateEscalate })} />
             <Text label="Sin escalamiento: decide el agente" vars="{aprobadores}" value={value.rules.gateDecide ?? ""} onChange={(gateDecide) => rules({ gateDecide })} rows={2} />
           </Group>
@@ -130,8 +130,8 @@ export function PolicyEditor({ value, onChange, core }: { value: AgentPolicy; on
         <div className="flex flex-col gap-4">
           <Text label="Devuelve para revisar" vars="{persona}" value={value.messages.returnForReview} onChange={(returnForReview) => messages({ returnForReview })} rows={2} />
           <Text label="Devuelve con preguntas" vars="{persona}" value={value.messages.returnWithQuestions} onChange={(returnWithQuestions) => messages({ returnWithQuestions })} rows={2} />
-          <Text label="Pasó a una puerta de aprobación" vars="{columna}, {persona}" value={value.messages.toGate} onChange={(toGate) => messages({ toGate })} rows={2} />
-          <Text label="Pasó a la etapa de otro agente" vars="{columna}" value={value.messages.toAgent} onChange={(toAgent) => messages({ toAgent })} rows={2} />
+          <Text label="Pasó a un paso de aprobación" vars="{columna}, {persona}" value={value.messages.toGate} onChange={(toGate) => messages({ toGate })} rows={2} />
+          <Text label="Pasó al paso de otro agente" vars="{columna}" value={value.messages.toAgent} onChange={(toAgent) => messages({ toAgent })} rows={2} />
           <Text label="Pasó a una persona" vars="{columna}, {persona}" value={value.messages.toPerson} onChange={(toPerson) => messages({ toPerson })} rows={2} />
           <Text label="Título de las preguntas" value={value.messages.questionsTitle} onChange={(questionsTitle) => messages({ questionsTitle })} rows={1} />
           <Text label="Título de los pendientes" vars="{vueltas}" value={value.messages.pendingTitle} onChange={(pendingTitle) => messages({ pendingTitle })} rows={1} />

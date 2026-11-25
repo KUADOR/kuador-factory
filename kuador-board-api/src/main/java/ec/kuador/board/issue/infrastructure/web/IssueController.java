@@ -63,6 +63,40 @@ class IssueController {
         return IssueResponse.from(service.create(projectKey, r.details(), who.memberId(), r.status()));
     }
 
+    record Progress(long done, long total) {}
+
+    record BoardResponse(List<IssueResponse> issues, java.util.Map<String, Long> totals, java.util.Map<String, Progress> progress,
+            java.util.Map<String, String> parents, int doneVisible) {}
+
+    /** El tablero sin el historial: el trabajo en curso completo y, de cada columna de cierre, las últimas terminadas. */
+    @GetMapping("/api/projects/{projectKey}/board")
+    BoardResponse boardView(@PathVariable String projectKey) {
+        IssueService.BoardView view = service.boardView(projectKey);
+        java.util.Map<String, Progress> progress = new java.util.LinkedHashMap<>();
+        view.progress().forEach((epic, p) -> progress.put(epic, new Progress(p[0], p[1])));
+        return new BoardResponse(view.issues().stream().map(IssueResponse::from).toList(), view.totals(), progress, view.parents(), view.doneVisible());
+    }
+
+    record PageResponse(List<IssueResponse> items, long total, int page, int size) {}
+
+    /** La lista: todas las tarjetas, con filtros, orden y página resueltos en la base. */
+    @GetMapping("/api/projects/{projectKey}/issues/search")
+    PageResponse search(
+            @PathVariable String projectKey,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<String> status,
+            @RequestParam(required = false) UUID assigneeId,
+            @RequestParam(required = false) IssueType type,
+            @RequestParam(required = false) String label,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false, defaultValue = "desc") String dir,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "50") int size) {
+        var found = service.search(projectKey, new ec.kuador.board.issue.domain.IssueQuery(q, status, assigneeId, type, label, sort,
+                !"asc".equalsIgnoreCase(dir), page, size));
+        return new PageResponse(found.items().stream().map(IssueResponse::from).toList(), found.total(), found.page(), found.size());
+    }
+
     @GetMapping("/api/issues/{key}")
     IssueResponse get(@PathVariable String key) {
         return IssueResponse.from(service.get(key));

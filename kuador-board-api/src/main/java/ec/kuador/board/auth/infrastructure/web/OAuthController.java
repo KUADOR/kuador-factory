@@ -35,11 +35,12 @@ class OAuthController {
     private final String publicUrl;
     private final String webUrl;
 
-    private final ec.kuador.board.shared.web.RateLimiter registerPerIp = new ec.kuador.board.shared.web.RateLimiter(20, java.time.Duration.ofHours(1));
+    private final ec.kuador.board.shared.web.RateLimiter registerPerIp;
     private final ec.kuador.board.shared.web.WebSecret web;
 
     OAuthController(OAuthService oauth, @Value("${board.public-url:http://localhost:8091}") String publicUrl,
-            @Value("${board.web-url:http://localhost:3600}") String webUrl, ec.kuador.board.shared.web.WebSecret web) {
+            @Value("${board.web-url:http://localhost:3600}") String webUrl, ec.kuador.board.shared.web.WebSecret web, ec.kuador.board.shared.web.RateLimits limits) {
+        this.registerPerIp = limits.limiter("oauth-registro-ip", 20, java.time.Duration.ofHours(1));
         this.web = web;
         this.oauth = oauth;
         this.publicUrl = publicUrl.replaceAll("/+$", "");

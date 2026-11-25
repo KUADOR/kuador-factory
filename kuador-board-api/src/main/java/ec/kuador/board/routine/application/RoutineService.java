@@ -63,13 +63,15 @@ public class RoutineService {
     }
 
     private final JdbcClient jdbc;
+    private final ec.kuador.board.shared.cluster.ClusterLock lock;
     private final IssueApi issues;
     private final ProjectApi projects;
     private final MemberApi members;
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    RoutineService(JdbcClient jdbc, IssueApi issues, ProjectApi projects, MemberApi members, TransactionTemplate tx, Clock clock) {
+    RoutineService(JdbcClient jdbc, IssueApi issues, ProjectApi projects, MemberApi members, TransactionTemplate tx, Clock clock, ec.kuador.board.shared.cluster.ClusterLock lock) {
+        this.lock = lock;
         this.jdbc = jdbc;
         this.issues = issues;
         this.projects = projects;
@@ -158,8 +160,12 @@ public class RoutineService {
         return Optional.of(TenantContext.call(r.workspaceId(), () -> fire(r, false, text)));
     }
 
-    /** Cada minuto: las rutinas cuya hora llegó, de todos los espacios. */
     @Scheduled(fixedDelay = 60_000, initialDelay = 45_000)
+    void tickOnOneReplica() {
+        lock.runExclusive("rutinas", java.time.Duration.ofMinutes(10), this::tick);
+    }
+
+    /** Cada minuto: las rutinas cuya hora llegó, de todos los espacios. */
     public void tick() {
         Instant now = clock.instant();
         List<Row> due = TenantContext.asRoot(() -> rows("where enabled and next_run_at <= ? order by next_run_at limit 50", Timestamp.from(now)));

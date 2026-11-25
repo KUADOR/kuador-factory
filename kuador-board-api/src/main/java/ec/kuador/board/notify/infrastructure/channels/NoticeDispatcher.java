@@ -26,6 +26,7 @@ class NoticeDispatcher implements ec.kuador.board.notify.infrastructure.web.Tele
     private static final Logger log = LoggerFactory.getLogger(NoticeDispatcher.class);
 
     private final NotificationService notifications;
+    private final ec.kuador.board.shared.cluster.ClusterLock lock;
     private final TelegramBots bots;
     private final TelegramBot telegram;
     private final String publicUrl;
@@ -34,7 +35,8 @@ class NoticeDispatcher implements ec.kuador.board.notify.infrastructure.web.Tele
     private final Set<String> skip = ConcurrentHashMap.newKeySet();
 
     NoticeDispatcher(NotificationService notifications, TelegramBots bots, TelegramBot telegram,
-            @Value("${board.public-url:http://localhost:8091}") String publicUrl) {
+            @Value("${board.public-url:http://localhost:8091}") String publicUrl, ec.kuador.board.shared.cluster.ClusterLock lock) {
+        this.lock = lock;
         this.notifications = notifications;
         this.bots = bots;
         this.telegram = telegram;
@@ -75,6 +77,10 @@ class NoticeDispatcher implements ec.kuador.board.notify.infrastructure.web.Tele
     }
 
     @Scheduled(fixedDelay = 3000, initialDelay = 5000)
+    void pollOnOneReplica() {
+        lock.runExclusive("telegram-mensajes", java.time.Duration.ofMinutes(2), this::poll);
+    }
+
     void poll() {
         if (webhooks()) return;
         java.util.List<TelegramBotConfig> all;

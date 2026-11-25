@@ -8,10 +8,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Ventana deslizante en memoria: cuántos eventos tuvo una clave (un correo, una IP) en {@code window}. Basta con una
- * sola instancia de la API. Se limpia sola para no crecer sin tope con claves inventadas.
+ * Ventana deslizante en memoria: cuántos eventos tuvo una clave (un correo, una IP) en {@code window}. Vale para
+ * una sola instancia de la API (y para las pruebas); con varias réplicas se usa el de {@link RateLimits}, que cuenta
+ * en la base. Se limpia sola para no crecer sin tope con claves inventadas.
  */
-public final class RateLimiter {
+public class RateLimiter {
 
     private static final int MAX_KEYS = 100_000;
 

@@ -84,6 +84,7 @@ public class RunnerService {
     public record Sync(String repository, int number, String branch, String baseBranch) {}
 
     private final RunnerStore store;
+    private final ec.kuador.board.shared.cluster.ClusterLock lock;
     private final RunnerHub hub;
     private final IssueApi issues;
     private final ProjectApi projects;
@@ -139,7 +140,8 @@ public class RunnerService {
     private final Map<String, Instant> firstSeen = new ConcurrentHashMap<>();
 
     RunnerService(RunnerStore store, RunnerHub hub, IssueApi issues, ProjectApi projects, MemberApi members, AgentWorkApi work, CatalogApi catalog,
-            AgentKit kit, ec.kuador.board.auth.RunTokens runTokens, TransactionTemplate tx, Clock clock) {
+            AgentKit kit, ec.kuador.board.auth.RunTokens runTokens, TransactionTemplate tx, Clock clock, ec.kuador.board.shared.cluster.ClusterLock lock) {
+        this.lock = lock;
         this.store = store;
         this.hub = hub;
         this.issues = issues;
@@ -504,8 +506,12 @@ public class RunnerService {
         return Optional.empty();
     }
 
-    /** Los préstamos que nadie renovó: la máquina se apagó o se colgó. La tarjeta vuelve a la cola. */
     @Scheduled(fixedDelay = 30_000, initialDelay = 30_000)
+    void expireOnOneReplica() {
+        lock.runExclusive("prestamos-vencidos", java.time.Duration.ofMinutes(5), this::expire);
+    }
+
+    /** Los préstamos que nadie renovó: la máquina se apagó o se colgó. La tarjeta vuelve a la cola. */
     public void expire() {
         Instant now = clock.instant();
         for (Lease lease : store.expired(now)) {

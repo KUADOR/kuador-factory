@@ -67,6 +67,7 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
             int cardsCreated) {}
 
     private final JdbcClient jdbc;
+    private final ec.kuador.board.shared.cluster.ClusterLock lock;
     private final ConnectionsApi connections;
     private final IssueApi issues;
     private final AttachmentApi attachments;
@@ -80,7 +81,8 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
 
     MailInboxService(JdbcClient jdbc, ConnectionsApi connections, IssueApi issues, AttachmentApi attachments, ProjectApi projects, MemberApi members,
             TransactionTemplate tx, Clock clock, @Value("${board.inbox.timezone:America/Guayaquil}") String zone,
-            @Value("${board.mail.from:Kuador Go <no-reply@kuador.com>}") String mailFrom) {
+            @Value("${board.mail.from:Kuador Go <no-reply@kuador.com>}") String mailFrom, ec.kuador.board.shared.cluster.ClusterLock lock) {
+        this.lock = lock;
         this.jdbc = jdbc;
         this.connections = connections;
         this.issues = issues;
@@ -176,6 +178,10 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
     // ---- Cada minuto ----
 
     @Scheduled(fixedDelayString = "${board.inbox.check-every:60000}", initialDelay = 60_000)
+    void tickOnOneReplica() {
+        lock.runExclusive("correo-entrante", java.time.Duration.ofMinutes(15), this::tick);
+    }
+
     public void tick() {
         List<Row> active = TenantContext.asRoot(() -> rows("where enabled order by last_checked_at nulls first"));
         for (Row r : active) {

@@ -20,11 +20,13 @@ class PasswordResetController {
     private static final org.springframework.web.server.ResponseStatusException TOO_MANY = new org.springframework.web.server.ResponseStatusException(
             org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Demasiados intentos desde esta conexión. Espera unos minutos e inténtalo de nuevo.");
     /** Por IP: pedidos de código y confirmaciones (el código se adivina menos si nadie puede probar muy rápido). */
-    private final ec.kuador.board.shared.web.RateLimiter perIp = new ec.kuador.board.shared.web.RateLimiter(10, java.time.Duration.ofMinutes(10));
-    private final ec.kuador.board.shared.web.RateLimiter confirmPerIp = new ec.kuador.board.shared.web.RateLimiter(20, java.time.Duration.ofMinutes(10));
+    private final ec.kuador.board.shared.web.RateLimiter perIp;
+    private final ec.kuador.board.shared.web.RateLimiter confirmPerIp;
     private final ec.kuador.board.shared.web.WebSecret web;
 
-    PasswordResetController(PasswordResetService resets, ec.kuador.board.shared.web.WebSecret web) {
+    PasswordResetController(PasswordResetService resets, ec.kuador.board.shared.web.WebSecret web, ec.kuador.board.shared.web.RateLimits limits) {
+        this.perIp = limits.limiter("clave-pedir-ip", 10, java.time.Duration.ofMinutes(10));
+        this.confirmPerIp = limits.limiter("clave-confirmar-ip", 20, java.time.Duration.ofMinutes(10));
         this.web = web;
         this.resets = resets;
     }

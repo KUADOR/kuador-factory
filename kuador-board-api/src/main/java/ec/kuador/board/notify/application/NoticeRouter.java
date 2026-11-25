@@ -21,6 +21,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import ec.kuador.board.shared.config.AsyncExecutors;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -55,7 +56,7 @@ class NoticeRouter {
         this.webUrl = webUrl.replaceAll("/+$", "");
     }
 
-    @Async
+    @Async(AsyncExecutors.NOTICES)
     @TransactionalEventListener(fallbackExecution = true)
     void on(IssueAssigned e) {
         if (e.toAssigneeId() == null || e.toAssigneeId().equals(e.actorId())) return;
@@ -80,7 +81,7 @@ class NoticeRouter {
         });
     }
 
-    @Async
+    @Async(AsyncExecutors.NOTICES)
     @TransactionalEventListener(fallbackExecution = true)
     void on(IssueMoved e) {
         safely(e.workspaceId(), () -> {
@@ -122,7 +123,7 @@ class NoticeRouter {
      * Un comentario que nombra a personas con «@» (de una persona o de un agente): les avisa a ellas, salvo a quien lo
      * escribió y a quien no ve el tablero.
      */
-    @Async
+    @Async(AsyncExecutors.NOTICES)
     @TransactionalEventListener(fallbackExecution = true)
     void on(IssueCommented e) {
         // El evento trae el comienzo del texto: sin «@» y sin cortar («…»), no nombra a nadie.
@@ -148,7 +149,7 @@ class NoticeRouter {
      * Lo que decidió un agente revisor en una puerta: a quien supervisa la tarjeta (o a los dueños) y a los grupos. Así
      * una puerta en automático no pasa en silencio: se sabe qué se aprobó, qué se fusionó y qué se devolvió y por qué.
      */
-    @Async
+    @Async(AsyncExecutors.NOTICES)
     @TransactionalEventListener(fallbackExecution = true)
     void on(GateReviewed e) {
         safely(e.workspaceId(), () -> {

@@ -2,6 +2,7 @@ package ec.kuador.board.live.application;
 
 import java.io.IOException;
 import java.time.Duration;
+import ec.kuador.board.shared.cluster.ClusterBus;
 import ec.kuador.board.shared.tenant.BoardScope;
 import java.util.Map;
 import java.util.Set;
@@ -14,8 +15,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * Conexiones abiertas por espacio. Vive en memoria: con una sola réplica alcanza, y si la API se
- * reinicia el navegador se reconecta solo (EventSource) y recarga.
+ * Conexiones abiertas por espacio. Las conexiones viven en la réplica que las atiende; lo que cambia se cuenta a las
+ * demás réplicas ({@link ClusterBus}) para que cada una avise a las suyas. Si la API se reinicia, el navegador se
+ * reconecta solo (EventSource) y recarga.
  */
 @Component
 public class LiveHub {
@@ -35,7 +37,19 @@ public class LiveHub {
         }
     }
 
+    private static final String TOPIC = "tablero";
+
     private final Map<UUID, Set<Subscriber>> byWorkspace = new ConcurrentHashMap<>();
+    private final ClusterBus bus;
+
+    LiveHub(ClusterBus bus) {
+        this.bus = bus;
+        // De otra réplica: «espacio|proyecto|datos».
+        bus.subscribe(TOPIC, message -> {
+            String[] parts = message.split("\\|", 3);
+            if (parts.length == 3) deliver(UUID.fromString(parts[0]), parts[1], parts[2]);
+        });
+    }
 
     /** {@code projectKey} nulo = todos los proyectos que puede ver quien pide (ver {@link BoardScope}). */
     public SseEmitter subscribe(UUID workspaceId, String projectKey) {
@@ -53,15 +67,19 @@ public class LiveHub {
     }
 
     public void publish(UUID workspaceId, Change change) {
-        Set<Subscriber> subscribers = byWorkspace.get(workspaceId);
-        if (subscribers == null) return;
         String data = "{\"proyecto\":\"%s\",\"issue\":%s,\"tipo\":\"%s\",\"actor\":%s}".formatted(change.projectKey(),
                 change.issueKey() == null ? "null" : "\"" + change.issueKey() + "\"", change.type(),
                 change.actorId() == null ? "null" : "\"" + change.actorId() + "\"");
+        deliver(workspaceId, change.projectKey(), data);
+        bus.publish(TOPIC, workspaceId + "|" + change.projectKey() + "|" + data);
+    }
+
+    /** A quienes están conectados a ESTA réplica. */
+    private void deliver(UUID workspaceId, String projectKey, String data) {
+        Set<Subscriber> subscribers = byWorkspace.get(workspaceId);
+        if (subscribers == null) return;
         for (Subscriber s : subscribers) {
-            if (s.wants(change.projectKey())) {
-                send(s, SseEmitter.event().name("cambio").data(data), subscribers);
-            }
+            if (s.wants(projectKey)) send(s, SseEmitter.event().name("cambio").data(data), subscribers);
         }
     }
 

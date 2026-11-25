@@ -21,6 +21,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import ec.kuador.board.shared.config.AsyncExecutors;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -53,7 +54,7 @@ class BillingNoticeRouter {
         this.zone = ZoneId.of(zone);
     }
 
-    @Async
+    @Async(AsyncExecutors.NOTICES)
     @TransactionalEventListener(fallbackExecution = true)
     void on(LicenseExpiring e) {
         String what = e.trial() ? "Tu prueba del plan " + e.planName() : "Tu plan " + e.planName();
@@ -65,7 +66,7 @@ class BillingNoticeRouter {
                         + " Si no, el espacio pasa al plan " + e.fallbackPlanName() + ": no se borra nada, pero rigen sus límites.");
     }
 
-    @Async
+    @Async(AsyncExecutors.NOTICES)
     @TransactionalEventListener(fallbackExecution = true)
     void on(LicenseExpired e) {
         String what = e.trial() ? "Terminó tu prueba del plan " + e.planName() : "Venció tu plan " + e.planName();
@@ -75,7 +76,7 @@ class BillingNoticeRouter {
                         + "Paga el plan para volver a tenerlo completo.");
     }
 
-    @Async
+    @Async(AsyncExecutors.NOTICES)
     @TransactionalEventListener(fallbackExecution = true)
     void on(PaymentReceived e) {
         Set<UUID> extra = e.requestedBy() == null ? Set.of() : Set.of(e.requestedBy());

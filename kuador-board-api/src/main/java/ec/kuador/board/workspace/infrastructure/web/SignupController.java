@@ -26,11 +26,13 @@ class SignupController {
 
     private static final org.springframework.web.server.ResponseStatusException TOO_MANY = new org.springframework.web.server.ResponseStatusException(
             org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Demasiados intentos desde esta conexión. Espera unos minutos e inténtalo de nuevo.");
-    private final ec.kuador.board.shared.web.RateLimiter perIp = new ec.kuador.board.shared.web.RateLimiter(10, java.time.Duration.ofMinutes(10));
-    private final ec.kuador.board.shared.web.RateLimiter verifyPerIp = new ec.kuador.board.shared.web.RateLimiter(20, java.time.Duration.ofMinutes(10));
+    private final ec.kuador.board.shared.web.RateLimiter perIp;
+    private final ec.kuador.board.shared.web.RateLimiter verifyPerIp;
     private final ec.kuador.board.shared.web.WebSecret web;
 
-    SignupController(SignupService signup, ec.kuador.board.shared.web.WebSecret web) {
+    SignupController(SignupService signup, ec.kuador.board.shared.web.WebSecret web, ec.kuador.board.shared.web.RateLimits limits) {
+        this.perIp = limits.limiter("alta-codigo-ip", 10, java.time.Duration.ofMinutes(10));
+        this.verifyPerIp = limits.limiter("alta-verificar-ip", 20, java.time.Duration.ofMinutes(10));
         this.web = web;
         this.signup = signup;
     }

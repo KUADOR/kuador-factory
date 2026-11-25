@@ -3,6 +3,7 @@ package ec.kuador.board.agents.application;
 import ec.kuador.board.agents.domain.AgentRun;
 import ec.kuador.board.agents.domain.AgentRunRepository;
 import ec.kuador.board.issue.IssueAssigned;
+import ec.kuador.board.shared.config.AsyncExecutors;
 import ec.kuador.board.shared.tenant.TenantContext;
 import java.time.Clock;
 import org.slf4j.Logger;
@@ -33,9 +34,12 @@ class AgentDispatcher implements ApplicationRunner {
     private final AgentRunRepository runs;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final AgentSlots slots;
 
     AgentDispatcher(ProductOwnerAgent productOwner, BoardAgent boardAgent, ec.kuador.board.member.MemberApi members,
-            ec.kuador.board.catalog.CatalogApi catalog, AgentRunRepository runs, PlatformTransactionManager txManager, Clock clock) {
+            ec.kuador.board.catalog.CatalogApi catalog, AgentRunRepository runs, PlatformTransactionManager txManager, Clock clock,
+            AgentSlots slots) {
+        this.slots = slots;
         this.productOwner = productOwner;
         this.boardAgent = boardAgent;
         this.members = members;
@@ -45,16 +49,23 @@ class AgentDispatcher implements ApplicationRunner {
         this.clock = clock;
     }
 
-    @Async
+    @Async(AsyncExecutors.AGENTS)
     @TransactionalEventListener
     void on(IssueAssigned event) {
+        // Quedó sin responsable: no hay agente que despertar ni turno que esperar.
+        if (event.toAssigneeId() == null) {
+            boardAgent.onAssigned(event);
+            return;
+        }
         // Un solo agente atiende cada asignación: el de refinamiento (rol con REFINE_ISSUE) o el del tablero.
-        if (event.toAssigneeId() != null && refines(event)) productOwner.onAssigned(event);
-        else boardAgent.onAssigned(event);
+        slots.run(event.workspaceId(), () -> {
+            if (refines(event)) productOwner.onAssigned(event);
+            else boardAgent.onAssigned(event);
+        });
     }
 
     /** Reintento pedido por una persona: el mismo camino que una asignación, en otro hilo. */
-    @Async
+    @Async(AsyncExecutors.AGENTS)
     public void retry(IssueAssigned event) {
         on(event);
     }

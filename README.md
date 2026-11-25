@@ -92,6 +92,23 @@ corepack pnpm install && corepack pnpm dev
 Pruebas de la API: `./mvnw test` (dominio, casos de uso y límites entre módulos) y `./mvnw verify`
 (además, aislamiento entre espacios contra un Postgres real con Testcontainers; requiere Docker).
 
+
+### Pruebas de punta a punta de la web
+
+Con Docker, Java 25 y Node 22: levanta una base desechable, la API y la web en puertos propios (no toca tu base ni tu
+`.env`), corre Playwright y lo apaga todo.
+
+```bash
+cd kuador-board-web
+pnpm e2e                         # todas
+pnpm e2e lista                   # solo las que coinciden
+E2E_CHANNEL=chrome pnpm e2e      # con el Chrome instalado, sin descargar Chromium
+E2E_KEEP=1 pnpm e2e              # deja el entorno arriba para mirar en el navegador
+```
+
+Cubren entrar, el tablero (crear, abrir, comentar, actualización en vivo), la columna final y la lista, y el flujo de la
+fábrica. Corren en cada PR (trabajo `e2e`).
+
 ## Desplegar
 
 Imágenes Docker de la API y la web, CI que las publica en GHCR y guía de Dokploy (web y API con dominio propio; por el de la API

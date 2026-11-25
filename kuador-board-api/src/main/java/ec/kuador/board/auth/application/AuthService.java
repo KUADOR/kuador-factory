@@ -46,7 +46,13 @@ public class AuthService implements AuthApi, ec.kuador.board.auth.RunTokens {
     private final MemberApi members;
     private final Clock clock;
     private final TransactionTemplate tx;
-    private final LoginAttempts attempts = new LoginAttempts();
+    private LoginAttempts attempts = new LoginAttempts();
+
+    /** Con la base a mano, los intentos fallidos se cuentan entre todas las réplicas. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setRateLimits(ec.kuador.board.shared.web.RateLimits limits) {
+        this.attempts = new LoginAttempts(limits);
+    }
     private final String dummyHash;
 
     AuthService(CredentialRepository credentials, AccessTokenRepository tokens, PasswordHasher hasher, MemberApi members, Clock clock,

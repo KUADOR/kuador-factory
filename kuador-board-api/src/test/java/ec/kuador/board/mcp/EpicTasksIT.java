@@ -198,4 +198,39 @@ class EpicTasksIT {
         call("GET", "/api/issues/" + epic + "/comments", null, owner).body().forEach(c -> bodies.add(c.get("body").asString()));
         assertThat(bodies).anyMatch(x -> x.contains("Reparto por aprobar")).anyMatch(x -> x.contains("Reparto aprobado")).anyMatch(x -> x.contains("Arrancan 3 tarea(s)")).anyMatch(x -> x.contains("Terminaron todas sus tareas (3)"));
     }
+
+    @Test
+    void uxWorksTheEpicFirstWritesTheIdentityAndHandsItToTheArchitect() throws Exception {
+        signup.requestCode("ux@ep.test");
+        signup.complete(signup.verifyCode("ux@ep.test", INBOX.get("ux@ep.test")),
+                new SignupService.Company("Ux", null, null, null, null, null), "Ursula", "clave-de-ursula-1", "FACTORY");
+        String owner = auth.login("ux@ep.test", "clave-de-ursula-1").token();
+        String runner = call("POST", "/api/auth/runner-tokens", Map.of("name", "Laptop"), owner).body().get("token").asString();
+        call("POST", "/api/projects", Map.of("key", "UX", "name", "Ux", "templateKey", "SOFTWARE_FACTORY"), owner);
+        call("PUT", "/api/projects/UX/methodology", Map.of("methodology", "ODD"), owner);
+        String epic = call("POST", "/api/projects/UX/issues", Map.of("title", "Identidad visual", "type", "EPIC", "status", "DESIGN"), owner)
+                .body().get("key").asString();
+        assertThat(queue(runner)).as("en Diseño, la épica es primero de UI/UX").contains(epic + ":UX_UI");
+
+        tool(runner, "take_issue", Map.of("key", epic, "agent", "UX_UI"), false);
+        JsonNode card = tool(runner, "get_issue", Map.of("key", epic), false);
+        assertThat(card.get("stage").get("epicsFirst").get(0).asString()).isEqualTo("UX_UI");
+        assertThat(card.get("epicFirstGuide").asString()).contains("no la planeas ni la repartes");
+        assertThat(tool(runner, "create_tasks", Map.of("key", epic, "agent", "UX_UI", "tasks", "[{\"title\":\"x\",\"role\":\"FRONTEND\"}]"), true).asString())
+                .as("repartir es del Arquitecto").contains("no la repartes");
+        assertThat(tool(runner, "deliver", Map.of("key", epic, "agent", "UX_UI"), true).asString())
+                .as("sin su documento no entrega, y no le pide tareas").contains("write_document").doesNotContain("create_tasks");
+
+        // La Identidad visual es del proyecto: la escribe UI/UX desde la tarjeta, y queda en DESIGN.md (no en la tarjeta).
+        tool(runner, "write_document", Map.of("key", epic, "agent", "UX_UI", "type", "IDENTITY", "content", "# Identidad visual\n\nAzul y verde, del logo."), false);
+        assertThat(tool(runner, "read_document", Map.of("project", "UX", "type", "IDENTITY"), false).get("content").asString()).contains("del logo");
+        tool(runner, "write_document", Map.of("key", epic, "agent", "UX_UI", "type", "SCREENS", "content", "# Pantallas\n\n## Flujo\n\nInicio y reserva."), false);
+        tool(runner, "deliver", Map.of("key", epic, "agent", "UX_UI", "comment", "Identidad y pantallas listas."), false);
+
+        assertThat(column(owner, epic)).as("sigue en Diseño").isEqualTo("DESIGN");
+        assertThat(queue(runner)).as("ahora le toca al Arquitecto").contains(epic + ":ARCHITECT");
+        tool(runner, "take_issue", Map.of("key", epic, "agent", "ARCHITECT"), false);
+        assertThat(tool(runner, "write_document", Map.of("key", epic, "agent", "ARCHITECT", "type", "IDENTITY", "content", "# Otra"), true).asString())
+                .as("la identidad la escribe UI/UX").contains("UX_UI");
+    }
 }

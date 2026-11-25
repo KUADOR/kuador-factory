@@ -262,6 +262,8 @@ public class DocumentService implements DocsApi {
     @Override
     @Transactional
     public DocContent write(String projectKey, String issueKey, String kind, String content, String note, UUID actorId) {
+        // Quien redacta a partir de la plantilla a veces deja sus marcadores (p. ej. «ADR-001 · … ({date})»): la fecha es la de hoy.
+        content = content.replace("{date}", LocalDate.ofInstant(clock.instant(), ECUADOR).toString());
         Optional<Document> existing = (issueKey == null
                 ? documents.findByProject(projectKey).stream().filter(d -> d.issueKey() == null)
                 : documents.findByIssue(issueKey).stream()).filter(d -> d.kind().equals(kind)).findFirst();

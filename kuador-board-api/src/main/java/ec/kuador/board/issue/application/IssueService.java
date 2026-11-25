@@ -74,6 +74,44 @@ public class IssueService implements IssueApi {
                 .toList();
     }
 
+    /** Cuántas terminadas trae el tablero por columna de cierre: el resto se ve en la lista. */
+    public static final int DONE_VISIBLE = 20;
+
+    /**
+     * Lo que el tablero necesita sin traer el historial entero. {@code totals}: cuántas tarjetas hay en cada columna de
+     * cierre; {@code progress}: tareas hechas y totales de cada épica (las hechas pueden no venir en {@code issues});
+     * {@code parents}: el título de las épicas que no vienen pero tienen tareas a la vista.
+     */
+    public record BoardView(List<Issue> issues, java.util.Map<String, Long> totals, java.util.Map<String, long[]> progress,
+            java.util.Map<String, String> parents, int doneVisible) {}
+
+    /** El tablero: todo el trabajo en curso y, de cada columna de cierre, solo las últimas {@link #DONE_VISIBLE}. */
+    @Transactional(readOnly = true)
+    public BoardView boardView(String projectKey) {
+        ProjectView project = project(projectKey);
+        List<String> done = project.columns().stream().filter(c -> c.category() == ec.kuador.board.catalog.ColumnCategory.DONE)
+                .map(ec.kuador.board.catalog.ColumnDef::key).toList();
+        List<Issue> shown = new ArrayList<>(issues.findOutside(projectKey, done));
+        java.util.Map<String, Long> counts = issues.countByStatus(projectKey);
+        java.util.Map<String, Long> totals = new java.util.LinkedHashMap<>();
+        for (String column : done) {
+            shown.addAll(issues.findLatestInColumn(projectKey, column, DONE_VISIBLE));
+            totals.put(column, counts.getOrDefault(column, 0L));
+        }
+        java.util.Set<String> present = shown.stream().map(Issue::key).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<String> missingParents = shown.stream().map(Issue::parentKey).filter(k -> k != null && !present.contains(k))
+                .collect(java.util.stream.Collectors.toSet());
+        shown.sort(Comparator.comparingInt((Issue i) -> project.indexOf(i.status())).thenComparingInt(Issue::position));
+        return new BoardView(shown, totals, issues.epicProgress(projectKey, done), issues.titles(missingParents), DONE_VISIBLE);
+    }
+
+    /** La vista de lista: todas las tarjetas del tablero, también las terminadas, con filtros, orden y página. */
+    @Transactional(readOnly = true)
+    public ec.kuador.board.issue.domain.IssuePage search(String projectKey, ec.kuador.board.issue.domain.IssueQuery query) {
+        project(projectKey);
+        return issues.search(projectKey, query);
+    }
+
     @Transactional(readOnly = true)
     public Issue get(String key) {
         return load(key);

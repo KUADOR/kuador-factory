@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -21,7 +22,6 @@ import { roleList } from "./stages";
  * Como en Jira: una columna terminada muestra solo lo que terminó en los últimos días; lo anterior queda a un clic.
  * Se usa la última actualización de la tarjeta (al terminar, moverla la actualiza).
  */
-export const DONE_RECENT_DAYS = 14;
 
 /** Selección de varias tarjetas para cambiarlas de columna de una vez. */
 export interface Selection {
@@ -152,12 +152,15 @@ export function Column({
   actions,
   onOpen,
   onCreate,
-  showAll = false,
+  total,
+  listHref,
   selection,
 }: {
   column: BoardColumn;
-  /** Con búsqueda o filtros: una columna terminada muestra también lo antiguo que coincida. */
-  showAll?: boolean;
+  /** En una columna de cierre: cuántas tarjetas tiene en total (el tablero trae solo las últimas). */
+  total?: number;
+  /** La vista de lista filtrada por esta columna, para ver las que no están aquí. */
+  listHref?: string;
   /** Modo selección del tablero (solo quien edita). */
   selection?: Selection & { active: boolean };
   projectType: TypeSource;
@@ -181,13 +184,9 @@ export function Column({
   onCreate?: (status: IssueStatus) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: COLUMN_DROP_PREFIX + column.key, disabled: !!blocked });
-  const [showOld, setShowOld] = useState(false);
-  // Terminadas: solo las recientes, salvo que se pidan las demás o se esté buscando.
-  const [now] = useState(() => Date.now());
-  const recentSince = now - DONE_RECENT_DAYS * 24 * 60 * 60 * 1000;
-  const folds = column.category === "DONE" && !showAll;
-  const old = folds ? issues.filter((i) => Date.parse(i.updatedAt) < recentSince) : [];
-  const shown = folds && !showOld && old.length > 0 ? issues.filter((i) => Date.parse(i.updatedAt) >= recentSince) : issues;
+  // De una columna de cierre el tablero trae solo las últimas: el resto se ve en la lista.
+  const shown = issues;
+  const hidden = total != null ? Math.max(0, total - issues.length) : 0;
   const points = issues.reduce((sum, i) => sum + (i.storyPoints ?? 0), 0);
   const selecting = !!selection?.active;
   const allShownSelected = shown.length > 0 && shown.every((i) => selection?.selected.has(i.key));
@@ -235,8 +234,8 @@ export function Column({
           </h2>
         )}
         {!renaming && (
-          <span className="tabular font-mono text-[11px] text-fg-faint" title={shown.length !== issues.length ? `${issues.length} en total` : undefined}>
-            {shown.length !== issues.length ? `${shown.length}/${issues.length}` : issues.length}
+          <span className="tabular font-mono text-[11px] text-fg-faint" title={hidden > 0 ? `${total} en total; el tablero muestra las últimas` : undefined}>
+            {hidden > 0 ? `${issues.length}/${total}` : issues.length}
             {points > 0 && <span title="Tamaño de la columna"> · {points} pts</span>}
           </span>
         )}
@@ -333,18 +332,17 @@ export function Column({
           ))}
           {shown.length === 0 && (
             <li className="rounded-md border border-dashed border-line px-3 py-3 text-center text-xs text-fg-faint">
-              {issues.length > 0 ? `Nada terminado en los últimos ${DONE_RECENT_DAYS} días` : "Sin tarjetas"}
+              Sin tarjetas
             </li>
           )}
-          {old.length > 0 && (
+          {hidden > 0 && listHref && (
             <li>
-              <button
-                type="button"
-                onClick={() => setShowOld((v) => !v)}
-                className="w-full rounded-md px-2 py-1.5 text-center text-[11px] text-fg-muted hover:bg-hover hover:text-fg-strong"
+              <Link
+                href={listHref}
+                className="block w-full rounded-md px-2 py-1.5 text-center text-[11px] text-fg-muted hover:bg-hover hover:text-fg-strong"
               >
-                {showOld ? `Ocultar las de hace más de ${DONE_RECENT_DAYS} días` : `Ver ${old.length} más antiguas (más de ${DONE_RECENT_DAYS} días)`}
-              </button>
+                <span className="tabular">{issues.length} de {total}</span> · Ver todas en la lista
+              </Link>
             </li>
           )}
         </ul>

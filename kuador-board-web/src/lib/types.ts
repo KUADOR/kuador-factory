@@ -1001,6 +1001,40 @@ export interface OAuthClientInfo {
 }
 
 /** Lo que una tarjeta muestra del plan de una épica: rol de la tarea, a qué espera y, en la épica, su avance. */
+/** El tablero sin el historial: el trabajo en curso y, de cada columna de cierre, las últimas terminadas. */
+export interface BoardView {
+  issues: Issue[];
+  /** Cuántas tarjetas hay en cada columna de cierre (aunque solo vengan las últimas). */
+  totals: Record<string, number>;
+  /** Tareas hechas y totales de cada épica. */
+  progress: Record<string, { done: number; total: number }>;
+  /** Título de las épicas que no vienen pero tienen tareas a la vista. */
+  parents: Record<string, string>;
+  doneVisible: number;
+}
+
+/** Una página de la vista de lista. */
+export interface IssuePage {
+  items: Issue[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export type IssueSort = "key" | "title" | "type" | "status" | "priority" | "updated";
+
+/** Filtros, orden y página de la vista de lista (van en la URL). */
+export interface IssueListQuery {
+  q?: string;
+  status?: string;
+  assigneeId?: string;
+  type?: string;
+  label?: string;
+  sort?: IssueSort;
+  dir?: "asc" | "desc";
+  page?: number;
+}
+
 export interface CardPlan {
   role?: string;
   waitingFor?: string[];

@@ -16,7 +16,26 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-interface SpringDataIssueRepository extends JpaRepository<IssueEntity, UUID> {
+interface SpringDataIssueRepository extends JpaRepository<IssueEntity, UUID>,
+        org.springframework.data.jpa.repository.JpaSpecificationExecutor<IssueEntity> {
+
+    @Query("select i from IssueEntity i where i.projectKey = :projectKey and i.status not in :statuses")
+    List<IssueEntity> findOutside(String projectKey, java.util.Collection<String> statuses);
+
+    List<IssueEntity> findByProjectKeyAndStatusOrderByUpdatedAtDesc(String projectKey, String status, org.springframework.data.domain.Limit limit);
+
+    @Query("select i.status, count(i) from IssueEntity i where i.projectKey = :projectKey group by i.status")
+    List<Object[]> countByStatus(String projectKey);
+
+    @Query("""
+            select i.parentKey, sum(case when i.status in :done then 1 else 0 end), count(i) from IssueEntity i
+            where i.projectKey = :projectKey and i.parentKey is not null and i.workRole is not null group by i.parentKey
+            """)
+    List<Object[]> epicProgress(String projectKey, java.util.Collection<String> done);
+
+    @Query("select i.key, i.title from IssueEntity i where i.key in :keys")
+    List<Object[]> titles(java.util.Collection<String> keys);
+
 
     Optional<IssueEntity> findByKey(String key);
 
@@ -84,6 +103,76 @@ class JpaIssueRepository implements IssueRepository {
                         || i.labels().contains(text))
                 .sorted(BOARD_ORDER)
                 .toList();
+    }
+
+    @Override
+    public List<Issue> findOutside(String projectKey, List<String> statuses) {
+        List<IssueEntity> found = statuses.isEmpty() ? jpa.findByProjectKey(projectKey) : jpa.findOutside(projectKey, statuses);
+        return found.stream().map(IssueEntity::toDomain).sorted(BOARD_ORDER).toList();
+    }
+
+    @Override
+    public List<Issue> findLatestInColumn(String projectKey, String status, int limit) {
+        return jpa.findByProjectKeyAndStatusOrderByUpdatedAtDesc(projectKey, status, org.springframework.data.domain.Limit.of(limit)).stream()
+                .map(IssueEntity::toDomain).toList();
+    }
+
+    @Override
+    public Map<String, Long> countByStatus(String projectKey) {
+        return jpa.countByStatus(projectKey).stream().collect(Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
+    }
+
+    @Override
+    public Map<String, long[]> epicProgress(String projectKey, List<String> doneStatuses) {
+        // Sin columnas de cierre, ninguna está hecha: una clave que no es de ninguna columna.
+        java.util.Collection<String> done = doneStatuses.isEmpty() ? List.of("") : doneStatuses;
+        return jpa.epicProgress(projectKey, done).stream()
+                .collect(Collectors.toMap(r -> (String) r[0], r -> new long[] {((Number) r[1]).longValue(), ((Number) r[2]).longValue()}));
+    }
+
+    @Override
+    public Map<String, String> titles(java.util.Collection<String> keys) {
+        if (keys.isEmpty()) return Map.of();
+        return jpa.titles(keys).stream().collect(Collectors.toMap(r -> (String) r[0], r -> (String) r[1]));
+    }
+
+    @Override
+    public ec.kuador.board.issue.domain.IssuePage search(String projectKey, ec.kuador.board.issue.domain.IssueQuery query) {
+        org.springframework.data.jpa.domain.Specification<IssueEntity> spec = (root, cq, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> where = new java.util.ArrayList<>();
+            where.add(cb.equal(root.get("projectKey"), projectKey));
+            if (query.text() != null) {
+                String like = "%" + query.text().toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+                where.add(cb.or(cb.like(cb.lower(root.get("title")), like, '\\'), cb.like(cb.lower(root.get("key")), like, '\\')));
+            }
+            if (!query.statuses().isEmpty()) where.add(root.get("status").in(query.statuses()));
+            if (query.assigneeId() != null) where.add(cb.equal(root.get("assigneeId"), query.assigneeId()));
+            if (query.type() != null) where.add(cb.equal(root.get("type"), query.type()));
+            if (query.label() != null) {
+                // array_position de Hibernate: la posición (desde 1) o 0 si no está.
+                where.add(cb.gt(cb.function("array_position", Integer.class, root.get("labels"), cb.literal(query.label().toLowerCase(Locale.ROOT))), 0));
+            }
+            // El orden va aquí y no en la página: la prioridad se ordena por importancia, no por su nombre.
+            if (Long.class != cq.getResultType() && long.class != cq.getResultType()) {
+                jakarta.persistence.criteria.Expression<?> by = switch (query.sort()) {
+                    case "key", "created" -> root.get("createdAt");
+                    case "title" -> cb.lower(root.get("title"));
+                    case "type" -> root.get("type");
+                    case "status" -> root.get("status");
+                    case "priority" -> {
+                        var rank = cb.selectCase(root.<Object>get("priority"));
+                        for (ec.kuador.board.issue.domain.Priority p : ec.kuador.board.issue.domain.Priority.values()) rank = rank.when(p, p.ordinal());
+                        yield rank.otherwise(99);
+                    }
+                    default -> root.get("updatedAt");
+                };
+                cq.orderBy(query.descending() ? cb.desc(by) : cb.asc(by), cb.asc(root.get("createdAt")));
+            }
+            return cb.and(where.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+        var page = jpa.findAll(spec, org.springframework.data.domain.PageRequest.of(query.page(), query.size()));
+        return new ec.kuador.board.issue.domain.IssuePage(page.getContent().stream().map(IssueEntity::toDomain).toList(), page.getTotalElements(),
+                query.page(), query.size());
     }
 
     @Override

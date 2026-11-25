@@ -51,6 +51,9 @@ import type {
   GitHubConnection,
   GitHubOverview,
   Issue,
+  BoardView,
+  IssuePage,
+  IssueListQuery,
   PieceInput,
   PiecePlan,
   PiecesSetup,
@@ -511,6 +514,15 @@ export const boardApi = {
     request<{ id: string; access: MemberAccess }>(`/api/members/${encodeURIComponent(memberId)}/access`, json("PUT", { access })),
 
   issues: (projectKey: string) => request<Issue[]>(`/api/projects/${encodeURIComponent(projectKey)}/issues`),
+  /** El tablero: todo el trabajo en curso y solo las últimas terminadas, con sus totales. */
+  board: (projectKey: string) => request<BoardView>(`/api/projects/${encodeURIComponent(projectKey)}/board`),
+  issue: (key: string) => request<Issue>(`/api/issues/${encodeURIComponent(key)}`),
+  /** La vista de lista: filtros, orden y página resueltos en la API. */
+  searchIssues: (projectKey: string, query: IssueListQuery & { size?: number }) => {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== "" && v !== null) params.set(k, String(v));
+    return request<IssuePage>(`/api/projects/${encodeURIComponent(projectKey)}/issues/search?${params}`);
+  },
   createIssue: (projectKey: string, input: IssueInput & { status: IssueStatus }) =>
     request<Issue>(`/api/projects/${encodeURIComponent(projectKey)}/issues`, json("POST", input)),
   assignIssue: (key: string, assigneeId: string | null) => request<Issue>(`/api/issues/${encodeURIComponent(key)}/assignee`, json("PUT", { assigneeId })),

@@ -124,4 +124,16 @@ class BoardViewIT {
         assertThat(call("GET", "/api/projects/TAB/issues/search?q=100%25", null, owner).get("total").asLong()).as("el % se busca tal cual").isZero();
         assertThat(call("GET", "/api/projects/TAB/issues/search?size=1000", null, owner).get("size").asInt()).as("la página tiene tope").isEqualTo(100);
     }
+
+    /** La salud dice qué réplica respondió: así se cuentan desde fuera. Solo ahí. */
+    @Test
+    void healthAnswersWithTheReplicaThatServedIt() throws Exception {
+        var ready = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/readyz")).build(), HttpResponse.BodyHandlers.ofString());
+        var again = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/readyz")).build(), HttpResponse.BodyHandlers.ofString());
+        var other = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/public/packages")).build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(ready.statusCode()).isEqualTo(200);
+        assertThat(ready.headers().firstValue("X-Kuador-Replica")).isPresent().get().asString().hasSize(8);
+        assertThat(again.headers().firstValue("X-Kuador-Replica")).as("la misma réplica, el mismo identificador").isEqualTo(ready.headers().firstValue("X-Kuador-Replica"));
+        assertThat(other.headers().firstValue("X-Kuador-Replica")).isEmpty();
+    }
 }

@@ -12,6 +12,8 @@ test("la lista busca, filtra, ordena y abre la tarjeta", async ({ page }) => {
   await card(key, { title: "Mochila entregada", status: done.key, labels: ["urgente"] });
 
   await page.goto(`/projects/${key}`);
+  // Como una persona: con el tablero ya a la vista.
+  await expect(page.getByText("Zapatos devueltos")).toBeVisible();
   await page.getByRole("navigation", { name: "Vista" }).getByRole("link", { name: "Lista" }).click();
   await expect(page).toHaveURL(/view=list/);
   const rows = page.locator("tbody tr");

@@ -4,4 +4,4 @@ out
 .env*.local
 *.tsbuildinfo
 next-env.d.ts
-e2e/.resultados
+e2e/resultados

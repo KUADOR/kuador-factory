@@ -6,7 +6,7 @@ import { defineConfig } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "e2e",
-  outputDir: "e2e/.resultados",
+  outputDir: "e2e/resultados",
   // Comparten una sola base: en orden, para que lo que una prueba crea no cambie lo que otra cuenta.
   workers: 1,
   fullyParallel: false,
@@ -24,7 +24,7 @@ export default defineConfig({
   },
   projects: [
     { name: "sesion", testMatch: /sesion\.setup\.ts/ },
-    { name: "web", dependencies: ["sesion"], use: { storageState: "e2e/.resultados/sesion.json" }, testIgnore: /sesion\.setup\.ts|entrar\.spec\.ts/ },
+    { name: "web", dependencies: ["sesion"], use: { storageState: "e2e/resultados/sesion.json" }, testIgnore: /sesion\.setup\.ts|entrar\.spec\.ts/ },
     { name: "entrar", testMatch: /entrar\.spec\.ts/ },
   ],
 });

@@ -9,5 +9,5 @@ setup("entrar y guardar la sesión", async ({ page }) => {
   await page.locator('input[type="password"]').fill(PASSWORD);
   await page.keyboard.press("Enter");
   await expect(page).not.toHaveURL(/\/login/);
-  await page.context().storageState({ path: "e2e/.resultados/sesion.json" });
+  await page.context().storageState({ path: "e2e/resultados/sesion.json" });
 });

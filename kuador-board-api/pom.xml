@@ -71,7 +71,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
+            <!-- En compilación: la escucha entre réplicas usa LISTEN/NOTIFY del driver (PGConnection). -->
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

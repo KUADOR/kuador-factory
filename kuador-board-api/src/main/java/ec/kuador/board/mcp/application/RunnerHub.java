@@ -1,6 +1,7 @@
 package ec.kuador.board.mcp.application;
 
 import ec.kuador.board.issue.IssueEvent;
+import ec.kuador.board.shared.cluster.ClusterBus;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
@@ -15,15 +16,24 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * Avisos a los runners conectados: «puede haber trabajo». No dicen qué ni para quién (eso lo decide el reparto al
- * pedir una tarjeta), así nunca viaja información de un tablero a una máquina que no lo ve. En memoria: con una
- * réplica alcanza y, si la API se reinicia, el runner reconecta y además revisa cada pocos minutos.
+ * pedir una tarjeta), así nunca viaja información de un tablero a una máquina que no lo ve. Cada réplica avisa a los
+ * runners que tiene conectados y les cuenta a las demás ({@link ClusterBus}); si la API se reinicia, el runner
+ * reconecta y además revisa cada pocos minutos.
  */
 @Component
 public class RunnerHub {
 
     static final Duration TIMEOUT = Duration.ofMinutes(30);
 
+    private static final String TOPIC = "runners";
+
     private final Map<UUID, Set<SseEmitter>> byWorkspace = new ConcurrentHashMap<>();
+    private final ClusterBus bus;
+
+    RunnerHub(ClusterBus bus) {
+        this.bus = bus;
+        bus.subscribe(TOPIC, workspaceId -> deliver(UUID.fromString(workspaceId)));
+    }
 
     public SseEmitter subscribe(UUID workspaceId) {
         SseEmitter emitter = new SseEmitter(TIMEOUT.toMillis());
@@ -40,6 +50,12 @@ public class RunnerHub {
 
     /** Algo cambió en el espacio (o se liberó una tarjeta): que los runners vuelvan a pedir. */
     public void signal(UUID workspaceId) {
+        deliver(workspaceId);
+        bus.publish(TOPIC, workspaceId.toString());
+    }
+
+    /** A los runners conectados a ESTA réplica. */
+    private void deliver(UUID workspaceId) {
         Set<SseEmitter> subscribers = byWorkspace.get(workspaceId);
         if (subscribers == null) return;
         subscribers.forEach(e -> send(e, SseEmitter.event().name("trabajo").data("{}"), subscribers));

@@ -65,7 +65,7 @@ export function TransitionsEditor({ project }: { project: Project }) {
         return { from, to, when: decisions.find((d) => d.from === from && d.to === to)?.when ?? null };
       });
       const extra = decisions.filter((d) => !list.some((l) => l.from === d.from && l.to === d.to));
-      const r = await setTransitionsAction(project.key, { restricted, allowed: restricted ? [...list, ...extra] : decisions });
+      const r = await setTransitionsAction(project.key, { restricted, allowed: [...list, ...extra] });
       if (r.ok) {
         setError(null);
         notify.ok(restricted ? "Flujo de trabajo guardado" : "Movimiento libre entre columnas");

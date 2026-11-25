@@ -87,7 +87,7 @@ export function nextStep(c: StepContext): NextStep {
         return {
           tone: "warn",
           title: "Esta puerta la revisa un agente, pero no hay Agente Revisor en el equipo.",
-          detail: "Guarda de nuevo las etapas (Configuración → Etapas) para sumarlo, o apruébala tú.",
+          detail: "Guarda de nuevo los pasos (Ajustes → Pasos y responsables) para sumarlo, o apruébala tú.",
           actions: [],
         };
       }

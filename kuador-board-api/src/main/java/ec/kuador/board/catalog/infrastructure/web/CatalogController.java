@@ -36,6 +36,12 @@ class CatalogController {
         return service.list(type(type));
     }
 
+    /** De dónde viene cada entrada (fábrica, modificada, retirada, propia) y cuánto se usa. */
+    @GetMapping("/status")
+    java.util.Map<String, CatalogService.EntryStatus> status(@PathVariable String type) {
+        return service.status(type(type));
+    }
+
     @GetMapping("/{key}")
     Object get(@PathVariable String type, @PathVariable String key) {
         return service.get(type(type), key);

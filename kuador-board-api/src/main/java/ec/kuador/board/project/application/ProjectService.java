@@ -347,6 +347,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public long projectsFromTemplate(String templateKey) {
+        return projects.countFromTemplate(templateKey);
+    }
+
+    @Override
     public long membersWithRole(String roleKey) {
         return 0;
     }

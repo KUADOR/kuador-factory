@@ -32,7 +32,7 @@ export default async function SyncPage({ params }: Props) {
   if (notReady) {
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
-        <EmptyState title={notReady} action={<Button href={`/projects/${project.key}/settings`} tone="primary" size="sm">Ir a configuración</Button>} />
+        <EmptyState title={notReady} action={<Button href={`/projects/${project.key}/settings/${link.linked ? "methodology" : "repository"}`} tone="primary" size="sm">{link.linked ? "Elegir metodología" : "Vincular repositorio"}</Button>} />
       </div>
     );
   }

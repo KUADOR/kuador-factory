@@ -273,8 +273,8 @@ function BoardFlows({ projects, agents, roleNames }: { projects: Project[]; agen
       </ol>
       <p className="text-xs text-fg-faint">
         <Cloud className="inline size-3" aria-hidden /> servidor · <Laptop className="inline size-3" aria-hidden /> PC de una persona · número: entregas en 30 días. Cámbialo en{" "}
-        <Link href={`/projects/${project.key}/settings/stages`} className="k-link">
-          Etapas
+        <Link href={`/projects/${project.key}/settings/columns#responsables`} className="k-link">
+          Pasos y responsables
         </Link>{" "}
         y{" "}
         <Link href={`/projects/${project.key}/settings/agents`} className="k-link">

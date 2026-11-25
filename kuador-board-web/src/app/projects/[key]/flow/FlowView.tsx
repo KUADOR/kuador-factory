@@ -232,16 +232,17 @@ function StepEditor({ project, column, roleOptions, onDone }: { project: Project
     start(async () => {
       const edited: StageDef = {
         column,
-        roles: gate ? [] : roles,
+        // Una aprobación que ya lo era conserva quién la prepara, lo que exige y su rol previo: aquí no se editan.
+        roles: gate ? (current?.gate ? current.roles : []) : roles,
         gate,
         approvers: current?.approvers ?? [],
         rejectTo: current?.rejectTo ?? null,
         review: gate ? (current?.review ?? null) : null,
         autoPlan: gate ? false : (current?.autoPlan ?? false),
         checklist: checklist.split("\n").map((x) => x.trim()).filter(Boolean),
-        requires: gate ? [] : (current?.requires ?? []),
-        instructions: gate || roles.length === 0 ? null : instructions.trim() || null,
-        epicFirst: gate ? [] : (current?.epicFirst ?? []),
+        requires: gate && !current?.gate ? [] : (current?.requires ?? []),
+        instructions: gate ? (current?.gate ? (current.instructions ?? null) : null) : roles.length === 0 ? null : instructions.trim() || null,
+        epicFirst: gate && !current?.gate ? [] : (current?.epicFirst ?? []),
       };
       const others = project.stages.filter((s) => s.column !== column);
       const meaningful = edited.gate || edited.roles.length > 0 || (edited.checklist ?? []).length > 0 || (edited.requires ?? []).length > 0;

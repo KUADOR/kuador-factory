@@ -24,10 +24,11 @@ export default async function CatalogSectionPage({ params }: PageProps<"/catalog
       boardApi.catalog(section.type),
       boardApi.catalog("roles"),
       section.type === "agent-policies" ? boardApi.agentRulesCore() : Promise.resolve([] as string[]),
+      boardApi.catalogStatus(section.type).catch(() => ({})),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [entries, roles, core] = data;
-  return <CatalogView slug={section.slug} entries={entries} roles={roles} core={core} />;
+  const [entries, roles, core, status] = data;
+  return <CatalogView slug={section.slug} entries={entries} roles={roles} core={core} status={status} />;
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/shell/PageHeader";
+import { canEdit } from "@/lib/access";
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
 import type { AgentRun, Member } from "@/lib/types";
@@ -38,11 +39,13 @@ export default async function PulsePage() {
       boardApi.runnerMachines().catch(() => []),
       // El gasto lo ve quien administra; para el resto la API responde 403.
       boardApi.aiUsage().catch(() => null),
+      boardApi.me().catch(() => null),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [runs, decisions, members, runners, machines, usage] = data;
+  const [runs, decisions, members, runners, machines, usage, me] = data;
+  const canInstall = me != null && canEdit(me);
   // eslint-disable-next-line react-hooks/purity -- página dinámica: «ahora» es el momento de la petición
   const now = Date.now();
   const recent = runs.filter((r) => now - new Date(r.createdAt).getTime() < DAY);
@@ -108,13 +111,13 @@ export default async function PulsePage() {
             <p className="text-xs text-fg-muted">
               {runners.length === 0 ? (
                 <>
-                  Sin runner. <Link href="/local-agents" className="k-link">Instalarlo</Link>
+                  Sin runner.{canInstall && <> <Link href="/local-agents" className="k-link">Instalarlo</Link></>}
                 </>
               ) : runnerOnline ? (
                 `Conectada: usó el tablero ${ago(lastRunner, now)}.`
               ) : (
                 <>
-                  Sin actividad desde {ago(lastRunner, now)}. <Link href="/local-agents" className="k-link">Instalar el runner</Link>
+                  Sin actividad desde {ago(lastRunner, now)}.{canInstall && <> <Link href="/local-agents" className="k-link">Instalar el runner</Link></>}
                 </>
               )}
             </p>

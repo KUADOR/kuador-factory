@@ -236,16 +236,53 @@ public class CatalogService implements CatalogApi {
         if (type == CatalogType.AGENT_POLICY) {
             throw new ConflictException("Las reglas de agentes no se borran: edítalas o restáuralas a los valores de fábrica.");
         }
-        long inUse = switch (type) {
-            case METHODOLOGY -> sum(u -> u.projectsUsingMethodology(key));
-            case AGENT_ROLE -> sum(u -> u.membersWithRole(key));
-            default -> 0;
-        };
-        if (inUse > 0) {
-            String what = type == CatalogType.METHODOLOGY ? " proyecto(s) la usan." : " miembro(s) tienen este rol.";
+        long inUse = usedBy(type, key);
+        // Un tablero es una copia de su plantilla de flujo: borrarla no lo cambia.
+        if (inUse > 0 && type != CatalogType.WORKFLOW_TEMPLATE) {
+            String what = switch (type) {
+                case METHODOLOGY -> " tablero(s) la usan.";
+                case AGENT_ROLE -> " miembro(s) tienen este rol.";
+                case COMPONENT_TEMPLATE -> " pieza(s) de tableros salieron de ella.";
+                default -> " pieza(s) del catálogo lo llevan en su kit.";
+            };
             throw new ConflictException("No se puede borrar " + key + ": " + inUse + what);
         }
         entries.delete(type, key);
+    }
+
+    /** Cuánto se usa una entrada: tableros, miembros o piezas, según su tipo. */
+    private long usedBy(CatalogType type, String key) {
+        return switch (type) {
+            case METHODOLOGY -> sum(u -> u.projectsUsingMethodology(key));
+            case AGENT_ROLE -> sum(u -> u.membersWithRole(key));
+            case COMPONENT_TEMPLATE -> sum(u -> u.componentsUsingTemplate(key));
+            case WORKFLOW_TEMPLATE -> sum(u -> u.projectsFromTemplate(key));
+            case MCP_SERVER -> componentTemplates().stream().filter(c -> c.mcpServers() != null && c.mcpServers().contains(key)).count();
+            case AGENT_POLICY -> 0;
+        };
+    }
+
+    /**
+     * De dónde viene una entrada y cuánto se usa. {@code origin}: OWN (la creó el espacio), FACTORY (de fábrica, igual a
+     * la publicada: recibe sus actualizaciones), FACTORY_MODIFIED (el espacio la cambió: ya no las recibe) o
+     * FACTORY_RETIRED (la plataforma la quitó: no hay a qué restaurarla, se puede eliminar).
+     */
+    public record EntryStatus(String origin, long usedBy) {}
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, EntryStatus> status(CatalogType type) {
+        java.util.Map<String, EntryStatus> out = new java.util.LinkedHashMap<>();
+        for (Object entry : entries.list(type, type.recordType())) {
+            String key = CatalogKeys.of(entry);
+            String origin = "OWN";
+            if (builtIn(entry)) {
+                Optional<Object> published = factory.entry(type, key);
+                origin = published.isEmpty() ? "FACTORY_RETIRED"
+                        : entries.payloadOf(entry).equals(entries.payloadOf(published.get())) ? "FACTORY" : "FACTORY_MODIFIED";
+            }
+            out.put(key, new EntryStatus(origin, usedBy(type, key)));
+        }
+        return out;
     }
 
     // ---- Historial ----

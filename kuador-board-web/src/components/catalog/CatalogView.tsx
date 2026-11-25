@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
-import type { AgentPolicy, AgentRole, CatalogEntries, CatalogType, ComponentTemplate, McpServer, Methodology, PlatformEntryStatus, WorkflowTemplate } from "@/lib/types";
+import type { AgentPolicy, AgentRole, CatalogEntries, CatalogEntryStatus, CatalogType, ComponentTemplate, McpServer, Methodology, PlatformEntryStatus, WorkflowTemplate } from "@/lib/types";
 
 import { CATALOG_SECTIONS, type CatalogSection } from "./catalogTypes";
 import { McpEditor, MethodologyEditor, RoleEditor, TemplateEditor, blankEntry, ComponentEditor, COMPONENT_KIND_LABEL } from "./editors";
@@ -37,6 +37,16 @@ const STATUS_BADGE: Record<PlatformEntryStatus, { label: string; tone: "neutral"
   NEW: { label: "Nueva", tone: "info" },
 };
 
+/** Qué pasa al borrar, por tipo: lo que la API comprueba de verdad. */
+const DELETE_NOTE: Record<CatalogSection["type"], string> = {
+  "workflow-templates": "Los tableros que nacieron de ella no cambian: cada uno tiene su copia. No se puede deshacer.",
+  methodologies: "Solo se puede borrar si ningún tablero la usa. No se puede deshacer.",
+  roles: "Solo se puede borrar si ningún miembro tiene este rol. No se puede deshacer.",
+  "component-templates": "Solo se puede borrar si ninguna pieza de un tablero salió de ella. No se puede deshacer.",
+  "mcp-servers": "Solo se puede borrar si ninguna pieza del catálogo lo lleva en su kit. No se puede deshacer.",
+  "agent-policies": "No se puede deshacer.",
+};
+
 /**
  * Una sección del catálogo: tabla de entradas y editor al costado. En un espacio se crea, edita, restaura y borra;
  * en la plataforma ({@code platform}) se edita en borrador, se descartan cambios o se quita la entrada.
@@ -47,6 +57,7 @@ export function CatalogView({
   roles,
   platform,
   core = [],
+  status = {},
 }: {
   slug: CatalogSection["slug"];
   entries: AnyEntry[];
@@ -54,8 +65,12 @@ export function CatalogView({
   platform?: PlatformInfo;
   /** Reglas de agentes: el núcleo de seguridad que no se edita. */
   core?: string[];
+  /** En un espacio: de dónde viene cada entrada y cuánto se usa. */
+  status?: Record<string, CatalogEntryStatus>;
 }) {
   const section = CATALOG_SECTIONS.find((s) => s.slug === slug)!;
+  // La plataforma quitó esta entrada de fábrica: no hay a qué restaurarla, así que se puede eliminar.
+  const retired = (key: string) => status[key]?.origin === "FACTORY_RETIRED";
   const router = useRouter();
   const [extra, setExtra] = useState<{ memberName: string; color: string }>({ memberName: "", color: "" });
   const [draft, setDraft] = useState<AnyEntry | null>(null);
@@ -151,12 +166,12 @@ export function CatalogView({
                   Descartar cambios
                 </Button>
               )}
-              {!platform && !isNew && !draft.builtIn && (
+              {!platform && !isNew && (!draft.builtIn || retired(draft.key)) && (
                 <Button tone="danger" size="sm" icon={Trash} disabled={pending} onClick={() => setConfirming("delete")}>
                   Eliminar
                 </Button>
               )}
-              {!platform && !isNew && draft.builtIn && (
+              {!platform && !isNew && draft.builtIn && !retired(draft.key) && (
                 <Button tone="ghost" size="sm" icon={RotateCcw} disabled={pending} onClick={() => setConfirming("restore")}>
                   Restaurar valores de fábrica
                 </Button>
@@ -216,7 +231,7 @@ export function CatalogView({
         message={
           platform
             ? "Los espacios nuevos ya no la reciben; los que ya la tienen la conservan. No se puede deshacer."
-            : "Solo se puede borrar si ningún tablero o miembro la usa. No se puede deshacer."
+            : DELETE_NOTE[section.type]
         }
         confirmLabel={platform ? "Quitar" : "Eliminar"}
         pending={pending}

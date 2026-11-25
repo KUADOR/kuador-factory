@@ -870,7 +870,7 @@ public class IssueService implements IssueApi {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<String> notReadyToDeliver(String issueKey, UUID agentId) {
+    public Optional<String> notReadyToDeliver(String issueKey, UUID agentId, String comment) {
         Issue issue = load(issueKey);
         ProjectView project = project(issue.projectKey());
         Optional<StageDef> stage = project.stage(issue.status());
@@ -881,7 +881,7 @@ public class IssueService implements IssueApi {
                     .map(r -> "Antes de entregar, escribe tu documento de " + issue.key() + " con write_document: es lo que deja tu parte lista para el rol que sigue.");
         }
         boolean diagram = stage.get().requires().stream().anyMatch(r -> r.kind() == ec.kuador.board.catalog.Requirement.Kind.DIAGRAM);
-        if (diagram && issue.type() == IssueType.EPIC && !hasDiagram(issue, null)) {
+        if (diagram && issue.type() == IssueType.EPIC && !hasDiagram(issue, comment)) {
             return Optional.of("El tablero no deja salir " + issue.key() + " de «" + columnName(project, issue.status()) + "» sin el diagrama de la solución:"
                     + " escribe en tu documento (write_document) la sección «Diagrama de la solución» con un bloque ```mermaid de la solución completa.");
         }

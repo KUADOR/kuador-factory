@@ -117,7 +117,10 @@ export function StageBar({
                 {stage.roles.length > 0 && <> · prepara {roleList(stage.roles, roleName)}</>}
               </>
             ) : (
-              <>La cubre {roleList(stage.roles, roleName, "cualquiera del equipo")}</>
+              <>
+                La cubre {issue.type === "EPIC" && stage.epicFirst?.length ? `${roleList(stage.epicFirst, roleName)}; después, ` : ""}
+                {roleList(stage.roles, roleName, "cualquiera del equipo")}
+              </>
             )}
           </span>
         )}

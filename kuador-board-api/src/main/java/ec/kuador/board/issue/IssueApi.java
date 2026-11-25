@@ -117,6 +117,11 @@ public interface IssueApi {
      * puede entregar.
      */
     default Optional<String> notReadyToDeliver(String issueKey, UUID agentId) {
+        return notReadyToDeliver(issueKey, agentId, null);
+    }
+
+    /** Igual, contando el comentario con que entrega (puede traer el diagrama). */
+    default Optional<String> notReadyToDeliver(String issueKey, UUID agentId, String comment) {
         return Optional.empty();
     }
 

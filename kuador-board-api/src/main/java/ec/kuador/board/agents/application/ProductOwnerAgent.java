@@ -48,7 +48,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class ProductOwnerAgent {
 
     private static final Logger log = LoggerFactory.getLogger(ProductOwnerAgent.class);
-    private static final Set<String> CONTEXT_DOC_KINDS = Set.of("CONSTITUTION", "PRODUCT", "ARCHITECTURE", "GLOSSARY", "AGENT_RULES");
+    private static final Set<String> CONTEXT_DOC_KINDS = Set.of("CONSTITUTION", "PRODUCT", "ARCHITECTURE", "GLOSSARY", "AGENT_RULES",
+            ec.kuador.board.catalog.SoftwareDocuments.IDENTITY_KIND);
     private static final int[] FIBONACCI = {1, 2, 3, 5, 8, 13};
     /** Lo que deja una ejecución que terminó con preguntas: así se cuentan las vueltas sin depender de los textos editables. */
     static final String ASKED = "pregunta(s) abiertas";
@@ -66,6 +67,7 @@ public class ProductOwnerAgent {
     private final StageHandoff handoff;
     private final WorkspaceApi workspace;
     private final ec.kuador.board.sync.RepositoriesApi repositories;
+    private BoardTeam team;
 
     ProductOwnerAgent(AgentRunRepository runs, ProductOwnerModel model, IssueApi issues, DocsApi docs, ProjectApi projects,
             MemberApi members, CatalogApi catalog, PlatformTransactionManager txManager, Clock clock, AiKeyProvider keys, WorkspaceApi workspace,
@@ -83,6 +85,12 @@ public class ProductOwnerAgent {
         this.catalog = catalog;
         this.tx = new TransactionTemplate(txManager);
         this.clock = clock;
+    }
+
+    /** El equipo del tablero: el reparto solo ofrece sus roles. Sin él (pruebas), todos los que escriben código. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setTeam(@org.springframework.context.annotation.Lazy BoardTeam team) {
+        this.team = team;
     }
 
     /** Punto de entrada: un issue se asignó a alguien. Trabaja dentro del espacio del evento. */
@@ -148,13 +156,23 @@ public class ProductOwnerAgent {
             String summary;
             try {
                 summary = applyProposal(agent.get(), requester.get(), context, result);
-            } catch (SplitRejected e) {
-                // El reparto no pasó las reglas del tablero (p. ej. una tarea para un rol que no escribe código): se le
-                // devuelve el motivo al modelo una vez para que lo corrija, en vez de dejar la épica trabada.
-                log.info("{} rehace el reparto de {}: {}", agent.get().name(), event.issueKey(), e.getMessage());
-                PoContext retry = context.withNote("Tablero", "Tu reparto anterior no se pudo crear: " + e.getMessage() + " Corrígelo y vuelve a repartir.");
+            } catch (Correctable e) {
+                // La propuesta no pasó las reglas del tablero (un reparto con un rol que no escribe código, una épica sin el
+                // diagrama de la solución): se le devuelve el motivo al modelo una vez para que lo corrija, en vez de trabarla.
+                log.info("{} corrige su propuesta de {}: {}", agent.get().name(), event.issueKey(), e.getMessage());
+                PoContext retry = context.withNote("Tablero", e.getMessage() + " Corrígelo y vuelve a proponer.");
                 ProductOwnerModel.Result second = model.propose(key.get(), chosen, effort, retry);
-                summary = applyProposal(agent.get(), requester.get(), retry, second);
+                try {
+                    summary = applyProposal(agent.get(), requester.get(), retry, second);
+                } catch (Correctable again) {
+                    // Tampoco a la segunda: lo dice en la tarjeta y se la devuelve a la persona, en vez de fallar en silencio.
+                    tx.executeWithoutResult(s -> {
+                        issues.addComment(event.issueKey(), agent.get().id(), "**" + agent.get().name() + ":** no pude cerrar mi parte. " + again.getMessage()
+                                + " Revísalo y vuelve a asignármelo.");
+                        issues.reassign(event.issueKey(), requester.get().id(), agent.get().id());
+                    });
+                    summary = "no pudo cerrar: " + again.getMessage() + " · devuelto a " + requester.get().name();
+                }
                 result = new ProductOwnerModel.Result(second.proposal(), second.model(), result.inputTokens() + second.inputTokens(),
                         result.outputTokens() + second.outputTokens());
             }
@@ -168,9 +186,9 @@ public class ProductOwnerAgent {
         }
     }
 
-    /** El reparto de la propuesta no se pudo crear: el modelo puede corregirlo. */
-    static final class SplitRejected extends AgentModelException {
-        SplitRejected(String message, Throwable cause) {
+    /** La propuesta no cumple una regla del tablero (el reparto, el diagrama): el modelo puede corregirla. */
+    static final class Correctable extends AgentModelException {
+        Correctable(String message, Throwable cause) {
             super(message, cause);
         }
     }
@@ -180,7 +198,25 @@ public class ProductOwnerAgent {
         if (context.splitsIntoTasks() && proposal.tasks().isEmpty()) {
             throw new AgentModelException("El plan de la épica llegó sin tareas; reintenta para que reparta el trabajo.");
         }
+        // La etapa no deja salir la épica sin el diagrama: se revisa antes de tocar nada, para poder corregirlo.
+        if (proposal.openQuestions().isEmpty() && Boolean.TRUE.equals(tx.execute(s -> needsDiagram(context.issue().key())))
+                && !hasMermaid(proposal.document()) && !hasMermaid(context.existingDocContent())) {
+            throw new Correctable("El tablero no deja salir " + context.issue().key() + " sin el diagrama de la solución: tu documento debe llevar la sección"
+                    + " «Diagrama de la solución» con un bloque ```mermaid de la solución completa.", null);
+        }
         return tx.execute(s -> apply(agent, requester, context, proposal));
+    }
+
+    /** Una épica en una etapa que pide el diagrama de la solución para salir. */
+    private boolean needsDiagram(String key) {
+        return issues.context(key).filter(i -> "EPIC".equals(i.type()))
+                .flatMap(i -> projects.find(i.projectKey()).flatMap(p -> p.stage(i.status())))
+                .map(st -> st.requires().stream().anyMatch(r -> r.kind() == ec.kuador.board.catalog.Requirement.Kind.DIAGRAM))
+                .orElse(false);
+    }
+
+    private static boolean hasMermaid(String text) {
+        return text != null && text.contains("```mermaid");
     }
 
     PoContext buildContext(MemberView agent, AgentRole role, String issueKey) {
@@ -212,6 +248,14 @@ public class ProductOwnerAgent {
                 d.agentInstructions())).orElse(null);
         String existing = task == null ? null : allDocs.stream()
                 .filter(d -> issueKey.equals(d.issueKey()) && task.kind().equals(d.kind())).map(DocsApi.DocContent::content).findFirst().orElse(null);
+        // Lo que otros roles ya dejaron en la tarjeta (p. ej. las pantallas de UI/UX antes del Arquitecto): se planifica con eso.
+        List<PoContext.Doc> cardDocs = allDocs.stream()
+                .filter(d -> issueKey.equals(d.issueKey()) && (task == null || !task.kind().equals(d.kind())))
+                .map(d -> new PoContext.Doc(d.kind(), d.title(), d.path(), d.content())).toList();
+        if (!cardDocs.isEmpty()) {
+            projectDocs = new java.util.ArrayList<>(projectDocs);
+            projectDocs.addAll(cardDocs);
+        }
         PoContext.Issue epic = issue.parentKey() == null ? null : issues.context(issue.parentKey()).map(ProductOwnerAgent::view).orElse(null);
         AgentPolicy policy = catalog.agentPolicy();
         WorkspaceApi.Identity company = workspace.identity();
@@ -224,19 +268,34 @@ public class ProductOwnerAgent {
         String column = project.column(issue.status()).map(c -> c.name()).orElse(issue.status());
         PoContext.Issue current = new PoContext.Issue(issue.key(), issue.title(), issue.description(), issue.type(), column,
                 issue.priority(), issue.storyPoints(), issue.labels());
-        return new PoContext(agent.name(), agent.description(), role.instructions(), project.key(), project.name(), project.kind().name(),
+        PoContext context = new PoContext(agent.name(), agent.description(), role.instructions(), project.key(), project.name(), project.kind().name(),
                 methodology.map(Methodology::name).orElse(null), methodology.map(Methodology::summary).orElse(null),
                 methodology.map(Methodology::agentRules).orElse(List.of()), projectDocs, current, epic, comments, task, existing, taskRoles(issue, project),
                 new PoContext.Guide(AgentRules.common(policy, company.teamLanguage(), company.codeLanguage()), policy.rules().proposalFields(),
                         policy.rules().document(), policy.rules().taskSplit()));
+        return needsDiagram(issueKey)
+                ? context.withNote("Tablero", "Esta épica no sale de «" + column + "» sin el diagrama de la solución: tu documento lleva la sección"
+                        + " «Diagrama de la solución» con un bloque ```mermaid de la solución completa (módulos, piezas y cómo se comunican).")
+                : context;
     }
 
     /** En una épica que después de esta etapa se trabaja, los roles con que se reparte; si no, ninguno. */
     private List<String> taskRoles(IssueApi.IssueContext issue, ProjectView project) {
         if (!"EPIC".equals(issue.type()) || !project.epicSplitsInto(issue.status())) return List.of();
-        // Solo los roles que escriben en el repo: una tarea de arquitecto o de PO nunca abriría su rama ni su PR.
+        // Solo los roles que escriben en el repo: una tarea de arquitecto o de PO nunca abriría su rama ni su PR. Y del
+        // equipo del tablero: un rol que no está en el equipo nadie lo tomaría.
         List<AgentRole> coders = catalog.roles().stream().filter(AgentRole::worksOnCode).toList();
-        return (coders.isEmpty() ? catalog.roles() : coders).stream().map(r -> r.key() + ": " + r.name()).toList();
+        Set<String> board = teamRoles(project.key());
+        List<AgentRole> ofTeam = coders.stream().filter(r -> board.contains(r.key())).toList();
+        List<AgentRole> offered = !ofTeam.isEmpty() ? ofTeam : coders.isEmpty() ? catalog.roles() : coders;
+        return offered.stream().map(r -> r.key() + ": " + r.name()).toList();
+    }
+
+    /** Los roles del equipo del tablero (vacío si no se sabe). */
+    private Set<String> teamRoles(String projectKey) {
+        if (team == null) return Set.of();
+        List<BoardTeam.TeamAgent> agents = team.team(projectKey);
+        return agents.stream().filter(BoardTeam.TeamAgent::inTeam).map(BoardTeam.TeamAgent::role).collect(java.util.stream.Collectors.toSet());
     }
 
     /** Acciones deterministas a partir de la propuesta. Devuelve el resumen para el registro. */
@@ -260,7 +319,7 @@ public class ProductOwnerAgent {
             try {
                 created = issues.createEpicTasks(key, planned, agent.id());
             } catch (ec.kuador.board.shared.error.DomainException e) {
-                throw new SplitRejected("No pude crear las tareas del plan: " + e.getMessage(), e);
+                throw new Correctable("Tu reparto anterior no se pudo crear: " + e.getMessage(), e);
             }
             StringBuilder note = new StringBuilder("🧩 Repartí la épica en ").append(created.size()).append(" tarea(s); arrancan cuando apruebes el reparto:");
             for (int i = 0; i < created.size(); i++) {

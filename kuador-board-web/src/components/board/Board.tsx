@@ -16,7 +16,7 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ArrowRight, Check, ListChecks, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { clsx } from "clsx";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
@@ -32,13 +32,14 @@ import { notify } from "@/components/ui/Toaster";
 import { allowedTypes, typeLabel } from "@/lib/labels";
 import { useAccess } from "@/components/shell/AccessContext";
 import { roleLabel } from "@/lib/labels";
-import type { AgentMode, AgentRole, AgentRun, BoardColumn, CardPlan, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
+import type { AgentMode, AgentRole, AgentRun, BoardColumn, BoardView, CardPlan, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
 
 import { AddColumn, Column, type ColumnActions, type Selection } from "./Column";
 import { COLUMN_DROP_PREFIX } from "./dnd";
 import { IssueCard } from "./IssueCard";
 import { IssueDetail } from "./IssueDetail";
 import { IssueForm, emptyValues } from "./IssueForm";
+import { ViewSwitch } from "./ViewSwitch";
 
 type Columns = Record<IssueStatus, string[]>;
 
@@ -68,9 +69,12 @@ export function Board({
   initialOpenKey,
   modes = {},
   everyone,
+  history,
 }: {
   project: Project;
   issues: Issue[];
+  /** Lo que el tablero no trae de las columnas de cierre: totales, avance de las épicas y títulos de las que no vienen. */
+  history?: Pick<BoardView, "totals" | "progress" | "parents">;
   members: Member[];
   /** Ejecuciones recientes de agentes: las que siguen en curso se ven en su tarjeta. */
   runs: AgentRun[];
@@ -97,8 +101,8 @@ export function Board({
   const byKey = new Map(issues.map((i) => [i.key, i]));
   const memberById = new Map(members.map((m) => [m.id, m]));
   const epics = issues.filter((i) => i.type === "EPIC");
-  const epicTitles = new Map(epics.map((e) => [e.key, e.title]));
-  const plans = cardPlans(issues, byKey, project, roleName);
+  const epicTitles = new Map([...Object.entries(history?.parents ?? {}), ...epics.map((e) => [e.key, e.title] as [string, string])]);
+  const plans = cardPlans(issues, byKey, project, roleName, history?.progress);
   const working = new Map(
     runs.filter((r) => r.status === "RUNNING" && r.projectKey === project.key).flatMap((r) => {
       const agent = memberById.get(r.agentId);
@@ -379,6 +383,16 @@ export function Board({
   }
 
   const openIssue = openKey ? byKey.get(openKey) : undefined;
+  // Una tarjeta que el tablero no trajo (terminada hace tiempo): se pide a la página con ella en la URL, una vez.
+  const router = useRouter();
+  const asked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!openKey || openIssue || asked.current === openKey) return;
+    asked.current = openKey;
+    const url = new URL(window.location.href);
+    url.searchParams.set("issue", openKey);
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [openKey, openIssue, router]);
   const activeIssue = activeKey ? byKey.get(activeKey) : undefined;
   const filtering = Boolean(query || assignee || type);
   const clearFilters = () => {
@@ -449,12 +463,13 @@ export function Board({
             Limpiar filtros
           </Button>
         )}
+        <ViewSwitch projectKey={project.key} view="board" className="md:ml-auto" />
         {canEdit && (
           <Button
             tone={selecting ? "primary" : "ghost"}
             size="sm"
             icon={ListChecks}
-            className="md:ml-auto"
+            className=""
             aria-pressed={selecting}
             title={selecting ? "Salir de la selección (Esc)" : "Marcar varias tarjetas para cambiarlas de columna (también ⌘/Ctrl + clic)"}
             onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
@@ -577,7 +592,8 @@ export function Board({
               working={working}
               onOpen={showIssue}
               onCreate={canEdit ? setCreatingIn : undefined}
-              showAll={filtering}
+              total={column.category === "DONE" ? history?.totals[column.key] : undefined}
+              listHref={`/projects/${project.key}?view=list&status=${encodeURIComponent(column.key)}`}
               selection={canEdit ? { ...selection, active: selecting } : undefined}
             />
           ))}
@@ -695,7 +711,14 @@ export function Board({
 }
 
 /** Plan de las épicas en las tarjetas: rol de cada tarea, a qué tareas espera, cuántas terminó cada épica y si su reparto espera aprobación. */
-function cardPlans(issues: Issue[], byKey: Map<string, Issue>, project: Project, roleName: (key: string) => string): Map<string, CardPlan> {
+function cardPlans(
+  issues: Issue[],
+  byKey: Map<string, Issue>,
+  project: Project,
+  roleName: (key: string) => string,
+  /** Avance de cada épica contado en la API: las tareas terminadas pueden no venir en {@code issues}. */
+  counted?: Record<string, { done: number; total: number }>,
+): Map<string, CardPlan> {
   const done = new Set(project.columns.filter((c) => c.category === "DONE").map((c) => c.key));
   const first = project.columns[0]?.key;
   const plans = new Map<string, CardPlan>();
@@ -715,10 +738,14 @@ function cardPlans(issues: Issue[], byKey: Map<string, Issue>, project: Project,
       const awaiting = issue.status === first && !!stage && !stage.gate && stage.roles.length > 0;
       plans.set(epic.key, {
         ...current,
-        progress: { done: progress.done + (done.has(issue.status) ? 1 : 0), total: progress.total + 1 },
+        progress: counted?.[epic.key] ?? { done: progress.done + (done.has(issue.status) ? 1 : 0), total: progress.total + 1 },
         planPending: current.planPending || awaiting,
       });
     }
+  }
+  // Una épica con todas sus tareas terminadas (y fuera de la vista) igual muestra su avance.
+  for (const [key, progress] of Object.entries(counted ?? {})) {
+    if (byKey.has(key) && !plans.get(key)?.progress) plans.set(key, { ...plans.get(key), progress });
   }
   return plans;
 }

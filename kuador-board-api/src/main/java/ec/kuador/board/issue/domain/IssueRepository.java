@@ -14,6 +14,36 @@ public interface IssueRepository {
     /** Issues del proyecto ordenados por posición (el orden de columnas lo pone quien conoce el flujo). */
     List<Issue> findByProject(String projectKey, IssueFilter filter);
 
+    /** Issues del proyecto que NO están en esas columnas (las de trabajo en curso), por posición. */
+    default List<Issue> findOutside(String projectKey, List<String> statuses) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** Los últimos que cambiaron en una columna, del más reciente al más antiguo. */
+    default List<Issue> findLatestInColumn(String projectKey, String status, int limit) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** Cuántos issues hay en cada columna del proyecto. */
+    default java.util.Map<String, Long> countByStatus(String projectKey) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** Por épica: cuántas de sus tareas hay ({@code [1]}) y cuántas están en esas columnas de cierre ({@code [0]}). */
+    default java.util.Map<String, long[]> epicProgress(String projectKey, List<String> doneStatuses) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** Títulos de esas tarjetas, por clave. */
+    default java.util.Map<String, String> titles(java.util.Collection<String> keys) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** La vista de lista: filtrada, ordenada y paginada en la base. */
+    default IssuePage search(String projectKey, IssueQuery query) {
+        throw new UnsupportedOperationException();
+    }
+
     /** Issues de una columna ordenados por posición. */
     List<Issue> findColumn(String projectKey, String status);
 

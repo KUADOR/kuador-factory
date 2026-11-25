@@ -1,16 +1,30 @@
 import type { Metadata } from "next";
 
 import { Board } from "@/components/board/Board";
+import { IssueList } from "@/components/board/IssueList";
 import { SetupBanner } from "@/components/project/SetupBanner";
-import { boardApi } from "@/lib/api";
+import { ApiError, boardApi } from "@/lib/api";
 import { canEdit } from "@/lib/access";
 import { setupDone, setupSteps } from "@/lib/onboarding";
 import { failPage } from "@/lib/page-errors";
-import type { Project } from "@/lib/types";
+import type { BoardView, IssueListQuery, IssueSort, Project } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ key: string }>; searchParams: Promise<{ issue?: string }> };
+type Search = { issue?: string; view?: string; q?: string; status?: string; assigneeId?: string; type?: string; label?: string; sort?: string; dir?: string; page?: string };
+type Props = { params: Promise<{ key: string }>; searchParams: Promise<Search> };
+
+const SORTS: IssueSort[] = ["key", "title", "type", "status", "priority", "updated"];
+
+/** El tablero sin el historial; con una API anterior a esta web, el listado completo de siempre. */
+async function loadBoard(projectKey: string): Promise<BoardView> {
+  try {
+    return await boardApi.board(projectKey);
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.status !== 404) throw e;
+    return { issues: await boardApi.issues(projectKey), totals: {}, progress: {}, parents: {}, doneVisible: 0 };
+  }
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { key } = await params;
@@ -19,24 +33,41 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function BoardPage({ params, searchParams }: Props) {
   const { key } = await params;
-  const { issue } = await searchParams;
+  const search = await searchParams;
+  const { issue } = search;
   const projectKey = key.toUpperCase();
+  const listing = search.view === "list";
+  const query: IssueListQuery = {
+    q: search.q?.trim() || undefined,
+    status: search.status || undefined,
+    assigneeId: search.assigneeId || undefined,
+    type: search.type || undefined,
+    label: search.label?.trim() || undefined,
+    sort: SORTS.includes(search.sort as IssueSort) ? (search.sort as IssueSort) : "updated",
+    dir: search.dir === "asc" ? "asc" : "desc",
+    page: Math.max(0, Number.parseInt(search.page ?? "0", 10) || 0),
+  };
   let data;
   try {
     data = await Promise.all([
       boardApi.project(projectKey),
-      boardApi.issues(projectKey),
+      loadBoard(projectKey),
       boardApi.members(),
       boardApi.agentRuns({ limit: 50 }).catch(() => []),
       boardApi.me(),
       boardApi.catalog("roles"),
       boardApi.boardTeam(projectKey).catch(() => null),
       boardApi.boardPeople(projectKey).catch(() => null),
+      listing ? boardApi.searchIssues(projectKey, { ...query, size: 50 }) : null,
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, issues, everyone, runs, me, roles, team, people] = data;
+  const [project, board, everyone, runs, me, roles, team, people, page] = data;
+  // Una tarjeta enlazada que el tablero no trajo (terminada hace tiempo) se pide aparte, para poder abrirla.
+  const wanted = issue?.toUpperCase();
+  const linked = wanted && !board.issues.some((i) => i.key === wanted) ? await boardApi.issue(wanted).catch(() => null) : null;
+  const issues = linked && linked.projectKey === project.key ? [...board.issues, linked] : board.issues;
   // En este tablero se asignan sus personas y su equipo de agentes; se conservan quienes ya tienen tarjetas aquí.
   const teamIds = new Set((team ?? []).filter((a) => a.inTeam).map((a) => a.id));
   const peopleIds = people == null ? null : new Set(people.filter((p) => p.inBoard).map((p) => p.id));
@@ -45,10 +76,28 @@ export default async function BoardPage({ params, searchParams }: Props) {
     m.kind === "HUMAN" ? peopleIds == null || peopleIds.has(m.id) || assigned.has(m.id) : team == null || teamIds.has(m.id) || assigned.has(m.id),
   );
   const pending = canEdit(me) ? await pendingSetup(project, issues.length) : 0;
+  const modes = Object.fromEntries((team ?? []).map((a) => [a.id, a.mode]));
+  if (page) {
+    return (
+      <IssueList
+        project={project}
+        page={page}
+        query={query}
+        members={members}
+        everyone={everyone}
+        epics={issues.filter((i) => i.type === "EPIC")}
+        runs={runs}
+        me={me}
+        roles={roles}
+        modes={modes}
+      />
+    );
+  }
   return (
     <>
       <SetupBanner projectKey={project.key} pending={pending} />
       <Board
+        history={board}
         project={project}
         issues={issues}
         members={members}
@@ -56,7 +105,7 @@ export default async function BoardPage({ params, searchParams }: Props) {
         me={me}
         roles={roles}
         initialOpenKey={issue?.toUpperCase()}
-        modes={Object.fromEntries((team ?? []).map((a) => [a.id, a.mode]))}
+        modes={modes}
         everyone={everyone}
       />
     </>

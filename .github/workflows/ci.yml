@@ -191,6 +191,40 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
 
+  # La web de verdad contra la API de verdad y una base desechable: los recorridos que no pueden romperse (entrar, el
+  # tablero, la lista, el flujo). El mismo script que se corre en una PC (kuador-board-web/e2e/entorno.sh).
+  e2e:
+    needs: branches
+    if: >
+      needs.branches.outputs.mode != 'promote' && needs.branches.outputs.mode != 'release' &&
+      needs.branches.outputs.tested != 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kuador-board-web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: kuador-board-web/.nvmrc
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+        env:
+          E2E_BUILD: '1'
+      - name: Guardar las trazas si algo falló
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-resultados
+          path: kuador-board-web/e2e/resultados
+          retention-days: 7
+
   # El runner (npx @kuador-npm/runner): sin dependencias. Linux en los PR; Windows en develop (y Linux si el PR no lo
   # probó ya). macOS no (en un repo privado sus minutos cuestan 10 veces más y la cuenta no tiene esos runners).
   runner:
@@ -239,7 +273,7 @@ jobs:
   # repita estas pruebas si el merge da el mismo código. En PRs de Dependabot el token no puede escribir: sin marca,
   # develop prueba de nuevo.
   tested:
-    needs: [branches, api, web, runner, security]
+    needs: [branches, api, web, e2e, runner, security]
     if: github.event_name == 'pull_request' && github.base_ref == 'develop' && needs.branches.outputs.mode == 'test'
     runs-on: ubuntu-latest
     permissions:
@@ -285,8 +319,8 @@ jobs:
   # Con todo en verde: publica en GHCR con su SHA (y «develop» o «latest» según la rama). Las capas ya están en la
   # caché que dejó «image», así que aquí solo se arman y se suben.
   publish:
-    needs: [branches, api, web, runner, security, image]
-    # api, web y security pueden venir saltados (el PR ya probó este código); fallados o cancelados, nunca.
+    needs: [branches, api, web, e2e, runner, security, image]
+    # api, web, e2e y security pueden venir saltados (el PR ya probó este código); fallados o cancelados, nunca.
     if: >
       !cancelled() && (needs.branches.outputs.mode == 'integrate' || needs.branches.outputs.mode == 'full') &&
       !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')

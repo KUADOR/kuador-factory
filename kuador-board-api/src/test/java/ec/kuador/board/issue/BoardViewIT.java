@@ -124,4 +124,49 @@ class BoardViewIT {
         assertThat(call("GET", "/api/projects/TAB/issues/search?q=100%25", null, owner).get("total").asLong()).as("el % se busca tal cual").isZero();
         assertThat(call("GET", "/api/projects/TAB/issues/search?size=1000", null, owner).get("size").asInt()).as("la página tiene tope").isEqualTo(100);
     }
+
+    /** La salud dice qué réplica respondió: así se cuentan desde fuera. Solo ahí. */
+    @Test
+    void healthAnswersWithTheReplicaThatServedIt() throws Exception {
+        var ready = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/readyz")).build(), HttpResponse.BodyHandlers.ofString());
+        var again = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/readyz")).build(), HttpResponse.BodyHandlers.ofString());
+        var other = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/public/packages")).build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(ready.statusCode()).isEqualTo(200);
+        assertThat(ready.headers().firstValue("X-Kuador-Replica")).isPresent().get().asString().hasSize(8);
+        assertThat(again.headers().firstValue("X-Kuador-Replica")).as("la misma réplica, el mismo identificador").isEqualTo(ready.headers().firstValue("X-Kuador-Replica"));
+        assertThat(other.headers().firstValue("X-Kuador-Replica")).isEmpty();
+    }
+
+    /**
+     * Una ráfaga de cambios no deja a la API sin conexiones. Cada tarjeta creada dispara varios listeners; si alguno
+     * corriera en el hilo de la petición (que todavía tiene su conexión), con unas cuantas a la vez se agotaba el pool.
+     */
+    @Test
+    void aBurstOfChangesDoesNotExhaustTheConnections() throws Exception {
+        signup.requestCode("rafa@rafaga.test");
+        signup.complete(signup.verifyCode("rafa@rafaga.test", INBOX.get("rafa@rafaga.test")),
+                new SignupService.Company("Ráfaga", null, null, null, null, null), "Rafa", "clave-larga-de-prueba-1", "TEAM", null);
+        String owner = auth.login("rafa@rafaga.test", "clave-larga-de-prueba-1").token();
+        call("POST", "/api/projects", Map.of("key", "RAF", "name", "Ráfaga", "templateKey", "TASKS"), owner);
+        String first = call("GET", "/api/projects/RAF", null, owner).get("columns").get(0).get("key").asString();
+
+        int cards = 160;
+        java.util.concurrent.atomic.AtomicInteger failed = new java.util.concurrent.atomic.AtomicInteger();
+        long start = System.nanoTime();
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(16)) {
+            for (int i = 0; i < cards; i++) {
+                int n = i;
+                pool.submit(() -> {
+                    try {
+                        call("POST", "/api/projects/RAF/issues", Map.of("title", "Ráfaga " + n, "type", "TASK", "status", first), owner);
+                    } catch (Throwable e) {
+                        failed.incrementAndGet();
+                    }
+                });
+            }
+        }
+        assertThat(failed.get()).as("ninguna petición se quedó sin conexión").isZero();
+        assertThat(java.time.Duration.ofNanos(System.nanoTime() - start)).as("sin esperas de medio minuto").isLessThan(java.time.Duration.ofSeconds(20));
+        assertThat(call("GET", "/api/projects/RAF/issues/search?size=1", null, owner).get("total").asLong()).isEqualTo(cards);
+    }
 }

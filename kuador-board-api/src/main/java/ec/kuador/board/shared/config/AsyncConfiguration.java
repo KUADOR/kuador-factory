@@ -1,7 +1,6 @@
 package ec.kuador.board.shared.config;
 
 import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadPoolExecutor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -22,13 +21,13 @@ class AsyncConfiguration implements AsyncConfigurer {
     @Bean(name = {"applicationTaskExecutor", "taskExecutor"})
     @Primary
     ThreadPoolTaskExecutor applicationTaskExecutor() {
-        return pool("eventos-", 8, 16, 500);
+        return pool("eventos-", 8);
     }
 
     /** Avisos a personas (correo, Telegram, push): dependen de servicios de afuera, que a veces tardan. */
     @Bean(AsyncExecutors.NOTICES)
     ThreadPoolTaskExecutor noticesExecutor() {
-        return pool("avisos-", 4, 8, 1000);
+        return pool("avisos-", 4);
     }
 
     /**
@@ -47,14 +46,17 @@ class AsyncConfiguration implements AsyncConfigurer {
         return applicationTaskExecutor();
     }
 
-    /** Con la cola llena, lo corre quien lo pidió: va más lento, pero no se pierde. */
-    private static ThreadPoolTaskExecutor pool(String prefix, int core, int max, int queue) {
+    /**
+     * Hilos fijos y cola sin tope. Nunca «que lo corra quien lo pidió»: quien lo pide es la petición que acaba de
+     * confirmar su transacción y todavía tiene su conexión a la base; si además corre el listener, que pide otra, con
+     * unas cuantas peticiones así se agota el pool y la API se queda 30 s sin conexiones. Una cola larga solo atrasa
+     * lo secundario (actividad, avisos, tablero en vivo), y los eventos pendientes quedan registrados en la base.
+     */
+    private static ThreadPoolTaskExecutor pool(String prefix, int threads) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setThreadNamePrefix(prefix);
-        executor.setCorePoolSize(core);
-        executor.setMaxPoolSize(max);
-        executor.setQueueCapacity(queue);
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setCorePoolSize(threads);
+        executor.setMaxPoolSize(threads);
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(20);
         return executor;

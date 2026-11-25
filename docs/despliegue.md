@@ -44,8 +44,24 @@ las tablas en el primer arranque. Programa respaldos diarios en la pestaña **Ba
 
 ## 3. Servicio de la API
 
-**Application**, proveedor Docker, imagen `ghcr.io/<dueño>/kuador-board-api:latest`. **Réplicas: 1**
-(la caché de credenciales de GitHub y los estados de los flujos viven en memoria y en la base).
+**Application**, proveedor Docker, imagen `ghcr.io/<dueño>/kuador-board-api:latest`.
+
+**Réplicas: 1 o 2.** Con dos, un despliegue no corta el servicio y una réplica caída no deja la API abajo. La API
+está hecha para eso: las tareas programadas las corre una sola réplica a la vez (`cluster_lock`), el tablero en vivo y
+el aviso a los runners pasan entre réplicas por Postgres (LISTEN/NOTIFY), los frenos de intentos cuentan en la base y
+una ejecución de agente que se queda sin réplica se retoma sola. Cada réplica usa ~0,5 GB y 11 conexiones a Postgres.
+En **Advanced**:
+
+- **Cluster Settings → Replicas**: `2`.
+- **Resources → Memory Limit**: 1,5 GB (por réplica), para que la API nunca deje sin memoria a Postgres.
+- **Swarm Settings → Update Config**: una réplica por vez, la nueva antes de apagar la vieja, y vuelta atrás si no
+  arranca:
+  ```json
+  { "Parallelism": 1, "Delay": 10000000000, "Order": "start-first", "FailureAction": "rollback" }
+  ```
+
+La imagen trae su comprobación de salud (`/readyz`), así que no hace falta declararla en Dokploy. Para verlas:
+`docker service ls` muestra `2/2` en la línea de la API.
 
 **Domains**: `go-api.kuador.com`, path `/`, puerto `8091`, HTTPS.
 

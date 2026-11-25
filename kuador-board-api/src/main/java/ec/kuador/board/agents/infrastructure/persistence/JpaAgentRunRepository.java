@@ -21,8 +21,6 @@ interface SpringDataAgentRuns extends JpaRepository<AgentRunEntity, UUID> {
             """)
     List<AgentRunEntity> findRecent(UUID agentId, String issueKey, Limit limit);
 
-    List<AgentRunEntity> findByStatusAndCreatedAtBefore(AgentRun.Status status, Instant before);
-
     @org.springframework.data.jpa.repository.Modifying
     @Query("delete from AgentRunEntity r where r.workspaceId = :workspaceId and r.projectKey = :projectKey")
     void deleteByProject(UUID workspaceId, String projectKey);
@@ -33,10 +31,13 @@ class JpaAgentRunRepository implements AgentRunRepository {
 
     private final SpringDataAgentRuns jpa;
     private final org.springframework.context.ApplicationEventPublisher events;
+    private final ec.kuador.board.agents.application.LiveRuns live;
 
-    JpaAgentRunRepository(SpringDataAgentRuns jpa, org.springframework.context.ApplicationEventPublisher events) {
+    JpaAgentRunRepository(SpringDataAgentRuns jpa, org.springframework.context.ApplicationEventPublisher events,
+            ec.kuador.board.agents.application.LiveRuns live) {
         this.jpa = jpa;
         this.events = events;
+        this.live = live;
     }
 
     @Override
@@ -57,6 +58,8 @@ class JpaAgentRunRepository implements AgentRunRepository {
     @Override
     public void save(AgentRun run) {
         AgentRunEntity saved = jpa.save(AgentRunEntity.from(run));
+        // Mientras corre en esta réplica, se le renueva la señal de vida.
+        live.track(run);
         // Para la vista en vivo: quién empezó o terminó de trabajar. El espacio sale del contexto (el @TenantId de la
         // entidad recién se llena al escribir en la base).
         java.util.UUID workspace = ec.kuador.board.shared.tenant.TenantContext.current();
@@ -71,10 +74,5 @@ class JpaAgentRunRepository implements AgentRunRepository {
     @Override
     public List<AgentRun> findRecent(UUID agentId, String issueKey, int limit) {
         return jpa.findRecent(agentId, issueKey, Limit.of(limit)).stream().map(AgentRunEntity::toDomain).toList();
-    }
-
-    @Override
-    public List<AgentRun> findStuck(Instant before) {
-        return jpa.findByStatusAndCreatedAtBefore(AgentRun.Status.RUNNING, before).stream().map(AgentRunEntity::toDomain).toList();
     }
 }

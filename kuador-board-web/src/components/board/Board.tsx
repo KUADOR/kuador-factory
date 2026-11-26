@@ -14,7 +14,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { ArrowRight, Check, ListChecks, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Check, ListChecks, Plus, Search, SlidersHorizontal, Trash, X } from "lucide-react";
 import { clsx } from "clsx";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -22,7 +22,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 
 import { firstStageAhead } from "./nextStep";
-import { createIssueAction, moveIssueAction, updateColumnsAction } from "@/app/actions";
+import { createIssueAction, deleteIssuesAction, moveIssueAction, updateColumnsAction } from "@/app/actions";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { SelectInput, TextInput } from "@/components/ui/Field";
@@ -32,7 +33,7 @@ import { notify } from "@/components/ui/Toaster";
 import { allowedTypes, typeLabel } from "@/lib/labels";
 import { useAccess } from "@/components/shell/AccessContext";
 import { roleLabel } from "@/lib/labels";
-import type { AgentMode, AgentRole, AgentRun, BoardColumn, BoardView, CardPlan, ColumnCategory, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
+import type { AgentMode, AgentRole, AgentRun, BoardColumn, BoardView, CardPlan, ColumnCategory, DeletePlan, Issue, IssueStatus, IssueType, Me, Member, Project } from "@/lib/types";
 
 import { AddColumn, Column, type ColumnActions, type Selection } from "./Column";
 import { COLUMN_DROP_PREFIX } from "./dnd";
@@ -140,11 +141,14 @@ export function Board({
   const [, startColumns] = useTransition();
   const origin = useRef<Columns | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  // Selección de varias tarjetas para cambiarlas de columna de una vez.
+  // Selección de varias tarjetas para moverlas o borrarlas de una vez.
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [bulkTarget, setBulkTarget] = useState<string | null>(null);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  // Borrar las marcadas: primero la API dice qué se puede (la confirmación lo muestra), después se borra.
+  const [deletePlan, setDeletePlan] = useState<DeletePlan | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const stopSelecting = () => {
     setSelecting(false);
     setSelected(new Set());
@@ -382,6 +386,40 @@ export function Board({
     setSelected(new Set(failures.map((f) => f.key)));
   }
 
+  /** Pide a la API qué se borraría de lo marcado; si nada se puede, lo dice sin abrir la confirmación. */
+  async function askDelete() {
+    setDeleting(true);
+    const result = await deleteIssuesAction(project.key, [...selected], true);
+    setDeleting(false);
+    if (!result.ok) return notify.error("No se pudo revisar la selección", result.error);
+    const plan = result.data;
+    if (plan.deleted.length === 0) {
+      const reasons = Object.entries(plan.blocked);
+      return notify.error(reasons.length === 1 ? "No se puede borrar" : "No se puede borrar ninguna", reasonsText(reasons));
+    }
+    setDeletePlan(plan);
+  }
+
+  async function confirmDelete() {
+    if (!deletePlan) return;
+    setDeleting(true);
+    const result = await deleteIssuesAction(project.key, deletePlan.deleted, false);
+    setDeleting(false);
+    setDeletePlan(null);
+    if (!result.ok) return notify.error("No se pudo borrar", result.error);
+    const gone = result.data.deleted.length + result.data.withEpics.length;
+    const blocked = Object.entries(result.data.blocked);
+    const left = [...selected].filter((k) => !result.data.deleted.includes(k));
+    if (blocked.length === 0 && left.length === 0) {
+      notify.ok(`${gone} ${gone === 1 ? "tarjeta eliminada" : "tarjetas eliminadas"}`);
+      stopSelecting();
+      return;
+    }
+    notify.error(`${gone} eliminadas, ${left.length} no`, reasonsText(blocked));
+    // Quedan marcadas solo las que no se borraron, para revisarlas.
+    setSelected(new Set(left));
+  }
+
   const openIssue = openKey ? byKey.get(openKey) : undefined;
   // Una tarjeta que el tablero no trajo (terminada hace tiempo): se pide a la página con ella en la URL, una vez.
   const router = useRouter();
@@ -471,7 +509,7 @@ export function Board({
             icon={ListChecks}
             className=""
             aria-pressed={selecting}
-            title={selecting ? "Salir de la selección (Esc)" : "Marcar varias tarjetas para cambiarlas de paso (también ⌘/Ctrl + clic)"}
+            title={selecting ? "Salir de la selección (Esc)" : "Marcar varias tarjetas para moverlas o borrarlas (también ⌘/Ctrl + clic)"}
             onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
           >
             {selecting ? "Terminar selección" : "Seleccionar"}
@@ -670,9 +708,29 @@ export function Board({
           >
             Mover
           </Button>
-          <Button size="sm" tone="ghost" icon={X} iconOnly label="Cancelar selección" disabled={!!bulkProgress} onClick={stopSelecting} />
+          <Button
+            size="sm"
+            tone="ghost"
+            icon={Trash}
+            loading={deleting && !deletePlan}
+            disabled={selected.size === 0 || !!bulkProgress}
+            onClick={() => void askDelete()}
+          >
+            Eliminar
+          </Button>
+          <Button size="sm" tone="ghost" icon={X} iconOnly label="Cancelar selección" disabled={!!bulkProgress || deleting} onClick={stopSelecting} />
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deletePlan}
+        onCancel={() => setDeletePlan(null)}
+        title={deletePlan ? `¿Eliminar ${countLabel(deletePlan.deleted.length)}?` : ""}
+        message={deletePlan && <DeleteSummary plan={deletePlan} repository={project.capabilities.includes("REPOSITORY")} />}
+        confirmLabel="Eliminar"
+        pending={deleting}
+        onConfirm={() => void confirmDelete()}
+      />
 
       <SidePanel
         open={creatingIn != null}
@@ -748,4 +806,46 @@ function cardPlans(
     if (byKey.has(key) && !plans.get(key)?.progress) plans.set(key, { ...plans.get(key), progress });
   }
   return plans;
+}
+
+const countLabel = (n: number) => `${n} ${n === 1 ? "tarjeta" : "tarjetas"}`;
+
+/** Los motivos por los que algunas no se borran, cortos para un aviso. */
+function reasonsText(reasons: [string, string][]) {
+  return reasons
+    .slice(0, 3)
+    .map(([key, reason]) => `${key}: ${reason}`)
+    .join(" · ") + (reasons.length > 3 ? ` · y ${reasons.length - 3} más` : "");
+}
+
+/** Qué se borra y qué no, antes de confirmar. */
+function DeleteSummary({ plan, repository }: { plan: DeletePlan; repository: boolean }) {
+  const blocked = Object.entries(plan.blocked);
+  return (
+    <div className="grid gap-3 text-[13px]">
+      <p>
+        Se borran {plan.deleted.join(", ")} con sus comentarios
+        {plan.withEpics.length > 0 && (
+          <>
+            {" "}
+            y {plan.withEpics.length === 1 ? "la tarea en espera" : `las ${plan.withEpics.length} tareas en espera`} de sus épicas ({plan.withEpics.join(", ")})
+          </>
+        )}
+        . No se puede deshacer.
+      </p>
+      {blocked.length > 0 && (
+        <div>
+          <p className="font-medium text-fg-strong">No se borran:</p>
+          <ul className="mt-1 grid gap-0.5">
+            {blocked.map(([key, reason]) => (
+              <li key={key}>
+                <strong className="font-semibold">{key}</strong>: {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {repository && <p className="text-fg-muted">Si alguna tiene un PR abierto en GitHub, ciérralo allá: no se cierra solo.</p>}
+    </div>
+  );
 }

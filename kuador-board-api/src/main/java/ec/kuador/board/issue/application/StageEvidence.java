@@ -28,6 +28,11 @@ final class StageEvidence extends IssueSupport {
         this.evidence = evidence == null ? List.of() : evidence;
     }
 
+    /** Si un agente la está trabajando ahora, según quien lo sepa (las ejecuciones, las máquinas). */
+    boolean agentWorking(String issueKey) {
+        return evidence.stream().anyMatch(e -> e.agentWorking(issueKey));
+    }
+
     /**
      * En una épica, el primer rol de {@code epicFirst} de la etapa que todavía no escribió su documento y que algún agente
      * del espacio cubre. Vacío si ya pasaron todos (o no hay a quién esperar): entonces trabajan los roles de la etapa.

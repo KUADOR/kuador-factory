@@ -113,7 +113,7 @@ import type {
   AiModelPrice,
   AuditPage,
   AiProvider,
-  AiUsageReport, CardPull, Decision, Merged, PushSubscriptionInput, DraftApproval, DraftApproved } from "./types";
+  AiUsageReport, CardPull, DeletePlan, Decision, Merged, PushSubscriptionInput, DraftApproval, DraftApproved } from "./types";
 
 const BASE_URL = process.env.BOARD_API_URL ?? "http://127.0.0.1:8091";
 
@@ -534,6 +534,8 @@ export const boardApi = {
   moveIssue: (key: string, status: IssueStatus, index: number) =>
     request<Issue>(`/api/issues/${encodeURIComponent(key)}/move`, json("POST", { status, index })),
   deleteIssue: (key: string) => request<void>(`/api/issues/${encodeURIComponent(key)}`, { method: "DELETE" }),
+  /** Varias juntas; con {@code preview} solo dice qué se borraría y qué no, sin borrar. */
+  deleteIssues: (keys: string[], preview: boolean) => request<DeletePlan>("/api/issues/bulk-delete", json("POST", { keys, preview })),
 
   issueActivity: (key: string) => request<Activity[]>(`/api/issues/${encodeURIComponent(key)}/activity`),
   projectActivity: (projectKey: string, limit = 100) =>

@@ -373,15 +373,20 @@ export async function createProjectAction(input: {
 // ---- Proyectos: aquello sobre lo que se trabaja (el tablero es el equipo y su flujo) ----
 
 export async function createSubjectAction(input: { name: string; description: string | null }): Promise<ActionResult<SubjectListing>> {
-  return run(() => boardApi.createSubject(input), "/projects");
+  return run(() => boardApi.createSubject(input), "/org/projects");
 }
 
 export async function updateSubjectAction(key: string, input: { name: string; description: string | null }): Promise<ActionResult<SubjectListing>> {
-  return run(() => boardApi.updateSubject(key, input), "/projects", true);
+  return run(() => boardApi.updateSubject(key, input), "/org/projects", true);
 }
 
 export async function deleteSubjectAction(key: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.deleteSubject(key), "/projects");
+  return run(() => boardApi.deleteSubject(key), "/org/projects");
+}
+
+/** El manual del proyecto: vale en todos los tableros que usan sus documentos. */
+export async function setSubjectMethodologyAction(key: string, methodology: string | null): Promise<ActionResult<SubjectListing>> {
+  return run(() => boardApi.setSubjectMethodology(key, methodology), `/org/projects/${key}`, true);
 }
 
 export async function addBoardSubjectAction(projectKey: string, input: { subjectKey: string } | { name: string }): Promise<ActionResult<Subject[]>> {

@@ -11,11 +11,21 @@ import org.springframework.stereotype.Repository;
 
 interface SpringDataDocumentRepository extends JpaRepository<DocumentEntity, UUID> {
 
-    List<DocumentEntity> findByProjectKeyAndSubjectKeyOrderByKindAscIssueKeyAsc(String projectKey, String subjectKey);
+    /** Los documentos base del proyecto (de todos sus tableros) y los de las tarjetas de este tablero en ese proyecto. */
+    @org.springframework.data.jpa.repository.Query("""
+            select d from DocumentEntity d where d.subjectKey = :subjectKey and (d.issueKey is null or d.projectKey = :projectKey)
+             order by d.kind, d.issueKey""")
+    List<DocumentEntity> findInBoard(String projectKey, String subjectKey);
+
+    List<DocumentEntity> findBySubjectKeyAndIssueKeyIsNullOrderByKind(String subjectKey);
+
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @org.springframework.data.jpa.repository.Query("delete from DocumentEntity d where d.projectKey = :projectKey and d.issueKey is not null")
+    int deleteCardsOf(String projectKey);
 
     List<DocumentEntity> findByIssueKeyOrderByKind(String issueKey);
 
-    boolean existsByProjectKeyAndSubjectKeyAndIssueKeyIsNullAndKind(String projectKey, String subjectKey, String kind);
+    boolean existsBySubjectKeyAndIssueKeyIsNullAndKind(String subjectKey, String kind);
 
     @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
     @org.springframework.data.jpa.repository.Query("update DocumentEntity d set d.subjectKey = :subjectKey where d.issueKey = :issueKey")
@@ -52,7 +62,17 @@ class JpaDocumentRepository implements DocumentRepository {
 
     @Override
     public List<Document> findByProject(String projectKey, String subjectKey) {
-        return docs.findByProjectKeyAndSubjectKeyOrderByKindAscIssueKeyAsc(projectKey, subjectKey).stream().map(DocumentEntity::toDomain).toList();
+        return docs.findInBoard(projectKey, subjectKey).stream().map(DocumentEntity::toDomain).toList();
+    }
+
+    @Override
+    public List<Document> findBase(String subjectKey) {
+        return docs.findBySubjectKeyAndIssueKeyIsNullOrderByKind(subjectKey).stream().map(DocumentEntity::toDomain).toList();
+    }
+
+    @Override
+    public void deleteCardsOf(String projectKey) {
+        docs.deleteCardsOf(projectKey);
     }
 
     @Override
@@ -63,7 +83,7 @@ class JpaDocumentRepository implements DocumentRepository {
     @Override
     public boolean exists(String projectKey, String subjectKey, String issueKey, String kind) {
         return issueKey == null
-                ? docs.existsByProjectKeyAndSubjectKeyAndIssueKeyIsNullAndKind(projectKey, subjectKey, kind)
+                ? docs.existsBySubjectKeyAndIssueKeyIsNullAndKind(subjectKey, kind)
                 : docs.existsByProjectKeyAndIssueKeyAndKind(projectKey, issueKey, kind);
     }
 

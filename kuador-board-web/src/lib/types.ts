@@ -6,10 +6,11 @@ export const PROJECT_KINDS = ["SOFTWARE", "GENERAL"] as const;
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
 
 /**
- * Lo que un tablero sabe hacer además del flujo: DOCUMENTS (manual de trabajo y documentos con versiones), REPOSITORY
- * (repositorio de código: piezas, PR, CI) y SPLIT (repartir una tarjeta grande en tareas).
+ * Lo que un tablero sabe hacer además del flujo: DOCUMENTS (documentos con versiones), PROJECT_DOCS (usa el manual y los
+ * documentos base de sus proyectos), REPOSITORY (repositorio de código: piezas, PR, CI) y SPLIT (repartir una tarjeta grande
+ * en tareas).
  */
-export const CAPABILITIES = ["DOCUMENTS", "REPOSITORY", "SPLIT"] as const;
+export const CAPABILITIES = ["DOCUMENTS", "PROJECT_DOCS", "REPOSITORY", "SPLIT"] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
 export const COLUMN_CATEGORIES = ["TODO", "IN_PROGRESS", "DONE"] as const;
@@ -460,6 +461,8 @@ export interface SubjectListing {
   description: string | null;
   createdAt: string;
   boards: string[];
+  /** Su manual de trabajo (vale en los tableros que usan los documentos del proyecto). */
+  methodology?: string | null;
 }
 
 /**

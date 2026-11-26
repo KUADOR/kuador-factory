@@ -65,7 +65,7 @@ public class DocumentService implements DocsApi {
     @Transactional(readOnly = true)
     public Overview overview(String projectKey) {
         ProjectView project = documentsBoard(projectKey);
-        return new Overview(project, catalog.methodology(project.methodology()).orElse(null), documents.findByProject(projectKey, projects.currentSubject(projectKey)));
+        return new Overview(project, catalog.methodology(project.methodology()).orElse(null), inBoard(projectKey));
     }
 
     @Transactional(readOnly = true)
@@ -202,7 +202,7 @@ public class DocumentService implements DocsApi {
     @Override
     @Transactional(readOnly = true)
     public List<DocContent> ofProject(String projectKey) {
-        return documents.findByProject(projectKey, projects.currentSubject(projectKey)).stream().map(d -> view(d, content(d.id(), d.currentVersion()))).toList();
+        return inBoard(projectKey).stream().map(d -> view(d, content(d.id(), d.currentVersion()))).toList();
     }
 
     @Override
@@ -332,6 +332,32 @@ public class DocumentService implements DocsApi {
         if (note == null || note.isBlank()) return null;
         String n = note.strip();
         return n.length() > 200 ? n.substring(0, 200) : n;
+    }
+
+    /**
+     * Los documentos que se ven desde un tablero en el proyecto de la petición: los de sus tarjetas y, si usa los del
+     * proyecto, los base.
+     */
+    private List<Document> inBoard(String projectKey) {
+        List<Document> all = documents.findByProject(projectKey, projects.currentSubject(projectKey));
+        return usesProjectDocuments(projectKey) ? all : all.stream().filter(d -> d.issueKey() != null).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> accessBoards(UUID documentId) {
+        return documents.findById(documentId).map(d -> d.issueKey() != null ? List.of(d.projectKey())
+                : projects.boardsOfSubject(d.subjectKey()).stream().filter(this::usesProjectDocuments).toList()).orElse(List.of());
+    }
+
+    private boolean usesProjectDocuments(String board) {
+        return projects.find(board).map(p -> p.capabilities().contains(ec.kuador.board.catalog.Capability.PROJECT_DOCS)).orElse(false);
+    }
+
+    /** Un tablero se borró: se van los documentos de sus tarjetas. Los base son del proyecto y quedan. */
+    @org.springframework.context.event.EventListener
+    void on(ec.kuador.board.project.ProjectDeleted event) {
+        documents.deleteCardsOf(event.projectKey());
     }
 
     @Override

@@ -90,18 +90,24 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Transactional(readOnly = true)
     public List<ProjectWithColumns> list() {
         return projects.findAll().stream().filter(p -> BoardScope.allows(p.key()))
-                .map(p -> new ProjectWithColumns(p, projects.findColumns(p.key()))).toList();
+                .map(p -> new ProjectWithColumns(scoped(p, null), projects.findColumns(p.key()))).toList();
     }
 
-    /** El tablero con el manual de trabajo del proyecto que mira la petición (si atiende varios). */
+    /** El tablero con el manual de trabajo del proyecto que mira la petición (o el de su primer proyecto). */
     private Project scoped(Project board) {
         return scoped(board, ec.kuador.board.shared.tenant.SubjectScope.current().orElse(null));
     }
 
+    /**
+     * El manual es del proyecto: el tablero lo toma del proyecto pedido, o del primero que atiende. Un tablero que no usa
+     * documentos (Marketing) no lo lleva: trabaja solo con los documentos de sus tarjetas.
+     */
     private Project scoped(Project board, String subjectKey) {
-        if (subjectKey == null) return board;
-        return subjects.ofBoard(board.key()).stream().filter(s -> s.key().equals(subjectKey)).findFirst()
-                .filter(s -> !java.util.Objects.equals(s.methodology(), board.methodology())).map(s -> board.withMethodology(s.methodology())).orElse(board);
+        List<ec.kuador.board.project.SubjectView> all = subjects.ofBoard(board.key());
+        if (all.isEmpty()) return board;
+        ec.kuador.board.project.SubjectView chosen = all.stream().filter(s -> s.key().equals(subjectKey)).findFirst().orElse(all.getFirst());
+        String methodology = board.can(Capability.PROJECT_DOCS) ? chosen.methodology() : null;
+        return java.util.Objects.equals(methodology, board.methodology()) ? board : board.withMethodology(methodology);
     }
 
     @Transactional(readOnly = true)
@@ -241,7 +247,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
      */
     @Transactional
     public ProjectWithColumns setCapabilities(String key, List<Capability> capabilities) {
-        Project project = load(key);
+        Project project = scoped(load(key), null);
         List<Capability> wanted = Capability.normalize(capabilities == null ? List.of() : capabilities);
         if (project.can(Capability.REPOSITORY) && !wanted.contains(Capability.REPOSITORY)) {
             throw new DomainException("Este tablero ya trabaja con un repositorio de código: eso no se apaga.");
@@ -249,9 +255,8 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         if (!project.can(Capability.REPOSITORY) && wanted.contains(Capability.REPOSITORY)) {
             throw new DomainException("El repositorio de código se elige al crear el tablero, con una plantilla de software.");
         }
-        if (project.methodology() != null && !wanted.contains(Capability.DOCUMENTS)) {
-            throw new DomainException("Este tablero tiene un manual de trabajo elegido: quítalo antes de apagar los documentos.");
-        }
+        // Sin los documentos del proyecto, el tablero deja de usar su manual (el manual sigue en el proyecto).
+        if (!wanted.contains(Capability.PROJECT_DOCS)) project = project.withMethodology(null);
         Project updated = project.withCapabilities(wanted);
         projects.updateCapabilities(key, updated.capabilities());
         return new ProjectWithColumns(updated, projects.findColumns(key));
@@ -275,9 +280,31 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         if (methodologyKey != null && !FREE_METHODOLOGY.equals(methodologyKey) && current.can(Capability.REPOSITORY)) {
             billing.requireFactory("Trabajar con un manual de trabajo");
         }
+        // Elegir el manual desde el tablero es usar el de su proyecto: el tablero pasa a trabajar con él.
+        if (methodologyKey != null && !current.can(Capability.PROJECT_DOCS)) {
+            List<Capability> with = new java.util.ArrayList<>(current.capabilities());
+            with.add(Capability.PROJECT_DOCS);
+            current = current.withCapabilities(Capability.normalize(with));
+            projects.updateCapabilities(key, current.capabilities());
+        }
         Project updated = current.withMethodology(methodologyKey); // valida que el tablero use documentos
         subjects.setMethodology(current, currentSubject(current.key()), methodologyKey);
         return new ProjectWithColumns(updated, projects.findColumns(key));
+    }
+
+    /**
+     * El manual de trabajo de un proyecto, elegido desde el proyecto: vale en todos los tableros que lo trabajan con
+     * documentos. Con un tablero de código entre ellos, es la fábrica de software (salvo el manual libre).
+     */
+    @Transactional
+    public void setSubjectMethodology(String subjectKey, String methodologyKey) {
+        if (methodologyKey != null && catalog.methodology(methodologyKey).isEmpty()) {
+            throw new NotFoundException("No existe el manual de trabajo " + methodologyKey + " en el catálogo.");
+        }
+        boolean code = subjects.boardsOf(subjectKey.toUpperCase(java.util.Locale.ROOT)).stream()
+                .anyMatch(b -> projects.findByKey(b).map(p -> p.can(Capability.REPOSITORY)).orElse(false));
+        if (methodologyKey != null && !FREE_METHODOLOGY.equals(methodologyKey) && code) billing.requireFactory("Trabajar con un manual de trabajo");
+        subjects.setMethodology(subjectKey, methodologyKey);
     }
 
     @Override
@@ -372,6 +399,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         if (m.administers()) throw new DomainException(m.name() + " administra el espacio: ve todos los tableros por su nivel.");
         people.remove(k, m.id());
         return people(k);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> boardsOfSubject(String subjectKey) {
+        return subjects.boardsOf(subjectKey);
     }
 
     @Override

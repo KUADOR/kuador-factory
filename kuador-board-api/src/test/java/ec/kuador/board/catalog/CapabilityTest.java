@@ -11,7 +11,8 @@ class CapabilityTest {
     @Test
     void whatWasSavedBeforeCapabilitiesKeepsWorking() {
         // Software lo tenía todo; los demás tableros ganan documentos y nada más cambia.
-        assertThat(Capability.defaultsFor(ProjectKind.SOFTWARE)).containsExactlyInAnyOrder(Capability.DOCUMENTS, Capability.REPOSITORY, Capability.SPLIT);
+        assertThat(Capability.defaultsFor(ProjectKind.SOFTWARE)).containsExactlyInAnyOrder(Capability.DOCUMENTS, Capability.PROJECT_DOCS, Capability.REPOSITORY,
+                Capability.SPLIT);
         assertThat(Capability.defaultsFor(ProjectKind.GENERAL)).containsExactly(Capability.DOCUMENTS);
         assertThat(InMemoryCatalog.factoryTemplate("SOFTWARE_FACTORY").can(Capability.REPOSITORY)).isTrue();
         assertThat(InMemoryCatalog.factoryTemplate("SALES").can(Capability.REPOSITORY)).isFalse();
@@ -29,7 +30,9 @@ class CapabilityTest {
 
     @Test
     void aRepositoryAlwaysCarriesDocuments() {
-        assertThat(Capability.normalize(List.of(Capability.REPOSITORY))).containsExactly(Capability.DOCUMENTS, Capability.REPOSITORY);
+        // El repositorio guarda los documentos del proyecto; usar los del proyecto es usar documentos.
+        assertThat(Capability.normalize(List.of(Capability.REPOSITORY))).containsExactly(Capability.DOCUMENTS, Capability.PROJECT_DOCS, Capability.REPOSITORY);
+        assertThat(Capability.normalize(List.of(Capability.PROJECT_DOCS))).containsExactly(Capability.DOCUMENTS, Capability.PROJECT_DOCS);
         assertThat(Capability.kindOf(List.of(Capability.REPOSITORY))).isEqualTo(ProjectKind.SOFTWARE);
     }
 }

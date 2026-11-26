@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public interface SyncRecordRepository {
 
-    /** El repositorio de un proyecto en un tablero. */
+    /** El repositorio de un proyecto (el mismo en todos los tableros que lo trabajan); {@code projectKey} no cuenta. */
     Optional<RepositoryLink> findLink(String projectKey, String subjectKey);
 
     /** Los repositorios de todos los proyectos del tablero. */

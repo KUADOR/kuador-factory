@@ -20,7 +20,7 @@ export function CapabilitiesForm({ project }: { project: Project }) {
       else notify.error("No se pudo cambiar", r.error);
     });
   };
-  const editable: Capability[] = capabilities.includes("REPOSITORY") ? ["SPLIT"] : ["DOCUMENTS", "SPLIT"];
+  const editable: Capability[] = capabilities.includes("REPOSITORY") ? ["SPLIT"] : ["DOCUMENTS", "PROJECT_DOCS", "SPLIT"];
   return (
     <div className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface">
       {editable.map((c) => (

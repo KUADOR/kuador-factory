@@ -30,21 +30,22 @@ class PiecePlans {
     }
 
     Optional<ComponentService.PiecePlan> find(String projectKey, String subjectKey) {
-        return jdbc.sql("select layout, pieces from piece_plan where workspace_id = ? and project_key = ? and subject_key = ?")
-                .params(TenantContext.require(), projectKey, subjectKey)
+        return jdbc.sql("select layout, pieces from piece_plan where workspace_id = ? and subject_key = ?")
+                .params(TenantContext.require(), subjectKey)
                 .query((rs, n) -> new ComponentService.PiecePlan(rs.getString(1), json.readValue(rs.getString(2), PIECES))).optional();
     }
 
     void save(String projectKey, String subjectKey, ComponentService.PiecePlan plan) {
         jdbc.sql("""
                 insert into piece_plan (workspace_id, project_key, subject_key, layout, pieces, updated_at) values (?, ?, ?, ?, ?, ?)
-                on conflict (workspace_id, project_key, subject_key) do update set layout = excluded.layout, pieces = excluded.pieces, updated_at = excluded.updated_at""")
+                on conflict (workspace_id, subject_key) do update set project_key = excluded.project_key, layout = excluded.layout, pieces = excluded.pieces,
+                    updated_at = excluded.updated_at""")
                 .params(TenantContext.require(), projectKey, subjectKey, plan.layout(), json.writeValueAsString(plan.pieces()), Timestamp.from(clock.instant()))
                 .update();
     }
 
     void delete(String projectKey, String subjectKey) {
-        jdbc.sql("delete from piece_plan where workspace_id = ? and project_key = ? and subject_key = ?")
-                .params(TenantContext.require(), projectKey, subjectKey).update();
+        jdbc.sql("delete from piece_plan where workspace_id = ? and subject_key = ?")
+                .params(TenantContext.require(), subjectKey).update();
     }
 }

@@ -144,11 +144,15 @@ class DocumentServiceTest {
         final List<DocumentVersion> versions = new ArrayList<>();
 
         public Optional<Document> findById(UUID id) { return Optional.ofNullable(docs.get(id)); }
-        public List<Document> findByProject(String p, String s) { return docs.values().stream().filter(d -> d.projectKey().equals(p) && d.subjectKey().equals(s)).toList(); }
+        public List<Document> findByProject(String p, String s) {
+            return docs.values().stream().filter(d -> d.subjectKey().equals(s) && (d.issueKey() == null || d.projectKey().equals(p))).toList();
+        }
+        public List<Document> findBase(String s) { return docs.values().stream().filter(d -> d.subjectKey().equals(s) && d.issueKey() == null).toList(); }
+        public void deleteCardsOf(String p) { docs.values().removeIf(d -> d.issueKey() != null && d.projectKey().equals(p)); }
         public void moveIssue(String i, String s) {}
         public List<Document> findByIssue(String i) { return docs.values().stream().filter(d -> i.equals(d.issueKey())).toList(); }
         public boolean exists(String p, String s, String i, String k) {
-            return docs.values().stream().anyMatch(d -> d.projectKey().equals(p) && d.subjectKey().equals(s) && Objects.equals(d.issueKey(), i) && d.kind().equals(k));
+            return docs.values().stream().anyMatch(d -> (i == null ? d.subjectKey().equals(s) : d.projectKey().equals(p)) && Objects.equals(d.issueKey(), i) && d.kind().equals(k));
         }
         public Document save(Document d) { docs.put(d.id(), d); return d; }
         public void saveVersion(DocumentVersion v) { versions.add(v); }

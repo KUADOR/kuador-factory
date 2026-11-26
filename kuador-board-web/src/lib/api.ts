@@ -196,6 +196,22 @@ async function withSubject(path: string): Promise<string> {
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
+/** Prefijo de una clave que nombra un proyecto (Organización → Proyectos) en vez de un tablero: «~GYM». */
+export const PROJECT_SCOPE = "~";
+
+/** La clave para pedir lo de un proyecto (repositorio, piezas, documentos base) desde el proyecto. */
+export const projectScope = (subjectKey: string) => PROJECT_SCOPE + subjectKey;
+
+/**
+ * Lo que es del proyecto (repositorio, piezas, sincronización, documentos) se pide por un tablero o por el proyecto mismo:
+ * las mismas rutas cuelgan de /api/projects/{tablero} y de /api/subjects/{proyecto}.
+ */
+function scopePath(key: string): string {
+  return key.startsWith(PROJECT_SCOPE)
+    ? `/api/subjects/${encodeURIComponent(key.slice(PROJECT_SCOPE.length))}`
+    : `/api/projects/${encodeURIComponent(key)}`;
+}
+
 export const kitQuery = (client: string, mcp: string[]) => new URLSearchParams([["client", client], ...mcp.map((k) => ["mcp", k])]).toString();
 
 /**
@@ -246,14 +262,14 @@ export const boardApi = {
   deleteRoutine: (id: string) => request<void>(`/api/routines/${encodeURIComponent(id)}`, { method: "DELETE" }),
   runRoutine: (id: string) => request<{ issueKey: string | null; skipped: string | null }>(`/api/routines/${encodeURIComponent(id)}/run`, { method: "POST" }),
   routineWebhook: (id: string) => request<{ secret: string }>(`/api/routines/${encodeURIComponent(id)}/webhook`, { method: "POST" }),
-  draftPlan: (key: string) => request<DraftPlan>(`/api/projects/${encodeURIComponent(key)}/drafting`),
+  draftPlan: (key: string) => request<DraftPlan>(`${scopePath(key)}/drafting`),
   draftAsk: (key: string, step: DraftStep, input: DraftInput, local: boolean) =>
-    request<DraftJob>(`/api/projects/${encodeURIComponent(key)}/drafting/${step}?local=${local}`, json("POST", input)),
+    request<DraftJob>(`${scopePath(key)}/drafting/${step}?local=${local}`, json("POST", input)),
   askBoardChat: (key: string, question: string, history: { role: string; text: string }[]) =>
     request<ChatAnswer>(`/api/projects/${encodeURIComponent(key)}/chat`, json("POST", { question, history })),
   draftJob: (id: string) => request<DraftJob>(`/api/drafting/jobs/${encodeURIComponent(id)}`),
   draftApprove: (key: string, approval: DraftApproval) =>
-    request<DraftApproved>(`/api/projects/${encodeURIComponent(key)}/drafting/approve`, json("POST", approval)),
+    request<DraftApproved>(`${scopePath(key)}/drafting/approve`, json("POST", approval)),
   projectGoal: (key: string) => request<{ goal: string | null }>(`/api/projects/${encodeURIComponent(key)}/goal`),
   saveProjectGoal: (key: string, goal: string) => request<{ goal: string | null }>(`/api/projects/${encodeURIComponent(key)}/goal`, json("PUT", { goal })),
   boardTeam: (key: string) => request<TeamAgent[]>(`/api/projects/${encodeURIComponent(key)}/team`),
@@ -366,6 +382,9 @@ export const boardApi = {
   createAgentInTeam: (id: string, input: { name: string; role: string; description: string | null; mode: AgentMode; model: string | null }) =>
     request<TeamAgent[]>(`/api/teams/${encodeURIComponent(id)}/agents`, json("POST", input)),
   subjects: () => request<SubjectListing[]>("/api/subjects"),
+  subject: (key: string) => request<SubjectListing>(`/api/subjects/${encodeURIComponent(key)}`),
+  setSubjectMethodology: (key: string, methodology: string | null) =>
+    request<SubjectListing>(`/api/subjects/${encodeURIComponent(key)}/methodology`, json("PUT", { methodology })),
   createSubject: (input: { name: string; description: string | null }) => request<SubjectListing>("/api/subjects", json("POST", input)),
   updateSubject: (key: string, input: { name: string; description: string | null }) =>
     request<SubjectListing>(`/api/subjects/${encodeURIComponent(key)}`, json("PUT", input)),
@@ -477,10 +496,10 @@ export const boardApi = {
   restoreCatalogEntry: <T extends CatalogType>(type: T, key: string) =>
     request<CatalogEntries[T]>(`/api/catalog/${type}/${encodeURIComponent(key)}/restore`, { method: "POST" }),
 
-  docsOverview: (projectKey: string) => request<DocsOverview>(`/api/projects/${encodeURIComponent(projectKey)}/docs`),
+  docsOverview: (projectKey: string) => request<DocsOverview>(`${scopePath(projectKey)}/docs`),
   issueDocs: (issueKey: string) => request<DocumentMeta[]>(`/api/issues/${encodeURIComponent(issueKey)}/docs`),
   createDoc: (projectKey: string, kind: DocumentKind, issueKey: string | null) =>
-    request<DocumentWithContent>(`/api/projects/${encodeURIComponent(projectKey)}/docs`, json("POST", { kind, issueKey })),
+    request<DocumentWithContent>(`${scopePath(projectKey)}/docs`, json("POST", { kind, issueKey })),
   doc: (id: string) => request<DocumentWithContent>(`/api/docs/${encodeURIComponent(id)}`),
   saveDoc: (id: string, baseVersion: number, content: string, note: string | null) =>
     request<DocumentWithContent>(`/api/docs/${encodeURIComponent(id)}`, json("PUT", { baseVersion, content, note })),
@@ -490,7 +509,7 @@ export const boardApi = {
   restoreDoc: (id: string, version: number, baseVersion: number) =>
     request<DocumentWithContent>(`/api/docs/${encodeURIComponent(id)}/versions/${version}/restore`, json("POST", { baseVersion })),
 
-  repository: (key: string) => request<RepositoryLink>(`/api/projects/${encodeURIComponent(key)}/repository`),
+  repository: (key: string) => request<RepositoryLink>(`${scopePath(key)}/repository`),
   github: () => request<GitHubOverview>("/api/github"),
   githubManifest: (appName: string, organization: string | null) =>
     request<{ postUrl: string; manifest: string }>("/api/github/app/manifest", json("POST", { appName, organization })),
@@ -499,36 +518,36 @@ export const boardApi = {
   githubCompleteInstall: (installationId: number, code: string, state: string) =>
     request<GitHubConnection>("/api/github/installations", json("POST", { installationId, code, state })),
   githubDisconnect: (installationId: number) => request<void>(`/api/github/installations/${installationId}`, { method: "DELETE" }),
-  pieces: (key: string) => request<ProjectPiece[]>(`/api/projects/${encodeURIComponent(key)}/components`),
+  pieces: (key: string) => request<ProjectPiece[]>(`${scopePath(key)}/components`),
   updatePiece: (key: string, name: string, input: PieceUpdate) =>
-    request<ProjectPiece>(`/api/projects/${encodeURIComponent(key)}/components/${encodeURIComponent(name)}`, json("PUT", input)),
-  piecePlan: async (key: string) => (await request<PiecePlan | undefined>(`/api/projects/${encodeURIComponent(key)}/components/plan`)) ?? null,
-  savePiecePlan: (key: string, plan: PiecePlan) => request<PiecePlan>(`/api/projects/${encodeURIComponent(key)}/components/plan`, json("PUT", plan)),
-  setupPieces: (key: string, input: PiecesSetup) => request<SetupResult>(`/api/projects/${encodeURIComponent(key)}/components/setup`, json("POST", input)),
+    request<ProjectPiece>(`${scopePath(key)}/components/${encodeURIComponent(name)}`, json("PUT", input)),
+  piecePlan: async (key: string) => (await request<PiecePlan | undefined>(`${scopePath(key)}/components/plan`)) ?? null,
+  savePiecePlan: (key: string, plan: PiecePlan) => request<PiecePlan>(`${scopePath(key)}/components/plan`, json("PUT", plan)),
+  setupPieces: (key: string, input: PiecesSetup) => request<SetupResult>(`${scopePath(key)}/components/setup`, json("POST", input)),
   addPiece: (key: string, piece: PieceInput, privateRepo: boolean) =>
-    request<SetupResult>(`/api/projects/${encodeURIComponent(key)}/components`, json("POST", { piece, privateRepo })),
+    request<SetupResult>(`${scopePath(key)}/components`, json("POST", { piece, privateRepo })),
   linkRepository: (
     key: string,
     input: { kind: RepositoryKind; location: string; branch: string | null; token: string | null; installationId?: number | null },
   ) =>
-    request<RepositoryLink>(`/api/projects/${encodeURIComponent(key)}/repository`, json("PUT", input)),
+    request<RepositoryLink>(`${scopePath(key)}/repository`, json("PUT", input)),
   unlinkRepository: (key: string) =>
-    request<void>(`/api/projects/${encodeURIComponent(key)}/repository`, { method: "DELETE" }),
-  agentKitStatus: (key: string) => request<RepoKit[]>(`/api/projects/${encodeURIComponent(key)}/sync/agent-kit`),
-  proposeAgentKit: (key: string) => request<RepoKit[]>(`/api/projects/${encodeURIComponent(key)}/sync/agent-kit`, { method: "POST" }),
-  syncStatus: (key: string) => request<SyncStatus>(`/api/projects/${encodeURIComponent(key)}/sync`),
+    request<void>(`${scopePath(key)}/repository`, { method: "DELETE" }),
+  agentKitStatus: (key: string) => request<RepoKit[]>(`${scopePath(key)}/sync/agent-kit`),
+  proposeAgentKit: (key: string) => request<RepoKit[]>(`${scopePath(key)}/sync/agent-kit`, { method: "POST" }),
+  syncStatus: (key: string) => request<SyncStatus>(`${scopePath(key)}/sync`),
   syncCompare: (key: string, docId: string) =>
-    request<SyncComparison>(`/api/projects/${encodeURIComponent(key)}/sync/docs/${encodeURIComponent(docId)}/compare`),
+    request<SyncComparison>(`${scopePath(key)}/sync/docs/${encodeURIComponent(docId)}/compare`),
   syncExport: (key: string, docId: string, force: boolean) =>
-    request<Exported>(`/api/projects/${encodeURIComponent(key)}/sync/docs/${encodeURIComponent(docId)}/export`, json("POST", { force })),
+    request<Exported>(`${scopePath(key)}/sync/docs/${encodeURIComponent(docId)}/export`, json("POST", { force })),
   syncExportMany: (key: string, documentIds: string[]) =>
-    request<Exported>(`/api/projects/${encodeURIComponent(key)}/sync/export`, json("POST", { documentIds, forced: [] })),
+    request<Exported>(`${scopePath(key)}/sync/export`, json("POST", { documentIds, forced: [] })),
   syncImport: (key: string, docId: string, force: boolean) =>
-    request<SyncEntry>(`/api/projects/${encodeURIComponent(key)}/sync/docs/${encodeURIComponent(docId)}/import`, json("POST", { force })),
+    request<SyncEntry>(`${scopePath(key)}/sync/docs/${encodeURIComponent(docId)}/import`, json("POST", { force })),
   syncImportNew: (key: string, group: string, issueKey: string | null, newIssueTitle: string | null) =>
-    request<SyncEntry[]>(`/api/projects/${encodeURIComponent(key)}/sync/import-new`, json("POST", { group, issueKey, newIssueTitle })),
+    request<SyncEntry[]>(`${scopePath(key)}/sync/import-new`, json("POST", { group, issueKey, newIssueTitle })),
   syncSafe: (key: string) =>
-    request<{ imported: number; conflicts: number; exported: Exported | null }>(`/api/projects/${encodeURIComponent(key)}/sync/safe`, {
+    request<{ imported: number; conflicts: number; exported: Exported | null }>(`${scopePath(key)}/sync/safe`, {
       method: "POST",
     }),
 

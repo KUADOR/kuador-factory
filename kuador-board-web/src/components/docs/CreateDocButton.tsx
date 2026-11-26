@@ -16,12 +16,15 @@ function CreateDocButtonEditor({
   issueKey = null,
   label,
   compact = false,
+  docsBase,
 }: {
   projectKey: string;
   kind: DocumentKind;
   issueKey?: string | null;
   label: string;
   compact?: boolean;
+  /** Dónde se abren los documentos (por defecto, los del tablero). */
+  docsBase?: string;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +39,7 @@ function CreateDocButtonEditor({
         onClick={() =>
           startTransition(async () => {
             const result = await createDocAction(projectKey, kind, issueKey);
-            if (result.ok) router.push(`/projects/${projectKey}/docs/${result.data.document.id}`);
+            if (result.ok) router.push(`${docsBase ?? `/projects/${projectKey}/docs`}/${result.data.document.id}`);
             else setError(result.error);
           })
         }

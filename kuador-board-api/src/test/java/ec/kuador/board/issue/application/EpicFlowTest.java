@@ -102,6 +102,26 @@ class EpicFlowTest {
     }
 
     @Test
+    void anEpicIsNotSplitBeforeTheStageThatPlansIt() {
+        Issue epic = card(IssueType.EPIC, "BACKLOG");
+
+        assertThatThrownBy(() -> split(epic.key()))
+                .isInstanceOf(DomainException.class).hasMessageContaining("se hace en «").hasMessageContaining("sin crear tareas");
+        assertThat(service.epicTasks(epic.key())).isEmpty();
+    }
+
+    @Test
+    void inTheFactoryOnlyDesignSplitsNeverRefinementOrApproval() {
+        InMemoryProjects projects = new InMemoryProjects();
+        ec.kuador.board.project.ProjectView factory = projects.add("FAB", "SOFTWARE_FACTORY", null);
+
+        assertThat(factory.epicSplitsInto("REFINEMENT")).as("la sigue una puerta").isFalse();
+        assertThat(factory.epicSplitsInto("APPROVAL")).as("es una puerta, aunque la siga Diseño").isFalse();
+        assertThat(factory.epicSplitsInto("DESIGN")).isTrue();
+        assertThat(factory.splitColumn()).contains("DESIGN");
+    }
+
+    @Test
     void aTaskForARoleThatDoesNotWriteCodeIsRejected() {
         Issue epic = card(IssueType.EPIC, "TODO");
 

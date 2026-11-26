@@ -56,3 +56,30 @@ test("el paso final muestra las últimas 20 y lleva a la lista", async ({ page }
   await page.goto(`/projects/${key}?issue=${key}-1`);
   await expect(detalle(page).getByText(`${key}-1`)).toBeVisible();
 });
+
+test("marcar varias tarjetas y eliminarlas juntas", async ({ page }) => {
+  const { key, columns } = await board("BOR", "Borrar varias");
+  const first = columns[0];
+  await card(key, { title: "Borrador uno", status: first.key });
+  await card(key, { title: "Borrador dos", status: first.key });
+  await card(key, { title: "Se queda", status: first.key });
+
+  await page.goto(`/projects/${key}`);
+  const column = page.locator(`[data-column="${first.key}"]`);
+  await expect(column.getByText("Se queda")).toBeVisible();
+  await page.getByRole("button", { name: "Seleccionar" }).click();
+  await column.getByRole("checkbox", { name: /Borrador uno/ }).click();
+  await column.getByRole("checkbox", { name: /Borrador dos/ }).click();
+  await page.getByRole("toolbar").getByRole("button", { name: "Eliminar" }).click();
+
+  // La confirmación dice qué se borra antes de borrar.
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("¿Eliminar 2 tarjetas?")).toBeVisible();
+  await expect(dialog.getByText(`${key}-1, ${key}-2`, { exact: false })).toBeVisible();
+  await dialog.getByRole("button", { name: "Eliminar" }).click();
+
+  await expect(page.getByText("2 tarjetas eliminadas")).toBeVisible();
+  await expect(column.getByText("Borrador uno")).toHaveCount(0);
+  await expect(column.getByText("Borrador dos")).toHaveCount(0);
+  await expect(column.getByText("Se queda")).toBeVisible();
+});

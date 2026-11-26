@@ -16,6 +16,11 @@ public interface CardEvidence {
         return false;
     }
 
+    /** Si un agente la está trabajando ahora (una ejecución abierta o el préstamo de una máquina): no se borra. */
+    default boolean agentWorking(String issueKey) {
+        return false;
+    }
+
     /** Si algún documento de la tarjeta tiene un diagrama Mermaid. */
     default boolean hasDiagram(String issueKey) {
         return false;

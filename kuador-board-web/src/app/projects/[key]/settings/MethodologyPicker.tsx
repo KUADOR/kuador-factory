@@ -26,7 +26,8 @@ export function MethodologyPicker({
   methodologies,
 }: {
   project?: Project;
-  subject?: { key: string; methodology: string | null };
+  /** {@code withDocuments}: algún tablero trabaja el proyecto con sus documentos (si no, aún no hay dónde verlos). */
+  subject?: { key: string; methodology: string | null; withDocuments?: boolean };
   methodologies: Methodology[];
 }) {
   const router = useRouter();
@@ -94,7 +95,7 @@ export function MethodologyPicker({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        {current && !dirty && (
+        {current && !dirty && (!subject || subject.withDocuments) && (
           <Link href={docsHref} className="k-link text-[13px]">
             Ir a los documentos
           </Link>

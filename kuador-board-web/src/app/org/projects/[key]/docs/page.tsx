@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/Section";
 import { boardApi, projectScope } from "@/lib/api";
 import { documentsOf } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
+import { NoDocumentsBoard } from "@/components/org/NoDocumentsBoard";
+import { subjectHosts } from "@/lib/subject-hosts";
 import type { DocumentMeta } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +21,8 @@ const dateFormat = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeZ
 export default async function OrgProjectDocsPage({ params }: PageProps<"/org/projects/[key]/docs">) {
   const key = (await params).key.toUpperCase();
   const base = `/org/projects/${key}/docs`;
+  const [subjectInfo, boards] = await Promise.all([boardApi.subject(key), boardApi.projects()]).catch(() => [null, []] as const);
+  if (subjectInfo && subjectHosts(subjectInfo, [...boards]).documents.length === 0) return <NoDocumentsBoard />;
   let overview;
   try {
     overview = await boardApi.docsOverview(projectScope(key));

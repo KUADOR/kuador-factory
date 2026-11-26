@@ -9,6 +9,7 @@ import { start } from "./daemon.js";
 import { prompter } from "./prompt.js";
 import { install as installService, openBrowser, osName, restart, uninstall as uninstallService } from "./service.js";
 import { detect, TOOLS } from "./tools.js";
+import { stopOrphans, sweepJobTmps, sweepTmp } from "./hygiene.js";
 import { cleanup, freeBytes, gb, isRepo, pruneDocker } from "./workdir.js";
 
 const HELP = `Kuador runner ${VERSION}: deja trabajando a los agentes del tablero en esta máquina.
@@ -237,6 +238,11 @@ async function clean(now) {
   const before = freeBytes();
   const active = new Set((readState()?.jobs ?? []).map((j) => j.issue));
   console.log(active.size ? `Limpiando (sin tocar lo que está en curso: ${[...active].join(", ")})…` : "Limpiando…");
+  const stopped = stopOrphans(active);
+  if (stopped) console.log(`Se detuvieron ${stopped} proceso(s) de tarjetas que ya no están en curso.`);
+  sweepJobTmps(active);
+  const loose = sweepTmp(undefined, { idleMs: now ? 3600_000 : undefined });
+  if (loose.length) console.log(`Borrado de /tmp lo que dejaron los agentes: ${loose.join(", ")}.`);
   const r = cleanup(config, active, { keepDays: now ? 0 : undefined, log: (m) => console.log(m) });
   if (await pruneDocker(config)) console.log("Docker: imágenes huérfanas y caché de construcción vieja borradas.");
   console.log(`Listo: ${r.removed.length} carpeta(s) de tarjetas borradas; ${gb(Math.max(r.freed, freeBytes() - before))} liberados. Libres: ${gb(freeBytes())}.`);

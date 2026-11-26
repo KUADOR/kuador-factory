@@ -7,6 +7,7 @@ import { keepAwake, osName } from "./service.js";
 import { forget, remember, resumable } from "./sessions.js";
 import { autoSync } from "./merge.js";
 import { ask, launch, outcome } from "./tools.js";
+import { finishJob, recordTmp, sweepJobTmps, sweepTmp, stopOrphans, tmpSnapshot } from "./hygiene.js";
 import { cleanup, freeBytes, gb, isRepo, minFree, prepare, pruneDocker, slim } from "./workdir.js";
 
 const HEARTBEAT_MS = 30_000;
@@ -83,6 +84,13 @@ export async function start() {
     if (freeBytes() >= minFree(config)) return (diskFull = false), true;
     if (Date.now() - squeezedAt < 10 * 60_000) return false;
     squeezedAt = Date.now();
+    try {
+      // Con poco disco no se espera el día: basta una hora sin uso.
+      const loose = sweepTmp(undefined, { idleMs: 3600_000 });
+      if (loose.length) log(`Poco disco: se borró de /tmp lo que dejaron los agentes (${loose.join(", ")}).`);
+    } catch {
+      // Se reintenta en la próxima.
+    }
     const r = cleanup(config, new Set(jobs.keys()), { keepDays: 0, log });
     if (r.freed) log(`Poco disco: se liberaron ${gb(r.freed)}.`);
     const free = freeBytes();
@@ -168,6 +176,8 @@ export async function start() {
     const resumeId = resumable(claim, work.dir);
     log(`${claim.issueKey} → ${claim.agentName} (${claim.roleName}) en ${work.dir}${work.repo ? " (copia del repo)" : ""}${resumeId ? " · retoma su conversación" : ""}`);
     const job = { claim, started, child: null, lost: false, timedOut: false };
+    // Lo que había en /tmp antes: lo nuevo que deje el agente se anota para barrerlo luego.
+    const tmpBefore = tmpSnapshot();
     const start = (id) => {
       const launched = launch(config, claim, work.dir, stream, id);
       job.child = launched.child;
@@ -211,6 +221,15 @@ export async function start() {
       stream.end();
       rmSync(join(SECRETS, `${claim.issueKey}.json`), { force: true });
       jobs.delete(claim.issueKey);
+      // Servidores o pruebas que el agente dejó corriendo, y sus temporales.
+      try {
+        const stopped = finishJob(claim.issueKey, work.dir);
+        if (stopped) log(`${claim.issueKey}: se detuvieron ${stopped} proceso(s) que el agente dejó corriendo.`);
+        const loose = recordTmp(tmpBefore);
+        if (loose.length) log(`${claim.issueKey}: dejó en /tmp ${loose.join(", ")}; se borra tras un día sin uso.`);
+      } catch (e) {
+        log(`${claim.issueKey}: no se pudo limpiar lo que dejó fuera de su carpeta (${e.message}).`);
+      }
       // Lo que la compilación dejó (node_modules, build, target...) se borra al terminar; el código y la rama quedan.
       try {
         const freed = slim(work.dir);
@@ -280,7 +299,17 @@ export async function start() {
   setInterval(() => heartbeat(), HEARTBEAT_MS);
   setInterval(schedule, FALLBACK_MS);
   const sweep = () => {
-    const r = cleanup(config, new Set(jobs.keys()), { log });
+    const active = new Set(jobs.keys());
+    try {
+      const stopped = stopOrphans(active);
+      if (stopped) log(`Limpieza: se detuvieron ${stopped} proceso(s) de tarjetas que ya no están en curso.`);
+      sweepJobTmps(active);
+      const loose = sweepTmp();
+      if (loose.length) log(`Limpieza: se borró de /tmp lo que dejaron los agentes (${loose.join(", ")}).`);
+    } catch (e) {
+      log(`Limpieza fuera de las carpetas de trabajo: ${e.message}`);
+    }
+    const r = cleanup(config, active, { log });
     if (r.freed || r.removed.length) log(`Limpieza: ${r.removed.length} carpeta(s) de tarjetas borradas, ${gb(r.freed)} liberados.`);
   };
   sweep();

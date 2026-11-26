@@ -27,6 +27,8 @@ Cada tarjeta trabaja en su propia copia del repo (`git worktree`), así varias a
 
 - **De dónde sale la copia:** del repo vinculado al tablero; si no hay, de otro repo vinculado que apunta al mismo repositorio de GitHub; si tampoco, de un clon propio del runner en `~/.kuador/repos`, uno por repositorio (nunca uno por tarjeta).
 - **Al terminar cada tarjeta** se borra lo que dejó la compilación (`node_modules`, `build`, `target`, `dist`, `.next`, `.dart_tool`…), solo si git lo ignora: el código y los cambios del agente no se tocan. Si la tarjeta vuelve, se reinstala desde las cachés de `~/.npm` y `~/.m2`.
+- **Temporales y herramientas:** cada agente recibe `TMPDIR` en `~/.kuador/tmp/<tarjeta>` (se borra al terminar) y una carpeta compartida `~/.kuador/tools` para SDKs con su versión (`flutter-3.50.1`), así se bajan una vez y no una por tarjeta. Lo que un agente deje igual en `/tmp` se anota y se borra tras un día sin uso (una hora si queda poco disco).
+- **Procesos sueltos:** al terminar cada tarjeta se detienen los servidores y pruebas que el agente dejó corriendo en su carpeta; cada 6 horas, los de tarjetas que ya no están en curso.
 - **Docker:** después de cada tarjeta se borran las imágenes huérfanas y la caché de construcción de más de un día; tus imágenes con nombre, contenedores y volúmenes no se tocan. Para apagarlo: `"dockerCleanup": false` en `runner.json`.
 - **Cada 6 horas** se borran las carpetas de tarjetas sin uso hace más de 2 días (`keepDays`) que tienen su trabajo subido. Las que tienen cambios o commits sin subir se quedan y se avisa en el registro.
 - **Con menos de 10 GB libres** (`minFreeGb`) primero limpia y, si no alcanza, deja de tomar tarjetas hasta que haya espacio.

@@ -3,6 +3,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 
 import { SECRETS } from "./config.js";
+import { hygieneRules, jobEnv } from "./hygiene.js";
 
 /** Herramientas de IA que el runner sabe lanzar. Codex y OpenCode llegan en la próxima versión. */
 export const TOOLS = {
@@ -78,7 +79,7 @@ export function launch(config, claim, cwd, logStream, resumeId = null) {
     mcpFile,
     "--strict-mcp-config",
     "--append-system-prompt",
-    claim.instructions,
+    `${claim.instructions}\n\n${hygieneRules(claim.issueKey)}`,
     "--allowedTools",
     claim.allowedTools.join(","),
     "--output-format",
@@ -88,7 +89,7 @@ export function launch(config, claim, cwd, logStream, resumeId = null) {
   if (model) args.push("--model", model);
   if (claim.effort && EFFORTS.includes(claim.effort)) args.push("--effort", claim.effort);
 
-  const started = run(TOOLS.claude.command, args, { cwd, env: { ...process.env, KUADOR_ISSUE: claim.issueKey }, windowsHide: true });
+  const started = run(TOOLS.claude.command, args, { cwd, env: { ...process.env, ...jobEnv(claim.issueKey), KUADOR_ISSUE: claim.issueKey }, windowsHide: true });
   if (!started.child) return { child: null, done: Promise.resolve({ code: -1, out: "", err: String(started.error) }) };
   const { child } = started;
   let out = "";

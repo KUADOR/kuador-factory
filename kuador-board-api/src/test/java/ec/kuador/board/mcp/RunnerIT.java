@@ -61,6 +61,7 @@ class RunnerIT {
     @Autowired MemberService members;
     @Autowired RunnerService runners;
     @Autowired ec.kuador.board.issue.BranchSyncApi syncs;
+    @Autowired ec.kuador.board.sync.CodeReviewApi code;
     @Autowired JdbcClient jdbc;
     @LocalServerPort int port;
 
@@ -260,6 +261,7 @@ class RunnerIT {
         assertThat(first.status()).isEqualTo(200);
         JsonNode c = first.body();
         assertThat(c.get("issueKey").asString()).isEqualTo(card);
+        assertThat(c.get("sync").get("aiOnly").asBoolean()).as("primero prueba sin IA").isFalse();
         assertThat(c.get("prompt").asString()).contains("acme/syn #12", "git merge origin/develop", "feature/" + card.toLowerCase() + "-reportes", "nunca --force");
         assertThat(c.get("resumePrompt").asString()).isEqualTo(c.get("prompt").asString());
         assertThat(c.get("allowedTools").toString()).as("sin herramientas del tablero").doesNotContain("mcp__");
@@ -302,5 +304,49 @@ class RunnerIT {
         assertThat(TenantContext.call(w.id(), () -> syncs.pending(card))).isEmpty();
         assertThat(call("GET", "/api/issues/" + card, null, teo).body().get("status").asString()).as("vuelve como antes").isNotEqualTo("PR_REVIEW");
         assertThat(call("GET", "/api/issues/" + card + "/comments", null, teo).body().toString()).contains("no pudo actualizar la rama");
+    }
+
+    @Test
+    void aBranchStillInConflictAfterTheFirstTryIsResolvedWithAiAndJudgedOnTheNewCommit() throws Exception {
+        signup.requestCode("ana@sync.test");
+        Workspace w = signup.complete(signup.verifyCode("ana@sync.test", INBOX.get("ana@sync.test")),
+                new SignupService.Company("Sync tres", null, null, null, null, null), "Ana", "clave-de-ana-123", "FACTORY");
+        String ana = auth.login("ana@sync.test", "clave-de-ana-123").token();
+        UUID anaId = UUID.fromString(call("GET", "/api/auth/me", null, ana).body().get("id").asString());
+        call("POST", "/api/projects", Map.of("key", "SYT", "name", "Sync tres", "templateKey", "SOFTWARE_FACTORY"), ana);
+        String card = call("POST", "/api/projects/SYT/issues", Map.of("title", "Calendario", "type", "TASK"), ana).body().get("key").asString();
+        jdbc.sql("update issue set status = 'PR_REVIEW' where workspace_id = ? and issue_key = ?").params(w.id(), card).update();
+        var conflict = new ec.kuador.board.issue.BranchSyncApi.Conflict("acme/syt", 7, "feature/" + card.toLowerCase(), "develop");
+        TenantContext.run(w.id(), () -> syncs.request(card, conflict, "el PR acme/syt #7 quedó en conflicto.", anaId));
+        // GitHub: en conflicto hasta que el PR está en el commit «b2» (el que sube el cliente de IA).
+        List<String> asked = new java.util.concurrent.CopyOnWriteArrayList<>();
+        ec.kuador.board.sync.CodeReviewApi github = (ec.kuador.board.sync.CodeReviewApi) java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[] {ec.kuador.board.sync.CodeReviewApi.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("mergeable") && args.length == 4) {
+                        asked.add(String.valueOf(args[3]));
+                        return java.util.Optional.of("b2".equals(args[3]));
+                    }
+                    return method.invoke(code, args);
+                });
+        ec.kuador.board.mcp.application.RunnerSyncs.use(runners, syncs, github);
+        try {
+            String runner = pair(ana, "Mac de Ana");
+            UUID machine = register(runner, "Mac de Ana", List.of("BACKEND", "FRONTEND"), 1);
+            assertThat(claim(runner, machine).body().get("sync").get("aiOnly").asBoolean()).isFalse();
+            // Sin IA subió «a1», pero el PR sigue en conflicto: no vuelve a desarrollo ni espera a una persona.
+            call("POST", "/api/runner/leases/" + card + "/release", Map.of("machineId", machine, "outcome", "DONE", "message", "Sin IA", "head", "a1"), runner);
+            assertThat(TenantContext.call(w.id(), () -> syncs.pending(card))).as("se pide otra vez").isPresent();
+            assertThat(call("GET", "/api/issues/" + card, null, ana).body().get("status").asString()).isEqualTo("PR_REVIEW");
+
+            JsonNode again = claim(runner, machine).body();
+            assertThat(again.get("issueKey").asString()).isEqualTo(card);
+            assertThat(again.get("sync").get("aiOnly").asBoolean()).as("esta vez con IA").isTrue();
+            call("POST", "/api/runner/leases/" + card + "/release", Map.of("machineId", machine, "outcome", "DONE", "message", "resuelto", "head", "b2"), runner);
+            assertThat(asked).containsExactly("a1", "b2");
+            assertThat(TenantContext.call(w.id(), () -> syncs.pending(card))).isEmpty();
+            assertThat(call("GET", "/api/issues/" + card + "/comments", null, ana).body().toString()).contains("Rama actualizada").doesNotContain("no pudo actualizar");
+        } finally {
+            ec.kuador.board.mcp.application.RunnerSyncs.use(runners, syncs, code);
+        }
     }
 }

@@ -4,6 +4,7 @@ import { delimiter, dirname, join } from "node:path";
 
 import { SECRETS } from "./config.js";
 import { hygieneRules, jobEnv } from "./hygiene.js";
+import { environment } from "./toolchain.js";
 
 /** Herramientas de IA que el runner sabe lanzar. Codex y OpenCode llegan en la próxima versión. */
 export const TOOLS = {
@@ -70,6 +71,13 @@ export function launch(config, claim, cwd, logStream, resumeId = null) {
     JSON.stringify({ mcpServers: { [claim.mcpServer]: { type: "http", url: claim.mcpUrl, headers: { Authorization: `Bearer ${claim.runToken ?? config.token}` } } } }),
     { mode: 0o600 },
   );
+  // Java, Flutter, Node, Docker y puertos ya resueltos: el agente no gasta turnos buscándolos. Si algo falla, sin aviso.
+  let ready = { env: {}, notes: "" };
+  try {
+    ready = environment(cwd, claim.issueKey);
+  } catch {
+    // El entorno es una ayuda: sin él, el agente lo busca como antes.
+  }
   // Al retomar, la conversación ya tiene el contexto: el pedido es solo lo nuevo (lo arma el tablero).
   const args = [
     ...(resumeId ? ["--resume", resumeId] : []),
@@ -79,7 +87,7 @@ export function launch(config, claim, cwd, logStream, resumeId = null) {
     mcpFile,
     "--strict-mcp-config",
     "--append-system-prompt",
-    `${claim.instructions}\n\n${hygieneRules(claim.issueKey)}`,
+    [claim.instructions, hygieneRules(claim.issueKey), ready.notes].filter(Boolean).join("\n\n"),
     "--allowedTools",
     claim.allowedTools.join(","),
     "--output-format",
@@ -89,7 +97,7 @@ export function launch(config, claim, cwd, logStream, resumeId = null) {
   if (model) args.push("--model", model);
   if (claim.effort && EFFORTS.includes(claim.effort)) args.push("--effort", claim.effort);
 
-  const started = run(TOOLS.claude.command, args, { cwd, env: { ...process.env, ...jobEnv(claim.issueKey), KUADOR_ISSUE: claim.issueKey }, windowsHide: true });
+  const started = run(TOOLS.claude.command, args, { cwd, env: { ...process.env, ...ready.env, ...jobEnv(claim.issueKey), KUADOR_ISSUE: claim.issueKey }, windowsHide: true });
   if (!started.child) return { child: null, done: Promise.resolve({ code: -1, out: "", err: String(started.error) }) };
   const { child } = started;
   let out = "";

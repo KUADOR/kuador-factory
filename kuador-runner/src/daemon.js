@@ -5,8 +5,9 @@ import { api, VERSION } from "./api.js";
 import { ensureDirs, LOGS, PAUSE, requireConfig, save, SECRETS, WORK, writeState } from "./config.js";
 import { keepAwake, osName } from "./service.js";
 import { forget, remember, resumable } from "./sessions.js";
-import { autoSync } from "./merge.js";
+import { autoSync, remoteHead } from "./merge.js";
 import { ask, launch, outcome } from "./tools.js";
+import { freePorts } from "./toolchain.js";
 import { finishJob, recordTmp, sweepJobTmps, sweepTmp, stopOrphans, tmpSnapshot } from "./hygiene.js";
 import { cleanup, freeBytes, gb, isRepo, minFree, prepare, pruneDocker, slim } from "./workdir.js";
 
@@ -160,12 +161,13 @@ export async function start() {
       client.release(config.machineId, claim.issueKey, "FAILED", `No se pudo preparar la carpeta: ${e.message}`).catch(() => {});
       return;
     }
-    // Rama en conflicto: primero sin IA. Si solo chocó documentación (o solo estaba atrasada), se resuelve aquí y no gasta créditos.
-    if (claim.sync && work.repo) {
+    // Rama en conflicto: primero sin IA. Si solo chocó documentación (o solo estaba atrasada), se resuelve aquí y no gasta
+    // créditos. Si el tablero ya lo intentó y el PR siguió en conflicto («aiOnly»), va directo al cliente de IA.
+    if (claim.sync && work.repo && !claim.sync.aiOnly) {
       const auto = autoSync(work.dir, claim.sync, (m) => log(`${claim.issueKey}: ${m}`));
       if (auto.handled) {
         const message = auto.files.length ? `Sin IA: conflicto solo en documentación (${auto.files.join(", ")}), se conservaron los dos lados.` : "Sin IA: la rama solo estaba atrasada.";
-        client.release(config.machineId, claim.issueKey, "DONE", message).catch((e) => log(`${claim.issueKey}: no se pudo liberar: ${e.message}`)).finally(schedule);
+        client.release(config.machineId, claim.issueKey, "DONE", message, auto.head).catch((e) => log(`${claim.issueKey}: no se pudo liberar: ${e.message}`)).finally(schedule);
         return;
       }
       log(`${claim.issueKey}: no se puede resolver sin IA (${auto.reason}); lo resuelve ${claim.agentName}.`);
@@ -221,6 +223,7 @@ export async function start() {
       stream.end();
       rmSync(join(SECRETS, `${claim.issueKey}.json`), { force: true });
       jobs.delete(claim.issueKey);
+      freePorts(claim.issueKey);
       // Servidores o pruebas que el agente dejó corriendo, y sus temporales.
       try {
         const stopped = finishJob(claim.issueKey, work.dir);
@@ -249,7 +252,9 @@ export async function start() {
           setTimeout(schedule, Math.max(0, pausedUntil - Date.now()) + 1000);
         }
         log(`${claim.issueKey}: ${r.outcome}${r.message ? ` · ${r.message.slice(0, 160)}` : ""}`);
-        await client.release(config.machineId, claim.issueKey, r.outcome, r.message).catch((e) => log(`${claim.issueKey}: no se pudo liberar: ${e.message}`));
+        // Al actualizar una rama, el tablero pregunta a GitHub por el commit que quedó subido, no por el de antes.
+        const head = claim.sync && r.outcome === "DONE" ? remoteHead(work.dir, claim.sync.branch) : null;
+        await client.release(config.machineId, claim.issueKey, r.outcome, r.message, head).catch((e) => log(`${claim.issueKey}: no se pudo liberar: ${e.message}`));
       }
       state();
       schedule();

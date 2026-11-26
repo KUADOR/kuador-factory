@@ -46,7 +46,15 @@ export function autoSync(dir, { branch, baseBranch }, log = () => {}) {
   const push = git(dir, "push", "--quiet", "origin", `HEAD:${branch}`);
   if (push.status !== 0) return fail(`no se pudo subir: ${(push.stderr || "").trim().slice(0, 120)}`);
   log(files.length ? `Conflicto solo en documentación (${files.join(", ")}): resuelto sin IA conservando los dos lados.` : "La rama solo estaba atrasada: actualizada sin IA.");
-  return { handled: true, files };
+  return { handled: true, files, head: git(dir, "rev-parse", "HEAD").stdout.trim() || null };
+}
+
+/** El último commit de la rama en GitHub (lo que subió el cliente de IA), o null si no se pudo leer. */
+export function remoteHead(dir, branch) {
+  if (!branch) return null;
+  const r = git(dir, "ls-remote", "origin", `refs/heads/${branch}`);
+  const sha = r.status === 0 ? r.stdout.trim().split(/\s/)[0] : "";
+  return /^[0-9a-f]{40}$/i.test(sha) ? sha : null;
 }
 
 /** Une un archivo en conflicto conservando las líneas de los dos lados. Falla si uno de los lados lo borró. */

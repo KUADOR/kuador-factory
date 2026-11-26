@@ -84,8 +84,11 @@ public class RunnerService {
             String mcpServer, String mcpUrl, long leaseSeconds, String runToken, int reworkCount, String resumePrompt, List<String> repositories,
             Sync sync, String subjectKey, boolean manySubjects) {}
 
-    /** Para actualizar una rama en conflicto: el runner prueba primero sin IA (si solo chocó documentación, lo resuelve él). */
-    public record Sync(String repository, int number, String branch, String baseBranch) {}
+    /**
+     * Para actualizar una rama en conflicto: el runner prueba primero sin IA (si solo chocó documentación, lo resuelve
+     * él). {@code aiOnly}: ya se intentó una vez y el PR siguió en conflicto; esta vez lo resuelve el cliente de IA.
+     */
+    public record Sync(String repository, int number, String branch, String baseBranch, boolean aiOnly) {}
 
     private final RunnerStore store;
     private final ec.kuador.board.shared.cluster.ClusterLock lock;
@@ -359,7 +362,7 @@ public class RunnerService {
         AgentKit.Connection c = kit.connection();
         return new Claim(sync.issueKey(), sync.projectKey(), project.kind().name(), context.title(), r.key(), r.name(), true, agent.id(), agent.name(),
                 profile.model(), profile.effort(), prompt, plan.instructions(), tools, c.server(), c.url(), LEASE.toSeconds(), runToken, 0, prompt,
-                List.of(sync.repository()), new Sync(sync.repository(), sync.number(), sync.branch(), sync.baseBranch()),
+                List.of(sync.repository()), new Sync(sync.repository(), sync.number(), sync.branch(), sync.baseBranch(), sync.attempts() > 0),
                 context.subjectKey(), projects.subjectsOf(sync.projectKey()).size() > 1);
     }
 
@@ -428,6 +431,11 @@ public class RunnerService {
      * avanzó: cuenta como corte. Un límite de la suscripción no cuenta: la retoma la misma u otra máquina.
      */
     public void release(AuthenticatedMember who, UUID machineId, String issueKey, String outcome, String message) {
+        release(who, machineId, issueKey, outcome, message, null);
+    }
+
+    /** {@code head}: en una rama en conflicto, el commit que subió la máquina (o nulo). */
+    public void release(AuthenticatedMember who, UUID machineId, String issueKey, String outcome, String message, String head) {
         requireRunner(who);
         ownMachine(who, machineId);
         String result = outcome == null ? "DONE" : outcome.strip().toUpperCase(java.util.Locale.ROOT);
@@ -437,7 +445,7 @@ public class RunnerService {
         Lease lease = store.activeLease(ws, key).filter(l -> l.machineId().equals(machineId)).orElse(null);
         if (lease == null) return;
         if (lease.sync()) {
-            releaseSync(ws, lease, result, message);
+            releaseSync(ws, lease, result, message, head);
             hub.signal(ws);
             return;
         }
@@ -462,13 +470,15 @@ public class RunnerService {
 
     /**
      * Terminó un pedido de actualizar rama. El tablero no le cree al cliente de IA: pregunta a GitHub si el PR quedó sin
-     * conflictos. Sin conflictos, sigue la revisión; si sigue en conflicto, vuelve a desarrollo; si se cortó, se reintenta.
+     * conflictos (sobre el commit que subió, si lo dice). Sin conflictos, sigue la revisión. Si sigue en conflicto la
+     * primera vez, se pide de nuevo y esta vez lo resuelve el cliente de IA; la segunda, vuelve a desarrollo. Si se
+     * cortó, se reintenta.
      */
-    private void releaseSync(UUID ws, Lease lease, String result, String message) {
+    private void releaseSync(UUID ws, Lease lease, String result, String message, String head) {
         String key = lease.issueKey();
         Optional<ec.kuador.board.issue.BranchSyncApi.BranchSync> sync = syncs == null ? Optional.empty() : tx.execute(s -> syncs.pending(key));
         Optional<Boolean> clean = Optional.empty();
-        if (result.equals("DONE") && sync != null && sync.isPresent()) clean = mergeable(sync.get());
+        if (result.equals("DONE") && sync != null && sync.isPresent()) clean = mergeable(sync.get(), head);
         final Optional<Boolean> resolved = clean;
         tx.executeWithoutResult(s -> {
             store.release(ws, key, lease.machineId(), result.equals("DONE") && resolved.isPresent() && !resolved.get() ? "FAILED" : result, clock.instant());
@@ -482,7 +492,8 @@ public class RunnerService {
                         syncs.resolved(key, message, lease.agentId());
                     } else {
                         work.failed(lease.agentId(), key, "La rama sigue en conflicto después de actualizarla.");
-                        syncs.failed(key, "el PR sigue en conflicto" + (message == null || message.isBlank() ? "" : ": " + message.strip()), true, lease.agentId());
+                        boolean retried = sync.get().attempts() > 0;
+                        syncs.failed(key, "el PR sigue en conflicto" + (message == null || message.isBlank() ? "" : ": " + message.strip()), retried, lease.agentId());
                     }
                 }
                 case "RATE_LIMITED", "CANCELLED" -> work.failed(lease.agentId(), key, "Se pausó: la retoma otra máquina o la misma más tarde.");
@@ -494,12 +505,16 @@ public class RunnerService {
         });
     }
 
-    /** Si el PR quedó sin conflictos; GitHub lo calcula en segundo plano, así que se pregunta unas veces. */
-    private Optional<Boolean> mergeable(ec.kuador.board.issue.BranchSyncApi.BranchSync sync) {
+    /**
+     * Si el PR quedó sin conflictos. GitHub lo calcula en segundo plano y, recién subido el commit, puede seguir
+     * respondiendo por el anterior: con {@code head} se espera a que el PR ya esté en ese commit.
+     */
+    private Optional<Boolean> mergeable(ec.kuador.board.issue.BranchSyncApi.BranchSync sync, String head) {
         if (code == null) return Optional.empty();
-        for (int i = 0; i < 5; i++) {
+        int tries = head == null || head.isBlank() ? 5 : 10;
+        for (int i = 0; i < tries; i++) {
             try {
-                Optional<Boolean> m = code.mergeable(sync.projectKey(), sync.repository(), sync.number());
+                Optional<Boolean> m = code.mergeable(sync.projectKey(), sync.repository(), sync.number(), head);
                 if (m.isPresent()) return m;
                 Thread.sleep(2_000);
             } catch (InterruptedException e) {

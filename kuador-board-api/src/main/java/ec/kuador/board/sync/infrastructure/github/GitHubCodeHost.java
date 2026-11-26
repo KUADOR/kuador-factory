@@ -84,7 +84,13 @@ class GitHubCodeHost implements CodeHost {
 
     @Override
     public Optional<Boolean> mergeable(Access access, int number) {
+        return mergeable(access, number, null);
+    }
+
+    @Override
+    public Optional<Boolean> mergeable(Access access, int number, String head) {
         return client(access).find("/repos/" + access.repository() + "/pulls/" + number)
+                .filter(pr -> head == null || head.isBlank() || head.equalsIgnoreCase(pr.path("head").path("sha").asString("")))
                 .map(pr -> pr.path("mergeable"))
                 .filter(m -> m.isBoolean())
                 .map(JsonNode::asBoolean);

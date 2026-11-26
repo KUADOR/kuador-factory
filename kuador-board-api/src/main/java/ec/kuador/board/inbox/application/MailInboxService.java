@@ -326,7 +326,7 @@ public class MailInboxService implements ec.kuador.board.inbox.InboxApi {
         }
         if (in.fromFilter() != null && in.fromFilter().length() > 200) throw new DomainException("El filtro de remitentes tiene hasta 200 caracteres.");
         if (in.status() != null && !in.status().isBlank() && board.column(in.status().strip()).isEmpty()) {
-            throw new DomainException("La columna " + in.status() + " no existe en el tablero.");
+            throw new DomainException("El paso " + in.status() + " no existe en el tablero.");
         }
         if (in.assigneeId() != null && members.find(in.assigneeId()).isEmpty()) throw new DomainException("La persona o el agente elegido no existe.");
         return connection;

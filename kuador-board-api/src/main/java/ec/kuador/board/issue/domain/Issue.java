@@ -63,7 +63,7 @@ public final class Issue {
         this.reporterId = reporterId;
         this.createdAt = createdAt;
         if (status == null || status.isBlank()) {
-            throw new DomainException("El issue necesita una columna.");
+            throw new DomainException("El issue necesita un paso.");
         }
         this.status = status;
         this.position = position;
@@ -136,7 +136,7 @@ public final class Issue {
 
     public void moveTo(String target, Instant now) {
         if (target == null || target.isBlank()) {
-            throw new DomainException("Indica la columna de destino.");
+            throw new DomainException("Indica el paso de destino.");
         }
         if (!target.equals(status)) {
             this.status = target;

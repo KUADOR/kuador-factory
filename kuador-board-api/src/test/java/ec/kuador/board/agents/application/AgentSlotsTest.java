@@ -42,8 +42,8 @@ class AgentSlotsTest {
         release.countDown();
         assertThat(done.await(5, TimeUnit.SECONDS)).as("los que esperaban terminan").isTrue();
         assertThat(peak.get()).as("nunca más de dos a la vez por espacio").isEqualTo(2);
-        assertThat(slots.running()).isZero();
-        assertThat(slots.waiting()).isZero();
+        // El trabajo avisa que terminó antes de soltar su turno: se espera a que lo suelte.
+        eventually(() -> slots.running() == 0 && slots.waiting() == 0);
     }
 
     @Test

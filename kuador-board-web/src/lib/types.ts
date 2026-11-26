@@ -22,6 +22,15 @@ export type DocumentKind = string;
 
 export type CatalogType = "workflow-templates" | "methodologies" | "roles" | "mcp-servers" | "component-templates" | "agent-policies";
 
+/**
+ * Origen de una entrada del catálogo del espacio: propia, de fábrica al día, de fábrica modificada (ya no recibe
+ * actualizaciones) o de fábrica retirada (la plataforma la quitó). {@code usedBy}: tableros, miembros o piezas que la usan.
+ */
+export interface CatalogEntryStatus {
+  origin: "OWN" | "FACTORY" | "FACTORY_MODIFIED" | "FACTORY_RETIRED";
+  usedBy: number;
+}
+
 interface CatalogEntry {
   id: string | null;
   key: string;

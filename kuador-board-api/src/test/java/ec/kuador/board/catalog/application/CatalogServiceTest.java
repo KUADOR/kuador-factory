@@ -103,7 +103,7 @@ class CatalogServiceTest {
     @Test
     void cannotDeleteWhatIsInUseNorRestoreWhatIsNotFromTheFactory() {
         methodologyUsers = 2;
-        assertThatThrownBy(() -> catalog.delete(CatalogType.METHODOLOGY, "ODD")).isInstanceOf(ConflictException.class).hasMessageContaining("2 proyecto(s)");
+        assertThatThrownBy(() -> catalog.delete(CatalogType.METHODOLOGY, "ODD")).isInstanceOf(ConflictException.class).hasMessageContaining("2 tablero(s)");
         methodologyUsers = 0;
         catalog.delete(CatalogType.METHODOLOGY, "ODD");
         assertThat(catalog.methodology("ODD")).isEmpty();

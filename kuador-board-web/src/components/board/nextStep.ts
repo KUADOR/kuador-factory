@@ -86,8 +86,8 @@ export function nextStep(c: StepContext): NextStep {
       if (!reviewer) {
         return {
           tone: "warn",
-          title: "Esta puerta la revisa un agente, pero no hay Agente Revisor en el equipo.",
-          detail: "Guarda de nuevo las etapas (Configuración → Etapas) para sumarlo, o apruébala tú.",
+          title: "Esta aprobación la revisa un agente, pero no hay Agente Revisor en el equipo.",
+          detail: "Guarda de nuevo los pasos en la pestaña Flujo para sumarlo, o apruébala tú.",
           actions: [],
         };
       }
@@ -138,7 +138,7 @@ export function nextStep(c: StepContext): NextStep {
       return {
         tone: "action",
         title: `Asígnala a ${server.name} y empieza solo.`,
-        detail: `La etapa la cubre ${roles}.`,
+        detail: `Este paso lo hace ${roles}.`,
         actions: canEdit ? [{ kind: "assign", memberId: server.id, label: `Asignar a ${server.name}` }] : [],
       };
     }
@@ -146,14 +146,14 @@ export function nextStep(c: StepContext): NextStep {
       return {
         tone: "wait",
         title: `Espera a ${candidates[0].name}: lo toma quien corra /pendientes.`,
-        detail: `La etapa la cubre ${roles}, que trabaja en la PC de una persona.`,
+        detail: `Este paso lo hace ${roles}, que trabaja en la PC de una persona.`,
         actions: canEdit ? [{ kind: "assign", memberId: candidates[0].id, label: `Asignar a ${candidates[0].name}` }] : [],
       };
     }
     return {
       tone: "warn",
-      title: `Nadie del equipo cubre «${column?.name}».`,
-      detail: `La etapa pide ${roles}. Agrega ese agente en Configuración → Equipo de agentes, o tómala tú.`,
+      title: `Nadie del equipo hace «${column?.name}».`,
+      detail: `El paso pide ${roles}. Agrega ese agente en Configuración → Equipo de agentes, o tómala tú.`,
       actions: canEdit ? [{ kind: "take", label: "Tomarla yo" }] : [],
     };
   }
@@ -166,7 +166,7 @@ export function nextStep(c: StepContext): NextStep {
       ? `la revisa ${roleList(st.approvers, roleName, "una persona")}`
       : agents.find((a) => st.roles.includes(a.role))
         ? `la toma ${agents.find((a) => st.roles.includes(a.role))!.name}`
-        : `la cubre ${roleList(st.roles, roleName)}`;
+        : `lo hace ${roleList(st.roles, roleName)}`;
     return {
       tone: "action",
       title: `Para que arranque, llévala a «${ahead.name}»: ${who}.`,

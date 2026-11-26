@@ -178,7 +178,7 @@ export function CardPanel({
             <AssignSelect issue={issue} project={project} members={assignable} />
           </label>
           <label className="flex flex-col gap-1 text-xs text-fg-muted">
-            Columna
+            Paso
             <MoveSelect issue={issue} project={project} />
           </label>
         </div>
@@ -224,7 +224,7 @@ function MoveSelect({ issue, project }: { issue: Issue; project: Project }) {
   const [pending, start] = useTransition();
   return (
     <SelectInput
-      ariaLabel={`Columna de ${issue.key}`}
+      ariaLabel={`Paso de ${issue.key}`}
       size="sm"
       value={issue.status}
       disabled={pending}

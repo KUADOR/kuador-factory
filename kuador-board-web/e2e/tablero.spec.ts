@@ -37,7 +37,7 @@ test("crear una tarjeta, abrirla, comentarla y verla terminada", async ({ page }
   await expect(page.locator(`[data-column="${done.key}"]`).getByText("Cobro confirmado")).toBeVisible();
 });
 
-test("la columna final muestra las últimas 20 y lleva a la lista", async ({ page }) => {
+test("el paso final muestra las últimas 20 y lleva a la lista", async ({ page }) => {
   const { key, columns } = await board("FIN", "Muchas terminadas");
   const done = columns.find((c) => c.category === "DONE")!;
   for (let i = 1; i <= 23; i++) await card(key, { title: `Pedido ${String(i).padStart(2, "0")}`, status: done.key });

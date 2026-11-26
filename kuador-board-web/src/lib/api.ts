@@ -41,6 +41,7 @@ import type {
   DocumentVersionMeta,
   DocumentWithContent,
   CatalogEntries,
+  CatalogEntryStatus,
   CatalogType,
   StageDef,
   Transitions,
@@ -412,6 +413,8 @@ export const boardApi = {
     request<Project>(`/api/projects/${encodeURIComponent(key)}/transitions`, json("PUT", transitions)),
 
   catalog: <T extends CatalogType>(type: T) => request<CatalogEntries[T][]>(`/api/catalog/${type}`),
+  /** De dónde viene cada entrada del catálogo del espacio y cuánto se usa. */
+  catalogStatus: (type: CatalogType) => request<Record<string, CatalogEntryStatus>>(`/api/catalog/${type}/status`),
   agentRulesCore: () => request<string[]>("/api/agent-rules/core"),
   agentPromptPreview: (memberId: string, issue: string) =>
     request<AgentPromptPreview>(`/api/agents/${encodeURIComponent(memberId)}/prompt-preview?issue=${encodeURIComponent(issue)}`),

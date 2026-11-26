@@ -42,7 +42,7 @@ export function InboxEditor({
         <p className="text-[14px] font-medium text-fg-strong">Primero conecta un buzón</p>
         <p className="text-[13px] text-fg-muted">
           En{" "}
-          <Link href="/connections" className="k-link">
+          <Link href="/connections?ver=sistemas" className="k-link">
             Conexiones → Sistemas de la empresa
           </Link>{" "}
           escribe el correo de la empresa y conéctalo.

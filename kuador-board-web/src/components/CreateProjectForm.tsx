@@ -10,6 +10,7 @@ import { useAccess } from "@/components/shell/AccessContext";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Field, TextInput } from "@/components/ui/Field";
+import { isGeneratedTemplate } from "@/components/catalog/catalogTypes";
 import { Badge } from "@/components/ui/Section";
 import type { WorkflowTemplate } from "@/lib/types";
 
@@ -26,7 +27,7 @@ function keyFrom(name: string) {
 export function CreateProjectForm({ templates: all, recommended = [], onCancel }: { templates: WorkflowTemplate[]; recommended?: string[]; onCancel: () => void }) {
   // Las plantillas del paquete de la empresa van primero, en su orden.
   const rank = (key: string) => (recommended.includes(key) ? recommended.indexOf(key) : recommended.length);
-  const templates = [...all].sort((a, b) => rank(a.key) - rank(b.key));
+  const templates = all.filter((t) => !isGeneratedTemplate(t)).sort((a, b) => rank(a.key) - rank(b.key));
   const router = useRouter();
   const { canAdminister } = useAccess();
   const [key, setKey] = useState("");
@@ -120,7 +121,7 @@ export function CreateProjectForm({ templates: all, recommended = [], onCancel }
         />
         {template && (
           <p className="text-xs text-fg-faint">
-            Columnas: {template.columns.map((c) => c.name).join(" → ")}.
+            Pasos: {template.columns.map((c) => c.name).join(" → ")}.
           </p>
         )}
       </div>

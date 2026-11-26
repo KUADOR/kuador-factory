@@ -10,7 +10,7 @@ import type { AgentRole, CatalogEntries, CatalogType } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps<"/platform/catalog/[type]">): Promise<Metadata> {
-  return { title: sectionBySlug((await params).type)?.label ?? "Catálogo de la plataforma" };
+  return { title: sectionBySlug((await params).type)?.label ?? "Catálogo de fábrica" };
 }
 
 export default async function PlatformCatalogSectionPage({ params }: PageProps<"/platform/catalog/[type]">) {

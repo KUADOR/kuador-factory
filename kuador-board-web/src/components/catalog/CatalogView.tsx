@@ -19,9 +19,9 @@ import { Badge } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 import { notify } from "@/components/ui/Toaster";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
-import type { AgentPolicy, AgentRole, CatalogEntries, CatalogType, ComponentTemplate, McpServer, Methodology, PlatformEntryStatus, WorkflowTemplate } from "@/lib/types";
+import type { AgentPolicy, AgentRole, CatalogEntries, CatalogEntryStatus, CatalogType, ComponentTemplate, McpServer, Methodology, PlatformEntryStatus, WorkflowTemplate } from "@/lib/types";
 
-import { CATALOG_SECTIONS, type CatalogSection } from "./catalogTypes";
+import { CATALOG_SECTIONS, isGeneratedTemplate, type CatalogSection } from "./catalogTypes";
 import { McpEditor, MethodologyEditor, RoleEditor, TemplateEditor, blankEntry, ComponentEditor, COMPONENT_KIND_LABEL } from "./editors";
 import { EntryHistory } from "./EntryHistory";
 import { PolicyEditor } from "./PolicyEditor";
@@ -37,6 +37,34 @@ const STATUS_BADGE: Record<PlatformEntryStatus, { label: string; tone: "neutral"
   NEW: { label: "Nueva", tone: "info" },
 };
 
+/** De dónde viene una entrada del espacio, en una etiqueta: es lo que dice si seguirá recibiendo mejoras. */
+const ORIGIN_BADGE: Record<CatalogEntryStatus["origin"], { label: string; tone: "neutral" | "info" | "warn"; hint: string }> = {
+  FACTORY: { label: "De fábrica", tone: "neutral", hint: "Igual a la de fábrica: recibe sus actualizaciones." },
+  FACTORY_MODIFIED: { label: "De fábrica, modificada", tone: "warn", hint: "La cambiaste: ya no recibe actualizaciones. «Restaurar valores de fábrica» la vuelve a poner al día." },
+  FACTORY_RETIRED: { label: "Retirada de fábrica", tone: "warn", hint: "La plataforma la quitó: puedes conservarla o eliminarla." },
+  OWN: { label: "Propia", tone: "info", hint: "La creó este espacio." },
+};
+
+/** Qué cuenta «la usan», por tipo. */
+const USED_BY: Record<CatalogSection["type"], string> = {
+  "workflow-templates": "Tableros",
+  methodologies: "Tableros",
+  roles: "Miembros",
+  "component-templates": "Piezas",
+  "mcp-servers": "Piezas",
+  "agent-policies": "",
+};
+
+/** Qué pasa al borrar, por tipo: lo que la API comprueba de verdad. */
+const DELETE_NOTE: Record<CatalogSection["type"], string> = {
+  "workflow-templates": "Los tableros que nacieron de ella no cambian: cada uno tiene su copia. No se puede deshacer.",
+  methodologies: "Solo se puede borrar si ningún tablero lo usa. No se puede deshacer.",
+  roles: "Solo se puede borrar si ningún miembro tiene este rol. No se puede deshacer.",
+  "component-templates": "Solo se puede borrar si ninguna pieza de un tablero salió de ella. No se puede deshacer.",
+  "mcp-servers": "Solo se puede borrar si ninguna pieza del catálogo lo lleva en su kit. No se puede deshacer.",
+  "agent-policies": "No se puede deshacer.",
+};
+
 /**
  * Una sección del catálogo: tabla de entradas y editor al costado. En un espacio se crea, edita, restaura y borra;
  * en la plataforma ({@code platform}) se edita en borrador, se descartan cambios o se quita la entrada.
@@ -47,6 +75,7 @@ export function CatalogView({
   roles,
   platform,
   core = [],
+  status = {},
 }: {
   slug: CatalogSection["slug"];
   entries: AnyEntry[];
@@ -54,8 +83,12 @@ export function CatalogView({
   platform?: PlatformInfo;
   /** Reglas de agentes: el núcleo de seguridad que no se edita. */
   core?: string[];
+  /** En un espacio: de dónde viene cada entrada y cuánto se usa. */
+  status?: Record<string, CatalogEntryStatus>;
 }) {
   const section = CATALOG_SECTIONS.find((s) => s.slug === slug)!;
+  // La plataforma quitó esta entrada de fábrica: no hay a qué restaurarla, así que se puede eliminar.
+  const retired = (key: string) => status[key]?.origin === "FACTORY_RETIRED";
   const router = useRouter();
   const [extra, setExtra] = useState<{ memberName: string; color: string }>({ memberName: "", color: "" });
   const [draft, setDraft] = useState<AnyEntry | null>(null);
@@ -63,6 +96,11 @@ export function CatalogView({
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<"delete" | "restore" | null>(null);
   const [pending, startTransition] = useTransition();
+  // Las plantillas que el diseñador con IA armó para un tablero quedan aparte: no son para reutilizar.
+  const [showGenerated, setShowGenerated] = useState(false);
+  const generated = !platform && section.type === "workflow-templates" ? entries.filter(isGeneratedTemplate) : [];
+  const shown = showGenerated ? entries : entries.filter((e) => !generated.includes(e));
+  const removable = (e: AnyEntry) => !platform && section.type !== "agent-policies" && (!e.builtIn || retired(e.key));
 
   const open = (entry: AnyEntry | null) => {
     setIsNew(entry == null);
@@ -91,7 +129,9 @@ export function CatalogView({
   return (
     <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
       <div className="flex flex-wrap items-center gap-3">
-        <p className="min-w-0 flex-1 text-[13px] text-fg-muted">{section.description}</p>
+        <p className="min-w-0 flex-1 text-[13px] text-fg-muted">
+          {section.description} {!platform && <span className="text-fg-faint">{section.scope}</span>}
+        </p>
         {section.newLabel && (
           <Button tone="primary" size="sm" icon={Plus} onClick={() => open(null)}>
             {section.newLabel}
@@ -106,11 +146,17 @@ export function CatalogView({
               <th scope="col" className="px-5 py-2 font-medium">Nombre</th>
               <th scope="col" className="hidden w-44 px-3 py-2 font-medium sm:table-cell">Clave</th>
               <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">Detalle</th>
-              <th scope="col" className="w-40 px-5 py-2 text-right font-medium">{platform ? "Estado" : "Origen"}</th>
+              {!platform && <th scope="col" className="hidden w-24 px-3 py-2 text-right font-medium sm:table-cell">{USED_BY[section.type]}</th>}
+              <th scope="col" className="w-44 px-5 py-2 text-right font-medium">{platform ? "Estado" : "Origen"}</th>
+              {!platform && (
+                <th scope="col" className="w-10 py-2 pr-3">
+                  <span className="sr-only">Acciones</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {entries.map((e) => (
+            {shown.map((e) => (
               <tr key={e.key} className="relative hover:bg-hover">
                 <td className="px-5 py-2.5">
                   <button type="button" onClick={() => open(e)} className="text-left font-medium text-fg-strong after:absolute after:inset-0">
@@ -119,20 +165,50 @@ export function CatalogView({
                 </td>
                 <td className="tabular hidden px-3 py-2.5 font-mono text-xs text-fg-muted sm:table-cell">{e.key}</td>
                 <td className="hidden px-3 py-2.5 text-xs text-fg-muted md:table-cell">{detail(section.type, e)}</td>
+                {!platform && <td className="tabular hidden px-3 py-2.5 text-right text-xs text-fg-muted sm:table-cell">{section.type === "agent-policies" ? "" : (status[e.key]?.usedBy ?? "—")}</td>}
                 <td className="px-5 py-2.5 text-right">
                   {platform ? (
                     <Badge tone={STATUS_BADGE[platform[e.key]?.status ?? "PUBLISHED"].tone}>{STATUS_BADGE[platform[e.key]?.status ?? "PUBLISHED"].label}</Badge>
-                  ) : e.builtIn ? (
-                    <Badge>De fábrica</Badge>
+                  ) : generated.includes(e) ? (
+                    <Badge>Generada por IA</Badge>
                   ) : (
-                    <Badge tone="info">Propia</Badge>
+                    <span title={ORIGIN_BADGE[status[e.key]?.origin ?? (e.builtIn ? "FACTORY" : "OWN")].hint}>
+                      <Badge tone={ORIGIN_BADGE[status[e.key]?.origin ?? (e.builtIn ? "FACTORY" : "OWN")].tone}>{ORIGIN_BADGE[status[e.key]?.origin ?? (e.builtIn ? "FACTORY" : "OWN")].label}</Badge>
+                    </span>
                   )}
                 </td>
+                {!platform && (
+                  <td className="py-2.5 pr-3 text-right">
+                    {removable(e) && (
+                      <span className="relative z-10">
+                        <Button
+                          tone="ghost"
+                          size="sm"
+                          icon={Trash}
+                          iconOnly
+                          label={`Eliminar ${e.name}`}
+                          onClick={() => {
+                            open(e);
+                            setConfirming("delete");
+                          }}
+                        />
+                      </span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {generated.length > 0 && (
+        <p className="text-xs text-fg-muted">
+          {showGenerated ? "Se muestran" : "No se muestran"} {generated.length} plantilla(s) que la IA armó para un tablero concreto.{" "}
+          <button type="button" className="k-link" onClick={() => setShowGenerated((v) => !v)}>
+            {showGenerated ? "Ocultarlas" : "Verlas"}
+          </button>
+        </p>
+      )}
 
       <SidePanel
         open={draft != null}
@@ -151,12 +227,12 @@ export function CatalogView({
                   Descartar cambios
                 </Button>
               )}
-              {!platform && !isNew && !draft.builtIn && (
+              {!platform && !isNew && (!draft.builtIn || retired(draft.key)) && (
                 <Button tone="danger" size="sm" icon={Trash} disabled={pending} onClick={() => setConfirming("delete")}>
                   Eliminar
                 </Button>
               )}
-              {!platform && !isNew && draft.builtIn && (
+              {!platform && !isNew && draft.builtIn && !retired(draft.key) && (
                 <Button tone="ghost" size="sm" icon={RotateCcw} disabled={pending} onClick={() => setConfirming("restore")}>
                   Restaurar valores de fábrica
                 </Button>
@@ -216,7 +292,7 @@ export function CatalogView({
         message={
           platform
             ? "Los espacios nuevos ya no la reciben; los que ya la tienen la conservan. No se puede deshacer."
-            : "Solo se puede borrar si ningún tablero o miembro la usa. No se puede deshacer."
+            : DELETE_NOTE[section.type]
         }
         confirmLabel={platform ? "Quitar" : "Eliminar"}
         pending={pending}

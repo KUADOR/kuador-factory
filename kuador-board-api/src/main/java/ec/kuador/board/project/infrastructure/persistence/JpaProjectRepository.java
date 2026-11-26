@@ -26,6 +26,8 @@ interface SpringDataProjectRepository extends JpaRepository<ProjectEntity, UUID>
 
     long countByMethodology(String methodology);
 
+    long countByTemplateKey(String templateKey);
+
     @Query(value = """
             UPDATE project SET next_issue_number = next_issue_number + 1
             WHERE workspace_id = :workspaceId AND project_key = :key
@@ -140,6 +142,11 @@ class JpaProjectRepository implements ProjectRepository {
     @Override
     public long countUsingMethodology(String methodology) {
         return jpa.countByMethodology(methodology);
+    }
+
+    @Override
+    public long countFromTemplate(String templateKey) {
+        return jpa.countByTemplateKey(templateKey);
     }
 
     @Override

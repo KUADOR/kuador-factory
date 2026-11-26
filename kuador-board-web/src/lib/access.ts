@@ -39,7 +39,7 @@ export const ACCESS_HINT: Record<MemberAccess, string> = {
   OWNER: "Todo, más el plan, los pagos y quién administra.",
   ADMIN: "El equipo, las invitaciones, el catálogo, la IA, las conexiones y la auditoría.",
   EDIT: "Crea, mueve y comenta tarjetas y documentos.",
-  VIEW: "Ve el avance. Aprueba solo en las puertas de su rol.",
+  VIEW: "Ve el avance. Aprueba solo en los pasos de su rol.",
 };
 
 /** Por defecto un cliente solo mira y nadie nace administrador (igual que la API). */

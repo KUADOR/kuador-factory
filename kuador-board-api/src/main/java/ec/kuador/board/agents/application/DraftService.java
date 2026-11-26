@@ -382,7 +382,7 @@ public class DraftService implements AiJobsApi {
 
     private String recognizePrompt(ProjectView p, Input in, boolean local) {
         List<String> repos = safeRepositories(p.key());
-        if (repos.isEmpty()) throw new DomainException("Primero vincula el repositorio del proyecto (Configuración → Piezas y repositorio).");
+        if (repos.isEmpty()) throw new DomainException("Primero vincula el repositorio del proyecto (pestaña Repositorio → Piezas y vínculo).");
         StringBuilder b = new StringBuilder();
         b.append("Este tablero es para un proyecto de software que ya existe: hay que mantenerlo, mejorarlo o sumarle funciones.\n");
         if (in.idea() != null && !in.idea().isBlank()) b.append("Lo que quiere hacer la persona:\n<idea>").append(clip(in.idea())).append("</idea>\n");

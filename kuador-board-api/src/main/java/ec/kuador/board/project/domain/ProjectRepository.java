@@ -33,6 +33,10 @@ public interface ProjectRepository {
 
     long countUsingMethodology(String methodology);
 
+    default long countFromTemplate(String templateKey) {
+        return 0;
+    }
+
     List<ColumnDef> findColumns(String projectKey);
 
     /** Reemplaza todas las columnas del proyecto por {@code columns}, en ese orden. */

@@ -179,7 +179,7 @@ export function IssueForm({
 
   const properties = (
     <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-3.5">
-      <Field label="Estado">
+      <Field label="Paso">
         {(id) => <SelectInput id={id} size="sm" disabled={readOnly} options={statusOptions} value={values.status} onChange={(v) => v && set("status", v)} />}
       </Field>
       {!selfKey && <StartHint project={project} members={members} status={values.status} onPick={(status) => set("status", status)} />}
@@ -337,7 +337,7 @@ function StartHint({ project, members, status, onPick }: { project: Project; mem
   if (stage?.gate) text = "Queda esperando la aprobación de una persona.";
   else if (stage && stage.roles.length > 0) {
     const agent = agentFor(stage.roles);
-    text = agent ? <>Al crearla la toma <b className="font-medium text-fg-strong">{agent.name}</b>.</> : "Queda por tomar en esta etapa.";
+    text = agent ? <>Al crearla la toma <b className="font-medium text-fg-strong">{agent.name}</b>.</> : "Queda por tomar en este paso.";
   } else if (column?.category === "TODO") {
     const ahead = firstStageAhead(project, status);
     if (ahead) {

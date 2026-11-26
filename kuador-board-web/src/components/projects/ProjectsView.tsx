@@ -86,7 +86,7 @@ export function ProjectsView({
                           (methodologyName(p.methodology) ? (
                             <Badge>{methodologyName(p.methodology)}</Badge>
                           ) : (
-                            <Badge tone="warn">Sin metodología</Badge>
+                            <Badge tone="warn">Sin manual de trabajo</Badge>
                           ))}
                       </span>
                     </span>
@@ -109,7 +109,7 @@ export function ProjectsView({
                       Plantilla
                     </th>
                     <th scope="col" className="hidden px-3 py-2 font-medium sm:table-cell">
-                      Metodología
+                      Manual de trabajo
                     </th>
                   </tr>
                 </thead>

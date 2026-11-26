@@ -96,7 +96,7 @@ public class DocumentService implements DocsApi {
         } else {
             Methodology methodology = methodologyOf(project);
             def = methodology.document(kind)
-                    .orElseThrow(() -> new DomainException("La metodología " + methodology.name() + " no usa documentos de tipo " + kind + "."));
+                    .orElseThrow(() -> new DomainException("El manual de trabajo " + methodology.name() + " no usa documentos de tipo " + kind + "."));
         }
         if (content != null && content.length() > MAX_CONTENT) {
             throw new DomainException("El documento pasa de " + MAX_CONTENT + " caracteres.");
@@ -288,10 +288,10 @@ public class DocumentService implements DocsApi {
 
     private Methodology methodologyOf(ProjectView project) {
         if (project.methodology() == null) {
-            throw new DomainException("Elige primero la metodología del proyecto en Configurar.");
+            throw new DomainException("Elige primero el manual de trabajo del proyecto en Configurar.");
         }
         return catalog.methodology(project.methodology()).orElseThrow(() -> new DomainException(
-                "La metodología " + project.methodology() + " ya no existe en el catálogo del espacio. Elige otra en Configurar."));
+                "El manual de trabajo " + project.methodology() + " ya no existe en el catálogo del espacio. Elige otro en Configurar."));
     }
 
     private ProjectView documentsBoard(String projectKey) {

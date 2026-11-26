@@ -9,7 +9,7 @@ import { failPage } from "@/lib/page-errors";
 import type { Workspace } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Espacio de trabajo" };
+export const metadata: Metadata = { title: "Empresa e idiomas" };
 
 export default async function WorkspacePage() {
   await requireAdmin();

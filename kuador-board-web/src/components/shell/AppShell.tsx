@@ -89,7 +89,7 @@ export function AppShell(props: {
 
 /** Barra inferior del celular: lo de todos los días a un toque, con el pulgar. */
 function TabBar({ path, decisions, canCapture, onMenu }: { path: string; decisions: number; canCapture: boolean; onMenu: () => void }) {
-  const inProjects = path.startsWith("/projects");
+  const inProjects = path.startsWith("/projects") || path === "/design";
   const item = (active: boolean) =>
     clsx("flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium", active ? "text-sol-text" : "text-fg-muted");
   return (
@@ -104,10 +104,11 @@ function TabBar({ path, decisions, canCapture, onMenu }: { path: string; decisio
           Tableros
         </Link>
         {canCapture && (
-          <Link href="/capture" aria-label="Capturar una idea" className="flex flex-1 items-center justify-center">
-            <span className="grid size-12 place-items-center rounded-full bg-sol text-on-sol shadow-md">
-              <Plus className="size-6" aria-hidden />
+          <Link href="/capture" className={clsx(item(path === "/capture"), "gap-0")} aria-current={path === "/capture" ? "page" : undefined}>
+            <span className="grid size-9 place-items-center rounded-full bg-sol text-on-sol shadow-md">
+              <Plus className="size-5" aria-hidden />
             </span>
+            Capturar
           </Link>
         )}
         <Link href="/decisions" className={item(path === "/decisions")} aria-current={path === "/decisions" ? "page" : undefined}>
@@ -119,7 +120,7 @@ function TabBar({ path, decisions, canCapture, onMenu }: { path: string; decisio
               </span>
             )}
           </span>
-          Decisiones
+          Mis decisiones
         </Link>
         <button type="button" onClick={onMenu} className={item(false)}>
           <Menu className="size-6" aria-hidden />

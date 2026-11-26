@@ -117,7 +117,7 @@ export function BoardDesigner({
     return (
       <p className="px-4 py-5 text-[13px] text-fg-muted sm:px-6">
         Primero conecta la IA de tu empresa en{" "}
-        <Link href="/connections" className="k-link">
+        <Link href="/connections?ver=ia" className="k-link">
           Conexiones
         </Link>
         .
@@ -212,7 +212,7 @@ export function BoardDesigner({
         <div className="flex flex-col gap-2 rounded-lg border border-sol/40 bg-sol/10 px-4 py-3 text-[13px] text-fg">
           <p>
             Para desarrollar software se usa la plantilla <span className="font-medium text-fg-strong">«{design.template.name}»</span>: agentes que programan,
-            revisión de código, repositorio y metodología. Al crearlo sigues con su asistente de inicio.
+            revisión de código, repositorio y manual de trabajo. Al crearlo sigues con su asistente de inicio.
           </p>
           <label className="flex cursor-pointer items-center gap-2">
             <input type="checkbox" checked={existing} onChange={(e) => setExisting(e.target.checked)} />
@@ -275,7 +275,7 @@ export function BoardDesigner({
           </ul>
           <p className="mt-1 text-xs text-fg-muted">
             Puedes conectarlo ahora en{" "}
-            <a href="/connections" target="_blank" rel="noreferrer" className="k-link">
+            <a href="/connections?ver=sistemas" target="_blank" rel="noreferrer" className="k-link">
               Conexiones
             </a>{" "}
             (se abre aparte; vuelve aquí y pulsa «Ajustar la propuesta» con «ya conecté…») o crear el tablero igual y conectarlo después.

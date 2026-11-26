@@ -19,7 +19,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
               title: "Clientes",
               items: [
                 { href: "/platform", label: "Espacios y licencias", exact: true },
-                { href: "/platform/audit", label: "Auditoría" },
+                { href: "/platform/audit", label: "Auditoría global" },
               ],
             },
             {
@@ -34,7 +34,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
               items: [
                 { href: "/platform/ai", label: "Inteligencia artificial" },
                 { href: "/platform/packages", label: "Paquetes por industria" },
-                { href: "/platform/catalog", label: "Catálogo" },
+                { href: "/platform/catalog", label: "Catálogo de fábrica" },
               ],
             },
           ]}

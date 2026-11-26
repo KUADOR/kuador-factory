@@ -32,6 +32,8 @@ export function IssueCard({
   dragging?: boolean;
 }) {
   const blocked = (plan?.waitingFor?.length ?? 0) > 0;
+  // Solo si el tablero atiende varios proyectos: en cuál se trabaja esta tarjeta.
+  const subject = (projectType?.subjects?.length ?? 0) > 1 ? projectType!.subjects!.find((s) => s.key === issue.subjectKey) : undefined;
   return (
     <div
       className={clsx(
@@ -40,8 +42,13 @@ export function IssueCard({
       )}
     >
       <p className="text-[13px] leading-snug text-fg-strong">{issue.title}</p>
-      {(epicTitle || issue.labels.length > 0 || plan?.role || plan?.progress || blocked) && (
+      {(subject || epicTitle || issue.labels.length > 0 || plan?.role || plan?.progress || blocked) && (
         <div className="mt-2 flex flex-wrap gap-1">
+          {subject && (
+            <span title={`Proyecto: ${subject.name}`} className="max-w-full truncate rounded border border-line-strong px-1.5 py-px text-[11px] font-medium text-fg">
+              {subject.name}
+            </span>
+          )}
           {epicTitle && <span className="max-w-full truncate rounded bg-epic/12 px-1.5 py-px text-[11px] font-medium text-epic">{epicTitle}</span>}
           {plan?.role && <span className="rounded bg-info/12 px-1.5 py-px text-[11px] font-medium text-info">{plan.role}</span>}
           {blocked && (

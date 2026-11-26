@@ -37,11 +37,16 @@ function origin(path) {
  * El repo local de donde salen las copias de la tarjeta: el vinculado al tablero; si no, otro vinculado que apunta al
  * mismo repositorio (dos tableros sobre el mismo repo); si no, un clon propio del runner, uno solo por repositorio.
  * Así nunca hay un clon por tarjeta.
+ *
+ * Un tablero puede trabajar en varios proyectos, cada uno con su repositorio: ahí la carpeta vinculada al tablero vale
+ * solo si es de uno de los repositorios de la tarjeta. Para decirlo a mano: `link <TABLERO>/<PROYECTO> <carpeta>`.
  */
 export function sourceRepo(config, claim, log = () => {}) {
-  const linked = config.repos?.[claim.projectKey];
-  if (linked && isRepo(linked)) return linked;
   const wanted = (claim.repositories ?? []).map(repoSlug).filter(Boolean);
+  const exact = claim.subjectKey ? config.repos?.[`${claim.projectKey}/${claim.subjectKey}`] : null;
+  if (exact && isRepo(exact)) return exact;
+  const linked = config.repos?.[claim.projectKey];
+  if (linked && isRepo(linked) && (!claim.manySubjects || wanted.length === 0 || wanted.includes(origin(linked)))) return linked;
   if (wanted.length === 0) return null;
   for (const path of Object.values(config.repos ?? {})) {
     if (isRepo(path) && wanted.includes(origin(path))) return path;

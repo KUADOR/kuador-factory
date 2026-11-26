@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { ApiError, boardApi } from "@/lib/api";
 import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
+import { subjectCookie } from "@/lib/subjects";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
   BoardDesign,
@@ -102,6 +103,8 @@ import type {
   AiUsageReport,
   DraftApproval,
   DraftApproved,
+  Subject,
+  SubjectListing,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string, layoutToo = false): Promise<ActionResult<T>> {
@@ -357,8 +360,45 @@ export async function createProjectAction(input: {
   name: string;
   description: string | null;
   templateKey: string;
+  /** Proyectos del espacio en que trabaja; vacío = uno propio, con su nombre. */
+  subjects?: string[];
 }): Promise<ActionResult<Project>> {
   return run(() => boardApi.createProject(input), "/");
+}
+
+// ---- Proyectos: aquello sobre lo que se trabaja (el tablero es el equipo y su flujo) ----
+
+export async function createSubjectAction(input: { name: string; description: string | null }): Promise<ActionResult<SubjectListing>> {
+  return run(() => boardApi.createSubject(input), "/projects");
+}
+
+export async function updateSubjectAction(key: string, input: { name: string; description: string | null }): Promise<ActionResult<SubjectListing>> {
+  return run(() => boardApi.updateSubject(key, input), "/projects", true);
+}
+
+export async function deleteSubjectAction(key: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteSubject(key), "/projects");
+}
+
+export async function addBoardSubjectAction(projectKey: string, input: { subjectKey: string } | { name: string }): Promise<ActionResult<Subject[]>> {
+  return run(() => boardApi.addBoardSubject(projectKey, input), boardPath(projectKey), true);
+}
+
+export async function removeBoardSubjectAction(projectKey: string, subjectKey: string): Promise<ActionResult<Subject[]>> {
+  return run(async () => {
+    const left = await boardApi.removeBoardSubject(projectKey, subjectKey);
+    const jar = await cookies();
+    if (jar.get(subjectCookie(projectKey))?.value === subjectKey) jar.delete(subjectCookie(projectKey));
+    return left;
+  }, boardPath(projectKey), true);
+}
+
+/** Recuerda el proyecto elegido en un tablero (nulo = todos): filtra las tarjetas y es el de sus documentos y su repositorio. */
+export async function chooseSubjectAction(projectKey: string, subjectKey: string | null): Promise<void> {
+  const jar = await cookies();
+  if (subjectKey) jar.set(subjectCookie(projectKey), subjectKey, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  else jar.delete(subjectCookie(projectKey));
+  revalidatePath(boardPath(projectKey), "layout");
 }
 
 // ---- Metodología y documentos ----

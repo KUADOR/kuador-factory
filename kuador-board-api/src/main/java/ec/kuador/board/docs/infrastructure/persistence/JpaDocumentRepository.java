@@ -11,11 +11,15 @@ import org.springframework.stereotype.Repository;
 
 interface SpringDataDocumentRepository extends JpaRepository<DocumentEntity, UUID> {
 
-    List<DocumentEntity> findByProjectKeyOrderByKindAscIssueKeyAsc(String projectKey);
+    List<DocumentEntity> findByProjectKeyAndSubjectKeyOrderByKindAscIssueKeyAsc(String projectKey, String subjectKey);
 
     List<DocumentEntity> findByIssueKeyOrderByKind(String issueKey);
 
-    boolean existsByProjectKeyAndIssueKeyIsNullAndKind(String projectKey, String kind);
+    boolean existsByProjectKeyAndSubjectKeyAndIssueKeyIsNullAndKind(String projectKey, String subjectKey, String kind);
+
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @org.springframework.data.jpa.repository.Query("update DocumentEntity d set d.subjectKey = :subjectKey where d.issueKey = :issueKey")
+    int moveIssue(String issueKey, String subjectKey);
 
     boolean existsByProjectKeyAndIssueKeyAndKind(String projectKey, String issueKey, String kind);
 }
@@ -42,8 +46,13 @@ class JpaDocumentRepository implements DocumentRepository {
     }
 
     @Override
-    public List<Document> findByProject(String projectKey) {
-        return docs.findByProjectKeyOrderByKindAscIssueKeyAsc(projectKey).stream().map(DocumentEntity::toDomain).toList();
+    public void moveIssue(String issueKey, String subjectKey) {
+        docs.moveIssue(issueKey, subjectKey);
+    }
+
+    @Override
+    public List<Document> findByProject(String projectKey, String subjectKey) {
+        return docs.findByProjectKeyAndSubjectKeyOrderByKindAscIssueKeyAsc(projectKey, subjectKey).stream().map(DocumentEntity::toDomain).toList();
     }
 
     @Override
@@ -52,9 +61,9 @@ class JpaDocumentRepository implements DocumentRepository {
     }
 
     @Override
-    public boolean exists(String projectKey, String issueKey, String kind) {
+    public boolean exists(String projectKey, String subjectKey, String issueKey, String kind) {
         return issueKey == null
-                ? docs.existsByProjectKeyAndIssueKeyIsNullAndKind(projectKey, kind)
+                ? docs.existsByProjectKeyAndSubjectKeyAndIssueKeyIsNullAndKind(projectKey, subjectKey, kind)
                 : docs.existsByProjectKeyAndIssueKeyAndKind(projectKey, issueKey, kind);
     }
 

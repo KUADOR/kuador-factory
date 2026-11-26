@@ -30,8 +30,13 @@ public interface CodeReviewApi {
         }
     }
 
-    /** Repositorios de GitHub del proyecto que se pueden leer ("owner/repo"). */
+    /** Repositorios de GitHub que se pueden leer ("owner/repo"): los de todos los proyectos del tablero. */
     List<String> repositories(String projectKey);
+
+    /** Los del proyecto sobre el que opera la petición (ver {@link ec.kuador.board.shared.tenant.SubjectScope}). */
+    default List<String> subjectRepositories(String projectKey) {
+        return repositories(projectKey);
+    }
 
     /**
      * Pull Requests de los repos del proyecto, los más recientes primero. {@code search} (p. ej. la clave del issue)

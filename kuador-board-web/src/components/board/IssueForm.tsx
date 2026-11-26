@@ -13,6 +13,7 @@ import { firstStageAhead } from "./nextStep";
 import { stageOf } from "./stages";
 import { PriorityIcon, TypeIcon } from "@/components/ui/IssueIcons";
 import { ESTIMATE_LABEL, PRIORITY_LABEL, allowedTypes, fieldsOf, parentLabel, typeLabel, type TypeSource } from "@/lib/labels";
+import { subjectsOf } from "@/lib/subjects";
 import { PRIORITIES, type Issue, type IssueInput, type IssueStatus, type IssueType, type Member, type Priority, type Project } from "@/lib/types";
 
 export interface IssueFormValues extends IssueInput {
@@ -40,7 +41,7 @@ export function emptyValues(status: IssueStatus, projectType: TypeSource): Issue
 
 export function valuesOf(issue: Issue): IssueFormValues {
   const { title, description, type, priority, storyPoints, assigneeId, parentKey, labels, status } = issue;
-  return { title, description, type, priority, storyPoints, assigneeId, parentKey, labels, fields: issue.fields ?? {}, status };
+  return { title, description, type, priority, storyPoints, assigneeId, parentKey, labels, fields: issue.fields ?? {}, subjectKey: issue.subjectKey ?? null, status };
 }
 
 const CATEGORY_DOT = { TODO: "bg-fg-faint", IN_PROGRESS: "bg-info", DONE: "bg-ok" } as const;
@@ -132,6 +133,10 @@ export function IssueForm({
     { value: "", label: "Sin asignar", leading: <Avatar member={null} size="xs" /> },
     ...members.map((m) => ({ value: m.id, label: m.name, leading: <Avatar member={m} size="xs" /> })),
   ];
+  // El proyecto se elige en la épica (o en una tarjeta suelta); las tarjetas de una épica llevan el de su épica.
+  const subjects = subjectsOf(project);
+  const parent = values.type === "EPIC" ? undefined : epics.find((e) => e.key === values.parentKey);
+  const subjectKey = parent?.subjectKey ?? values.subjectKey ?? subjects[0]?.key ?? null;
   const epicOptions: SelectOption<string>[] = [
     { value: "", label: "Ninguna" },
     ...epics.filter((e) => e.key !== selfKey).map((e) => ({ value: e.key, label: `${e.key} · ${e.title}` })),
@@ -239,6 +244,20 @@ export function IssueForm({
           }
         </Field>
       ))}
+      {subjects.length > 1 && (
+        <Field label="Proyecto" hint={parent ? `El de su ${parentLabel(project).toLowerCase()}.` : undefined}>
+          {(id) => (
+            <SelectInput
+              id={id}
+              size="sm"
+              disabled={readOnly || !!parent}
+              options={subjects.map((s) => ({ value: s.key, label: s.name }))}
+              value={subjectKey}
+              onChange={(v) => set("subjectKey", v)}
+            />
+          )}
+        </Field>
+      )}
       <div className={project.estimate === "NONE" ? "grid gap-3" : "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3"}>
         {project.estimate !== "NONE" && (
           <Field label={ESTIMATE_LABEL[project.estimate ?? "POINTS"]}>
@@ -288,6 +307,8 @@ export function IssueForm({
           description: values.description?.trim() ? values.description : null,
           labels: labelsText.split(",").map((l) => l.trim()).filter(Boolean),
           parentKey: values.type === "EPIC" ? null : values.parentKey,
+          // Con épica no se envía: la tarjeta toma el proyecto de su épica.
+          subjectKey: parent ? undefined : (values.subjectKey ?? undefined),
         });
       }}
     >

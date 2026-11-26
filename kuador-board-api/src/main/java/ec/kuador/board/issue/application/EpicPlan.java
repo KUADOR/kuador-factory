@@ -101,7 +101,7 @@ final class EpicPlan extends IssueSupport {
             epicTasks.releaseEpicFromAgent(epic, actorId);
             epicTasks.announcePendingPlan(epic, project, actorId);
         }
-        return created.stream().map(c -> new IssueRef(c.key(), c.projectKey(), Integer.parseInt(c.key().substring(c.key().lastIndexOf('-') + 1)), c.title())).toList();
+        return created.stream().map(c -> new IssueRef(c.key(), c.projectKey(), Integer.parseInt(c.key().substring(c.key().lastIndexOf('-') + 1)), c.title(), c.subjectKey())).toList();
     }
 
     /**

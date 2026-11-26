@@ -65,7 +65,7 @@ public class DocumentService implements DocsApi {
     @Transactional(readOnly = true)
     public Overview overview(String projectKey) {
         ProjectView project = documentsBoard(projectKey);
-        return new Overview(project, catalog.methodology(project.methodology()).orElse(null), documents.findByProject(projectKey));
+        return new Overview(project, catalog.methodology(project.methodology()).orElse(null), documents.findByProject(projectKey, projects.currentSubject(projectKey)));
     }
 
     @Transactional(readOnly = true)
@@ -86,7 +86,19 @@ public class DocumentService implements DocsApi {
      * con él, conserva la ruta real del repositorio. Sin {@code content}, usa la plantilla.
      */
     private WithContent createDocument(String projectKey, String kind, String issueKey, String importedPath, String content, UUID actorId) {
+        // El documento de una tarjeta se escribe con el manual y en el proyecto de la tarjeta.
+        return inSubjectOf(issueKey, () -> createInSubject(projectKey, kind, issueKey, importedPath, content, actorId));
+    }
+
+    /** Hace {@code work} sobre el proyecto de la tarjeta; sin tarjeta, sobre el de la petición en curso. */
+    private <T> T inSubjectOf(String issueKey, java.util.function.Supplier<T> work) {
+        if (issueKey == null || issueKey.isBlank()) return work.get();
+        return issues.find(issueKey).map(i -> ec.kuador.board.shared.tenant.SubjectScope.call(i.subjectKey(), work)).orElseGet(work);
+    }
+
+    private WithContent createInSubject(String projectKey, String kind, String issueKey, String importedPath, String content, UUID actorId) {
         ProjectView project = documentsBoard(projectKey);
+        String subjectKey = projects.currentSubject(projectKey);
         DocumentDef def;
         if (ec.kuador.board.catalog.SoftwareDocuments.softwareOnly(kind) && !project.repository()) {
             throw new DomainException("Ese documento es de los tableros con repositorio de código.");
@@ -117,18 +129,18 @@ public class DocumentService implements DocsApi {
             path = importedPath != null ? importedPath : def.pathPattern();
         }
         String scopeKey = issue == null ? null : issue.key();
-        if (documents.exists(projectKey, scopeKey, kind)) {
+        if (documents.exists(projectKey, subjectKey, scopeKey, kind)) {
             throw new ConflictException("Ya existe «" + def.label() + "»" + (issue == null ? " en el proyecto." : " para " + scopeKey + "."));
         }
-        if (documents.findByProject(projectKey).stream().anyMatch(d -> d.path().equals(path))) {
+        if (documents.findByProject(projectKey, projects.currentSubject(projectKey)).stream().anyMatch(d -> d.path().equals(path))) {
             throw new ConflictException("Ya hay un documento con la ruta " + path + ".");
         }
         Instant now = clock.instant();
         String title = issue == null ? def.label() : def.label() + " · " + issue.title();
         if (title.length() > 200) title = title.substring(0, 200);
-        Document doc = documents.save(new Document(UUID.randomUUID(), projectKey, scopeKey, kind, title, path, 1, now, now, actorId));
+        Document doc = documents.save(new Document(UUID.randomUUID(), projectKey, subjectKey, scopeKey, kind, title, path, 1, now, now, actorId));
         String body = content != null ? content
-                : DocumentTemplate.render(def.template(), project.name(), scopeKey, issue == null ? null : issue.title(), LocalDate.ofInstant(now, ECUADOR));
+                : DocumentTemplate.render(def.template(), projects.currentSubjectName(projectKey), scopeKey, issue == null ? null : issue.title(), LocalDate.ofInstant(now, ECUADOR));
         String note = content == null ? FROM_TEMPLATE : importedPath != null ? "Importado de " + path : "Creado por un agente";
         documents.saveVersion(new DocumentVersion(doc.id(), 1, body, actorId, note, now));
         publish(doc, actorId, now);
@@ -190,7 +202,7 @@ public class DocumentService implements DocsApi {
     @Override
     @Transactional(readOnly = true)
     public List<DocContent> ofProject(String projectKey) {
-        return documents.findByProject(projectKey).stream().map(d -> view(d, content(d.id(), d.currentVersion()))).toList();
+        return documents.findByProject(projectKey, projects.currentSubject(projectKey)).stream().map(d -> view(d, content(d.id(), d.currentVersion()))).toList();
     }
 
     @Override
@@ -233,7 +245,7 @@ public class DocumentService implements DocsApi {
     public List<DocContent> ensureProjectDocuments(String projectKey, UUID actorId) {
         ProjectView project = documentsBoard(projectKey);
         catalog.methodology(project.methodology()).ifPresent(m -> {
-            List<Document> existing = documents.findByProject(projectKey);
+            List<Document> existing = documents.findByProject(projectKey, projects.currentSubject(projectKey));
             for (DocumentDef def : m.documents(DocumentDef.Scope.PROJECT)) {
                 boolean has = existing.stream().anyMatch(d -> d.issueKey() == null && d.kind().equals(def.kind()));
                 if (!has) create(projectKey, def.kind(), null, actorId);
@@ -247,7 +259,7 @@ public class DocumentService implements DocsApi {
     public List<String> pendingBaseDocuments(String projectKey) {
         ProjectView project = documentsBoard(projectKey);
         return catalog.methodology(project.methodology()).map(m -> {
-            List<Document> existing = documents.findByProject(projectKey).stream().filter(d -> d.issueKey() == null).toList();
+            List<Document> existing = documents.findByProject(projectKey, projects.currentSubject(projectKey)).stream().filter(d -> d.issueKey() == null).toList();
             return m.baseDocuments().stream()
                     .filter(def -> existing.stream().filter(d -> d.kind().equals(def.kind())).findFirst().map(this::onlyTemplate).orElse(true))
                     .map(DocumentDef::label).toList();
@@ -262,10 +274,15 @@ public class DocumentService implements DocsApi {
     @Override
     @Transactional
     public DocContent write(String projectKey, String issueKey, String kind, String content, String note, UUID actorId) {
+        return inSubjectOf(issueKey, () -> writeInSubject(projectKey, issueKey, kind, content, note, actorId));
+    }
+
+    private DocContent writeInSubject(String projectKey, String issueKey, String kind, String content0, String note, UUID actorId) {
+        String content = content0;
         // Quien redacta a partir de la plantilla a veces deja sus marcadores (p. ej. «ADR-001 · … ({date})»): la fecha es la de hoy.
         content = content.replace("{date}", LocalDate.ofInstant(clock.instant(), ECUADOR).toString());
         Optional<Document> existing = (issueKey == null
-                ? documents.findByProject(projectKey).stream().filter(d -> d.issueKey() == null)
+                ? documents.findByProject(projectKey, projects.currentSubject(projectKey)).stream().filter(d -> d.issueKey() == null)
                 : documents.findByIssue(issueKey).stream()).filter(d -> d.kind().equals(kind)).findFirst();
         if (existing.isPresent()) {
             WithContent saved = save(existing.get().id(), existing.get().currentVersion(), content, note, actorId);

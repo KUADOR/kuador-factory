@@ -74,11 +74,15 @@ public class RunnerService {
     public record MachineView(UUID id, String name, String os, String tool, List<String> roles, int capacity, boolean paused, boolean online,
             String version, Instant lastSeen, UUID memberId, String person, List<String> working, Integer dailyMinutes, long minutesToday) {}
 
-    /** Lo que el runner necesita para lanzar el cliente de IA con esa tarjeta. */
+    /**
+     * Lo que el runner necesita para lanzar el cliente de IA con esa tarjeta. {@code repositories}: los del proyecto de la
+     * tarjeta ({@code subjectKey}); {@code manySubjects}: el tablero atiende varios proyectos, así que la carpeta
+     * vinculada al tablero solo sirve si es de uno de esos repositorios.
+     */
     public record Claim(String issueKey, String projectKey, String projectKind, String title, String role, String roleName, boolean worksOnCode,
             UUID agentId, String agentName, String model, String effort, String prompt, String instructions, List<String> allowedTools,
             String mcpServer, String mcpUrl, long leaseSeconds, String runToken, int reworkCount, String resumePrompt, List<String> repositories,
-            Sync sync) {}
+            Sync sync, String subjectKey, boolean manySubjects) {}
 
     /** Para actualizar una rama en conflicto: el runner prueba primero sin IA (si solo chocó documentación, lo resuelve él). */
     public record Sync(String repository, int number, String branch, String baseBranch) {}
@@ -123,13 +127,13 @@ public class RunnerService {
     }
 
     /**
-     * Los repositorios del tablero («owner/repo»): el runner hace su copia de trabajo desde uno que ya tenga (o lo clona
+     * Los repositorios del proyecto de la tarjeta («owner/repo»): el runner hace su copia de trabajo desde uno que ya tenga (o lo clona
      * una sola vez), en vez de que el agente clone el repo en cada tarjeta.
      */
-    private List<String> repositoriesOf(ProjectView project) {
+    private List<String> repositoriesOf(ProjectView project, String subjectKey) {
         if (!project.repository() || repositories == null) return List.of();
         try {
-            return repositories.pieces(project.key()).stream().map(ec.kuador.board.sync.RepositoriesApi.Piece::repository)
+            return repositories.pieces(project.key(), subjectKey).stream().map(ec.kuador.board.sync.RepositoriesApi.Piece::repository)
                     .filter(r -> r != null && !r.isBlank()).distinct().toList();
         } catch (RuntimeException e) {
             return List.of();
@@ -355,7 +359,8 @@ public class RunnerService {
         AgentKit.Connection c = kit.connection();
         return new Claim(sync.issueKey(), sync.projectKey(), project.kind().name(), context.title(), r.key(), r.name(), true, agent.id(), agent.name(),
                 profile.model(), profile.effort(), prompt, plan.instructions(), tools, c.server(), c.url(), LEASE.toSeconds(), runToken, 0, prompt,
-                List.of(sync.repository()), new Sync(sync.repository(), sync.number(), sync.branch(), sync.baseBranch()));
+                List.of(sync.repository()), new Sync(sync.repository(), sync.number(), sync.branch(), sync.baseBranch()),
+                context.subjectKey(), projects.subjectsOf(sync.projectKey()).size() > 1);
     }
 
     static String syncPrompt(ec.kuador.board.issue.BranchSyncApi.BranchSync sync, String title) {
@@ -390,7 +395,8 @@ public class RunnerService {
         AgentKit.Connection c = kit.connection();
         return new Claim(item.key(), item.projectKey(), project.kind().name(), item.title(), r.key(), r.name(), r.worksOnCode(), agent.id(), agent.name(),
                 profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds(), runToken,
-                item.reworkCount(), resume, repositoriesOf(project), null);
+                item.reworkCount(), resume, repositoriesOf(project, item.subjectKey()), null,
+                projects.subjectKey(item.projectKey(), item.subjectKey()), projects.subjectsOf(item.projectKey()).size() > 1);
     }
 
     // ---- Trabajos de IA de la persona (sin tarjeta) ----

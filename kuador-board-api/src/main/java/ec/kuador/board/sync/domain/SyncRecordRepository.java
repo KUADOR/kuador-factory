@@ -7,11 +7,15 @@ import java.util.UUID;
 
 public interface SyncRecordRepository {
 
-    Optional<RepositoryLink> findLink(String projectKey);
+    /** El repositorio de un proyecto en un tablero. */
+    Optional<RepositoryLink> findLink(String projectKey, String subjectKey);
 
-    void saveLink(RepositoryLink link);
+    /** Los repositorios de todos los proyectos del tablero. */
+    java.util.List<RepositoryLink> findLinks(String projectKey);
 
-    void deleteLink(String projectKey);
+    void saveLink(RepositoryLink link, String subjectKey);
+
+    void deleteLink(String projectKey, String subjectKey);
 
     Map<UUID, SyncRecord> findRecords(Iterable<UUID> documentIds);
 
@@ -20,9 +24,9 @@ public interface SyncRecordRepository {
     /** Al desvincular o cambiar de repositorio, la historia de sincronización deja de valer. */
     void deleteRecords(Iterable<UUID> documentIds);
 
-    List<ExportPullRequest> findOpenPullRequests(String projectKey);
+    List<ExportPullRequest> findOpenPullRequests(String projectKey, String subjectKey);
 
-    void savePullRequest(ExportPullRequest pullRequest);
+    void savePullRequest(ExportPullRequest pullRequest, String subjectKey);
 
-    void deletePullRequests(String projectKey);
+    void deletePullRequests(String projectKey, String subjectKey);
 }

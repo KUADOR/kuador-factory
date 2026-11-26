@@ -24,6 +24,9 @@ class DocumentEntity {
     @Column(name = "project_key")
     private String projectKey;
 
+    @Column(name = "subject_key")
+    private String subjectKey;
+
     @Column(name = "issue_key")
     private String issueKey;
 
@@ -55,6 +58,7 @@ class DocumentEntity {
         DocumentEntity e = new DocumentEntity();
         e.id = d.id();
         e.projectKey = d.projectKey();
+        e.subjectKey = d.subjectKey();
         e.issueKey = d.issueKey();
         e.kind = d.kind();
         e.createdAt = d.createdAt();
@@ -71,6 +75,6 @@ class DocumentEntity {
     }
 
     Document toDomain() {
-        return new Document(id, projectKey, issueKey, kind, title, path, currentVersion, createdAt, updatedAt, updatedBy);
+        return new Document(id, projectKey, subjectKey, issueKey, kind, title, path, currentVersion, createdAt, updatedAt, updatedBy);
     }
 }

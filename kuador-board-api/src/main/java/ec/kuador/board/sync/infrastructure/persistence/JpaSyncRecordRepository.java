@@ -15,16 +15,18 @@ import org.springframework.stereotype.Repository;
 
 interface SpringDataRepositoryLinks extends JpaRepository<RepositoryLinkEntity, UUID> {
 
-    Optional<RepositoryLinkEntity> findByProjectKey(String projectKey);
+    Optional<RepositoryLinkEntity> findByProjectKeyAndSubjectKey(String projectKey, String subjectKey);
+
+    List<RepositoryLinkEntity> findByProjectKeyOrderByLinkedAt(String projectKey);
 }
 
 interface SpringDataSyncRecords extends JpaRepository<SyncRecordEntity, UUID> {}
 
 interface SpringDataPullRequests extends JpaRepository<PullRequestEntity, UUID> {
 
-    List<PullRequestEntity> findByProjectKeyAndStateOrderByCreatedAtDesc(String projectKey, PullRequestState state);
+    List<PullRequestEntity> findByProjectKeyAndSubjectKeyAndStateOrderByCreatedAtDesc(String projectKey, String subjectKey, PullRequestState state);
 
-    void deleteByProjectKey(String projectKey);
+    void deleteByProjectKeyAndSubjectKey(String projectKey, String subjectKey);
 }
 
 @Repository
@@ -41,39 +43,44 @@ class JpaSyncRecordRepository implements SyncRecordRepository {
     }
 
     @Override
-    public List<ExportPullRequest> findOpenPullRequests(String projectKey) {
-        return pullRequests.findByProjectKeyAndStateOrderByCreatedAtDesc(projectKey, PullRequestState.OPEN).stream()
+    public List<ExportPullRequest> findOpenPullRequests(String projectKey, String subjectKey) {
+        return pullRequests.findByProjectKeyAndSubjectKeyAndStateOrderByCreatedAtDesc(projectKey, subjectKey, PullRequestState.OPEN).stream()
                 .map(PullRequestEntity::toDomain).toList();
     }
 
     @Override
-    public void savePullRequest(ExportPullRequest pullRequest) {
-        pullRequests.save(PullRequestEntity.from(pullRequest));
+    public void savePullRequest(ExportPullRequest pullRequest, String subjectKey) {
+        pullRequests.save(PullRequestEntity.from(pullRequest, subjectKey));
     }
 
     @Override
-    public void deletePullRequests(String projectKey) {
-        pullRequests.deleteByProjectKey(projectKey);
+    public void deletePullRequests(String projectKey, String subjectKey) {
+        pullRequests.deleteByProjectKeyAndSubjectKey(projectKey, subjectKey);
     }
 
     @Override
-    public Optional<RepositoryLink> findLink(String projectKey) {
-        return links.findByProjectKey(projectKey).map(RepositoryLinkEntity::toDomain);
+    public Optional<RepositoryLink> findLink(String projectKey, String subjectKey) {
+        return links.findByProjectKeyAndSubjectKey(projectKey, subjectKey).map(RepositoryLinkEntity::toDomain);
     }
 
-    // Un vínculo por proyecto: guardar reemplaza al anterior.
     @Override
-    public void saveLink(RepositoryLink link) {
-        links.findByProjectKey(link.projectKey()).ifPresent(existing -> {
+    public List<RepositoryLink> findLinks(String projectKey) {
+        return links.findByProjectKeyOrderByLinkedAt(projectKey).stream().map(RepositoryLinkEntity::toDomain).toList();
+    }
+
+    // Un vínculo por proyecto del tablero: guardar reemplaza al anterior.
+    @Override
+    public void saveLink(RepositoryLink link, String subjectKey) {
+        links.findByProjectKeyAndSubjectKey(link.projectKey(), subjectKey).ifPresent(existing -> {
             links.delete(existing);
             links.flush();
         });
-        links.save(RepositoryLinkEntity.from(link));
+        links.save(RepositoryLinkEntity.from(link, subjectKey));
     }
 
     @Override
-    public void deleteLink(String projectKey) {
-        links.findByProjectKey(projectKey).ifPresent(links::delete);
+    public void deleteLink(String projectKey, String subjectKey) {
+        links.findByProjectKeyAndSubjectKey(projectKey, subjectKey).ifPresent(links::delete);
     }
 
     @Override

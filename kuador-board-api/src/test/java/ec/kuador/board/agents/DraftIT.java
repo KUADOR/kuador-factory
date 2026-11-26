@@ -142,8 +142,8 @@ class DraftIT {
         assertThat(call("POST", "/api/projects/OLD/drafting/recognize?local=true", Map.of("idea", ""), owner).body().get("detail").asString())
                 .as("sin repo vinculado").contains("vincula el repositorio");
         jdbc.sql("""
-                insert into project_repository (id, workspace_id, project_key, kind, location, branch, secret, linked_at)
-                select gen_random_uuid(), workspace_id, 'OLD', 'GITHUB_APP', 'acme/sistema', 'main', '123', now() from project where project_key = 'OLD'""").update();
+                insert into project_repository (id, workspace_id, project_key, subject_key, kind, location, branch, secret, linked_at)
+                select gen_random_uuid(), workspace_id, 'OLD', 'OLD', 'GITHUB_APP', 'acme/sistema', 'main', '123', now() from project where project_key = 'OLD'""").update();
         assertThat(call("GET", "/api/projects/OLD/drafting", null, owner).body().get("repositories").toString()).contains("acme/sistema");
         String rec = call("POST", "/api/projects/OLD/drafting/recognize?local=true", Map.of("idea", "Sumar recordatorios por WhatsApp", "kinds", List.of("PRODUCT", "AGENT_RULES")),
                 owner).body().get("id").asString();

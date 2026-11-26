@@ -33,7 +33,7 @@ class AgentTools {
     /** Los repos del proyecto; si GitHub no responde, ninguno (el agente trabaja sin las herramientas de código). */
     List<String> repositories(String projectKey) {
         try {
-            return code.repositories(projectKey);
+            return code.subjectRepositories(projectKey);
         } catch (RuntimeException e) {
             log.warn("No se pudieron leer los repos de {}: {}", projectKey, e.getMessage());
             return List.of();

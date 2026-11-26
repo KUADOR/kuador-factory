@@ -58,3 +58,15 @@ export async function teamBoard(prefix: string, name: string, subjects: string[]
 export async function cardIn(projectKey: string, subjectKey: string, input: { title: string; status: string; type?: string }): Promise<string> {
   return (await call<{ key: string }>("POST", `/api/projects/${projectKey}/issues`, { type: "TASK", subjectKey, ...input })).key;
 }
+
+/** Un equipo del espacio, con letras al azar en el nombre para no chocar entre corridas. */
+export async function team(name: string): Promise<{ id: string; name: string }> {
+  const letters = Array.from({ length: 4 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join("");
+  const full = `${name} ${letters}`;
+  return { id: (await call<{ id: string }>("POST", "/api/teams", { name: full })).id, name: full };
+}
+
+/** El equipo que atiende un tablero. */
+export async function assignTeam(teamId: string, projectKey: string): Promise<void> {
+  await call("PUT", `/api/teams/${teamId}/boards/${projectKey}`);
+}

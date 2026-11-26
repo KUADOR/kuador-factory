@@ -40,6 +40,11 @@ public interface ProjectApi {
     /** Los tableros de un agente por la API (con su token): los de su equipo, no todo el espacio. */
     java.util.Set<String> agentBoardsOf(java.util.UUID agentId);
 
+    /** Si existe el equipo en el espacio actual. */
+    default boolean teamExists(java.util.UUID teamId) {
+        return false;
+    }
+
     /** Suma una persona del espacio al tablero. */
     void addPerson(String projectKey, java.util.UUID memberId);
 

@@ -65,6 +65,8 @@ import type {
   IssueStatus,
   Subject,
   SubjectListing,
+  Team,
+  TeamRef,
   AgentClient,
   AgentKit,
   EpicTask,
@@ -348,8 +350,21 @@ export const boardApi = {
   project: (key: string) => request<Project>(`/api/projects/${encodeURIComponent(key)}`),
   deleteProject: (key: string, confirm: string) =>
     request<void>(`/api/projects/${encodeURIComponent(key)}?confirm=${encodeURIComponent(confirm)}`, { method: "DELETE" }),
-  createProject: (input: { key: string; name: string; description: string | null; templateKey: string; subjects?: string[] }) =>
+  createProject: (input: { key: string; name: string; description: string | null; templateKey: string; subjects?: string[]; teamId?: string | null }) =>
     request<Project>("/api/projects", json("POST", input)),
+  teams: () => request<Team[]>("/api/teams"),
+  team: (id: string) => request<Team>(`/api/teams/${encodeURIComponent(id)}`),
+  createTeam: (input: { name: string; members?: string[] }) => request<Team>("/api/teams", json("POST", input)),
+  renameTeam: (id: string, name: string) => request<Team>(`/api/teams/${encodeURIComponent(id)}`, json("PUT", { name })),
+  deleteTeam: (id: string) => request<void>(`/api/teams/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  addTeamMember: (id: string, memberId: string) => request<Team>(`/api/teams/${encodeURIComponent(id)}/members`, json("POST", { memberId })),
+  removeTeamMember: (id: string, memberId: string) =>
+    request<Team>(`/api/teams/${encodeURIComponent(id)}/members/${encodeURIComponent(memberId)}`, { method: "DELETE" }),
+  assignTeam: (id: string, projectKey: string) =>
+    request<TeamRef>(`/api/teams/${encodeURIComponent(id)}/boards/${encodeURIComponent(projectKey)}`, { method: "PUT" }),
+  teamAgents: (id: string) => request<TeamAgent[]>(`/api/teams/${encodeURIComponent(id)}/agents`),
+  createAgentInTeam: (id: string, input: { name: string; role: string; description: string | null; mode: AgentMode; model: string | null }) =>
+    request<TeamAgent[]>(`/api/teams/${encodeURIComponent(id)}/agents`, json("POST", input)),
   subjects: () => request<SubjectListing[]>("/api/subjects"),
   createSubject: (input: { name: string; description: string | null }) => request<SubjectListing>("/api/subjects", json("POST", input)),
   updateSubject: (key: string, input: { name: string; description: string | null }) =>

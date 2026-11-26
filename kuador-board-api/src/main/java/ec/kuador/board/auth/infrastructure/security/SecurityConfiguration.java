@@ -114,13 +114,16 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/projects").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.POST, "/api/members", "/api/members/*/tokens").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.DELETE, "/api/projects/*").access(HUMAN_ADMIN)
-                        // Quién está en cada tablero: lo ve quien está en él; sumar o quitar personas, solo quien administra.
+                        // Quién está en cada tablero (las personas de su equipo): lo ve quien está en él; sumar o quitar, quien administra.
                         .requestMatchers(HttpMethod.POST, "/api/projects/*/people").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.DELETE, "/api/projects/*/people/*").access(HUMAN_ADMIN)
-                        // Qué agentes trabajan en un tablero: personas que editan. Crear agentes, su perfil y la clave de IA: quien administra.
+                        // Los equipos (personas y agentes) cruzan tableros: cada persona ve los suyos; armarlos, crear agentes y
+                        // darle un equipo a un tablero, solo quien administra. Su perfil y la clave de IA, también.
+                        .requestMatchers(HttpMethod.GET, "/api/teams", "/api/teams/*").hasRole("HUMAN")
+                        .requestMatchers("/api/teams", "/api/teams/**").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.POST, "/api/projects/*/team/agents").access(HUMAN_ADMIN)
-                        .requestMatchers(HttpMethod.POST, "/api/projects/*/team").access(HUMAN_EDITOR)
-                        .requestMatchers(HttpMethod.DELETE, "/api/projects/*/team/*").access(HUMAN_EDITOR)
+                        .requestMatchers(HttpMethod.POST, "/api/projects/*/team").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.DELETE, "/api/projects/*/team/*").access(HUMAN_ADMIN)
                         // El estado de la IA (sin la clave) lo ven quienes configuran tableros; cambiarla, solo quien administra.
                         .requestMatchers(HttpMethod.GET, "/api/workspace/ai").access(HUMAN_EDITOR)
                         .requestMatchers("/api/agents/*/profile", "/api/agents/*/prompt-preview", "/api/workspace/ai", "/api/workspace/ai/**").access(HUMAN_ADMIN)

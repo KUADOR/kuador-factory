@@ -105,6 +105,8 @@ import type {
   DraftApproved,
   Subject,
   SubjectListing,
+  Team,
+  TeamRef,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string, layoutToo = false): Promise<ActionResult<T>> {
@@ -362,6 +364,8 @@ export async function createProjectAction(input: {
   templateKey: string;
   /** Proyectos del espacio en que trabaja; vacío = uno propio, con su nombre. */
   subjects?: string[];
+  /** El equipo que lo atiende; vacío = uno nuevo con el nombre del tablero. */
+  teamId?: string | null;
 }): Promise<ActionResult<Project>> {
   return run(() => boardApi.createProject(input), "/");
 }
@@ -565,6 +569,44 @@ export async function addBoardPersonAction(key: string, memberId: string): Promi
 
 export async function removeBoardPersonAction(key: string, memberId: string): Promise<ActionResult<BoardPerson[]>> {
   return run(() => boardApi.removeBoardPerson(key, memberId), `/projects/${key}`);
+}
+
+// ---- Equipos (Organización → Equipos) ----
+
+export async function createTeamAction(input: { name: string; members?: string[] }): Promise<ActionResult<Team>> {
+  return run(() => boardApi.createTeam(input), "/org/teams");
+}
+
+export async function renameTeamAction(id: string, name: string): Promise<ActionResult<Team>> {
+  return run(() => boardApi.renameTeam(id, name), "/org/teams");
+}
+
+export async function deleteTeamAction(id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteTeam(id), "/org/teams");
+}
+
+export async function addTeamMemberAction(id: string, memberId: string): Promise<ActionResult<Team>> {
+  return run(() => boardApi.addTeamMember(id, memberId), "/org/teams");
+}
+
+export async function removeTeamMemberAction(id: string, memberId: string): Promise<ActionResult<Team>> {
+  return run(() => boardApi.removeTeamMember(id, memberId), "/org/teams");
+}
+
+/** Cambia el equipo de un tablero: cambia quién lo ve, así que se refresca todo. */
+export async function assignTeamAction(id: string, projectKey: string): Promise<ActionResult<TeamRef>> {
+  return run(() => boardApi.assignTeam(id, projectKey), "/", true);
+}
+
+export async function teamAgentsAction(id: string): Promise<ActionResult<TeamAgent[]>> {
+  return run(() => boardApi.teamAgents(id));
+}
+
+export async function createAgentInTeamAction(
+  id: string,
+  input: { name: string; role: string; description: string | null; mode: AgentMode; model: string | null },
+): Promise<ActionResult<TeamAgent[]>> {
+  return run(() => boardApi.createAgentInTeam(id, input), "/org/teams");
 }
 
 export async function addToTeamAction(key: string, memberId: string): Promise<ActionResult<TeamAgent[]>> {

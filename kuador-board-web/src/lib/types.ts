@@ -414,6 +414,32 @@ export interface Project {
   estimate: EstimateUnit;
   /** Los proyectos que atiende el tablero, en su orden (con una API anterior a esta web no viene). */
   subjects?: Subject[];
+  /** El equipo que atiende el tablero (con una API anterior a esta web no viene). */
+  team?: TeamRef | null;
+}
+
+export interface TeamRef {
+  id: string;
+  name: string;
+}
+
+/** Alguien de un equipo: una persona o un agente. */
+export interface TeamPerson {
+  id: string;
+  name: string;
+  role: string;
+  avatarColor: string;
+  agent: boolean;
+}
+
+/** Un equipo del espacio: las personas y los agentes que atienden uno o varios tableros. */
+export interface Team {
+  id: string;
+  name: string;
+  createdAt: string;
+  members: TeamPerson[];
+  /** Los tableros que atiende (solo los que puede ver quien pide). */
+  boards: string[];
 }
 
 /**

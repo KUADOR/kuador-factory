@@ -44,6 +44,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     private final MemberApi members;
     private ProjectGoals goals;
     private SubjectService subjects;
+    private TeamService teams;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setTeams(TeamService teams) {
+        this.teams = teams;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired
     void setSubjects(SubjectService subjects) {
@@ -118,9 +124,17 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     /** Igual, eligiendo en qué proyectos del espacio trabaja ({@code subjectKeys} vacío = uno propio, con su nombre). */
     @Transactional
     public ProjectWithColumns create(String key, String name, String description, String templateKey, UUID creatorId, List<String> subjectKeys) {
-        ProjectWithColumns created = create(key, name, description, templateKey, subjectKeys);
-        if (creatorId != null && members.find(creatorId).filter(m -> !m.agent()).isPresent()) people.add(created.project().key(), creatorId);
-        return created;
+        return create(key, name, description, templateKey, creatorId, subjectKeys, null);
+    }
+
+    /**
+     * Las tres preguntas de un tablero: cómo se trabaja ({@code templateKey}), qué equipo lo atiende ({@code teamId}
+     * nulo = uno nuevo con su nombre y quien lo crea adentro) y en qué proyectos trabaja.
+     */
+    @Transactional
+    public ProjectWithColumns create(String key, String name, String description, String templateKey, UUID creatorId, List<String> subjectKeys,
+            UUID teamId) {
+        return create(key, name, description, templateKey, subjectKeys, teamId, creatorId);
     }
 
     /** Crea el proyecto copiando la plantilla de flujo del catálogo del espacio. */
@@ -131,6 +145,11 @@ public class ProjectService implements ProjectApi, CatalogUsage {
 
     @Transactional
     public ProjectWithColumns create(String key, String name, String description, String templateKey, List<String> subjectKeys) {
+        return create(key, name, description, templateKey, subjectKeys, null, null);
+    }
+
+    private ProjectWithColumns create(String key, String name, String description, String templateKey, List<String> subjectKeys, UUID teamId,
+            UUID creatorId) {
         WorkflowTemplate template = catalog.workflowTemplate(templateKey)
                 .orElseThrow(() -> new NotFoundException("No existe la plantilla de flujo " + templateKey + "."));
         billing.requireRoom(BillingApi.Limit.PROJECTS, projects.findAll().size());
@@ -147,6 +166,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         }
         Project saved = projects.save(project);
         projects.saveColumns(saved.key(), template.columns());
+        if (teams != null) teams.teamForNewBoard(saved.key(), saved.name(), teamId, creatorId);
         if (subjects != null) subjects.assign(saved, subjectKeys);
         events.publishEvent(new ec.kuador.board.project.ProjectCreated(UUID.randomUUID(), TenantContext.require(), saved.key(), catalog.defaultTeam(template.key()),
                 template.can(ec.kuador.board.catalog.Capability.REPOSITORY), clock.instant()));
@@ -352,6 +372,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         if (m.administers()) throw new DomainException(m.name() + " administra el espacio: ve todos los tableros por su nivel.");
         people.remove(k, m.id());
         return people(k);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean teamExists(UUID teamId) {
+        return teams.exists(teamId);
     }
 
     @Override

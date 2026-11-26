@@ -12,15 +12,19 @@ export const metadata: Metadata = { title: "Quién trabaja aquí" };
 
 export default async function BoardPeoplePage({ params }: PageProps<"/projects/[key]/settings/people">) {
   const key = (await params).key.toUpperCase();
-  let people;
+  let people, project;
   try {
-    people = await boardApi.boardPeople(key);
+    [people, project] = await Promise.all([boardApi.boardPeople(key), boardApi.project(key)]);
   } catch (e) {
     return failPage(e);
   }
+  const team = project.team?.name;
   return (
     <div className="flex flex-col gap-10">
-      <SettingsSection title="Personas" description="Quien edita o mira solo ve los tableros donde está.">
+      <SettingsSection
+        title="Personas"
+        description={team ? `Las del equipo «${team}»: sumar o quitar aquí cambia el equipo.` : "Quien edita o mira solo ve los tableros donde está."}
+      >
         <PeopleEditor projectKey={key} people={people} />
       </SettingsSection>
       <div id="agentes" className="scroll-mt-4">

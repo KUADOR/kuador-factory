@@ -34,8 +34,10 @@ class StackDocs {
     private final PiecePlans plans;
     private final CatalogApi catalog;
     private final DocsApi docs;
+    private final ec.kuador.board.project.ProjectApi projects;
 
-    StackDocs(ComponentRepository components, PiecePlans plans, CatalogApi catalog, DocsApi docs) {
+    StackDocs(ComponentRepository components, PiecePlans plans, CatalogApi catalog, DocsApi docs, ec.kuador.board.project.ProjectApi projects) {
+        this.projects = projects;
         this.components = components;
         this.plans = plans;
         this.catalog = catalog;
@@ -44,12 +46,12 @@ class StackDocs {
 
     /** Las piezas del proyecto (reales) o, si todavía no hay repo, las planeadas. */
     List<Line> lines(String projectKey) {
-        List<ProjectComponent> real = components.findByProject(projectKey);
+        List<ProjectComponent> real = components.findByProject(projectKey, subject(projectKey));
         if (!real.isEmpty()) {
             return real.stream().map(c -> new Line(c.name(), c.kind(), c.stack(), c.path() == null || c.path().isEmpty() ? c.repoLocation() : c.path() + "/",
                     c.buildCommand(), c.testCommand(), c.runCommand())).toList();
         }
-        return plans.find(projectKey).map(p -> planned(p.pieces(), "MULTI_REPO".equals(p.layout()))).orElse(List.of());
+        return plans.find(projectKey, subject(projectKey)).map(p -> planned(p.pieces(), "MULTI_REPO".equals(p.layout()))).orElse(List.of());
     }
 
     /** Piezas que todavía no existen: el stack y los comandos salen de su plantilla. */
@@ -137,5 +139,10 @@ class StackDocs {
 
     private static String code(String s) {
         return s == null || s.isBlank() ? "—" : "`" + s.replace("|", "\\|") + "`";
+    }
+
+    /** El proyecto del tablero sobre el que opera la petición (el primero, si atiende uno solo o no se eligió). */
+    private String subject(String projectKey) {
+        return projects.currentSubject(projectKey);
     }
 }

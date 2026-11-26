@@ -48,7 +48,7 @@ public interface ProjectApi {
      * primero es el que se propone al crear una tarjeta. Solo queda vacío si el tablero no existe.
      */
     default java.util.List<SubjectView> subjectsOf(String projectKey) {
-        return find(projectKey).map(p -> java.util.List.of(new SubjectView(p.key(), p.name(), null))).orElse(java.util.List.of());
+        return find(projectKey).map(p -> java.util.List.of(new SubjectView(p.key(), p.name(), null, p.methodology()))).orElse(java.util.List.of());
     }
 
     /**
@@ -59,6 +59,27 @@ public interface ProjectApi {
         java.util.List<SubjectView> all = subjectsOf(projectKey);
         if (wanted != null && all.stream().anyMatch(s -> s.key().equals(wanted))) return wanted;
         return all.isEmpty() ? projectKey : all.getFirst().key();
+    }
+
+    /**
+     * El proyecto sobre el que opera la petición en curso (ver {@link ec.kuador.board.shared.tenant.SubjectScope}): el
+     * elegido, si el tablero lo atiende, o el primero del tablero.
+     */
+    default String currentSubject(String projectKey) {
+        return subjectKey(projectKey, ec.kuador.board.shared.tenant.SubjectScope.current().orElse(null));
+    }
+
+    /** Cómo se llama el proyecto sobre el que opera la petición en curso: va en sus documentos y en su repositorio. */
+    default String currentSubjectName(String projectKey) {
+        return subject(projectKey, ec.kuador.board.shared.tenant.SubjectScope.current().orElse(null)).map(SubjectView::name).orElseGet(() -> name(projectKey));
+    }
+
+    /**
+     * El tablero visto desde uno de sus proyectos: su {@code methodology} es el manual con que trabaja ese proyecto.
+     * {@link #find(String)} lo da para el proyecto de la petición en curso.
+     */
+    default Optional<ProjectView> find(String projectKey, String subjectKey) {
+        return find(projectKey);
     }
 
     /** El proyecto de una tarjeta, con su nombre y descripción (vacío si el tablero no existe). */

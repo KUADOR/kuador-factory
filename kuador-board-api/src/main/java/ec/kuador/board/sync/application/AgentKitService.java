@@ -122,10 +122,10 @@ public class AgentKitService {
     private List<Target> targets(String projectKey) {
         ProjectView project = projects.find(projectKey).orElseThrow(() -> new NotFoundException("No existe el proyecto " + projectKey + "."));
         if (!project.repository()) throw new DomainException("El kit de agentes es para tableros con repositorio de código.");
-        Optional<RepositoryLink> link = records.findLink(projectKey).filter(l -> ComponentService.KIND.equals(l.kind()));
+        Optional<RepositoryLink> link = records.findLink(projectKey, subject(projectKey)).filter(l -> ComponentService.KIND.equals(l.kind()));
         if (link.isEmpty()) return List.of();
         long installationId = Long.parseLong(link.get().secret());
-        List<ProjectComponent> pieces = components.findByProject(projectKey);
+        List<ProjectComponent> pieces = components.findByProject(projectKey, subject(projectKey));
         Map<String, List<ProjectComponent>> byRepo = new LinkedHashMap<>();
         byRepo.put(link.get().location(), new ArrayList<>());
         pieces.forEach(p -> byRepo.computeIfAbsent(p.repoLocation() == null ? link.get().location() : p.repoLocation(), r -> new ArrayList<>()).add(p));
@@ -157,5 +157,10 @@ public class AgentKitService {
                 """);
         files.forEach(f -> sb.append("| `").append(f.path()).append("` |\n"));
         return sb.append("\nNo lleva secretos: cada persona inicia sesión en el tablero desde su cliente de IA.").toString();
+    }
+
+    /** El proyecto del tablero sobre el que opera la petición (el primero, si atiende uno solo o no se eligió). */
+    private String subject(String projectKey) {
+        return projects.currentSubject(projectKey);
     }
 }

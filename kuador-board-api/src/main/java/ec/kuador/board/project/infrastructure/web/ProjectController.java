@@ -33,26 +33,33 @@ import org.springframework.web.bind.annotation.RestController;
 class ProjectController {
 
     private final ProjectService service;
+    private final ec.kuador.board.project.application.SubjectService subjects;
 
-    ProjectController(ProjectService service) {
+    ProjectController(ProjectService service, ec.kuador.board.project.application.SubjectService subjects) {
         this.service = service;
+        this.subjects = subjects;
+    }
+
+    /** El tablero con los proyectos que atiende (para elegir uno al crear una tarjeta, filtrar y rotular). */
+    private ProjectResponse response(ProjectWithColumns pc) {
+        return ProjectResponse.from(pc, subjects.ofBoard(pc.project().key()));
     }
 
     @GetMapping
     List<ProjectResponse> list() {
-        return service.list().stream().map(ProjectResponse::from).toList();
+        return service.list().stream().map(this::response).toList();
     }
 
     @GetMapping("/{key}")
     ProjectResponse get(@PathVariable String key) {
-        return ProjectResponse.from(service.get(key));
+        return response(service.get(key));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ProjectResponse create(@org.springframework.security.core.annotation.AuthenticationPrincipal(expression = "memberId()") UUID actorId,
             @Valid @RequestBody CreateProjectRequest r) {
-        return ProjectResponse.from(service.create(r.key(), r.name(), r.description(), r.templateKey(), actorId, r.subjects()));
+        return response(service.create(r.key(), r.name(), r.description(), r.templateKey(), actorId, r.subjects()));
     }
 
     /** El objetivo del tablero: lo leen los agentes con cada tarjeta. */
@@ -101,39 +108,39 @@ class ProjectController {
     /** Reemplaza el flujo completo, en el orden recibido. {@code key} nulo = columna nueva. */
     @PutMapping("/{key}/columns")
     ProjectResponse updateColumns(@PathVariable String key, @Valid @RequestBody UpdateColumnsRequest r) {
-        return ProjectResponse.from(service.updateColumns(key,
+        return response(service.updateColumns(key,
                 r.columns().stream().map(c -> new Workflow.Draft(c.key(), c.name(), c.category())).toList()));
     }
 
     /** {@code methodology} nulo = sin metodología. */
     @PutMapping("/{key}/methodology")
     ProjectResponse setMethodology(@PathVariable String key, @RequestBody MethodologyRequest r) {
-        return ProjectResponse.from(service.setMethodology(key, r.methodology()));
+        return response(service.setMethodology(key, r.methodology()));
     }
 
     /** Nombre y descripción. */
     @PutMapping("/{key}")
     ProjectResponse updateDetails(@PathVariable String key, @Valid @RequestBody DetailsRequest r) {
-        return ProjectResponse.from(service.updateDetails(key, r.name(), r.description()));
+        return response(service.updateDetails(key, r.name(), r.description()));
     }
 
     /** Reglas de transición: {@code restricted} falso = movimiento libre. */
     @PutMapping("/{key}/transitions")
     ProjectResponse setTransitions(@PathVariable String key, @Valid @RequestBody TransitionsRequest r) {
-        return ProjectResponse.from(service.setTransitions(key, new Transitions(r.restricted(),
+        return response(service.setTransitions(key, new Transitions(r.restricted(),
                 r.allowed() == null ? List.of() : r.allowed().stream().map(t -> new Transitions.Transition(t.from(), t.to())).toList())));
     }
 
     /** Etapas de las columnas y freno de bucles. */
     @PutMapping("/{key}/stages")
     ProjectResponse setStages(@PathVariable String key, @Valid @RequestBody StagesRequest r) {
-        return ProjectResponse.from(service.setStages(key, r.stages() == null ? List.of() : r.stages(), r.maxRework()));
+        return response(service.setStages(key, r.stages() == null ? List.of() : r.stages(), r.maxRework()));
     }
 
     /** Qué usa el tablero: documentos y reparto en tareas. */
     @PutMapping("/{key}/capabilities")
     ProjectResponse setCapabilities(@PathVariable String key, @RequestBody CapabilitiesRequest r) {
-        return ProjectResponse.from(service.setCapabilities(key, r.capabilities()));
+        return response(service.setCapabilities(key, r.capabilities()));
     }
 
     record CapabilitiesRequest(@Size(max = 8) List<ec.kuador.board.catalog.Capability> capabilities) {}
@@ -141,7 +148,7 @@ class ProjectController {
     /** La forma de la tarjeta: nombre de cada tipo, sus datos propios y en qué se mide. */
     @PutMapping("/{key}/card")
     ProjectResponse setCard(@PathVariable String key, @RequestBody CardRequest r) {
-        return ProjectResponse.from(service.setCard(key, r.issueTypes(), r.estimate()));
+        return response(service.setCard(key, r.issueTypes(), r.estimate()));
     }
 
     record CardRequest(@Size(max = 4) List<IssueTypeDef> issueTypes, ec.kuador.board.catalog.EstimateUnit estimate) {}
@@ -170,12 +177,13 @@ class ProjectController {
     record ProjectResponse(
             UUID id, String key, String name, String description, ProjectKind kind, String templateKey, String methodology,
             List<ColumnDef> columns, List<IssueTypeDef> issueTypes, Transitions transitions, List<StageDef> stages, int maxRework,
-            Instant createdAt, List<ec.kuador.board.catalog.Capability> capabilities, ec.kuador.board.catalog.EstimateUnit estimate) {
+            Instant createdAt, List<ec.kuador.board.catalog.Capability> capabilities, ec.kuador.board.catalog.EstimateUnit estimate,
+            List<ec.kuador.board.project.SubjectView> subjects) {
 
-        static ProjectResponse from(ProjectWithColumns pc) {
+        static ProjectResponse from(ProjectWithColumns pc, List<ec.kuador.board.project.SubjectView> subjects) {
             var p = pc.project();
             return new ProjectResponse(p.id(), p.key(), p.name(), p.description(), p.kind(), p.templateKey(), p.methodology(),
-                    pc.columns(), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.createdAt(), p.capabilities(), p.estimate());
+                    pc.columns(), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.createdAt(), p.capabilities(), p.estimate(), subjects);
         }
     }
 }

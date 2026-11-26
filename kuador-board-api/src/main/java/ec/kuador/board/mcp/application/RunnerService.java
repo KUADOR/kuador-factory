@@ -123,13 +123,13 @@ public class RunnerService {
     }
 
     /**
-     * Los repositorios del tablero («owner/repo»): el runner hace su copia de trabajo desde uno que ya tenga (o lo clona
+     * Los repositorios del proyecto de la tarjeta («owner/repo»): el runner hace su copia de trabajo desde uno que ya tenga (o lo clona
      * una sola vez), en vez de que el agente clone el repo en cada tarjeta.
      */
-    private List<String> repositoriesOf(ProjectView project) {
+    private List<String> repositoriesOf(ProjectView project, String subjectKey) {
         if (!project.repository() || repositories == null) return List.of();
         try {
-            return repositories.pieces(project.key()).stream().map(ec.kuador.board.sync.RepositoriesApi.Piece::repository)
+            return repositories.pieces(project.key(), subjectKey).stream().map(ec.kuador.board.sync.RepositoriesApi.Piece::repository)
                     .filter(r -> r != null && !r.isBlank()).distinct().toList();
         } catch (RuntimeException e) {
             return List.of();
@@ -390,7 +390,7 @@ public class RunnerService {
         AgentKit.Connection c = kit.connection();
         return new Claim(item.key(), item.projectKey(), project.kind().name(), item.title(), r.key(), r.name(), r.worksOnCode(), agent.id(), agent.name(),
                 profile.model(), profile.effort(), prompt, plan.instructions(), plan.allowedTools(), c.server(), c.url(), LEASE.toSeconds(), runToken,
-                item.reworkCount(), resume, repositoriesOf(project), null);
+                item.reworkCount(), resume, repositoriesOf(project, item.subjectKey()), null);
     }
 
     // ---- Trabajos de IA de la persona (sin tarjeta) ----

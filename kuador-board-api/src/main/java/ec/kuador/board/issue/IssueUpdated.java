@@ -12,6 +12,6 @@ public record IssueUpdated(
         UUID eventId, UUID workspaceId, String issueKey, String projectKey, UUID actorId, Instant occurredAt,
         List<Change> changes) implements IssueEvent {
 
-    /** {@code field}: title, description, type, priority, storyPoints, parent o labels. La descripción no viaja (from/to nulos). */
+    /** {@code field}: title, description, type, priority, storyPoints, parent, labels o subject (el proyecto). La descripción no viaja (from/to nulos). */
     public record Change(String field, String from, String to) {}
 }

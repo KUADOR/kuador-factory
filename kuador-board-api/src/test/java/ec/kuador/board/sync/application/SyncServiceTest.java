@@ -285,9 +285,10 @@ class SyncServiceTest {
         RepositoryLink link;
         final Map<UUID, SyncRecord> records = new HashMap<>();
         final Map<UUID, ExportPullRequest> pullRequests = new LinkedHashMap<>();
-        public Optional<RepositoryLink> findLink(String p) { return Optional.ofNullable(link); }
-        public void saveLink(RepositoryLink l) { link = l; }
-        public void deleteLink(String p) { link = null; }
+        public Optional<RepositoryLink> findLink(String p, String s) { return Optional.ofNullable(link); }
+        public List<RepositoryLink> findLinks(String p) { return link == null ? List.of() : List.of(link); }
+        public void saveLink(RepositoryLink l, String s) { link = l; }
+        public void deleteLink(String p, String s) { link = null; }
         public Map<UUID, SyncRecord> findRecords(Iterable<UUID> ids) {
             Map<UUID, SyncRecord> out = new HashMap<>();
             ids.forEach(id -> { if (records.containsKey(id)) out.put(id, records.get(id)); });
@@ -295,10 +296,10 @@ class SyncServiceTest {
         }
         public void saveRecord(SyncRecord r) { records.put(r.documentId(), r); }
         public void deleteRecords(Iterable<UUID> ids) { ids.forEach(records::remove); }
-        public List<ExportPullRequest> findOpenPullRequests(String p) {
+        public List<ExportPullRequest> findOpenPullRequests(String p, String s) {
             return pullRequests.values().stream().filter(pr -> pr.state() == RepositoryFiles.PullRequestState.OPEN).toList();
         }
-        public void savePullRequest(ExportPullRequest pr) { pullRequests.put(pr.id(), pr); }
-        public void deletePullRequests(String p) { pullRequests.clear(); }
+        public void savePullRequest(ExportPullRequest pr, String s) { pullRequests.put(pr.id(), pr); }
+        public void deletePullRequests(String p, String s) { pullRequests.clear(); }
     }
 }

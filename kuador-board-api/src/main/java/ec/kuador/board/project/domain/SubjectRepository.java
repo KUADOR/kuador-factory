@@ -16,14 +16,22 @@ public interface SubjectRepository {
 
     void delete(String key);
 
+    /** Un proyecto en un tablero, con el manual de trabajo con que ese tablero lo trabaja (nulo = sin elegir). */
+    record Linked(Subject subject, String methodology) {}
+
     /** Los proyectos que atiende el tablero, en su orden. */
-    List<Subject> ofBoard(String projectKey);
+    List<Linked> ofBoard(String projectKey);
 
     /** Los tableros que atienden el proyecto. */
     List<String> boardsOf(String subjectKey);
 
-    /** Suma el proyecto al final de los del tablero (si ya estaba, no hace nada). */
-    void link(String projectKey, String subjectKey);
+    /** Suma el proyecto al final de los del tablero, con ese manual de trabajo (si ya estaba, no hace nada). */
+    void link(String projectKey, String subjectKey, String methodology);
+
+    void setMethodology(String projectKey, String subjectKey, String methodology);
+
+    /** En cuántos tableros se trabaja algún proyecto con este manual. */
+    long countUsingMethodology(String methodology);
 
     void unlink(String projectKey, String subjectKey);
 }

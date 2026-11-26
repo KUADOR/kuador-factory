@@ -459,7 +459,7 @@ public class DraftService implements AiJobsApi {
 
     private List<String> safeRepositories(String projectKey) {
         try {
-            return code.repositories(projectKey);
+            return code.subjectRepositories(projectKey);
         } catch (RuntimeException e) {
             return List.of();
         }

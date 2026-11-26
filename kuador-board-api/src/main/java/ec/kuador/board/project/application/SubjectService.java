@@ -6,6 +6,7 @@ import ec.kuador.board.project.domain.Project;
 import ec.kuador.board.project.domain.ProjectRepository;
 import ec.kuador.board.project.domain.Subject;
 import ec.kuador.board.project.domain.SubjectRepository;
+import ec.kuador.board.project.domain.SubjectRepository.Linked;
 import ec.kuador.board.shared.error.ConflictException;
 import ec.kuador.board.shared.error.DomainException;
 import ec.kuador.board.shared.error.NotFoundException;
@@ -71,9 +72,9 @@ public class SubjectService {
     @Transactional(readOnly = true)
     public List<SubjectView> ofBoard(String projectKey) {
         String key = projectKey.toUpperCase(Locale.ROOT);
-        List<Subject> linked = subjects.ofBoard(key);
+        List<Linked> linked = subjects.ofBoard(key);
         if (!linked.isEmpty()) return linked.stream().map(SubjectService::view).toList();
-        return projects.findByKey(key).map(p -> List.of(new SubjectView(p.key(), p.name(), p.description()))).orElse(List.of());
+        return projects.findByKey(key).map(p -> List.of(new SubjectView(p.key(), p.name(), p.description(), p.methodology()))).orElse(List.of());
     }
 
     /** Suma al tablero un proyecto que ya existe. */
@@ -81,7 +82,7 @@ public class SubjectService {
     public List<SubjectView> addToBoard(String projectKey, String subjectKey) {
         Project board = board(projectKey);
         ensureOwn(board);
-        subjects.link(board.key(), load(subjectKey).key());
+        subjects.link(board.key(), load(subjectKey).key(), board.methodology());
         return ofBoard(board.key());
     }
 
@@ -90,7 +91,7 @@ public class SubjectService {
     public List<SubjectView> createInBoard(String projectKey, String key, String name, String description) {
         Project board = board(projectKey);
         ensureOwn(board);
-        subjects.link(board.key(), insert(key, name, description).key());
+        subjects.link(board.key(), insert(key, name, description).key(), board.methodology());
         return ofBoard(board.key());
     }
 
@@ -99,8 +100,8 @@ public class SubjectService {
     public List<SubjectView> removeFromBoard(String projectKey, String subjectKey) {
         Project board = board(projectKey);
         Subject subject = load(subjectKey);
-        List<Subject> linked = subjects.ofBoard(board.key());
-        if (linked.stream().noneMatch(s -> s.key().equals(subject.key()))) return ofBoard(board.key());
+        List<Linked> linked = subjects.ofBoard(board.key());
+        if (linked.stream().noneMatch(s -> s.subject().key().equals(subject.key()))) return ofBoard(board.key());
         if (linked.size() == 1) throw new DomainException("Un tablero trabaja al menos en un proyecto: suma otro antes de quitar este.");
         long cards = usage.countIssues(board.key(), subject.key());
         if (cards > 0) {
@@ -108,6 +109,9 @@ public class SubjectService {
                     + " en este tablero: pásalas a otro proyecto o bórralas antes de quitarlo.");
         }
         subjects.unlink(board.key(), subject.key());
+        // El manual del tablero es el de su primer proyecto: si se fue el primero, vale el del que queda.
+        String first = subjects.ofBoard(board.key()).getFirst().methodology();
+        if (!java.util.Objects.equals(first, board.methodology())) projects.updateMethodology(board.key(), first);
         return ofBoard(board.key());
     }
 
@@ -122,7 +126,7 @@ public class SubjectService {
             ensureOwn(board);
             return;
         }
-        for (String k : wanted) subjects.link(board.key(), load(k).key());
+        for (String k : wanted) subjects.link(board.key(), load(k).key(), board.methodology());
     }
 
     /** Un tablero sin proyectos guardados queda con el suyo antes de sumarle otro. */
@@ -131,7 +135,35 @@ public class SubjectService {
         if (subjects.findByKey(board.key()).isEmpty()) {
             subjects.insert(new Subject(java.util.UUID.randomUUID(), board.key(), board.name(), clip(board.description()), clock.instant()));
         }
-        subjects.link(board.key(), board.key());
+        subjects.link(board.key(), board.key(), board.methodology());
+    }
+
+    /**
+     * Elige el manual de trabajo con que el tablero trabaja un proyecto. El del primer proyecto es también el del tablero
+     * (el que reciben los proyectos que se sumen después).
+     */
+    void setMethodology(Project board, String subjectKey, String methodology) {
+        ensureOwn(board);
+        List<Linked> linked = subjects.ofBoard(board.key());
+        String target = linked.stream().map(l -> l.subject().key()).filter(k -> k.equals(subjectKey)).findFirst().orElse(linked.getFirst().subject().key());
+        subjects.setMethodology(board.key(), target, methodology);
+        if (target.equals(linked.getFirst().subject().key())) projects.updateMethodology(board.key(), methodology);
+    }
+
+    /**
+     * El tablero cambió de nombre: si trabaja en un solo proyecto, el suyo (misma clave, mismo nombre y de nadie más),
+     * el proyecto cambia con él. Así quien usa un tablero por proyecto no tiene que renombrar dos cosas.
+     */
+    void renameOwn(Project before, Project after) {
+        List<Linked> linked = subjects.ofBoard(before.key());
+        if (linked.size() != 1) return;
+        Subject own = linked.getFirst().subject();
+        if (!own.key().equals(before.key()) || !own.name().equals(before.name()) || subjects.boardsOf(own.key()).size() != 1) return;
+        subjects.updateDetails(own.key(), after.name(), clip(after.description()));
+    }
+
+    long boardsUsingMethodology(String methodology) {
+        return subjects.countUsingMethodology(methodology);
     }
 
     private Subject insert(String key, String name, String description) {
@@ -161,7 +193,7 @@ public class SubjectService {
         return text == null || text.length() <= 2000 ? text : text.substring(0, 2000);
     }
 
-    private static SubjectView view(Subject s) {
-        return new SubjectView(s.key(), s.name(), s.description());
+    private static SubjectView view(Linked l) {
+        return new SubjectView(l.subject().key(), l.subject().name(), l.subject().description(), l.methodology());
     }
 }

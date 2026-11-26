@@ -93,21 +93,21 @@ public class SyncService {
     @Transactional(readOnly = true)
     public Optional<RepositoryLink> link(String projectKey) {
         software(projectKey);
-        return records.findLink(projectKey);
+        return records.findLink(projectKey, subject(projectKey));
     }
 
     @Transactional
     public RepositoryLink link(String projectKey, String kind, RepositoryProvider.LinkSpec spec, UUID actorId) {
         software(projectKey);
         RepositoryProvider.Validated v = provider(kind).validate(spec);
-        Optional<RepositoryLink> previous = records.findLink(projectKey);
+        Optional<RepositoryLink> previous = records.findLink(projectKey, subject(projectKey));
         boolean sameRepo = previous.isPresent() && previous.get().kind().equals(kind)
                 && previous.get().location().equals(v.location()) && Objects.equals(previous.get().branch(), v.branch());
         if (!sameRepo) {
             forgetHistory(projectKey); // otro repositorio: la historia anterior no aplica
         }
         RepositoryLink link = new RepositoryLink(projectKey, kind, v.location(), v.branch(), v.secret(), clock.instant(), actorId);
-        records.saveLink(link);
+        records.saveLink(link, subject(projectKey));
         log.info("Proyecto {} vinculado a {} {}{} por {}", projectKey, kind, v.location(), v.branch() == null ? "" : "@" + v.branch(), actorId);
         return link;
     }
@@ -116,7 +116,7 @@ public class SyncService {
     public void unlink(String projectKey) {
         software(projectKey);
         forgetHistory(projectKey);
-        records.deleteLink(projectKey);
+        records.deleteLink(projectKey, subject(projectKey));
     }
 
     // ---- Estado ----
@@ -188,7 +188,7 @@ public class SyncService {
                     : "Esos cambios ya están en el PR #" + open.getFirst().number() + ": revísalo y fusiónalo en GitHub.");
         }
         ExportPullRequest existing = open.isEmpty() ? null : open.getFirst();
-        String projectName = projects.name(projectKey);
+        String projectName = projects.currentSubjectName(projectKey);
         RepositoryFiles.Published published = files.publish(
                 toExport.stream().map(d -> new RepositoryFiles.FileWrite(d.path(), d.content())).toList(),
                 "docs(" + projectKey + "): actualiza " + toExport.size() + " documento(s) desde el tablero",
@@ -203,9 +203,9 @@ public class SyncService {
                 : new ExportPullRequest(UUID.randomUUID(), projectKey, published.pullRequest(), published.url(), published.branch(),
                         PullRequestState.OPEN, now, actorId, items);
         if (existing != null && published.pullRequest() != null) {
-            records.savePullRequest(existing.withState(PullRequestState.CLOSED)); // su rama ya no existía
+            records.savePullRequest(existing.withState(PullRequestState.CLOSED), subject(projectKey)); // su rama ya no existía
         }
-        records.savePullRequest(pr);
+        records.savePullRequest(pr, subject(projectKey));
         return new Exported(toExport.size(), pr.number(), pr.url());
     }
 
@@ -323,17 +323,17 @@ public class SyncService {
     private List<ExportPullRequest> reconcile(String projectKey, RepositoryFiles files) {
         List<ExportPullRequest> stillOpen = new ArrayList<>();
         Set<UUID> existing = docs.ofProject(projectKey).stream().map(DocContent::id).collect(Collectors.toSet());
-        for (ExportPullRequest pr : records.findOpenPullRequests(projectKey)) {
+        for (ExportPullRequest pr : records.findOpenPullRequests(projectKey, subject(projectKey))) {
             PullRequestState state = files.pullRequestState(pr.number()).orElse(PullRequestState.CLOSED);
             switch (state) {
                 case OPEN -> stillOpen.add(pr);
                 case MERGED -> {
                     pr.items().stream().filter(i -> existing.contains(i.documentId())).forEach(i ->
                             records.saveRecord(new SyncRecord(i.documentId(), i.version(), i.contentSha256(), clock.instant())));
-                    records.savePullRequest(pr.withState(PullRequestState.MERGED));
+                    records.savePullRequest(pr.withState(PullRequestState.MERGED), subject(projectKey));
                     log.info("PR #{} de {} fusionado: {} documento(s) sincronizados", pr.number(), projectKey, pr.items().size());
                 }
-                case CLOSED -> records.savePullRequest(pr.withState(PullRequestState.CLOSED));
+                case CLOSED -> records.savePullRequest(pr.withState(PullRequestState.CLOSED), subject(projectKey));
             }
         }
         return stillOpen;
@@ -394,7 +394,7 @@ public class SyncService {
 
     private void forgetHistory(String projectKey) {
         records.deleteRecords(docs.ofProject(projectKey).stream().map(DocContent::id).toList());
-        records.deletePullRequests(projectKey);
+        records.deletePullRequests(projectKey, subject(projectKey));
     }
 
     private RepositoryFiles open(RepositoryLink link) {
@@ -414,7 +414,7 @@ public class SyncService {
 
     private RepositoryLink requireLink(String projectKey) {
         software(projectKey);
-        return records.findLink(projectKey)
+        return records.findLink(projectKey, subject(projectKey))
                 .orElseThrow(() -> new DomainException("Vincula primero el repositorio del proyecto en Configurar."));
     }
 
@@ -424,5 +424,10 @@ public class SyncService {
             throw new DomainException("La sincronización con repositorios es solo para proyectos de software.");
         }
         return p;
+    }
+
+    /** El proyecto del tablero sobre el que opera la petición (el primero, si atiende uno solo o no se eligió). */
+    private String subject(String projectKey) {
+        return projects.currentSubject(projectKey);
     }
 }

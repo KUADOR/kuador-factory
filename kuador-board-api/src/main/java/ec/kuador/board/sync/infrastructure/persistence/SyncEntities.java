@@ -35,6 +35,9 @@ class RepositoryLinkEntity {
     @Column(name = "project_key")
     String projectKey;
 
+    @Column(name = "subject_key")
+    String subjectKey;
+
     String kind;
 
     String location;
@@ -52,10 +55,11 @@ class RepositoryLinkEntity {
 
     protected RepositoryLinkEntity() {}
 
-    static RepositoryLinkEntity from(RepositoryLink l) {
+    static RepositoryLinkEntity from(RepositoryLink l, String subjectKey) {
         RepositoryLinkEntity e = new RepositoryLinkEntity();
         e.id = UUID.randomUUID();
         e.projectKey = l.projectKey();
+        e.subjectKey = subjectKey;
         e.kind = l.kind();
         e.location = l.location();
         e.branch = l.branch();
@@ -121,6 +125,9 @@ class PullRequestEntity {
     @Column(name = "project_key")
     String projectKey;
 
+    @Column(name = "subject_key")
+    String subjectKey;
+
     int number;
 
     String url;
@@ -142,10 +149,11 @@ class PullRequestEntity {
 
     protected PullRequestEntity() {}
 
-    static PullRequestEntity from(ExportPullRequest pr) {
+    static PullRequestEntity from(ExportPullRequest pr, String subjectKey) {
         PullRequestEntity e = new PullRequestEntity();
         e.id = pr.id();
         e.projectKey = pr.projectKey();
+        e.subjectKey = subjectKey;
         e.number = pr.number();
         e.url = pr.url();
         e.branch = pr.branch();

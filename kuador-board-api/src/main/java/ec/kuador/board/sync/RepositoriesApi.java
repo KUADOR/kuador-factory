@@ -14,7 +14,13 @@ public interface RepositoriesApi {
     record Piece(String name, String kind, String stack, String template, String repository, String path, String build, String test, String run,
             String notes) {}
 
+    /** Las piezas del proyecto sobre el que opera la petición (ver {@link ec.kuador.board.shared.tenant.SubjectScope}). */
     List<Piece> pieces(String projectKey);
+
+    /** Las piezas de un proyecto del tablero: el de la tarjeta que se está trabajando. */
+    default List<Piece> pieces(String projectKey, String subjectKey) {
+        return ec.kuador.board.shared.tenant.SubjectScope.call(subjectKey, () -> pieces(projectKey));
+    }
 
     /** Una pieza que ya existe en un repo: la descubrió el reconocimiento y la aprobó una persona. */
     record ExistingPiece(String name, String kind, String stack, String repository, String path, String build, String test, String run, String notes) {}

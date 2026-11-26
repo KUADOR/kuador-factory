@@ -39,6 +39,11 @@ class ToolScope {
                 .orElseThrow(() -> new ToolException("No existe el issue " + key + "."));
     }
 
+    /** El proyecto en que se trabaja una tarjeta (nulo si no existe o no se indicó ninguna). */
+    String subjectOf(String issueKey) {
+        return issueKey == null ? null : issues.find(issueKey).map(IssueApi.IssueRef::subjectKey).orElse(null);
+    }
+
     /** El issue debe estar en la cola de quien llama: sus agentes no trabajan lo que supervisa otra persona. */
     IssueContext ownIssue(Map<String, String> a, UUID person) {
         IssueContext c = context(a);

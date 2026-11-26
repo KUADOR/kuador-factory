@@ -71,8 +71,11 @@ final class IssueEditor extends IssueSupport {
         // Las tarjetas de una épica se trabajan en su mismo proyecto.
         if (issue.type() == IssueType.EPIC && !Objects.equals(previousSubject, issue.subjectKey())) {
             for (Issue child : issues.findChildren(issue.key())) {
+                String before = child.subjectKey();
                 child.subject(issue.subjectKey());
                 issues.save(child);
+                events.publishEvent(new IssueUpdated(UUID.randomUUID(), TenantContext.require(), child.key(), child.projectKey(), actorId, now,
+                        List.of(new IssueUpdated.Change("subject", before, child.subjectKey()))));
             }
         }
         if (!Objects.equals(previousAssignee, issue.assigneeId())) supervision.superviseIfPersonHandsToAgents(issue, project(issue.projectKey()), actorId);
@@ -118,7 +121,8 @@ final class IssueEditor extends IssueSupport {
         if (wanted != null && projects.subjectsOf(projectKey).stream().noneMatch(s -> s.key().equals(wanted))) {
             throw new DomainException("Este tablero no trabaja en el proyecto " + wanted + ": súmalo en la configuración del tablero.");
         }
-        return projects.subjectKey(projectKey, wanted != null ? wanted : current == null ? null : current.subjectKey());
+        if (wanted != null) return wanted;
+        return current == null ? projects.currentSubject(projectKey) : projects.subjectKey(projectKey, current.subjectKey());
     }
 
     /** {@code currentAssignee}: quien ya lo tenía (puede seguir aunque haya salido del tablero). */

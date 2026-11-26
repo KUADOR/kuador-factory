@@ -97,7 +97,13 @@ public class BoardAgent {
         TenantContext.run(event.workspaceId(), () -> handle(event));
     }
 
+    /** Todo el trabajo sobre la tarjeta usa su proyecto: su repositorio, sus piezas, sus documentos y su manual. */
     private void handle(IssueAssigned event) {
+        String subject = tx.execute(s -> issues.find(event.issueKey()).map(IssueApi.IssueRef::subjectKey).orElse(null));
+        ec.kuador.board.shared.tenant.SubjectScope.run(subject, () -> work(event));
+    }
+
+    private void work(IssueAssigned event) {
         if (event.toAssigneeId() == null) return;
         Optional<MemberView> agent = tx.execute(s -> members.find(event.toAssigneeId())).filter(MemberView::agent);
         // Un agente que se reasigna una tarjeta que ya tenía no arranca otra vez. Pero si la tarjeta llegó libre a otra etapa

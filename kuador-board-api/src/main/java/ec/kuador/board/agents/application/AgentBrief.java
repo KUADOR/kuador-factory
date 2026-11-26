@@ -112,7 +112,8 @@ class AgentBrief {
         if (board.repository()) all.addAll(AgentRules.softwareProject(true));
         // Quien trabaja la épica antes que los roles de la etapa (UI/UX en Diseño) no la planea ni la reparte.
         boolean first = "EPIC".equals(card.type()) && board.stage(card.status()).map(st -> st.worksEpicsFirst(agent.role())).orElse(false);
-        boolean epic = "EPIC".equals(card.type()) && board.splits() && !first;
+        // Solo en la etapa que reparte: en otra (p. ej. Refinamiento o Aprobación) la épica no se planea ni se reparte.
+        boolean epic = "EPIC".equals(card.type()) && board.epicSplitsInto(card.status()) && !first;
         // Una tarjeta suelta en la etapa que reparte (Diseño): si el plan la divide, create_tasks la vuelve épica.
         boolean splits = !epic && !first && board.splits() && board.epicSplitsInto(card.status()) && issues.canSplit(card.key());
         // Con repositorio el reparto habla de contratos, ramas y PR; sin él, de tareas con responsable.

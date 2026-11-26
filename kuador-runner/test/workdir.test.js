@@ -54,6 +54,21 @@ test("un tablero sin repo vinculado usa el de otro tablero sobre el mismo reposi
   assert.ok(sh(repo, "worktree", "list").includes("MEDK-1"), "es una copia liviana del repo vinculado");
 });
 
+test("un tablero con varios proyectos usa la carpeta del repositorio de la tarjeta, no la de otro proyecto", () => {
+  const { repo } = linkedRepo();
+  const other = linkedRepo().repo;
+  sh(other, "remote", "set-url", "origin", "https://github.com/KUADOR/otro-sistema.git");
+  // La carpeta vinculada al tablero es de otro sistema: para esta tarjeta vale la que apunta a su repositorio.
+  const config = { repos: { DEV: other, MED: repo } };
+  const claim = { projectKey: "DEV", subjectKey: "KM", manySubjects: true, repositories: ["KUADOR/kuador-medical"] };
+  assert.equal(sourceRepo(config, claim), repo);
+  assert.equal(sourceRepo(config, { ...claim, repositories: ["KUADOR/otro-sistema"] }), other, "la del tablero, si es de la tarjeta");
+  // Con un solo proyecto la carpeta vinculada manda, como siempre (aunque su remoto sea un fork).
+  assert.equal(sourceRepo(config, { ...claim, manySubjects: false }), other);
+  // Y se puede decir a mano de qué proyecto del tablero es una carpeta.
+  assert.equal(sourceRepo({ repos: { DEV: other, "DEV/KM": repo } }, { ...claim, repositories: [] }), repo);
+});
+
 test("al adelgazar borra solo la compilación que git ignora; el código y lo nuevo quedan", () => {
   const { repo } = linkedRepo();
   const work = prepare({ repos: { MED: repo } }, { issueKey: "MED-2", projectKey: "MED" });

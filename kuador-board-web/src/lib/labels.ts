@@ -1,7 +1,8 @@
 import type { Capability, ColumnCategory, EstimateUnit, FieldDef, FieldKind, DocumentDef, DocumentScope, IssueType, Methodology, Priority, Project, ProjectKind } from "./types";
 
 /** Lo que define cómo se nombran los issues de un proyecto: viene de su plantilla del catálogo. */
-export type TypeSource = Pick<Project, "kind" | "issueTypes">;
+/** De dónde salen los nombres de los tipos de tarjeta (y, si el tablero atiende varios proyectos, los de sus proyectos). */
+export type TypeSource = Pick<Project, "kind" | "issueTypes"> & Pick<Partial<Project>, "subjects">;
 
 export const PROJECT_KIND_LABEL: Record<ProjectKind, string> = {
   SOFTWARE: "Software",

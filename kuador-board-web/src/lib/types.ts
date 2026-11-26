@@ -412,6 +412,28 @@ export interface Project {
   createdAt: string;
   capabilities: Capability[];
   estimate: EstimateUnit;
+  /** Los proyectos que atiende el tablero, en su orden (con una API anterior a esta web no viene). */
+  subjects?: Subject[];
+}
+
+/**
+ * Un proyecto: aquello sobre lo que se trabaja (un sistema, una marca, un cliente). El tablero es el equipo y su flujo.
+ * `methodology`: el manual con que este tablero lo trabaja.
+ */
+export interface Subject {
+  key: string;
+  name: string;
+  description: string | null;
+  methodology?: string | null;
+}
+
+/** Un proyecto del espacio con los tableros que lo atienden. */
+export interface SubjectListing {
+  key: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  boards: string[];
 }
 
 /**
@@ -461,6 +483,8 @@ export interface Issue {
   updatedAt: string;
   /** Datos propios del tipo de tarjeta (clave → valor como texto). */
   fields: Record<string, string>;
+  /** El proyecto en que se trabaja la tarjeta (con una API anterior a esta web no viene). */
+  subjectKey?: string | null;
 }
 
 export interface Comment {
@@ -484,6 +508,8 @@ export interface IssueInput {
   labels: string[];
   /** Datos propios del tipo; sin enviar, la API conserva los que tiene. */
   fields?: Record<string, string>;
+  /** El proyecto de la tarjeta; sin enviar, conserva el suyo (o toma el de su épica). */
+  subjectKey?: string | null;
 }
 
 export interface Me {

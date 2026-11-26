@@ -39,7 +39,7 @@ Cada tarjeta trabaja en su propia copia del repo (`git worktree`), así varias a
 |---|---|
 | `install` | Conecta la máquina, elige roles e instala el servicio (`--no-service` para no instalarlo) |
 | `roles` | Cambia los roles que atiende |
-| `link <TABLERO> <carpeta>` | Vincula el repo de un tablero de software |
+| `link <TABLERO> <carpeta>` | Vincula el repo de un tablero de software. Si el tablero trabaja en varios proyectos, uno por proyecto: `link <TABLERO>/<PROYECTO> <carpeta>` |
 | `status` | Qué está haciendo ahora |
 | `clean [--now]` | Libera disco ya (con `--now`, también las carpetas usadas hace poco que tienen su trabajo subido) |
 | `pause` / `resume` | Deja de tomar tarjetas nuevas / vuelve a tomarlas |

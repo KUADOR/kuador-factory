@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
+import { workNameOf } from "@/lib/subject-server";
 import type { GitHubOverview } from "@/lib/types";
 
 import { requireEditor } from "@/lib/require-editor";
@@ -43,7 +44,7 @@ export default async function RepositorySettingsPage({ params }: PageProps<"/pro
           description="Las piezas del sistema (API, web, microfrontends…) y sus repositorios."
         >
           <div className="rounded-lg border border-line bg-surface p-5">
-            <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} plan={plan} />
+            <PiecesSetupForm projectKey={project.key} projectName={await workNameOf(project)} connections={github.connections} templates={templates} plan={plan} />
           </div>
         </SettingsSection>
       ) : (

@@ -79,7 +79,7 @@ class IssueController {
 
     record PageResponse(List<IssueResponse> items, long total, int page, int size) {}
 
-    /** La lista: todas las tarjetas, con filtros, orden y página resueltos en la base. */
+    /** La lista: todas las tarjetas, con filtros, orden y página resueltos en la base. {@code subject}: solo las de ese proyecto. */
     @GetMapping("/api/projects/{projectKey}/issues/search")
     PageResponse search(
             @PathVariable String projectKey,
@@ -91,9 +91,10 @@ class IssueController {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false, defaultValue = "desc") String dir,
             @RequestParam(required = false, defaultValue = "0") int page,
-            @RequestParam(required = false, defaultValue = "50") int size) {
+            @RequestParam(required = false, defaultValue = "50") int size,
+            @RequestParam(required = false) String subject) {
         var found = service.search(projectKey, new ec.kuador.board.issue.domain.IssueQuery(q, status, assigneeId, type, label, sort,
-                !"asc".equalsIgnoreCase(dir), page, size));
+                !"asc".equalsIgnoreCase(dir), page, size, subject));
         return new PageResponse(found.items().stream().map(IssueResponse::from).toList(), found.total(), found.page(), found.size());
     }
 

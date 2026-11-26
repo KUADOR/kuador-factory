@@ -71,7 +71,10 @@ export function Board({
   modes = {},
   everyone,
   history,
+  newCardSubject,
 }: {
+  /** El proyecto que se propone al crear una tarjeta: el elegido en el tablero o el primero. */
+  newCardSubject?: string;
   project: Project;
   issues: Issue[];
   /** Lo que el tablero no trae de las columnas de cierre: totales, avance de las épicas y títulos de las que no vienen. */
@@ -742,7 +745,7 @@ export function Board({
           <IssueForm
             key={creatingIn}
             project={project}
-            initial={emptyValues(creatingIn, project)}
+            initial={{ ...emptyValues(creatingIn, project), subjectKey: newCardSubject ?? null }}
             members={members}
             epics={epics}
             layout="stacked"

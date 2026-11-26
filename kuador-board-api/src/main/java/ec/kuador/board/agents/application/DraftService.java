@@ -175,9 +175,10 @@ public class DraftService implements AiJobsApi {
         if (local) {
             UUID id = UUID.randomUUID();
             jdbc.sql("""
-                    insert into ai_job (id, workspace_id, member_id, project_key, step, system_prompt, user_prompt, status, created_at)
-                    values (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)""")
-                    .params(id, who.workspaceId(), who.memberId(), p.key(), step.name(), system, user, Timestamp.from(clock.instant())).update();
+                    insert into ai_job (id, workspace_id, member_id, project_key, subject_key, step, system_prompt, user_prompt, status, created_at)
+                    values (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)""")
+                    .params(id, who.workspaceId(), who.memberId(), p.key(), projects.currentSubject(p.key()), step.name(), system, user,
+                            Timestamp.from(clock.instant())).update();
             events.publishEvent(new AiJobQueued(who.workspaceId(), who.memberId()));
             return new Job(id, "PENDING", null, null);
         }
@@ -187,21 +188,25 @@ public class DraftService implements AiJobsApi {
     /** La web pregunta cómo va un trabajo de su máquina. */
     @Transactional(readOnly = true)
     public Job job(AuthenticatedMember who, UUID id) {
-        var row = jdbc.sql("select status, result, error, step, project_key, created_at from ai_job where id = ? and workspace_id = ? and member_id = ?")
+        var row = jdbc.sql("select status, result, error, step, project_key, created_at, subject_key from ai_job where id = ? and workspace_id = ? and member_id = ?")
                 .params(id, who.workspaceId(), who.memberId())
-                .query((rs, n) -> new Object[] {rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getTimestamp(6).toInstant()})
+                .query((rs, n) -> new Object[] {rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getTimestamp(6).toInstant(),
+                        rs.getString(7)})
                 .optional().orElseThrow(() -> new NotFoundException("No existe ese trabajo."));
         String status = (String) row[0];
         if (!List.of("DONE", "FAILED").contains(status) && ((Instant) row[5]).isBefore(clock.instant().minus(JOB_TTL))) {
             return new Job(id, "FAILED", null, "Tu máquina no respondió en 10 minutos: revisa que el runner esté prendido, o usa el servidor.");
         }
         if (!"DONE".equals(status)) return new Job(id, status, null, (String) row[2]);
-        ProjectView p = board((String) row[4]);
-        try {
-            return new Job(id, "DONE", parse(Step.valueOf((String) row[3]), (String) row[1], p), null);
-        } catch (DomainException e) {
-            return new Job(id, "FAILED", null, e.getMessage());
-        }
+        // El resultado se lee con el manual del proyecto para el que se pidió.
+        return ec.kuador.board.shared.tenant.SubjectScope.call((String) row[6], () -> {
+            ProjectView p = board((String) row[4]);
+            try {
+                return new Job(id, "DONE", parse(Step.valueOf((String) row[3]), (String) row[1], p), null);
+            } catch (DomainException e) {
+                return new Job(id, "FAILED", null, e.getMessage());
+            }
+        });
     }
 
     // ---- La máquina de la persona (runner) ----

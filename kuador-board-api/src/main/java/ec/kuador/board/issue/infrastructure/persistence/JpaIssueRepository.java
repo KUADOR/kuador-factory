@@ -148,6 +148,7 @@ class JpaIssueRepository implements IssueRepository {
             if (!query.statuses().isEmpty()) where.add(root.get("status").in(query.statuses()));
             if (query.assigneeId() != null) where.add(cb.equal(root.get("assigneeId"), query.assigneeId()));
             if (query.type() != null) where.add(cb.equal(root.get("type"), query.type()));
+            if (query.subjectKey() != null) where.add(cb.equal(root.get("subjectKey"), query.subjectKey()));
             if (query.label() != null) {
                 // array_position de Hibernate: la posición (desde 1) o 0 si no está.
                 where.add(cb.gt(cb.function("array_position", Integer.class, root.get("labels"), cb.literal(query.label().toLowerCase(Locale.ROOT))), 0));

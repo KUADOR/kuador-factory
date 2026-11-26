@@ -12,8 +12,9 @@ import { Badge, EmptyState } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 
 import { FirstSteps } from "./FirstSteps";
+import { SubjectsList } from "./SubjectsList";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
-import type { Methodology, Project, WorkflowTemplate } from "@/lib/types";
+import type { Methodology, Project, SubjectListing, WorkflowTemplate } from "@/lib/types";
 
 /**
  * Proyectos del espacio: en el celular, tarjetas a todo el ancho (fáciles de tocar); en escritorio, una tabla. El
@@ -24,7 +25,9 @@ export function ProjectsView({
   templates,
   methodologies,
   recommended = [],
+  subjects = [],
 }: {
+  subjects?: SubjectListing[];
   projects: Project[];
   templates: WorkflowTemplate[];
   methodologies: Methodology[];
@@ -150,6 +153,10 @@ export function ProjectsView({
                 </tbody>
               </table>
             </div>
+            {/* Solo cuando hace falta: un proyecto que comparten varios tableros, o que todavía no tiene ninguno. */}
+            {subjects.some((sj) => sj.boards.length !== 1 || projects.some((p) => (p.subjects?.length ?? 0) > 1)) && (
+              <SubjectsList subjects={subjects} canEdit={canEdit} canDelete={canAdminister} />
+            )}
           </>
         )}
       </div>
@@ -163,6 +170,7 @@ export function ProjectsView({
           <CreateProjectForm
             templates={templates}
             recommended={recommended}
+            subjects={subjects}
             onCancel={() => setCreating(false)}
           />
         )}

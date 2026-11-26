@@ -198,7 +198,8 @@ async function roles() {
 }
 
 function link(board, folder) {
-  if (!board || !folder) throw new Error("Uso: kuador-runner link <TABLERO> <carpeta del repo>");
+  // <TABLERO>/<PROYECTO> para un tablero que trabaja en varios proyectos, cada uno con su repositorio.
+  if (!board || !folder) throw new Error("Uso: kuador-runner link <TABLERO> <carpeta del repo>  (o <TABLERO>/<PROYECTO>)");
   const config = requireConfig();
   const path = resolve(folder);
   if (!isRepo(path)) throw new Error(`${path} no es un repositorio git.`);

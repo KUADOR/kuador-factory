@@ -39,3 +39,22 @@ export async function board(prefix: string, name: string, templateKey = "TASKS")
 export async function card(projectKey: string, input: { title: string; status: string; type?: string; labels?: string[]; priority?: string }): Promise<string> {
   return (await call<{ key: string }>("POST", `/api/projects/${projectKey}/issues`, { type: "TASK", ...input })).key;
 }
+
+/** Un proyecto del espacio (aquello sobre lo que se trabaja); el nombre lleva letras al azar para no chocar entre corridas. */
+export async function subject(name: string): Promise<{ key: string; name: string }> {
+  const letters = Array.from({ length: 4 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join("");
+  const full = `${name} ${letters}`;
+  return { key: (await call<{ key: string }>("POST", "/api/subjects", { name: full, key: "P" + letters })).key, name: full };
+}
+
+/** Un tablero que trabaja en varios proyectos del espacio. */
+export async function teamBoard(prefix: string, name: string, subjects: string[], templateKey = "TASKS"): Promise<{ key: string; columns: Column[] }> {
+  const letters = Array.from({ length: 4 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join("");
+  const key = prefix + letters;
+  await call("POST", "/api/projects", { key, name, templateKey, subjects });
+  return { key, columns: (await call<{ columns: Column[] }>("GET", `/api/projects/${key}`)).columns };
+}
+
+export async function cardIn(projectKey: string, subjectKey: string, input: { title: string; status: string; type?: string }): Promise<string> {
+  return (await call<{ key: string }>("POST", `/api/projects/${projectKey}/issues`, { type: "TASK", subjectKey, ...input })).key;
+}

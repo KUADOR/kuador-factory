@@ -7,6 +7,9 @@ alter table board_subject add column methodology varchar(40);
 update board_subject b set methodology = p.methodology
   from project p where p.workspace_id = b.workspace_id and p.project_key = b.project_key;
 
+-- El trabajo que el asistente manda a la máquina de una persona recuerda de qué proyecto es (nulo = el primero).
+alter table ai_job add column subject_key varchar(10);
+
 alter table project_repository add column subject_key varchar(10);
 alter table project_component  add column subject_key varchar(10);
 alter table piece_plan         add column subject_key varchar(10);

@@ -1,8 +1,9 @@
 import "server-only";
 
-import { headers as incomingHeaders } from "next/headers";
+import { cookies, headers as incomingHeaders } from "next/headers";
 
 import { getSessionToken } from "./session";
+import { subjectCookie } from "./subjects";
 import type {
   BoardDesign,
   DesignQuestion,
@@ -62,6 +63,8 @@ import type {
   SetupResult,
   IssueInput,
   IssueStatus,
+  Subject,
+  SubjectListing,
   AgentClient,
   AgentKit,
   EpicTask,
@@ -155,7 +158,7 @@ async function request<T>(path: string, init?: RequestInit & { anonymous?: boole
     const token = await getSessionToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers, cache: "no-store" });
+  const res = await fetch(`${BASE_URL}${await withSubject(path)}`, { ...init, headers, cache: "no-store" });
   if (!res.ok) {
     let message = `La API respondió ${res.status}.`;
     try {
@@ -171,6 +174,22 @@ async function request<T>(path: string, init?: RequestInit & { anonymous?: boole
     throw new ApiError(res.status, message);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+/**
+ * En un tablero que atiende varios proyectos, cada petición de ese tablero lleva el elegido: así su repositorio, sus
+ * piezas, sus documentos y su manual son los de ese proyecto. Sin elegir, la API usa el primero del tablero.
+ */
+async function withSubject(path: string): Promise<string> {
+  const board = /^\/api\/projects\/([^/?]+)/.exec(path)?.[1];
+  if (!board || /[?&]subject=/.test(path)) return path;
+  let chosen: string | undefined;
+  try {
+    chosen = (await cookies()).get(subjectCookie(decodeURIComponent(board)))?.value;
+  } catch {
+    return path; // fuera de una petición (no hay cookies que leer)
+  }
+  return chosen ? `${path}${path.includes("?") ? "&" : "?"}subject=${encodeURIComponent(chosen)}` : path;
 }
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
@@ -329,8 +348,17 @@ export const boardApi = {
   project: (key: string) => request<Project>(`/api/projects/${encodeURIComponent(key)}`),
   deleteProject: (key: string, confirm: string) =>
     request<void>(`/api/projects/${encodeURIComponent(key)}?confirm=${encodeURIComponent(confirm)}`, { method: "DELETE" }),
-  createProject: (input: { key: string; name: string; description: string | null; templateKey: string }) =>
+  createProject: (input: { key: string; name: string; description: string | null; templateKey: string; subjects?: string[] }) =>
     request<Project>("/api/projects", json("POST", input)),
+  subjects: () => request<SubjectListing[]>("/api/subjects"),
+  createSubject: (input: { name: string; description: string | null }) => request<SubjectListing>("/api/subjects", json("POST", input)),
+  updateSubject: (key: string, input: { name: string; description: string | null }) =>
+    request<SubjectListing>(`/api/subjects/${encodeURIComponent(key)}`, json("PUT", input)),
+  deleteSubject: (key: string) => request<void>(`/api/subjects/${encodeURIComponent(key)}`, { method: "DELETE" }),
+  addBoardSubject: (projectKey: string, input: { subjectKey: string } | { name: string }) =>
+    request<Subject[]>(`/api/projects/${encodeURIComponent(projectKey)}/subjects`, json("POST", input)),
+  removeBoardSubject: (projectKey: string, subjectKey: string) =>
+    request<Subject[]>(`/api/projects/${encodeURIComponent(projectKey)}/subjects/${encodeURIComponent(subjectKey)}`, { method: "DELETE" }),
   setMethodology: (key: string, methodology: string | null) =>
     request<Project>(`/api/projects/${encodeURIComponent(key)}/methodology`, json("PUT", { methodology })),
 

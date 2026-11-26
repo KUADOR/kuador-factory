@@ -131,6 +131,11 @@ class SubjectsIT {
         call("PUT", "/api/issues/" + epicKey, Map.of("title", "Campaña de fin de año", "type", "EPIC"), owner);
         assertThat(call("GET", "/api/issues/" + epicKey, null, owner).body().get("subjectKey").asString()).isEqualTo("KUA");
 
+        // La lista se filtra por proyecto.
+        assertThat(call("GET", "/api/projects/MKT/issues/search", null, owner).body().get("total").asInt()).isEqualTo(3);
+        assertThat(call("GET", "/api/projects/MKT/issues/search?subject=KUA", null, owner).body().get("total").asInt()).isEqualTo(3);
+        assertThat(call("GET", "/api/projects/MKT/issues/search?subject=KM", null, owner).body().get("total").asInt()).isZero();
+
         // Con tarjetas, el proyecto no se quita del tablero; sin tarjetas, sí. Y solo se borra cuando nadie lo atiende.
         assertThat(call("DELETE", "/api/projects/MKT/subjects/KUA", null, owner).status()).isEqualTo(422);
         assertThat(keys(call("DELETE", "/api/projects/MKT/subjects/KM", null, owner).body())).containsExactly("KUA");

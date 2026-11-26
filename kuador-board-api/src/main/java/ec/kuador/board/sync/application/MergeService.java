@@ -92,7 +92,10 @@ public class MergeService {
         String shortSha = commit.length() >= 7 ? commit.substring(0, 7) : commit;
         issues.addComment(issueKey, actorId, "🔀 Fusioné " + repository + " #" + number + " en la rama principal (" + shortSha + ").");
         String status = card.status();
-        if (approve) status = issues.approveGate(issueKey, "Aprobado y fusionado desde el tablero.", actorId).status();
+        // Con otro PR de la tarjeta todavía abierto (otro repo), la puerta espera a que se fusione también.
+        boolean others = code.pullRequests(card.projectKey(), issueKey).stream()
+                .anyMatch(p -> !p.merged() && "open".equalsIgnoreCase(p.state()) && !(p.repository().equalsIgnoreCase(repository) && p.number() == number));
+        if (approve && !others) status = issues.approveGate(issueKey, "Aprobado y fusionado desde el tablero.", actorId).status();
         return new Merged(repository, number, commit, status);
     }
 }

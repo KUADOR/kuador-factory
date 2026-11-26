@@ -1,6 +1,18 @@
 "use client";
 
-import { ArrowRight, Check, CheckCircle2, Hand, Hourglass, Lock, LoaderCircle, RotateCcw, TriangleAlert, Undo2, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Hand,
+  Hourglass,
+  Lock,
+  LoaderCircle,
+  RotateCcw,
+  TriangleAlert,
+  Undo2,
+  Zap,
+} from "lucide-react";
 import { useState, useTransition } from "react";
 
 import {
@@ -40,6 +52,7 @@ export function StageBar({
   workingAgent,
   ready = true,
   onPullsLoaded,
+  mergeOnly = false,
 }: {
   issue: Issue;
   project: Project;
@@ -52,7 +65,9 @@ export function StageBar({
    */
   ready?: boolean;
   /** Avisa que el estado de los PRs en GitHub ya llegó. */
-  onPullsLoaded?: () => void;
+  onPullsLoaded?: (open: number) => void;
+  /** La tarjeta tiene PRs abiertos: la puerta se pasa con «Aprobar y fusionar» (o se rechaza), no aprobando sin fusionar. */
+  mergeOnly?: boolean;
   /** Dónde trabaja cada agente del equipo (tablero o PC de una persona). */
   modes?: Record<string, AgentMode>;
   /** Última ejecución de un agente en esta tarjeta. */
@@ -69,10 +84,14 @@ export function StageBar({
   const { canEdit } = useAccess();
 
   const isHuman = me.kind === "HUMAN";
-  const canApprove = !!stage?.gate && isHuman && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
+  const canApprove =
+    !!stage?.gate && isHuman && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
   const covers = !!stage && stage.roles.length > 0 && stage.roles.includes(me.role);
   // Quien solo mira no toma ni entrega: como mucho aprueba o rechaza en su puerta.
-  const canTake = canEdit && !issue.assigneeId && (stage?.gate ? covers || canApprove : !stage || stage.roles.length === 0 || covers);
+  const canTake =
+    canEdit &&
+    !issue.assigneeId &&
+    (stage?.gate ? covers || canApprove : !stage || stage.roles.length === 0 || covers);
   const mine = issue.assigneeId === me.id;
   const act = (work: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
     start(async () => {
@@ -85,17 +104,36 @@ export function StageBar({
 
   // Mientras falta cargar algo, los botones se ven pero no actúan.
   const waitHint = ready ? undefined : "Cargando comentarios y estado de la tarjeta…";
-  const step = nextStep({ issue, project, me, members, modes, lastRun, workingAgent, canEdit, roleName });
+  const step = nextStep({
+    issue,
+    project,
+    me,
+    members,
+    modes,
+    lastRun,
+    workingAgent,
+    canEdit,
+    roleName,
+  });
   const runStep = (a: StepAction) => {
     switch (a.kind) {
       case "move":
-        return act(() => moveIssueAction(project.key, issue.key, a.to.key, 0), `${issue.key} pasó a ${a.to.name}`);
+        return act(
+          () => moveIssueAction(project.key, issue.key, a.to.key, 0),
+          `${issue.key} pasó a ${a.to.name}`,
+        );
       case "assign":
-        return act(() => assignIssueAction(project.key, issue.key, a.memberId), `${issue.key} asignado`);
+        return act(
+          () => assignIssueAction(project.key, issue.key, a.memberId),
+          `${issue.key} asignado`,
+        );
       case "take":
         return act(() => takeIssueAction(project.key, issue.key), `Tomaste ${issue.key}`);
       case "supervise":
-        return act(() => superviseIssueAction(project.key, issue.key), `Tus agentes atenderán ${issue.key}`);
+        return act(
+          () => superviseIssueAction(project.key, issue.key),
+          `Tus agentes atenderán ${issue.key}`,
+        );
       case "retry":
         return act(() => retryAgentRunAction(a.runId, project.key), "Reintentando");
     }
@@ -118,7 +156,10 @@ export function StageBar({
               </>
             ) : (
               <>
-                Quién lo hace: {issue.type === "EPIC" && stage.epicFirst?.length ? `${roleList(stage.epicFirst, roleName)}; después, ` : ""}
+                Quién lo hace:{" "}
+                {issue.type === "EPIC" && stage.epicFirst?.length
+                  ? `${roleList(stage.epicFirst, roleName)}; después, `
+                  : ""}
                 {roleList(stage.roles, roleName, "cualquiera del equipo")}
               </>
             )}
@@ -126,40 +167,105 @@ export function StageBar({
         )}
         {issue.reworkCount > 0 && (
           <Badge tone={issue.reworkCount >= project.maxRework ? "warn" : "neutral"}>
-            <RotateCcw className="size-3" aria-hidden /> Volvió atrás {issue.reworkCount} {issue.reworkCount === 1 ? "vez" : "veces"}
+            <RotateCcw className="size-3" aria-hidden /> Volvió atrás {issue.reworkCount}{" "}
+            {issue.reworkCount === 1 ? "vez" : "veces"}
           </Badge>
         )}
         <span className="ml-auto text-xs text-fg-muted">
-          {assignee ? <>Lo tiene <span className="font-medium text-fg-strong">{assignee.name}</span></> : stage ? "Sin tomar" : null}
+          {assignee ? (
+            <>
+              Lo tiene <span className="font-medium text-fg-strong">{assignee.name}</span>
+            </>
+          ) : stage ? (
+            "Sin tomar"
+          ) : null}
         </span>
       </div>
       {canEdit && isHuman && project.stages.some((s) => s.gate) && (
-        <ReviewByPicker issue={issue} project={project} disabled={pending || !ready} onPick={(v, msg) => act(() => setReviewByAction(project.key, issue.key, v), msg)} />
+        <ReviewByPicker
+          issue={issue}
+          project={project}
+          disabled={pending || !ready}
+          onPick={(v, msg) => act(() => setReviewByAction(project.key, issue.key, v), msg)}
+        />
       )}
 
       {stage && !rejecting && (
         <div className="flex flex-wrap items-center gap-2 max-md:[&>button]:min-h-10 max-md:[&>button]:grow">
           {canTake && !step.actions.some((a) => a.kind === "take") && (
-            <Button size="sm" tone={canApprove ? "secondary" : "primary"} icon={Hand} loading={pending} disabled={!ready} title={waitHint} onClick={() => act(() => takeIssueAction(project.key, issue.key), `Tomaste ${issue.key}`)}>
+            <Button
+              size="sm"
+              tone={canApprove ? "secondary" : "primary"}
+              icon={Hand}
+              loading={pending}
+              disabled={!ready}
+              title={waitHint}
+              onClick={() =>
+                act(() => takeIssueAction(project.key, issue.key), `Tomaste ${issue.key}`)
+              }
+            >
               Tomar
             </Button>
           )}
-          {canEdit && !stage.gate && !workingAgent && (mine || (isHuman && !!issue.assigneeId)) && next && (
-            <Button size="sm" tone={step.actions.length > 0 ? "secondary" : "primary"} icon={ArrowRight} loading={pending} disabled={!ready} title={waitHint} className="max-md:order-first max-md:basis-full" onClick={() => act(() => deliverIssueAction(project.key, issue.key, null), `${issue.key} pasó a ${next.name}`)}>
-              Entregar a {next.name}
-            </Button>
-          )}
+          {canEdit &&
+            !stage.gate &&
+            !workingAgent &&
+            (mine || (isHuman && !!issue.assigneeId)) &&
+            next && (
+              <Button
+                size="sm"
+                tone={step.actions.length > 0 ? "secondary" : "primary"}
+                icon={ArrowRight}
+                loading={pending}
+                disabled={!ready}
+                title={waitHint}
+                className="max-md:order-first max-md:basis-full"
+                onClick={() =>
+                  act(
+                    () => deliverIssueAction(project.key, issue.key, null),
+                    `${issue.key} pasó a ${next.name}`,
+                  )
+                }
+              >
+                Entregar a {next.name}
+              </Button>
+            )}
           {canApprove && (
             <>
-              <Button size="sm" tone="primary" icon={Check} loading={pending} disabled={!next || !ready} title={waitHint} className="max-md:order-first max-md:basis-full" onClick={() => act(() => reviewIssueAction(project.key, issue.key, true, null), `${issue.key} aprobado`)}>
-                Aprobar{next ? ` y pasar a ${next.name}` : ""}
-              </Button>
-              <Button size="sm" tone="danger" icon={Undo2} disabled={pending || !ready} title={waitHint} onClick={() => setRejecting(true)}>
+              {!mergeOnly && (
+                <Button
+                  size="sm"
+                  tone="primary"
+                  icon={Check}
+                  loading={pending}
+                  disabled={!next || !ready}
+                  title={waitHint}
+                  className="max-md:order-first max-md:basis-full"
+                  onClick={() =>
+                    act(
+                      () => reviewIssueAction(project.key, issue.key, true, null),
+                      `${issue.key} aprobado`,
+                    )
+                  }
+                >
+                  Aprobar{next ? ` y pasar a ${next.name}` : ""}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                tone="danger"
+                icon={Undo2}
+                disabled={pending || !ready}
+                title={waitHint}
+                onClick={() => setRejecting(true)}
+              >
                 Rechazar
               </Button>
             </>
           )}
-          {stage.gate && !isHuman && <p className="text-xs text-fg-muted">Este paso lo aprueba una persona.</p>}
+          {stage.gate && !isHuman && (
+            <p className="text-xs text-fg-muted">Este paso lo aprueba una persona.</p>
+          )}
           {!ready && (
             <span className="flex items-center gap-1.5 text-xs text-fg-faint">
               <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> Cargando…
@@ -168,7 +274,10 @@ export function StageBar({
         </div>
       )}
       {stage && (stage.checklist ?? []).length > 0 && (canApprove || mine) && !rejecting && (
-        <ul className="flex flex-col gap-1 text-xs text-fg-muted" aria-label={stage.gate ? "Antes de aprobar" : "Antes de entregar"}>
+        <ul
+          className="flex flex-col gap-1 text-xs text-fg-muted"
+          aria-label={stage.gate ? "Antes de aprobar" : "Antes de entregar"}
+        >
           {(stage.checklist ?? []).map((item) => (
             <li key={item} className="flex items-start gap-1.5">
               <Check className="mt-0.5 size-3 shrink-0 text-fg-faint" aria-hidden />
@@ -177,7 +286,9 @@ export function StageBar({
           ))}
         </ul>
       )}
-      {showsPulls({ issue, project, me, canEdit }) && !rejecting && <PullMerge projectKey={project.key} issueKey={issue.key} onLoaded={onPullsLoaded} />}
+      {showsPulls({ issue, project, me, canEdit }) && !rejecting && (
+        <PullMerge projectKey={project.key} issueKey={issue.key} onLoaded={onPullsLoaded} />
+      )}
 
       {rejecting && (
         <form
@@ -191,10 +302,26 @@ export function StageBar({
             }, `${issue.key} devuelto`);
           }}
         >
-          <TextArea rows={3} autoFocus required value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Qué hay que corregir (lo verá quien lo retome)" aria-label="Motivo del rechazo" />
+          <TextArea
+            rows={3}
+            autoFocus
+            required
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Qué hay que corregir (lo verá quien lo retome)"
+            aria-label="Motivo del rechazo"
+          />
           <div className="flex justify-end gap-2">
-            <Button size="sm" tone="ghost" onClick={() => setRejecting(false)}>Cancelar</Button>
-            <Button size="sm" tone="danger" type="submit" loading={pending} disabled={!reason.trim()}>
+            <Button size="sm" tone="ghost" onClick={() => setRejecting(false)}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              tone="danger"
+              type="submit"
+              loading={pending}
+              disabled={!reason.trim()}
+            >
               Rechazar y devolver
             </Button>
           </div>
@@ -204,7 +331,10 @@ export function StageBar({
   );
 }
 
-const STEP_STYLE: Record<NextStep["tone"], { icon: React.ComponentType<{ className?: string }>; icon_: string }> = {
+const STEP_STYLE: Record<
+  NextStep["tone"],
+  { icon: React.ComponentType<{ className?: string }>; icon_: string }
+> = {
   action: { icon: Zap, icon_: "text-sol-text" },
   wait: { icon: Hourglass, icon_: "text-fg-muted" },
   working: { icon: LoaderCircle, icon_: "text-info animate-spin [animation-duration:2.4s]" },
@@ -213,7 +343,17 @@ const STEP_STYLE: Record<NextStep["tone"], { icon: React.ComponentType<{ classNa
 };
 
 /** Lo que tiene que pasar ahora, siempre visible arriba del detalle (en cualquier tipo de tablero). */
-function NextStepCallout({ step, pending, disabled, onAction }: { step: NextStep; pending: boolean; disabled?: boolean; onAction: (a: StepAction) => void }) {
+function NextStepCallout({
+  step,
+  pending,
+  disabled,
+  onAction,
+}: {
+  step: NextStep;
+  pending: boolean;
+  disabled?: boolean;
+  onAction: (a: StepAction) => void;
+}) {
   const style = STEP_STYLE[step.tone];
   const Icon = style.icon;
   return (
@@ -222,12 +362,21 @@ function NextStepCallout({ step, pending, disabled, onAction }: { step: NextStep
       {/* Con poco ancho (p. ej. el panel de la oficina) los botones bajan en vez de apretar el texto. */}
       <div className="min-w-0 flex-1 basis-56">
         <p className="text-[13px] font-medium text-fg-strong">{step.title}</p>
-        {step.detail && <p className="mt-0.5 text-xs leading-relaxed text-fg-muted">{step.detail}</p>}
+        {step.detail && (
+          <p className="mt-0.5 text-xs leading-relaxed text-fg-muted">{step.detail}</p>
+        )}
       </div>
       {step.actions.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {step.actions.map((a, i) => (
-            <Button key={a.label} size="sm" tone={i === 0 ? "primary" : "secondary"} loading={pending && i === 0} disabled={pending || disabled} onClick={() => onAction(a)}>
+            <Button
+              key={a.label}
+              size="sm"
+              tone={i === 0 ? "primary" : "secondary"}
+              loading={pending && i === 0}
+              disabled={pending || disabled}
+              onClick={() => onAction(a)}
+            >
               {a.label}
             </Button>
           ))}
@@ -262,10 +411,22 @@ function ReviewByPicker({
           onChange={(value) => {
             if (!value) return;
             const v = value === "BOARD" ? null : value;
-            onPick(v, v === "PERSON" ? "Esta tarjeta la revisa siempre una persona" : v === "AGENT" ? "Esta tarjeta la revisa el agente" : "Revisión según el tablero");
+            onPick(
+              v,
+              v === "PERSON"
+                ? "Esta tarjeta la revisa siempre una persona"
+                : v === "AGENT"
+                  ? "Esta tarjeta la revisa el agente"
+                  : "Revisión según el tablero",
+            );
           }}
           options={[
-            { value: "BOARD", label: anyAgent ? "Según el tablero (agente revisor)" : "Según el tablero (una persona)" },
+            {
+              value: "BOARD",
+              label: anyAgent
+                ? "Según el tablero (agente revisor)"
+                : "Según el tablero (una persona)",
+            },
             { value: "PERSON", label: "Siempre una persona" },
             { value: "AGENT", label: "Que la revise el agente" },
           ]}
@@ -275,11 +436,23 @@ function ReviewByPicker({
   );
 }
 
-
 /** La puerta muestra los PRs de la tarjeta (y su CI) a quien puede aprobarla en un tablero con repositorio. */
-export function showsPulls({ issue, project, me, canEdit }: { issue: Issue; project: Project; me: Me; canEdit: boolean }): boolean {
+export function showsPulls({
+  issue,
+  project,
+  me,
+  canEdit,
+}: {
+  issue: Issue;
+  project: Project;
+  me: Me;
+  canEdit: boolean;
+}): boolean {
   const stage = stageOf(project, issue.status);
-  const canApprove = !!stage?.gate && me.kind === "HUMAN" && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
+  const canApprove =
+    !!stage?.gate &&
+    me.kind === "HUMAN" &&
+    (stage.approvers.length === 0 || stage.approvers.includes(me.role));
   return canApprove && canEdit && project.capabilities.includes("REPOSITORY");
 }
 
@@ -298,22 +471,63 @@ export type QuickAction = {
  * Aprobar, rechazar o entregar sin subir hasta la barra de la etapa: las mismas reglas que {@link StageBar}, para ponerlas
  * junto al botón «Comentar».
  */
-export function quickActions({ issue, project, me, canEdit, workingAgent }: { issue: Issue; project: Project; me: Me; canEdit: boolean; workingAgent?: Member }): QuickAction[] {
+export function quickActions({
+  issue,
+  project,
+  me,
+  canEdit,
+  workingAgent,
+  mergeOnly = false,
+}: {
+  issue: Issue;
+  project: Project;
+  me: Me;
+  canEdit: boolean;
+  workingAgent?: Member;
+  /** Con PRs abiertos la puerta se pasa fusionando: aquí solo queda rechazar. */
+  mergeOnly?: boolean;
+}): QuickAction[] {
   const stage = stageOf(project, issue.status);
   const next = nextColumn(project, issue.status);
   if (!stage || !next) return [];
   const isHuman = me.kind === "HUMAN";
   if (stage.gate) {
-    const canApprove = isHuman && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
+    const canApprove =
+      isHuman && (stage.approvers.length === 0 || stage.approvers.includes(me.role));
     if (!canApprove) return [];
     return [
-      { label: `Aprobar y pasar a ${next.name}`, tone: "primary", icon: Check, done: `${issue.key} aprobado`, run: (note) => reviewIssueAction(project.key, issue.key, true, note) },
-      { label: "Rechazar", tone: "danger", icon: Undo2, needsNote: true, done: `${issue.key} devuelto`, run: (note) => reviewIssueAction(project.key, issue.key, false, note) },
+      ...(mergeOnly
+        ? []
+        : [
+            {
+              label: `Aprobar y pasar a ${next.name}`,
+              tone: "primary",
+              icon: Check,
+              done: `${issue.key} aprobado`,
+              run: (note: string | null) => reviewIssueAction(project.key, issue.key, true, note),
+            } as QuickAction,
+          ]),
+      {
+        label: "Rechazar",
+        tone: "danger",
+        icon: Undo2,
+        needsNote: true,
+        done: `${issue.key} devuelto`,
+        run: (note) => reviewIssueAction(project.key, issue.key, false, note),
+      },
     ];
   }
   const mine = issue.assigneeId === me.id;
   if (canEdit && !workingAgent && (mine || (isHuman && !!issue.assigneeId))) {
-    return [{ label: `Entregar a ${next.name}`, tone: "primary", icon: ArrowRight, done: `${issue.key} pasó a ${next.name}`, run: (note) => deliverIssueAction(project.key, issue.key, note) }];
+    return [
+      {
+        label: `Entregar a ${next.name}`,
+        tone: "primary",
+        icon: ArrowRight,
+        done: `${issue.key} pasó a ${next.name}`,
+        run: (note) => deliverIssueAction(project.key, issue.key, note),
+      },
+    ];
   }
   return [];
 }

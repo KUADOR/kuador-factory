@@ -58,7 +58,7 @@ public class IssueService extends IssueSupport implements IssueApi {
         this.tasks = new EpicTasks(ports);
         this.editor = new IssueEditor(ports, gates, supervision);
         this.deletion = new IssueDeletion(ports, this.evidence);
-        this.mover = new IssueMover(ports, gates, supervision, tasks);
+        this.mover = new IssueMover(ports, gates, supervision, tasks, evidence);
         this.plan = new EpicPlan(ports, editor, mover, tasks);
         this.work = new StageWork(ports, gates, evidence, mover, tasks);
         this.queues = new AgentQueues(ports, tasks, gates, evidence, supervision);

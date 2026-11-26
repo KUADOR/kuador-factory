@@ -22,12 +22,25 @@ final class IssueMover extends IssueSupport {
     private final Gates gates;
     private final Supervision supervision;
     private final EpicTasks tasks;
+    private final StageEvidence evidence;
 
-    IssueMover(Ports ports, Gates gates, Supervision supervision, EpicTasks tasks) {
+    IssueMover(Ports ports, Gates gates, Supervision supervision, EpicTasks tasks, StageEvidence evidence) {
         super(ports);
+        this.evidence = evidence;
         this.gates = gates;
         this.supervision = supervision;
         this.tasks = tasks;
+    }
+
+    /** La primera puerta que la tarjeta deja atrás yendo de {@code from} (incluida) a {@code target} (excluida), hacia adelante. */
+    private static Optional<String> firstGatePassed(ProjectView project, String from, String target) {
+        if (project.column(from).isEmpty() || project.indexOf(target) <= project.indexOf(from)) return Optional.empty();
+        List<String> order = project.columns().stream().map(ColumnDef::key).toList();
+        for (int i = order.indexOf(from); i < order.indexOf(target); i++) {
+            String column = order.get(i);
+            if (project.stage(column).filter(StageDef::gate).isPresent()) return Optional.of(column);
+        }
+        return Optional.empty();
     }
 
     /** Mueve el issue a {@code target} en la posición {@code index} (0 = arriba) y reordena la columna. */
@@ -59,6 +72,7 @@ final class IssueMover extends IssueSupport {
         // Tampoco se salta una puerta llevando la tarjeta de antes a después de ella.
         gates.requireGatesCrossed(project, from, target, actorId, issue);
         tasks.requireEpicWaitsForTasks(project, issue, target);
+        if (!byRule) firstGatePassed(project, from, target).ifPresent(gate -> evidence.requireMerged(project, issue, gate));
         List<Issue> column = new ArrayList<>(issues.findColumn(issue.projectKey(), target));
         column.removeIf(i -> i.id().equals(issue.id()));
         column.add(Math.clamp(index, 0, column.size()), issue);

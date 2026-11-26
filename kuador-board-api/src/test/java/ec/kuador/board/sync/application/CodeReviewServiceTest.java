@@ -89,4 +89,19 @@ class CodeReviewServiceTest {
         assertThatThrownBy(() -> s.file("MED", "acme/med", "main", "../secretos")).isInstanceOf(DomainException.class);
         assertThat(s.file("MED", "acme/med", "main", "pom.xml")).isEqualTo("contenido");
     }
+
+    private static PullSummary pr(String title, String branch, String body) {
+        return new PullSummary("acme/app", 1, title, branch, "develop", "open", false, "diego", "u", body, "2026-11-26T10:00:00Z");
+    }
+
+    @Test
+    void aPrThatNamesAnotherCardInItsDescriptionIsNotThatCardsPr() {
+        // Visto en producción: PLATODO-90 y PLATODO-91 se nombraban en sus descripciones y cada tarjeta mostraba los dos PR.
+        PullSummary of91 = pr("PLATODO-91: plans", "feature/PLATODO-91-plans", "status-badge will also be needed by PLATODO-90");
+        assertThat(CodeReviewService.mentions(of91, "platodo-91")).isTrue();
+        assertThat(CodeReviewService.mentions(of91, "platodo-90")).as("lo nombra solo de paso en la descripción").isFalse();
+        assertThat(CodeReviewService.mentions(pr("Login screen", "feature/login", "Closes PLATODO-7"), "platodo-7"))
+                .as("un PR sin clave en el título ni en la rama sigue contando por su descripción").isTrue();
+        assertThat(CodeReviewService.mentions(of91, "status-badge")).as("una búsqueda libre sigue mirando la descripción").isTrue();
+    }
 }

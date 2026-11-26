@@ -30,4 +30,12 @@ public interface CardEvidence {
     default java.util.Optional<Boolean> hasDocumentOf(String projectKey, String issueKey, String role) {
         return java.util.Optional.empty();
     }
+
+    /**
+     * Los cambios de la tarjeta que siguen sin fusionar (p. ej. «KUADOR/app #34», sus PR abiertos). Con alguno, la tarjeta
+     * no pasa una puerta hacia adelante sin fusionarlos: se aprueba fusionando o se rechaza.
+     */
+    default java.util.List<String> unmergedChanges(String projectKey, String issueKey) {
+        return java.util.List.of();
+    }
 }

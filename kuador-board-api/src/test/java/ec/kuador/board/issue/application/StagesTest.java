@@ -84,6 +84,32 @@ class StagesTest {
     }
 
     @Test
+    void aGateWithTheCardsPrStillOpenIsPassedOnlyByMergingIt() {
+        // Visto en producción: «Aprobar y pasar» llevaba la tarjeta a Release con su PR sin fusionar.
+        java.util.Set<String> open = new java.util.HashSet<>();
+        service.setEvidence(List.of(new ec.kuador.board.issue.CardEvidence() {
+            @Override
+            public List<String> unmergedChanges(String projectKey, String issueKey) {
+                return open.contains(issueKey) ? List.of("acme/app #34") : List.of();
+            }
+        }));
+        Issue issue = issueIn("TODO");
+        open.add(issue.key());
+
+        assertThatThrownBy(() -> service.review(issue.key(), true, null, OWNER)).isInstanceOf(DomainException.class)
+                .hasMessageContaining("falta fusionar acme/app #34");
+        assertThatThrownBy(() -> service.move(issue.key(), "IN_PROGRESS", 0, OWNER)).as("tampoco arrastrando").isInstanceOf(DomainException.class);
+        Issue waiting = issueIn("BACKLOG");
+        open.add(waiting.key());
+        assertThatThrownBy(() -> service.move(waiting.key(), "IN_PROGRESS", 0, OWNER)).as("ni saltando la puerta")
+                .isInstanceOf(DomainException.class).isNotInstanceOf(ForbiddenException.class);
+        assertThat(service.review(issue.key(), false, "Falta el manejo de errores", OWNER).status()).as("rechazar sí se puede").isEqualTo("BACKLOG");
+
+        Issue merged = issueIn("TODO");
+        assertThat(service.review(merged.key(), true, null, OWNER).status()).as("ya fusionado, pasa").isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
     void aStageDoesNotLetACardLeaveWithoutWhatItRequires() {
         // «En progreso» exige un archivo; la puerta, además, un documento. Vale igual para personas y agentes.
         projects.stages("KUA", 2,

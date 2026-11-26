@@ -8,7 +8,7 @@ export function OrganizationArea({ children }: { children: React.ReactNode }) {
   return (
     <SectionLayout
       title="Organización"
-      nav={<SectionNav label="Organización" pickerLabel="Organización" groups={[{ items: [{ href: "/org/teams", label: "Equipos" }, { href: "/org/projects", label: "Proyectos" }] }]} />}
+      nav={<SectionNav label="Organización" pickerLabel="Organización" groups={[{ items: [{ href: "/org/teams", label: "Equipos" }, { href: "/org/projects", label: "Proyectos" }, { href: "/org/boards", label: "Tableros" }] }]} />}
     >
       {children}
     </SectionLayout>

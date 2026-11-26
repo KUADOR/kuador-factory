@@ -29,7 +29,7 @@ test("la fábrica de software muestra quién trabaja cada paso y en qué orden",
   await tabs.getByRole("link", { name: "Configuración" }).click();
   await expect(page).toHaveURL(/\/settings/);
   const secciones = page.getByRole("navigation", { name: "Configuración del tablero" });
-  await expect(secciones.getByRole("link")).toHaveText(["General", "Quién trabaja aquí", "Tarjeta", "Entradas"]);
+  await expect(secciones.getByRole("link")).toHaveText(["General", "Tarjeta", "Entradas"]);
   await page.goto(`/projects/${key}/settings/stages`);
   await expect(page).toHaveURL(/\/flow$/);
 });

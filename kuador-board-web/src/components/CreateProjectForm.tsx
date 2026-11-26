@@ -5,15 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { createProjectAction, setMethodologyAction } from "@/app/actions";
+import { createProjectAction, setMethodologyAction, setSubjectMethodologyAction } from "@/app/actions";
 import { useAccess } from "@/components/shell/AccessContext";
 import { Button } from "@/components/ui/Button";
 import { ChipPicker } from "@/components/ui/ChipPicker";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
-import { Field, TextInput } from "@/components/ui/Field";
+import { Field, SelectInput, TextInput } from "@/components/ui/Field";
 import { isGeneratedTemplate } from "@/components/catalog/catalogTypes";
 import { Badge } from "@/components/ui/Section";
-import type { SubjectListing, WorkflowTemplate } from "@/lib/types";
+import type { SubjectListing, Team, WorkflowTemplate } from "@/lib/types";
+
+const NEW_TEAM = "__nuevo";
 
 /** «Atención de pacientes» → ATE: las primeras letras del nombre, sin tildes. */
 function keyFrom(name: string) {
@@ -24,17 +26,23 @@ function keyFrom(name: string) {
   return key.length >= 2 ? key : (words[0] + "XX").slice(0, 3);
 }
 
-/** Las plantillas vienen del catálogo del espacio: cada una trae columnas y tipos de trabajo. */
+/**
+ * Un tablero une tres cosas: cómo se trabaja (la plantilla del flujo, del catálogo del espacio), qué equipo lo atiende y
+ * en qué proyectos trabaja. Sin equipos ni proyectos elegidos, nace con uno de cada uno con su nombre.
+ */
 export function CreateProjectForm({
   templates: all,
   recommended = [],
   subjects = [],
+  teams = [],
   onCancel,
 }: {
   templates: WorkflowTemplate[];
   recommended?: string[];
   /** Los proyectos que ya existen en el espacio: el tablero puede trabajar en ellos en vez de nacer con uno propio. */
   subjects?: SubjectListing[];
+  /** Los equipos que puede elegir quien lo crea (quien administra, todos; los demás, los suyos). */
+  teams?: Team[];
   onCancel: () => void;
 }) {
   // Las plantillas del paquete de la empresa van primero, en su orden.
@@ -50,6 +58,7 @@ export function CreateProjectForm({
   const [templateKey, setTemplateKey] = useState(recommended.find((k) => templates.some((t) => t.key === k)) ?? templates.find((t) => t.kind === "SOFTWARE")?.key ?? templates[0]?.key ?? "");
   const [origin, setOrigin] = useState<"new" | "existing">("new");
   const [chosen, setChosen] = useState<string[]>([]);
+  const [team, setTeam] = useState<string>(NEW_TEAM);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const template = templates.find((t) => t.key === templateKey);
@@ -60,10 +69,25 @@ export function CreateProjectForm({
       onSubmit={(e) => {
         e.preventDefault();
         startTransition(async () => {
-          const result = await createProjectAction({ key, name, description: description.trim() || null, templateKey, subjects: chosen });
+          const result = await createProjectAction({
+            key,
+            name,
+            description: description.trim() || null,
+            templateKey,
+            subjects: chosen,
+            teamId: team === NEW_TEAM ? null : team,
+          });
           if (!result.ok) return setError(result.error);
-          if (template?.kind === "SOFTWARE" && origin === "existing" && chosen.length === 0) {
-            // Un proyecto que ya existe: ODD (explorar antes de cambiar) y directo a vincular su repo.
+          const code = template?.kind === "SOFTWARE" && chosen.length === 0;
+          // El proyecto nació con el tablero: quien administra sigue en el proyecto (manual, repositorio, documentos).
+          const own = result.data.subjects?.[0]?.key ?? result.data.key;
+          if (code && canAdminister) {
+            if (origin === "existing") {
+              // Un proyecto que ya existe: ODD (explorar antes de cambiar) y directo a vincular su repo.
+              await setSubjectMethodologyAction(own, "ODD");
+              router.push(`/org/projects/${own}/repository`);
+            } else router.push(`/org/projects/${own}`);
+          } else if (code && origin === "existing") {
             await setMethodologyAction(result.data.key, "ODD");
             router.push(`/projects/${result.data.key}/setup?step=repository&origen=existente`);
           } else router.push(`/projects/${result.data.key}/setup`);
@@ -117,7 +141,7 @@ export function CreateProjectForm({
       <Field label="Descripción" hint="Opcional.">{(id) => <TextInput id={id} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} />}</Field>
       <div className="flex flex-col gap-2">
         <span className="flex items-center justify-between gap-3 text-xs font-medium text-fg-muted">
-          O elige una plantilla
+          ¿Cómo se trabaja?
         </span>
         <ChoiceCards
           name="template"
@@ -138,6 +162,20 @@ export function CreateProjectForm({
           </p>
         )}
       </div>
+      {teams.length > 0 && (
+        <div className="w-72">
+          <Field label="¿Qué equipo lo atiende?">
+            {(id) => (
+              <SelectInput
+                id={id}
+                value={team}
+                onChange={(v) => v && setTeam(v)}
+                options={[{ value: NEW_TEAM, label: "Uno nuevo, con el nombre del tablero" }, ...teams.map((t) => ({ value: t.id, label: t.name }))]}
+              />
+            )}
+          </Field>
+        </div>
+      )}
       {subjects.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium text-fg-muted">¿En qué proyectos trabaja?</span>

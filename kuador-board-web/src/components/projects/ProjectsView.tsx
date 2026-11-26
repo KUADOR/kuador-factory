@@ -12,9 +12,8 @@ import { Badge, EmptyState } from "@/components/ui/Section";
 import { SidePanel } from "@/components/ui/SidePanel";
 
 import { FirstSteps } from "./FirstSteps";
-import { SubjectsList } from "./SubjectsList";
 import { PROJECT_KIND_LABEL } from "@/lib/labels";
-import type { Methodology, Project, SubjectListing, WorkflowTemplate } from "@/lib/types";
+import type { Methodology, Project, SubjectListing, Team, WorkflowTemplate } from "@/lib/types";
 
 /**
  * Proyectos del espacio: en el celular, tarjetas a todo el ancho (fáciles de tocar); en escritorio, una tabla. El
@@ -26,8 +25,10 @@ export function ProjectsView({
   methodologies,
   recommended = [],
   subjects = [],
+  teams = [],
 }: {
   subjects?: SubjectListing[];
+  teams?: Team[];
   projects: Project[];
   templates: WorkflowTemplate[];
   methodologies: Methodology[];
@@ -112,7 +113,7 @@ export function ProjectsView({
                       Plantilla
                     </th>
                     <th scope="col" className="hidden px-3 py-2 font-medium sm:table-cell">
-                      Manual de trabajo
+                      Equipo
                     </th>
                   </tr>
                 </thead>
@@ -139,24 +140,12 @@ export function ProjectsView({
                         {templateName(p.templateKey)}{" "}
                         <span className="text-fg-faint">· {PROJECT_KIND_LABEL[p.kind]}</span>
                       </td>
-                      <td className="hidden px-3 py-2.5 sm:table-cell">
-                        {p.kind !== "SOFTWARE" ? (
-                          <span className="text-fg-faint">—</span>
-                        ) : methodologyName(p.methodology) ? (
-                          <Badge>{methodologyName(p.methodology)}</Badge>
-                        ) : (
-                          <Badge tone="warn">Sin elegir</Badge>
-                        )}
-                      </td>
+                      <td className="hidden px-3 py-2.5 text-fg-muted sm:table-cell">{p.team?.name ?? <span className="text-fg-faint">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {/* Solo cuando hace falta: un proyecto que comparten varios tableros, o que todavía no tiene ninguno. */}
-            {subjects.some((sj) => sj.boards.length !== 1 || projects.some((p) => (p.subjects?.length ?? 0) > 1)) && (
-              <SubjectsList subjects={subjects} canEdit={canEdit} canDelete={canAdminister} />
-            )}
           </>
         )}
       </div>
@@ -171,6 +160,7 @@ export function ProjectsView({
             templates={templates}
             recommended={recommended}
             subjects={subjects}
+            teams={teams}
             onCancel={() => setCreating(false)}
           />
         )}

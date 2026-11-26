@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { board, card, cardIn, subject, teamBoard } from "./api";
+import { board, card, cardIn, subject, team, teamBoard } from "./api";
 import { detalle } from "./pantalla";
 
 test("un tablero de equipo trabaja en varios proyectos: etiqueta, filtro y proyecto al crear", async ({ page }) => {
@@ -52,12 +52,35 @@ test("con un solo proyecto no aparece nada nuevo", async ({ page }) => {
   await expect(page.locator(`[data-column="${columns[0].key}"]`).getByText("Un solo proyecto")).toHaveCount(0);
 });
 
-test("sumar un proyecto nuevo desde la configuración del tablero", async ({ page }) => {
+test("el tablero suma un proyecto desde Organización y su configuración queda solo con el flujo", async ({ page }) => {
   const { key } = await board("CFG", "Desarrollo del equipo");
+  const reservas = await subject("Sistema de reservas");
+
+  // La configuración del tablero nombra a su equipo y lleva a Organización para cambiarlo.
   await page.goto(`/projects/${key}/settings/general`);
-  await page.getByLabel("Nombre del proyecto nuevo").fill("Sistema de reservas");
-  await page.getByRole("button", { name: "Crear", exact: true }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: "Sistema de reservas" })).toBeVisible();
-  // Con dos proyectos ya aparece el selector en el encabezado del tablero.
+  await expect(page.getByText("Lo atiende")).toBeVisible();
+  await page.getByRole("link", { name: "Cambiar" }).click();
+  await expect(page).toHaveURL(new RegExp(`/org/boards\\?tablero=${key}`));
+
+  // Allí se le suma el proyecto; con dos ya aparece el selector en el encabezado del tablero.
+  await page.getByRole("combobox", { name: "Proyectos del tablero" }).click();
+  await page.getByRole("option", { name: reservas.name }).click();
+  await expect(page.getByRole("button", { name: `Quitar ${reservas.name}` })).toBeVisible();
+  await page.goto(`/projects/${key}`);
   await expect(page.getByRole("combobox", { name: "Proyecto", exact: true })).toBeVisible();
+});
+
+test("un tablero nuevo responde tres preguntas: cómo se trabaja, qué equipo y qué proyectos", async ({ page }) => {
+  const letters = Array.from({ length: 4 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join("");
+  const crew = await team("Ventas");
+  await page.goto("/org/boards?nuevo=1");
+  await page.getByLabel("Nombre").fill(`Ventas ${letters}`);
+  await page.getByLabel("Clave").fill(`V${letters}`);
+  await detalle(page).getByText("Tareas simples", { exact: true }).click();
+  await page.getByRole("combobox", { name: "¿Qué equipo lo atiende?" }).click();
+  await page.getByRole("option", { name: crew.name }).click();
+  await page.getByRole("button", { name: "Crear tablero" }).click();
+  await expect(page).toHaveURL(new RegExp(`/projects/V${letters}`));
+  await page.goto(`/projects/V${letters}/settings/general`);
+  await expect(page.getByText(crew.name)).toBeVisible();
 });

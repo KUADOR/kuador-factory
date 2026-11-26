@@ -471,8 +471,8 @@ function FirstRequest({ project, agents, aiReady }: { project: Project; agents: 
     return (
       <p className="text-[13px] text-fg-muted">
         Este tablero no tiene agentes.{" "}
-        <Link href={`/projects/${project.key}/settings/people#agentes`} className="k-link">
-          Súmalos en Configuración → Equipo de agentes
+        <Link href={project.team ? `/org/teams?equipo=${project.team.id}` : "/org/teams"} className="k-link">
+          Súmalos a su equipo en Organización → Equipos
         </Link>
         .
       </p>

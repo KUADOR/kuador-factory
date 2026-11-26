@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { SectionNav } from "@/components/shell/SectionNav";
 
-/** Secciones de la configuración del tablero: lo que vale solo para este tablero. */
+/**
+ * Secciones de la configuración del tablero: solo lo de su flujo. Su equipo, sus proyectos y lo de cada proyecto
+ * (repositorio, manual, documentos) se arman en Organización.
+ */
 export function SettingsNav({ projectKey }: { projectKey: string }) {
   const base = `/projects/${projectKey}/settings`;
-  // El flujo (pasos, responsables, reglas) se cambia en la pestaña Flujo; el repositorio, en la suya.
+  // Los pasos (responsables, reglas) se cambian en la pestaña Flujo.
   const groups = [
     {
       items: [
         { slug: "general", label: "General" },
-        { slug: "people", label: "Quién trabaja aquí" },
         { slug: "card", label: "Tarjeta" },
         { slug: "intake", label: "Entradas" },
       ],

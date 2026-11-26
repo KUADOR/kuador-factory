@@ -113,7 +113,10 @@ async function run<T>(work: () => Promise<T>, pathToRefresh?: string, layoutToo 
   let expired = false;
   try {
     const data = await work();
-    if (pathToRefresh) revalidatePath(pathToRefresh);
+    // Lo de un proyecto pedido desde el proyecto (clave «~GYM»): se refresca su página en Organización.
+    const scoped = pathToRefresh ? /^\/projects\/~([^/]+)/.exec(pathToRefresh) : null;
+    if (scoped) revalidatePath(`/org/projects/${scoped[1]}`, "layout");
+    else if (pathToRefresh) revalidatePath(pathToRefresh);
     // Cambia lo que espera a alguien: el menú (número de «Mis decisiones») se vuelve a calcular en toda la app.
     if (layoutToo) revalidatePath("/", "layout");
     return { ok: true, data };

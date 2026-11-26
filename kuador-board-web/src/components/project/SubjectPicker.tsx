@@ -8,7 +8,7 @@ import { SelectInput } from "@/components/ui/Field";
 import type { Subject } from "@/lib/types";
 
 /** Secciones que son de un proyecto a la vez: sus documentos, su repositorio y sus primeros pasos. */
-const ONE_AT_A_TIME = /\/(docs|sync|setup)(\/|$)|\/settings\/(general|methodology|repository)(\/|$)/;
+const ONE_AT_A_TIME = /\/(docs|setup)(\/|$)/;
 
 /**
  * En un tablero que atiende varios proyectos: cuál se mira. En el tablero filtra las tarjetas («Todos» las muestra

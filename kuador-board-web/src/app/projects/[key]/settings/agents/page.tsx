@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Personas y agentes del tablero están juntos en «Quién trabaja aquí». */
+/** Los agentes son del equipo del tablero: se arman en Organización → Equipos. */
 export default async function Page({ params }: { params: Promise<{ key: string }> }) {
-  redirect(`/projects/${(await params).key}/settings/people#agentes`);
+  redirect(`/projects/${(await params).key}/settings/general`);
 }

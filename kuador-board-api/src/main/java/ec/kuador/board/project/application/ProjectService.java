@@ -43,6 +43,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     private final BoardPeople people;
     private final MemberApi members;
     private ProjectGoals goals;
+    private SubjectService subjects;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setSubjects(SubjectService subjects) {
+        this.subjects = subjects;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired
     void setGoals(ProjectGoals goals) {
@@ -95,7 +101,13 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     /** Crea el tablero a pedido de una persona, que queda en él (si no administra, es la única forma de verlo). */
     @Transactional
     public ProjectWithColumns create(String key, String name, String description, String templateKey, UUID creatorId) {
-        ProjectWithColumns created = create(key, name, description, templateKey);
+        return create(key, name, description, templateKey, creatorId, null);
+    }
+
+    /** Igual, eligiendo en qué proyectos del espacio trabaja ({@code subjectKeys} vacío = uno propio, con su nombre). */
+    @Transactional
+    public ProjectWithColumns create(String key, String name, String description, String templateKey, UUID creatorId, List<String> subjectKeys) {
+        ProjectWithColumns created = create(key, name, description, templateKey, subjectKeys);
         if (creatorId != null && members.find(creatorId).filter(m -> !m.agent()).isPresent()) people.add(created.project().key(), creatorId);
         return created;
     }
@@ -103,6 +115,11 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     /** Crea el proyecto copiando la plantilla de flujo del catálogo del espacio. */
     @Transactional
     public ProjectWithColumns create(String key, String name, String description, String templateKey) {
+        return create(key, name, description, templateKey, (List<String>) null);
+    }
+
+    @Transactional
+    public ProjectWithColumns create(String key, String name, String description, String templateKey, List<String> subjectKeys) {
         WorkflowTemplate template = catalog.workflowTemplate(templateKey)
                 .orElseThrow(() -> new NotFoundException("No existe la plantilla de flujo " + templateKey + "."));
         billing.requireRoom(BillingApi.Limit.PROJECTS, projects.findAll().size());
@@ -119,6 +136,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         }
         Project saved = projects.save(project);
         projects.saveColumns(saved.key(), template.columns());
+        if (subjects != null) subjects.assign(saved, subjectKeys);
         events.publishEvent(new ec.kuador.board.project.ProjectCreated(UUID.randomUUID(), TenantContext.require(), saved.key(), catalog.defaultTeam(template.key()),
                 template.can(ec.kuador.board.catalog.Capability.REPOSITORY), clock.instant()));
         return new ProjectWithColumns(saved, template.columns());
@@ -246,6 +264,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     public Optional<ProjectView> find(String projectKey) {
         return projects.findByKey(projectKey).map(p -> new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(),
                 projects.findColumns(p.key()), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.capabilities(), p.estimate()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ec.kuador.board.project.SubjectView> subjectsOf(String projectKey) {
+        return subjects.ofBoard(projectKey);
     }
 
     @Override

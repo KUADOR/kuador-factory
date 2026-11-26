@@ -100,7 +100,8 @@ public class IssueService extends IssueSupport implements IssueApi {
     public Optional<IssueContext> context(String issueKey) {
         return issues.findByKey(issueKey).map(i -> new IssueContext(i.key(), i.projectKey(), i.title(), i.description(), i.type().name(),
                 i.status(), i.priority().name(), i.storyPoints(), i.labels(), i.parentKey(), i.assigneeId(), i.reporterId(),
-                issues.findComments(i).stream().map(c -> new CommentView(c.authorId(), c.body(), c.createdAt())).toList()));
+                issues.findComments(i).stream().map(c -> new CommentView(c.authorId(), c.body(), c.createdAt())).toList(),
+                projects.subjectKey(i.projectKey(), i.subjectKey())));
     }
 
     @Override
@@ -208,7 +209,7 @@ public class IssueService extends IssueSupport implements IssueApi {
     @Transactional(readOnly = true)
     public Optional<IssueRef> find(String issueKey) {
         return issues.findByKey(issueKey).map(i -> new IssueRef(i.key(), i.projectKey(),
-                Integer.parseInt(i.key().substring(i.key().lastIndexOf('-') + 1)), i.title()));
+                Integer.parseInt(i.key().substring(i.key().lastIndexOf('-') + 1)), i.title(), projects.subjectKey(i.projectKey(), i.subjectKey())));
     }
 
     /** Tareas del plan, si el reparto espera aprobación y, si todavía no se puede aprobar, por qué. */

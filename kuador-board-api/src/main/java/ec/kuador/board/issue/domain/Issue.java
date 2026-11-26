@@ -27,6 +27,8 @@ public final class Issue {
     private UUID assigneeId;
     private final UUID reporterId;
     private String parentKey;
+    /** El proyecto en que se trabaja la tarjeta (un sistema, una marca); nulo = el primero de su tablero. */
+    private String subjectKey;
     private List<String> labels;
     private int position;
     /** Veces que el issue volvió a una etapa anterior (freno de bucles). */
@@ -78,6 +80,7 @@ public final class Issue {
                 status, d.priority(), d.storyPoints(), d.assigneeId(), reporterId, d.parentKey(), d.labels(),
                 position, now, now);
         if (d.fields() != null) issue.fields(d.fields());
+        issue.subjectKey = d.subjectKey();
         return issue;
     }
 
@@ -108,6 +111,10 @@ public final class Issue {
         diff(changes, "parent", oldParent, parentKey);
         if (!oldLabels.equals(labels)) {
             changes.add(new FieldChange("labels", String.join(", ", oldLabels), String.join(", ", labels)));
+        }
+        if (d.subjectKey() != null && !d.subjectKey().equals(subjectKey)) {
+            changes.add(new FieldChange("subject", subjectKey, d.subjectKey()));
+            this.subjectKey = d.subjectKey();
         }
         if (d.fields() != null && !fields.equals(d.fields())) {
             java.util.Map<String, String> before = fields;
@@ -207,6 +214,12 @@ public final class Issue {
     public UUID assigneeId() { return assigneeId; }
     public UUID reporterId() { return reporterId; }
     public String parentKey() { return parentKey; }
+    public String subjectKey() { return subjectKey; }
+
+    /** Deja la tarjeta en un proyecto (al cargarla, o cuando hereda el de su épica). */
+    public void subject(String key) {
+        this.subjectKey = key == null || key.isBlank() ? null : key;
+    }
     public List<String> labels() { return labels; }
     public int position() { return position; }
     public Instant createdAt() { return createdAt; }

@@ -16,6 +16,7 @@ import ec.kuador.board.shared.tenant.TenantContext;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Crear, editar, asignar y borrar una tarjeta, con sus eventos. */
@@ -34,7 +35,8 @@ final class IssueEditor extends IssueSupport {
         ProjectView project = project(projectKey);
         validateReferences(project, details, null, null);
         // Los datos propios se validan contra los del tipo en este tablero; lo que no está definido se descarta.
-        details = details.withFields(ec.kuador.board.catalog.FieldDef.clean(project.fieldsOf(details.type()), details.fields()));
+        details = details.withFields(ec.kuador.board.catalog.FieldDef.clean(project.fieldsOf(details.type()), details.fields()))
+                .withSubject(subjectFor(projectKey, details, null));
         if (actorId != null) {
             requireMember(actorId);
         }
@@ -61,9 +63,18 @@ final class IssueEditor extends IssueSupport {
         // Sin datos propios en el pedido se conservan los que tiene; al cambiar de tipo quedan los que el nuevo tipo define.
         details = details.withFields(ec.kuador.board.catalog.FieldDef.clean(project(issue.projectKey()).fieldsOf(details.type()),
                 details.fields() == null ? issue.fields() : details.fields()));
+        details = details.withSubject(subjectFor(issue.projectKey(), details, issue));
+        String previousSubject = issue.subjectKey();
         UUID previousAssignee = issue.assigneeId();
         Instant now = now();
         List<FieldChange> changes = issue.edit(details, now);
+        // Las tarjetas de una épica se trabajan en su mismo proyecto.
+        if (issue.type() == IssueType.EPIC && !Objects.equals(previousSubject, issue.subjectKey())) {
+            for (Issue child : issues.findChildren(issue.key())) {
+                child.subject(issue.subjectKey());
+                issues.save(child);
+            }
+        }
         if (!Objects.equals(previousAssignee, issue.assigneeId())) supervision.superviseIfPersonHandsToAgents(issue, project(issue.projectKey()), actorId);
         Issue saved = issues.save(issue);
         if (!changes.isEmpty()) {
@@ -92,6 +103,22 @@ final class IssueEditor extends IssueSupport {
         Issue issue = load(key);
         issues.delete(issue);
         events.publishEvent(new IssueDeleted(UUID.randomUUID(), TenantContext.require(), key, issue.projectKey(), actorId, now(), issue.title()));
+    }
+
+    /**
+     * El proyecto en que queda la tarjeta: el de su épica si tiene una; si no, el que se pidió (debe atenderlo el
+     * tablero), el que ya tenía o el primero del tablero.
+     */
+    private String subjectFor(String projectKey, IssueDetails d, Issue current) {
+        if (d.parentKey() != null) {
+            Optional<Issue> parent = issues.findByKey(d.parentKey());
+            if (parent.isPresent()) return projects.subjectKey(projectKey, parent.get().subjectKey());
+        }
+        String wanted = d.subjectKey() == null || d.subjectKey().isBlank() ? null : d.subjectKey().strip().toUpperCase(java.util.Locale.ROOT);
+        if (wanted != null && projects.subjectsOf(projectKey).stream().noneMatch(s -> s.key().equals(wanted))) {
+            throw new DomainException("Este tablero no trabaja en el proyecto " + wanted + ": súmalo en la configuración del tablero.");
+        }
+        return projects.subjectKey(projectKey, wanted != null ? wanted : current == null ? null : current.subjectKey());
     }
 
     /** {@code currentAssignee}: quien ya lo tenía (puede seguir aunque haya salido del tablero). */

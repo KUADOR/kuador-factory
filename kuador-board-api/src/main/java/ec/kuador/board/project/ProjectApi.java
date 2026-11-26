@@ -43,6 +43,30 @@ public interface ProjectApi {
     /** Suma una persona del espacio al tablero. */
     void addPerson(String projectKey, java.util.UUID memberId);
 
+    /**
+     * Los proyectos que atiende el tablero (aquello sobre lo que se trabaja: un sistema, una marca), en su orden. El
+     * primero es el que se propone al crear una tarjeta. Solo queda vacío si el tablero no existe.
+     */
+    default java.util.List<SubjectView> subjectsOf(String projectKey) {
+        return find(projectKey).map(p -> java.util.List.of(new SubjectView(p.key(), p.name(), null))).orElse(java.util.List.of());
+    }
+
+    /**
+     * El proyecto de una tarjeta del tablero: {@code wanted} si el tablero lo atiende; si no (o si viene vacío), el
+     * primero del tablero.
+     */
+    default String subjectKey(String projectKey, String wanted) {
+        java.util.List<SubjectView> all = subjectsOf(projectKey);
+        if (wanted != null && all.stream().anyMatch(s -> s.key().equals(wanted))) return wanted;
+        return all.isEmpty() ? projectKey : all.getFirst().key();
+    }
+
+    /** El proyecto de una tarjeta, con su nombre y descripción (vacío si el tablero no existe). */
+    default java.util.Optional<SubjectView> subject(String projectKey, String subjectKey) {
+        String key = subjectKey(projectKey, subjectKey);
+        return subjectsOf(projectKey).stream().filter(s -> s.key().equals(key)).findFirst();
+    }
+
     /** Reserva el siguiente número de issue del proyecto de forma atómica. */
     int allocateIssueNumber(String projectKey);
 }

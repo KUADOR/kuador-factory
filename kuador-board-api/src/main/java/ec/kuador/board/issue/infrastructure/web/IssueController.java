@@ -221,11 +221,12 @@ class IssueController {
             UUID assigneeId,
             String parentKey,
             List<@Size(max = 40) String> labels,
-            @Size(max = 12) java.util.Map<String, @Size(max = 500) String> fields) {
+            @Size(max = 12) java.util.Map<String, @Size(max = 500) String> fields,
+            @Size(max = 10) String subjectKey) {
 
         IssueDetails toDomain() {
             return new IssueDetails(title, description, type, priority, storyPoints, assigneeId,
-                    parentKey == null || parentKey.isBlank() ? null : parentKey.strip().toUpperCase(), labels, fields);
+                    parentKey == null || parentKey.isBlank() ? null : parentKey.strip().toUpperCase(), labels, fields, subjectKey);
         }
     }
 
@@ -239,10 +240,11 @@ class IssueController {
             String parentKey,
             List<@Size(max = 40) String> labels,
             @Size(max = 30) String status,
-            @Size(max = 12) java.util.Map<String, @Size(max = 500) String> fields) {
+            @Size(max = 12) java.util.Map<String, @Size(max = 500) String> fields,
+            @Size(max = 10) String subjectKey) {
 
         IssueDetails details() {
-            return new IssueDetailsRequest(title, description, type, priority, storyPoints, assigneeId, parentKey, labels, fields)
+            return new IssueDetailsRequest(title, description, type, priority, storyPoints, assigneeId, parentKey, labels, fields, subjectKey)
                     .toDomain();
         }
     }
@@ -257,12 +259,12 @@ class IssueController {
             UUID id, String key, String projectKey, String title, String description, IssueType type,
             String status, Priority priority, Integer storyPoints, UUID assigneeId, UUID reporterId,
             String parentKey, List<String> labels, int position, int reworkCount, UUID supervisorId, String workRole, List<String> dependsOn,
-            String reviewBy, Instant createdAt, Instant updatedAt, java.util.Map<String, String> fields) {
+            String reviewBy, Instant createdAt, Instant updatedAt, java.util.Map<String, String> fields, String subjectKey) {
 
         static IssueResponse from(Issue i) {
             return new IssueResponse(i.id(), i.key(), i.projectKey(), i.title(), i.description(), i.type(), i.status(),
                     i.priority(), i.storyPoints(), i.assigneeId(), i.reporterId(), i.parentKey(), i.labels(),
-                    i.position(), i.reworkCount(), i.supervisorId(), i.workRole(), i.dependsOn(), i.reviewBy(), i.createdAt(), i.updatedAt(), i.fields());
+                    i.position(), i.reworkCount(), i.supervisorId(), i.workRole(), i.dependsOn(), i.reviewBy(), i.createdAt(), i.updatedAt(), i.fields(), i.subjectKey());
         }
     }
 

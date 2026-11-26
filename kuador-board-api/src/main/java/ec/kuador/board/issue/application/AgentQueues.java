@@ -90,6 +90,6 @@ final class AgentQueues extends IssueSupport {
         }
         return Optional.of(new QueueItem(i.key(), i.projectKey(), i.title(), i.type().name(), i.priority().name(), i.status(), column.get().name(),
                 stage.map(StageDef::gate).orElse(false), roles, assignee.map(MemberView::id).orElse(null),
-                assignee.map(MemberView::name).orElse(null), i.reworkCount()));
+                assignee.map(MemberView::name).orElse(null), i.reworkCount(), i.subjectKey()));
     }
 }

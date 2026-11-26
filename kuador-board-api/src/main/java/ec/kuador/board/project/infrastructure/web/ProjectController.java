@@ -52,7 +52,7 @@ class ProjectController {
     @ResponseStatus(HttpStatus.CREATED)
     ProjectResponse create(@org.springframework.security.core.annotation.AuthenticationPrincipal(expression = "memberId()") UUID actorId,
             @Valid @RequestBody CreateProjectRequest r) {
-        return ProjectResponse.from(service.create(r.key(), r.name(), r.description(), r.templateKey(), actorId));
+        return ProjectResponse.from(service.create(r.key(), r.name(), r.description(), r.templateKey(), actorId, r.subjects()));
     }
 
     /** El objetivo del tablero: lo leen los agentes con cada tarjeta. */
@@ -158,7 +158,8 @@ class ProjectController {
             @NotBlank @Size(max = 10) String key,
             @NotBlank @Size(max = 120) String name,
             @Size(max = 4000) String description,
-            @NotBlank @Size(max = 40) String templateKey) {}
+            @NotBlank @Size(max = 40) String templateKey,
+            @Size(max = 30) List<@Size(max = 10) String> subjects) {}
 
     record ColumnRequest(String key, String name, ColumnCategory category) {}
 

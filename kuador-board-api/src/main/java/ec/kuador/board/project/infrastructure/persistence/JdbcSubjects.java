@@ -59,23 +59,29 @@ class JdbcSubjects implements SubjectRepository {
 
     @Override
     public List<Linked> ofBoard(String projectKey) {
-        return jdbc.sql("select " + COLUMNS + ", b.methodology from board_subject b join subject s on s.workspace_id = b.workspace_id and s.subject_key = b.subject_key"
+        return jdbc.sql("select " + COLUMNS + ", s.methodology from board_subject b join subject s on s.workspace_id = b.workspace_id and s.subject_key = b.subject_key"
                 + " where b.workspace_id = ? and b.project_key = ? order by b.position, b.added_at, s.subject_key")
                 .params(TenantContext.require(), projectKey).query((rs, n) -> new Linked(ROW.mapRow(rs, n), rs.getString("methodology"))).list();
     }
 
     @Override
-    public void setMethodology(String projectKey, String subjectKey, String methodology) {
-        jdbc.sql("update board_subject set methodology = ? where workspace_id = ? and project_key = ? and subject_key = ?")
-                .params(methodology, TenantContext.require(), projectKey, subjectKey).update();
+    public Optional<String> methodology(String subjectKey) {
+        return jdbc.sql("select methodology from subject where workspace_id = ? and subject_key = ? and methodology is not null")
+                .params(TenantContext.require(), subjectKey).query(String.class).optional();
+    }
+
+    @Override
+    public void setMethodology(String subjectKey, String methodology) {
+        jdbc.sql("update subject set methodology = ? where workspace_id = ? and subject_key = ?")
+                .params(methodology, TenantContext.require(), subjectKey).update();
     }
 
     @Override
     public long countUsingMethodology(String methodology) {
         return jdbc.sql("""
                 select count(*) from (
-                    select project_key from board_subject where workspace_id = ? and methodology = ?
-                    union select project_key from project where workspace_id = ? and methodology = ?) boards""")
+                    select subject_key as k from subject where workspace_id = ? and methodology = ?
+                    union select project_key from project where workspace_id = ? and methodology = ?) uses""")
                 .params(TenantContext.require(), methodology, TenantContext.require(), methodology).query(Long.class).single();
     }
 
@@ -86,12 +92,12 @@ class JdbcSubjects implements SubjectRepository {
     }
 
     @Override
-    public void link(String projectKey, String subjectKey, String methodology) {
+    public void link(String projectKey, String subjectKey) {
         jdbc.sql("""
-                insert into board_subject (workspace_id, project_key, subject_key, position, added_at, methodology)
-                select ?, ?, ?, coalesce((select max(position) + 1 from board_subject where workspace_id = ? and project_key = ?), 0), ?, ?
+                insert into board_subject (workspace_id, project_key, subject_key, position, added_at)
+                select ?, ?, ?, coalesce((select max(position) + 1 from board_subject where workspace_id = ? and project_key = ?), 0), ?
                 on conflict do nothing""")
-                .params(TenantContext.require(), projectKey, subjectKey, TenantContext.require(), projectKey, Timestamp.from(clock.instant()), methodology)
+                .params(TenantContext.require(), projectKey, subjectKey, TenantContext.require(), projectKey, Timestamp.from(clock.instant()))
                 .update();
     }
 

@@ -9,8 +9,13 @@ import java.util.Set;
  * tener documentos con versiones sin tener repositorio de código.
  */
 public enum Capability {
-    /** Manual de trabajo (metodología) y documentos con versiones, del tablero y de cada tarjeta. */
+    /** Documentos con versiones (los de cada tarjeta). */
     DOCUMENTS,
+    /**
+     * Usa lo de sus proyectos: el manual de trabajo y los documentos base (los comparten los tableros que trabajan el
+     * proyecto). Un tablero de marketing trabaja el proyecto sin ellos; uno de código, una clínica con su manual, con ellos.
+     */
+    PROJECT_DOCS,
     /** Repositorio de código: piezas, ramas, Pull Requests, CI, sincronización y kit de agentes. */
     REPOSITORY,
     /** Repartir una tarjeta grande en tareas con responsable y dependencias. */
@@ -28,11 +33,12 @@ public enum Capability {
         return kind == ProjectKind.SOFTWARE ? ALL : List.of(DOCUMENTS);
     }
 
-    /** Sin repetidos, en orden fijo; el repositorio guarda documentos, así que los incluye. */
+    /** Sin repetidos, en orden fijo; el repositorio guarda los documentos del proyecto, así que los incluye. */
     public static List<Capability> normalize(List<Capability> capabilities) {
         Set<Capability> set = EnumSet.noneOf(Capability.class);
         for (Capability c : capabilities) if (c != null) set.add(c);
-        if (set.contains(REPOSITORY)) set.add(DOCUMENTS);
+        if (set.contains(REPOSITORY)) set.add(PROJECT_DOCS);
+        if (set.contains(PROJECT_DOCS)) set.add(DOCUMENTS);
         return List.copyOf(set);
     }
 

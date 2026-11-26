@@ -206,9 +206,10 @@ class SubjectsIT {
         assertThat(call("GET", "/api/projects/DEV/drafting?subject=LEG", null, owner).body().get("repositories").toString()).isEqualTo("[\"acme/legado\"]");
         assertThat(call("GET", "/api/projects/DEV/repository?subject=LEG", null, owner).body().get("location").asString()).isEqualTo("acme/legado");
 
-        // Quitar un proyecto del tablero se lleva lo que ese tablero guardaba de él; el otro queda intacto.
+        // Quitar un proyecto del tablero no se lleva nada: su repositorio y sus documentos son del proyecto.
         assertThat(call("DELETE", "/api/projects/DEV/subjects/LEG", null, owner).status()).isEqualTo(200);
-        assertThat(jdbc.sql("select count(*) from document where project_key = 'DEV' and subject_key = 'LEG'").query(Long.class).single()).isZero();
+        assertThat(jdbc.sql("select count(*) from document where subject_key = 'LEG' and issue_key is null").query(Long.class).single()).isEqualTo(1);
+        assertThat(jdbc.sql("select count(*) from project_repository where subject_key = 'LEG'").query(Long.class).single()).isEqualTo(1);
         assertThat(docs("/api/projects/DEV/docs", owner)).contains("PRODUCT");
         assertThat(call("GET", "/api/projects/DEV/repository", null, owner).body().get("location").asString()).isEqualTo("acme/kuador");
     }

@@ -8,8 +8,14 @@ public interface DocumentRepository {
 
     Optional<Document> findById(UUID id);
 
-    /** Documentos de un proyecto en un tablero: los suyos y los de sus tarjetas. */
+    /** Documentos de un proyecto vistos desde un tablero: los base del proyecto y los de las tarjetas de ese tablero. */
     List<Document> findByProject(String projectKey, String subjectKey);
+
+    /** Los documentos base de un proyecto (los comparten sus tableros). */
+    List<Document> findBase(String subjectKey);
+
+    /** Un tablero se borró: se van los documentos de sus tarjetas (los base son del proyecto y quedan). */
+    void deleteCardsOf(String projectKey);
 
     /** La tarjeta pasó a trabajarse en otro proyecto: sus documentos van con ella. */
     void moveIssue(String issueKey, String subjectKey);

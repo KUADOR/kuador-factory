@@ -4,7 +4,7 @@ import { canAdminister, canEdit, isOwner } from "@/lib/access";
 import { SectionLayout, SectionNav, type SectionNavGroup } from "./SectionNav";
 
 /**
- * Configuración del espacio en un solo lugar: empresa, equipo, plan, conexiones y lo avanzado, con un submenú.
+ * Configuración del espacio en un solo lugar: empresa, miembros, plan, conexiones y lo avanzado, con un submenú.
  * Cada nivel ve lo suyo: quien solo mira, el equipo; quien edita, además sus agentes locales; quien administra,
  * todo salvo el plan, que es del dueño. Lo de software aparece solo si hay tableros de software.
  */
@@ -20,7 +20,7 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
           title: "Espacio",
           items: [
             { href: "/workspace", label: "Empresa e idiomas", exact: true },
-            { href: "/team", label: "Equipo", exact: true },
+            { href: "/team", label: "Miembros", exact: true },
             ...(isOwner(me) ? [{ href: "/workspace/plan", label: "Plan" }] : []),
           ],
         },
@@ -36,11 +36,11 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
         },
       ]
     : [
-        { title: "Espacio", items: [{ href: "/team", label: "Equipo", exact: true }, { href: "/team/org", label: "Organigrama" }] },
+        { title: "Espacio", items: [{ href: "/team", label: "Miembros", exact: true }, { href: "/team/org", label: "Organigrama" }] },
         ...(localAgents.length ? [{ title: "Integraciones", items: localAgents }] : []),
       ];
   return (
-    <SectionLayout title={admin ? "Configuración" : "Equipo"} nav={<SectionNav label="Configuración del espacio" pickerLabel="Configuración" groups={groups} />}>
+    <SectionLayout title={admin ? "Configuración" : "Miembros"} nav={<SectionNav label="Configuración del espacio" pickerLabel="Configuración" groups={groups} />}>
       {children}
     </SectionLayout>
   );

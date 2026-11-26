@@ -33,6 +33,15 @@ public interface AgentTeamStore {
 
     void removeFromTeam(UUID workspaceId, String projectKey, UUID memberId);
 
+    /** Los agentes de un equipo (Organización → Equipos), en el orden en que se sumaron. */
+    default List<UUID> teamAgents(UUID workspaceId, UUID teamId) {
+        throw new UnsupportedOperationException("teamAgents");
+    }
+
+    default void addToTeamById(UUID workspaceId, UUID teamId, UUID memberId) {
+        throw new UnsupportedOperationException("addToTeamById");
+    }
+
     /** La clave del espacio: de un proveedor de IA ({@code provider}, código de {@link AiProvider}). */
     record AiKey(String provider, String encryptedKey, String hint, String defaultModel) {}
 

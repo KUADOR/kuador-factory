@@ -14,7 +14,19 @@ import type { GitHubConnection, RepositoryKind, RepositoryLink } from "@/lib/typ
 
 const KIND_LABEL: Record<RepositoryKind, string> = { GITHUB_APP: "GitHub (app)", GITHUB: "GitHub con token" };
 
-export function RepositoryForm({ projectKey, link, connections }: { projectKey: string; link: RepositoryLink; connections: GitHubConnection[] }) {
+export function RepositoryForm({
+  projectKey,
+  link,
+  connections,
+  syncHref,
+}: {
+  projectKey: string;
+  link: RepositoryLink;
+  connections: GitHubConnection[];
+  /** A dónde lleva «Ver sincronización» (nulo: no se muestra, ya está en la misma página). */
+  syncHref?: string | null;
+}) {
+  const sync = syncHref === undefined ? `/projects/${projectKey}/sync` : syncHref;
   const [kind, setKind] = useState<RepositoryKind>(link.kind ?? (connections.length > 0 ? "GITHUB_APP" : "GITHUB"));
   const [installationId, setInstallationId] = useState<number | null>(link.installationId ?? connections[0]?.installationId ?? null);
   const [location, setLocation] = useState(link.location ?? "");
@@ -36,9 +48,11 @@ export function RepositoryForm({ projectKey, link, connections }: { projectKey: 
             {link.location}
             {link.branch ? `@${link.branch}` : ""}
           </code>
-          <Link href={`/projects/${projectKey}/sync`} className="k-link ml-auto">
-            Ver sincronización
-          </Link>
+          {sync && (
+            <Link href={sync} className="k-link ml-auto">
+              Ver sincronización
+            </Link>
+          )}
         </div>
       )}
 

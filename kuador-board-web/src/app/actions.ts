@@ -105,13 +105,18 @@ import type {
   DraftApproved,
   Subject,
   SubjectListing,
+  Team,
+  TeamRef,
 } from "@/lib/types";
 
 async function run<T>(work: () => Promise<T>, pathToRefresh?: string, layoutToo = false): Promise<ActionResult<T>> {
   let expired = false;
   try {
     const data = await work();
-    if (pathToRefresh) revalidatePath(pathToRefresh);
+    // Lo de un proyecto pedido desde el proyecto (clave «~GYM»): se refresca su página en Organización.
+    const scoped = pathToRefresh ? /^\/projects\/~([^/]+)/.exec(pathToRefresh) : null;
+    if (scoped) revalidatePath(`/org/projects/${scoped[1]}`, "layout");
+    else if (pathToRefresh) revalidatePath(pathToRefresh);
     // Cambia lo que espera a alguien: el menú (número de «Mis decisiones») se vuelve a calcular en toda la app.
     if (layoutToo) revalidatePath("/", "layout");
     return { ok: true, data };
@@ -362,6 +367,8 @@ export async function createProjectAction(input: {
   templateKey: string;
   /** Proyectos del espacio en que trabaja; vacío = uno propio, con su nombre. */
   subjects?: string[];
+  /** El equipo que lo atiende; vacío = uno nuevo con el nombre del tablero. */
+  teamId?: string | null;
 }): Promise<ActionResult<Project>> {
   return run(() => boardApi.createProject(input), "/");
 }
@@ -369,15 +376,20 @@ export async function createProjectAction(input: {
 // ---- Proyectos: aquello sobre lo que se trabaja (el tablero es el equipo y su flujo) ----
 
 export async function createSubjectAction(input: { name: string; description: string | null }): Promise<ActionResult<SubjectListing>> {
-  return run(() => boardApi.createSubject(input), "/projects");
+  return run(() => boardApi.createSubject(input), "/org/projects");
 }
 
 export async function updateSubjectAction(key: string, input: { name: string; description: string | null }): Promise<ActionResult<SubjectListing>> {
-  return run(() => boardApi.updateSubject(key, input), "/projects", true);
+  return run(() => boardApi.updateSubject(key, input), "/org/projects", true);
 }
 
 export async function deleteSubjectAction(key: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.deleteSubject(key), "/projects");
+  return run(() => boardApi.deleteSubject(key), "/org/projects");
+}
+
+/** El manual del proyecto: vale en todos los tableros que usan sus documentos. */
+export async function setSubjectMethodologyAction(key: string, methodology: string | null): Promise<ActionResult<SubjectListing>> {
+  return run(() => boardApi.setSubjectMethodology(key, methodology), `/org/projects/${key}`, true);
 }
 
 export async function addBoardSubjectAction(projectKey: string, input: { subjectKey: string } | { name: string }): Promise<ActionResult<Subject[]>> {
@@ -565,6 +577,44 @@ export async function addBoardPersonAction(key: string, memberId: string): Promi
 
 export async function removeBoardPersonAction(key: string, memberId: string): Promise<ActionResult<BoardPerson[]>> {
   return run(() => boardApi.removeBoardPerson(key, memberId), `/projects/${key}`);
+}
+
+// ---- Equipos (Organización → Equipos) ----
+
+export async function createTeamAction(input: { name: string; members?: string[] }): Promise<ActionResult<Team>> {
+  return run(() => boardApi.createTeam(input), "/org/teams");
+}
+
+export async function renameTeamAction(id: string, name: string): Promise<ActionResult<Team>> {
+  return run(() => boardApi.renameTeam(id, name), "/org/teams");
+}
+
+export async function deleteTeamAction(id: string): Promise<ActionResult<void>> {
+  return run(() => boardApi.deleteTeam(id), "/org/teams");
+}
+
+export async function addTeamMemberAction(id: string, memberId: string): Promise<ActionResult<Team>> {
+  return run(() => boardApi.addTeamMember(id, memberId), "/org/teams");
+}
+
+export async function removeTeamMemberAction(id: string, memberId: string): Promise<ActionResult<Team>> {
+  return run(() => boardApi.removeTeamMember(id, memberId), "/org/teams");
+}
+
+/** Cambia el equipo de un tablero: cambia quién lo ve, así que se refresca todo. */
+export async function assignTeamAction(id: string, projectKey: string): Promise<ActionResult<TeamRef>> {
+  return run(() => boardApi.assignTeam(id, projectKey), "/", true);
+}
+
+export async function teamAgentsAction(id: string): Promise<ActionResult<TeamAgent[]>> {
+  return run(() => boardApi.teamAgents(id));
+}
+
+export async function createAgentInTeamAction(
+  id: string,
+  input: { name: string; role: string; description: string | null; mode: AgentMode; model: string | null },
+): Promise<ActionResult<TeamAgent[]>> {
+  return run(() => boardApi.createAgentInTeam(id, input), "/org/teams");
 }
 
 export async function addToTeamAction(key: string, memberId: string): Promise<ActionResult<TeamAgent[]>> {

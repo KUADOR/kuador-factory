@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+import { toProjectRepository } from "../../sync/redirect";
 
-/** Todo lo del repositorio vive en la pestaña Repositorio. */
+/** El repositorio es del proyecto: se configura en Organización → Proyectos. */
 export default async function Page({ params }: { params: Promise<{ key: string }> }) {
-  redirect(`/projects/${(await params).key}/sync/setup`);
+  await toProjectRepository((await params).key);
 }

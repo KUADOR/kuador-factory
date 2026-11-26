@@ -149,7 +149,7 @@ export function DraftingAssistant({
       const parts = [`${r.data.saved.length} documentos`, `${r.data.pieces ?? 0} piezas`, `${r.data.cards?.length ?? 0} tarjetas`];
       notify.ok(`Guardados: ${parts.join(", ")} y el objetivo`, r.data.pullRequests?.length ? `${r.data.pullRequests.length} PR del kit para aprobar en GitHub.` : undefined);
       if (kitPr && r.data.kitNote) notify.error("Sin PR del kit de agentes", r.data.kitNote);
-      router.push(`/projects/${projectKey}`);
+      router.push(returnTo ?? `/projects/${projectKey}`);
       return;
     }
     notify.ok(software ? `Guardados ${r.data.saved.length} documentos y el objetivo` : "Objetivo guardado");

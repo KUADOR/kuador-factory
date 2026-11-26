@@ -89,9 +89,15 @@ class ComponentEntity {
 
 interface SpringDataComponents extends JpaRepository<ComponentEntity, UUID> {
 
-    List<ComponentEntity> findByProjectKeyOrderByCreatedAtAsc(String projectKey);
+    /** Las piezas de los proyectos que atiende un tablero (el espacio lo filtra la consulta: es SQL directo). */
+    @org.springframework.data.jpa.repository.Query(nativeQuery = true, value = """
+            select c.* from project_component c
+              join board_subject b on b.workspace_id = c.workspace_id and b.subject_key = c.subject_key
+             where c.workspace_id = :workspaceId and b.project_key = :projectKey
+             order by b.position, b.added_at, c.created_at""")
+    List<ComponentEntity> findOfBoard(UUID workspaceId, String projectKey);
 
-    List<ComponentEntity> findByProjectKeyAndSubjectKeyOrderByCreatedAtAsc(String projectKey, String subjectKey);
+    List<ComponentEntity> findBySubjectKeyOrderByCreatedAtAsc(String subjectKey);
 
     long countByTemplateKey(String templateKey);
 }
@@ -107,12 +113,12 @@ class JpaComponentRepository implements ComponentRepository {
 
     @Override
     public List<ProjectComponent> findByProject(String projectKey, String subjectKey) {
-        return jpa.findByProjectKeyAndSubjectKeyOrderByCreatedAtAsc(projectKey, subjectKey).stream().map(ComponentEntity::toDomain).toList();
+        return jpa.findBySubjectKeyOrderByCreatedAtAsc(subjectKey).stream().map(ComponentEntity::toDomain).toList();
     }
 
     @Override
     public List<ProjectComponent> findByBoard(String projectKey) {
-        return jpa.findByProjectKeyOrderByCreatedAtAsc(projectKey).stream().map(ComponentEntity::toDomain).toList();
+        return jpa.findOfBoard(ec.kuador.board.shared.tenant.TenantContext.require(), projectKey).stream().map(ComponentEntity::toDomain).toList();
     }
 
     @Override

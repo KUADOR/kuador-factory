@@ -9,6 +9,7 @@ import { canAdminister } from "@/lib/access";
 import { boardApi } from "@/lib/api";
 import { documentsOf } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
+import { chosenIn } from "@/lib/subject-server";
 import type { DocumentMeta } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -47,14 +48,16 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
   // Sincronizar es de quien administra y solo existe con repositorio: a los demás el enlace los devolvía sin explicación.
   const canSync = me != null && canAdminister(me) && project.capabilities.includes("REPOSITORY");
   const { methodology, documents } = overview;
-  const settings = `/projects/${project.key}/settings`;
+  // El manual y los documentos base son del proyecto: se eligen y se redactan en Organización → Proyectos.
+  const projectPage = `/org/projects/${(await chosenIn(project))?.key ?? project.subjects?.[0]?.key ?? project.key}`;
+  const admin = me != null && canAdminister(me);
 
   if (!methodology) {
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
         <EmptyState
-          title="Este tablero aún no tiene manual de trabajo"
-          action={<Button href={`${settings}/general#manual`} tone="primary" size="sm">Elegir manual de trabajo</Button>}
+          title="Este proyecto aún no tiene manual de trabajo"
+          action={admin ? <Button href={projectPage} tone="primary" size="sm">Elegir manual de trabajo</Button> : undefined}
         />
       </div>
     );
@@ -75,13 +78,15 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
     <div className="flex flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       <p className="text-[13px] text-fg-muted">
         Manual de trabajo <span className="font-medium text-fg-strong">{methodology.name}</span>.{" "}
-        <Link href={`${settings}/general#manual`} className="k-link">
-          Cambiar
-        </Link>
+        {admin && (
+          <Link href={projectPage} className="k-link">
+            Cambiar
+          </Link>
+        )}
         {canSync && (
           <>
             {" · "}
-            <Link href={`/projects/${project.key}/sync`} className="k-link">
+            <Link href={`${projectPage}/repository`} className="k-link">
               Sincronizar con el repositorio
             </Link>
           </>
@@ -89,7 +94,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
       </p>
 
       <Section
-        title="Del tablero"
+        title="Del proyecto"
         actions={
           <Button href={`/projects/${project.key}/docs/draft`} tone={projectRules.some((r) => !projectDocs.some((d) => d.kind === r.kind)) ? "primary" : "secondary"} size="sm">
             Redactar con IA

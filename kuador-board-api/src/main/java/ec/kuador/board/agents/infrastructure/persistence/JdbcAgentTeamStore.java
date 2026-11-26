@@ -45,27 +45,56 @@ class JdbcAgentTeamStore implements AgentTeamStore {
                 .params(p.memberId(), workspaceId, p.mode().name(), p.model(), p.effort(), Timestamp.from(now)).update();
     }
 
+    /** El equipo de agentes de un tablero: los agentes del equipo que lo atiende (team_member). */
     @Override
     public List<UUID> team(UUID workspaceId, String projectKey) {
-        return jdbc.sql("select member_id from project_agent where workspace_id = ? and project_key = ? order by added_at")
+        return jdbc.sql("""
+                select tm.member_id from team_member tm
+                join project p on p.team_id = tm.team_id and p.workspace_id = tm.workspace_id
+                join member m on m.id = tm.member_id
+                where tm.workspace_id = ? and p.project_key = ? and m.kind = 'AGENT' order by tm.added_at, tm.member_id""")
                 .params(workspaceId, projectKey).query(UUID.class).list();
     }
 
     @Override
     public List<String> boardsOf(UUID workspaceId, UUID memberId) {
-        return jdbc.sql("select project_key from project_agent where workspace_id = ? and member_id = ? order by project_key")
+        return jdbc.sql("""
+                select p.project_key from project p join team_member tm on tm.team_id = p.team_id and tm.workspace_id = p.workspace_id
+                where p.workspace_id = ? and tm.member_id = ? order by p.project_key""")
                 .params(workspaceId, memberId).query(String.class).list();
     }
 
+    /** Suma el agente al equipo del tablero (y con eso, a los demás tableros de ese equipo). */
     @Override
     public void addToTeam(UUID workspaceId, String projectKey, UUID memberId) {
-        jdbc.sql("insert into project_agent (workspace_id, project_key, member_id) values (?, ?, ?) on conflict do nothing")
-                .params(workspaceId, projectKey, memberId).update();
+        jdbc.sql("""
+                insert into team_member (team_id, member_id, workspace_id)
+                select p.team_id, ?, p.workspace_id from project p where p.workspace_id = ? and p.project_key = ? and p.team_id is not null
+                on conflict do nothing""").params(memberId, workspaceId, projectKey).update();
     }
 
     @Override
     public void removeFromTeam(UUID workspaceId, String projectKey, UUID memberId) {
-        jdbc.sql("delete from project_agent where workspace_id = ? and project_key = ? and member_id = ?").params(workspaceId, projectKey, memberId).update();
+        jdbc.sql("""
+                delete from team_member tm using project p
+                 where p.team_id = tm.team_id and p.workspace_id = tm.workspace_id
+                   and p.workspace_id = ? and p.project_key = ? and tm.member_id = ?""").params(workspaceId, projectKey, memberId).update();
+    }
+
+    @Override
+    public List<UUID> teamAgents(UUID workspaceId, UUID teamId) {
+        return jdbc.sql("""
+                select tm.member_id from team_member tm join member m on m.id = tm.member_id
+                where tm.workspace_id = ? and tm.team_id = ? and m.kind = 'AGENT' order by tm.added_at, tm.member_id""")
+                .params(workspaceId, teamId).query(UUID.class).list();
+    }
+
+    @Override
+    public void addToTeamById(UUID workspaceId, UUID teamId, UUID memberId) {
+        jdbc.sql("""
+                insert into team_member (team_id, member_id, workspace_id)
+                select t.id, ?, t.workspace_id from team t where t.workspace_id = ? and t.id = ?
+                on conflict do nothing""").params(memberId, workspaceId, teamId).update();
     }
 
     @Override

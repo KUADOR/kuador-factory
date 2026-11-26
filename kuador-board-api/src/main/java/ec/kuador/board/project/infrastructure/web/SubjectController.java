@@ -23,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 class SubjectController {
 
     private final SubjectService service;
+    private final ec.kuador.board.project.application.ProjectService boards;
 
-    SubjectController(SubjectService service) {
+    SubjectController(SubjectService service, ec.kuador.board.project.application.ProjectService boards) {
         this.service = service;
+        this.boards = boards;
     }
 
     @GetMapping("/api/subjects")
@@ -40,10 +42,24 @@ class SubjectController {
         return SubjectResponse.from(service.create(r.key(), r.name(), r.description()));
     }
 
+    @GetMapping("/api/subjects/{key}")
+    SubjectResponse get(@PathVariable String key) {
+        return SubjectResponse.from(service.get(key));
+    }
+
     @PutMapping("/api/subjects/{key}")
     SubjectResponse update(@PathVariable String key, @Valid @RequestBody SubjectRequest r) {
         return SubjectResponse.from(service.update(key, r.name(), r.description()));
     }
+
+    /** El manual de trabajo del proyecto ({@code methodology} nulo = sin manual): vale en todos sus tableros. */
+    @PutMapping("/api/subjects/{key}/methodology")
+    SubjectResponse setMethodology(@PathVariable String key, @RequestBody MethodologyRequest r) {
+        boards.setSubjectMethodology(key, r.methodology() == null || r.methodology().isBlank() ? null : r.methodology());
+        return SubjectResponse.from(service.get(key));
+    }
+
+    record MethodologyRequest(@Size(max = 40) String methodology) {}
 
     @DeleteMapping("/api/subjects/{key}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -72,9 +88,10 @@ class SubjectController {
 
     record AddRequest(@Size(max = 10) String subjectKey, @Size(max = 10) String key, @Size(max = 120) String name, @Size(max = 2000) String description) {}
 
-    record SubjectResponse(String key, String name, String description, Instant createdAt, List<String> boards) {
+    record SubjectResponse(String key, String name, String description, Instant createdAt, List<String> boards, String methodology) {
         static SubjectResponse from(SubjectWithBoards s) {
-            return new SubjectResponse(s.subject().key(), s.subject().name(), s.subject().description(), s.subject().createdAt(), s.boards());
+            return new SubjectResponse(s.subject().key(), s.subject().name(), s.subject().description(), s.subject().createdAt(), s.boards(),
+                    s.methodology());
         }
     }
 }

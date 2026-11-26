@@ -86,8 +86,7 @@ class ConflictWatcher {
                 + e.number() + ". Actualiza tu rama con «" + p.baseBranch() + "», resuelve los conflictos conservando los dos cambios, verifica "
                 + "que el CI quede en verde y vuelve a entregar.";
         for (String key : cardKeys(p)) {
-            boolean ours = tx.execute(s -> issues.context(key).map(c -> c.projectKey().equals(e.projectKey())).orElse(false));
-            if (!ours) continue;
+            if (!ours(e, p, key)) continue;
             // Si espera en una puerta o en QA, se queda ahí y el runner de quien programa actualiza la rama.
             var conflict = new ec.kuador.board.issue.BranchSyncApi.Conflict(p.repository(), p.number(), p.branch(), p.baseBranch());
             if (Boolean.TRUE.equals(tx.execute(s -> syncs.request(key, conflict, note, e.actorId())))) {
@@ -107,12 +106,21 @@ class ConflictWatcher {
      */
     private void refresh(PullMerged e, CodeReviewApi.PullSummary p) {
         List<String> ours = cardKeys(p).stream()
-                .filter(key -> Boolean.TRUE.equals(tx.execute(s -> issues.context(key).map(c -> c.projectKey().equals(e.projectKey())).orElse(false))))
+                .filter(key -> ours(e, p, key))
                 .toList();
         if (ours.isEmpty() || !ours.stream().allMatch(key -> Boolean.TRUE.equals(tx.execute(s -> issues.branchIdle(key))))) return;
         if (code.updateBranch(e.projectKey(), p.repository(), p.number())) {
             log.info("Actualicé la rama de {} #{} ({}) con «{}».", p.repository(), p.number(), String.join(", ", ours), p.baseBranch());
         }
+    }
+
+    /**
+     * Si la tarjeta es de este repositorio: de un tablero que lo usa. Un proyecto lo trabajan varios tableros y comparten
+     * su repositorio, así que una fusión en uno puede dejar en conflicto el PR de una tarjeta del otro.
+     */
+    private boolean ours(PullMerged e, CodeReviewApi.PullSummary p, String key) {
+        return Boolean.TRUE.equals(tx.execute(s -> issues.context(key).map(c -> c.projectKey().equals(e.projectKey())
+                || code.repositories(c.projectKey()).stream().anyMatch(r -> r.equalsIgnoreCase(p.repository()))).orElse(false)));
     }
 
     /** Las tarjetas que menciona el PR (título y rama), sin repetir. */

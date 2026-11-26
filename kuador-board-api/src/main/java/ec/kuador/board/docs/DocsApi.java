@@ -9,8 +9,16 @@ public interface DocsApi {
     /** Documento con el contenido de su versión actual. {@code issueKey} nulo = del proyecto. */
     record DocContent(UUID id, String projectKey, String issueKey, String kind, String title, String path, int version, String content) {}
 
-    /** El tablero de un documento (vacío si no existe). */
+    /** El tablero de un documento (vacío si no existe). En un documento base, el tablero desde donde se creó. */
     java.util.Optional<String> projectOf(UUID documentId);
+
+    /**
+     * Los tableros por los que se llega a un documento: el de su tarjeta o, si es un documento base (del proyecto), los
+     * tableros que trabajan ese proyecto y usan documentos o repositorio en su flujo. Vacío si no existe.
+     */
+    default List<String> accessBoards(UUID documentId) {
+        return projectOf(documentId).map(List::of).orElse(List.of());
+    }
 
     /** Documentos del proyecto y de sus issues. */
     List<DocContent> ofProject(String projectKey);

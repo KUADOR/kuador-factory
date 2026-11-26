@@ -8,6 +8,7 @@ import {
   Inbox,
   Lightbulb,
   LogOut,
+  Network,
   Plus,
   Settings,
   ShieldCheck,
@@ -18,6 +19,7 @@ import { clsx } from "clsx";
 import { logoutAction } from "@/app/actions";
 import { Avatar } from "@/components/ui/Avatar";
 import { canAdminister, canEdit } from "@/lib/access";
+import { ORGANIZATION_PATHS } from "./organization-paths";
 import { LogoMark } from "@/components/workspace/LogoMark";
 import type { Me, Project, Workspace } from "@/lib/types";
 import type { ThemeMode } from "@/theme/theme";
@@ -154,6 +156,12 @@ export function SidebarNav({
 
         {/* Lo de todos los días son los proyectos; la configuración del espacio vive en un solo lugar, con su submenú. */}
         <div className="mt-auto flex flex-col gap-0.5 border-t border-line pt-3">
+          {admin && (
+            <NavLink href="/org/teams" active={ORGANIZATION_PATHS.some((p) => path === p || path.startsWith(p + "/"))}>
+              <Network className="size-4 shrink-0" aria-hidden />
+              Organización
+            </NavLink>
+          )}
           <NavLink
             href={admin ? "/workspace" : "/team"}
             active={SETTINGS_PATHS.some((p) => path === p || path.startsWith(p + "/"))}
@@ -163,7 +171,7 @@ export function SidebarNav({
             ) : (
               <Users className="size-4 shrink-0" aria-hidden />
             )}
-            {admin ? "Configuración" : "Equipo"}
+            {admin ? "Configuración" : "Miembros"}
           </NavLink>
           {me.platformAdmin && (
             <NavLink href="/platform" active={path.startsWith("/platform")}>

@@ -56,9 +56,37 @@ public final class GitHubClient {
         return send("PUT", path, body).orElseThrow(() -> new DomainException("GitHub no encontró " + path + "."));
     }
 
-    /** Vacío si GitHub responde 404. */
+    /** Cuántas redirecciones seguidas se aceptan antes de rendirse. */
+    private static final int MAX_REDIRECTS = 3;
+
+    /**
+     * Vacío si GitHub responde 404. Un repositorio renombrado o transferido responde 301 (o 307 en una escritura) hacia
+     * su nueva dirección: se repite la misma petición ahí, solo dentro del mismo host de la API (el token no sale de ahí).
+     */
     private Optional<JsonNode> send(String method, String path, Object body) {
-        HttpRequest.Builder req = HttpRequest.newBuilder(URI.create(baseUrl + path))
+        URI target = URI.create(baseUrl + path);
+        HttpResponse<String> res = exchange(method, target, body);
+        for (int hops = 0; isRedirect(res.statusCode()) && hops < MAX_REDIRECTS; hops++) {
+            URI next = res.headers().firstValue("Location").map(target::resolve).orElse(null);
+            if (next == null || !sameHost(next)) break;
+            target = next;
+            res = exchange(method, target, body);
+        }
+        return answer(res);
+    }
+
+    private static boolean isRedirect(int status) {
+        return status == 301 || status == 302 || status == 307 || status == 308;
+    }
+
+    private boolean sameHost(URI uri) {
+        URI base = URI.create(baseUrl);
+        return java.util.Objects.equals(uri.getScheme(), base.getScheme()) && java.util.Objects.equals(uri.getHost(), base.getHost())
+                && uri.getPort() == base.getPort();
+    }
+
+    private HttpResponse<String> exchange(String method, URI uri, Object body) {
+        HttpRequest.Builder req = HttpRequest.newBuilder(uri)
                 .timeout(TIMEOUT)
                 .header("Accept", "application/vnd.github+json")
                 .header("X-GitHub-Api-Version", "2022-11-28")
@@ -71,15 +99,17 @@ public final class GitHubClient {
             req.header("Content-Type", "application/json")
                     .method(method, HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
         }
-        HttpResponse<String> res;
         try {
-            res = http.send(req.build(), HttpResponse.BodyHandlers.ofString());
+            return http.send(req.build(), HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             throw new DomainException("No se pudo conectar con GitHub: " + e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new DomainException("Se interrumpió la conexión con GitHub.");
         }
+    }
+
+    private Optional<JsonNode> answer(HttpResponse<String> res) {
         int status = res.statusCode();
         if (status == 404) return Optional.empty();
         if (status >= 200 && status < 300) {
@@ -91,6 +121,7 @@ public final class GitHubClient {
             case 403 -> new Forbidden("GitHub negó el acceso: " + message
                     + ". Revisa que la credencial tenga permisos de Contents y Pull requests (lectura y escritura) sobre este repo.", message);
             case 409, 422 -> new ConflictException("GitHub rechazó la operación: " + message + ".");
+            case 301, 302, 307, 308 -> new DomainException("GitHub dice que el repositorio cambió de lugar y no se pudo seguir: vuelve a vincularlo con su nombre nuevo.");
             default -> new DomainException("GitHub respondió " + status + ": " + message + ".");
         };
     }

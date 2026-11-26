@@ -28,6 +28,18 @@ final class StageEvidence extends IssueSupport {
         this.evidence = evidence == null ? List.of() : evidence;
     }
 
+    /**
+     * Pasar una puerta hacia adelante con PR abiertos de la tarjeta movería la tarjeta sin su código: se pasa fusionándolos
+     * («Aprobar y fusionar») o se rechaza.
+     */
+    void requireMerged(ProjectView project, Issue issue, String gateColumn) {
+        List<String> open = new ArrayList<>();
+        for (ec.kuador.board.issue.CardEvidence e : evidence) open.addAll(e.unmergedChanges(project.key(), issue.key()));
+        if (open.isEmpty()) return;
+        throw new DomainException("«" + columnName(project, gateColumn) + "» se pasa fusionando el código de " + issue.key() + ": falta fusionar "
+                + String.join(", ", open.stream().distinct().toList()) + ". Usa «Aprobar y fusionar» o recházala.");
+    }
+
     /** Si un agente la está trabajando ahora, según quien lo sepa (las ejecuciones, las máquinas). */
     boolean agentWorking(String issueKey) {
         return evidence.stream().anyMatch(e -> e.agentWorking(issueKey));

@@ -69,6 +69,8 @@ function DecisionCard({ decision: d }: { decision: Decision }) {
   const [returning, setReturning] = useState(false);
   const [reason, setReason] = useState("");
   const [gone, setGone] = useState(false);
+  // Con un PR abierto la puerta se pasa con «Aprobar y fusionar»: «Aprobar» solo avanzaría sin el código.
+  const [openPulls, setOpenPulls] = useState(0);
   const href = `/projects/${d.projectKey}?issue=${d.issueKey}`;
 
   const decide = (approve: boolean) =>
@@ -93,9 +95,13 @@ function DecisionCard({ decision: d }: { decision: Decision }) {
     <li className="flex flex-col gap-3 rounded-lg border border-line bg-surface px-4 py-3">
       <div className="flex flex-col gap-1">
         <p className="text-xs text-fg-faint">
-          {d.projectName} · {d.columnName} · <span className="font-mono">{d.issueKey}</span> {d.since && <>· {ago(d.since)}</>}
+          {d.projectName} · {d.columnName} · <span className="font-mono">{d.issueKey}</span>{" "}
+          {d.since && <>· {ago(d.since)}</>}
         </p>
-        <Link href={href} className="text-[15px] leading-snug font-medium text-fg-strong hover:underline">
+        <Link
+          href={href}
+          className="text-[15px] leading-snug font-medium text-fg-strong hover:underline"
+        >
           {d.title}
         </Link>
         {d.detail && (
@@ -106,7 +112,9 @@ function DecisionCard({ decision: d }: { decision: Decision }) {
         )}
       </div>
 
-      {d.kind === "GATE" && !returning && <PullMerge projectKey={d.projectKey} issueKey={d.issueKey} />}
+      {d.kind === "GATE" && !returning && (
+        <PullMerge projectKey={d.projectKey} issueKey={d.issueKey} onLoaded={setOpenPulls} />
+      )}
 
       {d.kind === "HANDED" ? (
         <Button href={href} tone="primary" icon={ExternalLink} className="self-start">
@@ -127,7 +135,9 @@ function DecisionCard({ decision: d }: { decision: Decision }) {
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={d.kind === "PLAN" ? "¿Qué hay que cambiar en el reparto?" : "¿Qué hay que corregir?"}
+              placeholder={
+                d.kind === "PLAN" ? "¿Qué hay que cambiar en el reparto?" : "¿Qué hay que corregir?"
+              }
               aria-label="Motivo"
             />
             <DictateButton onText={(t) => setReason((r) => (r ? `${r} ${t}` : t))} />
@@ -136,17 +146,30 @@ function DecisionCard({ decision: d }: { decision: Decision }) {
             <Button tone="ghost" onClick={() => setReturning(false)} disabled={pending}>
               Cancelar
             </Button>
-            <Button type="submit" tone="danger" icon={Undo2} loading={pending} disabled={!reason.trim()}>
+            <Button
+              type="submit"
+              tone="danger"
+              icon={Undo2}
+              loading={pending}
+              disabled={!reason.trim()}
+            >
               {d.kind === "PLAN" ? "Pedir cambios" : "Devolver"}
             </Button>
           </div>
         </form>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <Button tone="primary" icon={Check} loading={pending} onClick={() => decide(true)}>
-            {d.kind === "PLAN" ? "Aprobar reparto" : "Aprobar"}
-          </Button>
-          <Button tone="secondary" icon={Undo2} disabled={pending} onClick={() => setReturning(true)}>
+          {!(d.kind === "GATE" && openPulls > 0) && (
+            <Button tone="primary" icon={Check} loading={pending} onClick={() => decide(true)}>
+              {d.kind === "PLAN" ? "Aprobar reparto" : "Aprobar"}
+            </Button>
+          )}
+          <Button
+            tone="secondary"
+            icon={Undo2}
+            disabled={pending}
+            onClick={() => setReturning(true)}
+          >
             {d.kind === "PLAN" ? "Pedir cambios" : "Devolver"}
           </Button>
           <Button href={href} tone="ghost" icon={ExternalLink}>

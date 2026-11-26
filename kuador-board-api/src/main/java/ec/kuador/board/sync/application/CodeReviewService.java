@@ -77,7 +77,7 @@ public class CodeReviewService implements CodeReviewApi {
             }
         }
         return all.stream()
-                .filter(p -> needle.isEmpty() || contains(p.title(), needle) || contains(p.branch(), needle) || contains(p.body(), needle))
+                .filter(p -> needle.isEmpty() || mentions(p, needle))
                 .sorted(Comparator.comparing(PullSummary::updatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(MAX_PULLS)
                 .toList();
@@ -87,7 +87,21 @@ public class CodeReviewService implements CodeReviewApi {
     @Transactional(readOnly = true)
     public String merge(String projectKey, String repository, int number, String headSha, String title) {
         CodeHost.Access a = require(projectKey, repository);
-        return host(a).merge(a, number, headSha, title);
+        String commit = host(a).merge(a, number, headSha, title);
+        justMerged.put(a.repository().toLowerCase(Locale.ROOT) + "#" + number, java.time.Instant.now());
+        return commit;
+    }
+
+    /**
+     * Los PR que el tablero acaba de fusionar: justo después, GitHub puede listarlos todavía abiertos y la puerta no debe
+     * frenar a la tarjeta por eso.
+     */
+    private final Map<String, java.time.Instant> justMerged = new java.util.concurrent.ConcurrentHashMap<>();
+
+    boolean justMerged(String repository, int number) {
+        java.time.Instant limit = java.time.Instant.now().minusSeconds(120);
+        justMerged.values().removeIf(t -> t.isBefore(limit));
+        return justMerged.containsKey(repository.toLowerCase(Locale.ROOT) + "#" + number);
     }
 
     @Override
@@ -179,6 +193,24 @@ public class CodeReviewService implements CodeReviewApi {
     private CodeHost host(CodeHost.Access a) {
         return hosts.stream().filter(h -> h.supports(a.kind())).findFirst()
                 .orElseThrow(() -> new DomainException("No se puede leer " + a.repository() + " desde el tablero."));
+    }
+
+    /** Una clave de tarjeta (PLATODO-91, MED-1): con ella se busca el PR de una tarjeta. */
+    private static final java.util.regex.Pattern CARD_KEY = java.util.regex.Pattern.compile("(?<![\\p{Alnum}])\\p{Alpha}[\\p{Alnum}]*-\\d+(?![\\p{Alnum}])");
+
+    /**
+     * Si el PR es de lo buscado. Al buscar el PR de una tarjeta, la descripción cuenta solo si ni el título ni la rama nombran
+     * otra tarjeta: un PR que dice «esto también lo necesitará PLATODO-90» es de su tarjeta, no de PLATODO-90.
+     */
+    static boolean mentions(PullSummary p, String needle) {
+        if (contains(p.title(), needle) || contains(p.branch(), needle)) return true;
+        if (!contains(p.body(), needle)) return false;
+        if (!CARD_KEY.matcher(needle).matches()) return true;
+        return !hasCardKey(p.title()) && !hasCardKey(p.branch());
+    }
+
+    private static boolean hasCardKey(String text) {
+        return text != null && CARD_KEY.matcher(text).find();
     }
 
     /** {@code needle} como palabra: «med-1» no coincide con «med-12» ni con «xmed-1». */

@@ -15,6 +15,22 @@ QA, release) y sirve igual a una clínica, un estudio contable o un equipo de ve
 | Documento, archivo, PR | Lo que se entrega |
 | Manual de trabajo (metodología) | Cómo se trabaja |
 
+## Tablero y proyecto
+
+Un **tablero** es un equipo y su flujo (pasos, responsables, aprobaciones). Un **proyecto** es aquello sobre lo que se
+trabaja: un sistema, una marca, un cliente. Los proyectos se crean una vez en el espacio y cada tablero marca en cuáles
+trabaja: el tablero de Desarrollo atiende dos sistemas y el de Marketing, tres marcas, cada uno con sus propias columnas.
+
+- **La tarjeta dice su proyecto.** La épica lo elige y sus tarjetas lo heredan; una tarjeta suelta también lo elige.
+  Con varios proyectos, el tablero muestra una etiqueta en cada tarjeta y un selector arriba que filtra y se recuerda.
+- **Lo del proyecto es por proyecto**: repositorio, piezas, documentos base y manual de trabajo se guardan por tablero y
+  proyecto (un sistema nuevo con SDD y uno que ya existe con ODD conviven en el mismo tablero). El agente que toma una
+  tarjeta recibe lo del proyecto de esa tarjeta.
+- **Con un solo proyecto no se nota**: cada tablero nace con uno propio, de su mismo nombre, y nada de esto aparece.
+- En el código el proyecto se llama `subject` (la tabla `project` es el tablero): `project/SubjectService`,
+  `SubjectScope` (el proyecto que mira la petición, `?subject=`) y las migraciones V64 y V65. El runner usa la carpeta
+  del repositorio de la tarjeta; para decirla a mano, `kuador-runner link <TABLERO>/<PROYECTO> <carpeta>`.
+
 ## Lo que hace adaptable a un tablero
 
 - **Capacidades por tablero** (`catalog/Capability`): cada plantilla y cada tablero encienden lo que usan: `DOCUMENTS`

@@ -16,14 +16,15 @@ export default async function ProjectsPage() {
       boardApi.catalog("workflow-templates"),
       boardApi.catalog("methodologies"),
       boardApi.workspacePackage().catch(() => undefined),
+      boardApi.subjects().catch(() => []),
     ]);
   } catch (e) {
     return failPage(e);
   }
-  const [projects, templates, methodologies, pkg] = data;
+  const [projects, templates, methodologies, pkg, subjects] = data;
   return (
     <Suspense>
-      <ProjectsView projects={projects} templates={templates} methodologies={methodologies} recommended={pkg?.templates ?? []} />
+      <ProjectsView projects={projects} templates={templates} methodologies={methodologies} recommended={pkg?.templates ?? []} subjects={subjects} />
     </Suspense>
   );
 }

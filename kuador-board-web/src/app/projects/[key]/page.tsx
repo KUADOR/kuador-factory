@@ -7,6 +7,8 @@ import { ApiError, boardApi } from "@/lib/api";
 import { canEdit } from "@/lib/access";
 import { setupDone, setupSteps } from "@/lib/onboarding";
 import { failPage } from "@/lib/page-errors";
+import { chosenIn } from "@/lib/subject-server";
+import { subjectsOf } from "@/lib/subjects";
 import type { BoardView, IssueListQuery, IssueSort, Project } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +69,10 @@ export default async function BoardPage({ params, searchParams }: Props) {
   // Una tarjeta enlazada que el tablero no trajo (terminada hace tiempo) se pide aparte, para poder abrirla.
   const wanted = issue?.toUpperCase();
   const linked = wanted && !board.issues.some((i) => i.key === wanted) ? await boardApi.issue(wanted).catch(() => null) : null;
-  const issues = linked && linked.projectKey === project.key ? [...board.issues, linked] : board.issues;
+  // En un tablero con varios proyectos, el elegido filtra las tarjetas (la enlazada se ve aunque sea de otro).
+  const subject = await chosenIn(project);
+  const all = linked && linked.projectKey === project.key ? [...board.issues, linked] : board.issues;
+  const issues = subject ? all.filter((i) => i.subjectKey === subject.key || i.key === wanted) : all;
   // En este tablero se asignan sus personas y su equipo de agentes; se conservan quienes ya tienen tarjetas aquí.
   const teamIds = new Set((team ?? []).filter((a) => a.inTeam).map((a) => a.id));
   const peopleIds = people == null ? null : new Set(people.filter((p) => p.inBoard).map((p) => p.id));
@@ -97,7 +102,9 @@ export default async function BoardPage({ params, searchParams }: Props) {
     <>
       <SetupBanner projectKey={project.key} pending={pending} />
       <Board
-        history={board}
+        // Con un proyecto elegido, cada columna cuenta lo que se ve (los totales del tablero son de todos).
+        history={subject ? { ...board, totals: {} } : board}
+        newCardSubject={subject?.key ?? subjectsOf(project)[0]?.key}
         project={project}
         issues={issues}
         members={members}

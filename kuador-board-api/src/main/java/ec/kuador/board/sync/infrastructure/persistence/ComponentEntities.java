@@ -24,6 +24,9 @@ class ComponentEntity {
     private UUID workspaceId;
     @Column(name = "project_key")
     private String projectKey;
+
+    @Column(name = "subject_key")
+    private String subjectKey;
     private String name;
     @Column(name = "template_key")
     private String templateKey;
@@ -54,10 +57,11 @@ class ComponentEntity {
 
     protected ComponentEntity() {}
 
-    static ComponentEntity from(ProjectComponent c) {
+    static ComponentEntity from(ProjectComponent c, String subjectKey) {
         ComponentEntity e = new ComponentEntity();
         e.id = c.id();
         e.projectKey = c.projectKey();
+        e.subjectKey = subjectKey;
         e.name = c.name();
         e.templateKey = c.templateKey();
         e.templateVersion = c.templateVersion();
@@ -87,6 +91,8 @@ interface SpringDataComponents extends JpaRepository<ComponentEntity, UUID> {
 
     List<ComponentEntity> findByProjectKeyOrderByCreatedAtAsc(String projectKey);
 
+    List<ComponentEntity> findByProjectKeyAndSubjectKeyOrderByCreatedAtAsc(String projectKey, String subjectKey);
+
     long countByTemplateKey(String templateKey);
 }
 
@@ -100,7 +106,12 @@ class JpaComponentRepository implements ComponentRepository {
     }
 
     @Override
-    public List<ProjectComponent> findByProject(String projectKey) {
+    public List<ProjectComponent> findByProject(String projectKey, String subjectKey) {
+        return jpa.findByProjectKeyAndSubjectKeyOrderByCreatedAtAsc(projectKey, subjectKey).stream().map(ComponentEntity::toDomain).toList();
+    }
+
+    @Override
+    public List<ProjectComponent> findByBoard(String projectKey) {
         return jpa.findByProjectKeyOrderByCreatedAtAsc(projectKey).stream().map(ComponentEntity::toDomain).toList();
     }
 
@@ -110,7 +121,7 @@ class JpaComponentRepository implements ComponentRepository {
     }
 
     @Override
-    public void save(ProjectComponent component) {
-        jpa.save(ComponentEntity.from(component));
+    public void save(ProjectComponent component, String subjectKey) {
+        jpa.save(ComponentEntity.from(component, subjectKey));
     }
 }

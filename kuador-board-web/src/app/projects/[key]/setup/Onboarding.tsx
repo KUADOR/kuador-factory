@@ -54,6 +54,7 @@ const SKELETON = `Primera versión que funciona de punta a punta, mínima pero d
 /** Asistente de inicio: un paso a la vez, con lo hecho marcado. Cada paso se puede saltar, salvo los documentos base. */
 export function Onboarding({
   project,
+  workName,
   steps,
   done,
   current,
@@ -72,6 +73,8 @@ export function Onboarding({
   plan = null,
 }: {
   project: Project;
+  /** Cómo se llama el proyecto en que se trabaja (el elegido, si el tablero atiende varios): da nombre a su repo. */
+  workName?: string;
   steps: StepId[];
   done: Record<StepId, boolean>;
   current: StepId | "done";
@@ -151,7 +154,7 @@ export function Onboarding({
               {current === "docs" && !docsBlocked && <DocsStep project={project} draft={draft} />}
               {repoBlocked && <RepositoryLocked project={project} draft={draft} />}
               {current === "repository" && !repoBlocked && link && (
-                <RepositoryStep project={project} link={link} github={github} templates={templates} existing={existingProject} plan={plan} />
+                <RepositoryStep project={project} workName={workName} link={link} github={github} templates={templates} existing={existingProject} plan={plan} />
               )}
               {current === "client" && <AgentsStep connections={connections} kit={kit} onCheck={() => router.refresh()} />}
               {current === "notifications" &&
@@ -185,6 +188,7 @@ export function Onboarding({
 
 function RepositoryStep({
   project,
+  workName,
   link,
   github,
   templates,
@@ -192,6 +196,7 @@ function RepositoryStep({
   plan,
 }: {
   project: Project;
+  workName?: string;
   link: RepositoryLink;
   github: GitHubOverview;
   templates: ComponentTemplate[];
@@ -233,7 +238,7 @@ function RepositoryStep({
   return (
     <div className="flex flex-col gap-6">
       {github.connections.length > 0 ? (
-        <PiecesSetupForm projectKey={project.key} projectName={project.name} connections={github.connections} templates={templates} plan={plan} />
+        <PiecesSetupForm projectKey={project.key} projectName={workName ?? project.name} connections={github.connections} templates={templates} plan={plan} />
       ) : (
         <p className="text-[13px] text-fg-muted">
           Conecta primero tu organización de GitHub en{" "}

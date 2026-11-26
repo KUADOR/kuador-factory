@@ -83,6 +83,14 @@ class ReadTools {
         // El objetivo del tablero: la brújula del negocio para decidir qué priorizar y qué tan completo hacerlo.
         projects.goal(project.key()).ifPresent(g -> board.put("goal", g));
         m.put("project", board);
+        // El tablero atiende varios proyectos: en cuál se trabaja esta tarjeta (sus piezas y documentos son los de ese).
+        if (projects.subjectsOf(project.key()).size() > 1) {
+            projects.subject(project.key(), c.subjectKey()).ifPresent(sj -> {
+                Map<String, Object> on = new LinkedHashMap<>(Map.of("key", sj.key(), "name", sj.name()));
+                if (sj.description() != null) on.put("description", sj.description());
+                m.put("workingOn", on);
+            });
+        }
         m.put("title", c.title());
         m.put("description", c.description() == null ? "" : c.description());
         m.put("type", c.type());

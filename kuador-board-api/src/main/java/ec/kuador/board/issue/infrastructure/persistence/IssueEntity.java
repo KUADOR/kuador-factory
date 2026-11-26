@@ -63,6 +63,9 @@ class IssueEntity {
     @Column(name = "parent_key")
     private String parentKey;
 
+    @Column(name = "subject_key")
+    private String subjectKey;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(columnDefinition = "text[]")
     private List<String> labels = new ArrayList<>();
@@ -119,6 +122,7 @@ class IssueEntity {
         customFields = issue.fields().isEmpty() ? null : ec.kuador.board.shared.json.Json.write(issue.fields());
         assigneeId = issue.assigneeId();
         parentKey = issue.parentKey();
+        subjectKey = issue.subjectKey();
         labels = new ArrayList<>(issue.labels());
         position = issue.position();
         reworkCount = issue.reworkCount();
@@ -133,6 +137,7 @@ class IssueEntity {
         Issue issue = new Issue(id, key, projectKey, title, description, type, status, priority, storyPoints, assigneeId,
                 reporterId, parentKey, labels == null ? List.of() : List.copyOf(labels), position, reworkCount, createdAt, updatedAt);
         issue.superviseBy(supervisorId);
+        issue.subject(subjectKey);
         if (customFields != null && !customFields.isBlank()) issue.fields(ec.kuador.board.shared.json.Json.readMap(customFields));
         issue.reviewBy(reviewBy);
         if (parentKey != null && (workRole != null || (dependsOn != null && !dependsOn.isEmpty()))) {

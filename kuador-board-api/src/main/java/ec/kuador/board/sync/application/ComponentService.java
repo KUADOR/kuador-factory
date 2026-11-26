@@ -114,11 +114,11 @@ public class ComponentService implements RepositoriesApi {
     @Transactional
     public void registerExisting(String projectKey, List<ExistingPiece> pieces, UUID actorId) {
         software(projectKey);
-        RepositoryLink link = records.findLink(projectKey)
+        RepositoryLink link = records.findLink(projectKey, subject(projectKey))
                 .orElseThrow(() -> new DomainException("Primero vincula el repositorio del proyecto."));
         Long installation = KIND.equals(link.kind()) ? Long.valueOf(link.secret()) : null;
         Map<String, ProjectComponent> current = new java.util.HashMap<>();
-        components.findByProject(projectKey).forEach(c -> current.put(c.name(), c));
+        components.findByProject(projectKey, subject(projectKey)).forEach(c -> current.put(c.name(), c));
         Instant now = clock.instant();
         for (ExistingPiece p : pieces) {
             String name = p.name() == null ? "" : p.name().strip().toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9-]+", "-").replaceAll("^-+|-+$", "");
@@ -135,7 +135,7 @@ public class ComponentService implements RepositoriesApi {
             ProjectComponent c = new ProjectComponent(existing == null ? UUID.randomUUID() : existing.id(), projectKey, name, null, null, null, null, kind,
                     stack, command(p.build()), command(p.test()), command(p.run()), repo, path, installation, actorId,
                     existing == null ? now : existing.createdAt(), notes == null ? null : notes.length() > 4000 ? notes.substring(0, 4000) : notes);
-            components.save(c);
+            components.save(c, subject(projectKey));
         }
         this.stack.refresh(projectKey, this.stack.lines(projectKey), actorId, true);
         log.info("{} piezas existentes registradas en {} por {}", pieces.size(), projectKey, actorId);
@@ -151,7 +151,7 @@ public class ComponentService implements RepositoriesApi {
     @Override
     @Transactional(readOnly = true)
     public List<Piece> pieces(String projectKey) {
-        return components.findByProject(projectKey).stream()
+        return components.findByProject(projectKey, subject(projectKey)).stream()
                 .map(c -> new Piece(c.name(), c.kind(), c.stack(), c.templateKey(), c.repoLocation(), c.path(), c.buildCommand(), c.testCommand(), c.runCommand(),
                         c.notes()))
                 .toList();
@@ -173,7 +173,7 @@ public class ComponentService implements RepositoriesApi {
     @Transactional(readOnly = true)
     public List<ProjectComponent> list(String projectKey) {
         software(projectKey);
-        return components.findByProject(projectKey);
+        return components.findByProject(projectKey, subject(projectKey));
     }
 
     /** Lo que el equipo ajusta de una pieza ya creada (p. ej. bajar de Java 25 a Java 21). Vacío = sin comando. */
@@ -186,14 +186,14 @@ public class ComponentService implements RepositoriesApi {
     @Transactional
     public ProjectComponent update(String projectKey, String name, PieceUpdate u, UUID actorId) {
         software(projectKey);
-        ProjectComponent current = components.findByProject(projectKey).stream().filter(c -> c.name().equals(name)).findFirst()
+        ProjectComponent current = components.findByProject(projectKey, subject(projectKey)).stream().filter(c -> c.name().equals(name)).findFirst()
                 .orElseThrow(() -> new ec.kuador.board.shared.error.NotFoundException("No existe la pieza «" + name + "» en " + projectKey + "."));
         String stack = u.stack() == null ? "" : u.stack().strip();
         if (stack.isEmpty() || stack.length() > 120) throw new DomainException("Indica el stack de la pieza (hasta 120 caracteres), p. ej. «Java 21 · Spring Boot 3».");
         String notes = blankToNull(u.notes());
         if (notes != null && notes.length() > 4000) throw new DomainException("Las notas admiten hasta 4000 caracteres.");
         ProjectComponent updated = current.adjusted(stack, command(u.build()), command(u.test()), command(u.run()), notes);
-        components.save(updated);
+        components.save(updated, subject(projectKey));
         this.stack.refresh(projectKey, actorId);
         log.info("Pieza {} de {} ajustada por {}", name, projectKey, actorId);
         return updated;
@@ -215,7 +215,7 @@ public class ComponentService implements RepositoriesApi {
     public Result setup(String projectKey, Setup s, UUID actorId) {
         billing.requireFactory("Armar el repo con piezas");
         ProjectView project = software(projectKey);
-        if (records.findLink(projectKey).isPresent()) {
+        if (records.findLink(projectKey, subject(projectKey)).isPresent()) {
             throw new ConflictException("El proyecto ya tiene un repositorio. Suma piezas desde «Agregar pieza».");
         }
         requireBaseReady(project);
@@ -247,7 +247,7 @@ public class ComponentService implements RepositoriesApi {
         inFolder.forEach(p -> lines.add(p.line(p.spec().name() + "/")));
         ownRepo.forEach(p -> lines.add(p.line("repo " + p.spec().repoName().strip())));
 
-        List<File> projectFiles = new ArrayList<>(RepositoryBase.files(catalog.agentPolicy().repo(), project.name(), projectKey, s.description(), agentsMd, documents, lines));
+        List<File> projectFiles = new ArrayList<>(RepositoryBase.files(catalog.agentPolicy().repo(), projects.currentSubjectName(project.key()), projectKey, s.description(), agentsMd, documents, lines));
         List<Prepared> all = new ArrayList<>(inFolder);
         all.addAll(ownRepo);
         projectFiles.addAll(kit(all));
@@ -257,7 +257,7 @@ public class ComponentService implements RepositoriesApi {
                 dedupe(projectFiles), "chore: bases del proyecto " + projectKey + " desde el tablero");
         Instant now = clock.instant();
         RepositoryLink link = new RepositoryLink(projectKey, KIND, main.fullName(), main.workBranch(), String.valueOf(s.installationId()), now, actorId);
-        records.saveLink(link);
+        records.saveLink(link, subject(projectKey));
         documents.forEach(d -> records.saveRecord(new SyncRecord(d.id(), d.version(), SyncState.sha256(d.content()), now)));
 
         List<RepoResult> results = new ArrayList<>(List.of(result(main, null)));
@@ -268,7 +268,7 @@ public class ComponentService implements RepositoriesApi {
             results.add(result(repo, null));
             saved.add(save(projectKey, p, repo.fullName(), s.installationId(), actorId, now));
         }
-        plans.delete(projectKey); // desde ahora mandan las piezas reales
+        plans.delete(projectKey, subject(projectKey)); // desde ahora mandan las piezas reales
         log.info("Proyecto {} armado: {} pieza(s), {} repo(s)", projectKey, saved.size(), results.size());
         return new Result(link, results, saved, documents.size());
     }
@@ -279,10 +279,10 @@ public class ComponentService implements RepositoriesApi {
     public Result add(String projectKey, PieceSpec spec, boolean privateRepo, UUID actorId) {
         billing.requireFactory("Sumar piezas al repo");
         ProjectView project = software(projectKey);
-        RepositoryLink link = records.findLink(projectKey).filter(l -> KIND.equals(l.kind()))
+        RepositoryLink link = records.findLink(projectKey, subject(projectKey)).filter(l -> KIND.equals(l.kind()))
                 .orElseThrow(() -> new DomainException("Primero arma el repo del proyecto con la app de GitHub."));
         validName(spec.name());
-        if (components.findByProject(projectKey).stream().anyMatch(c -> c.name().equals(spec.name()))) {
+        if (components.findByProject(projectKey, subject(projectKey)).stream().anyMatch(c -> c.name().equals(spec.name()))) {
             throw new ConflictException("El proyecto ya tiene una pieza «" + spec.name() + "».");
         }
         long installationId = Long.parseLong(link.secret());
@@ -312,7 +312,7 @@ public class ComponentService implements RepositoriesApi {
     @Transactional(readOnly = true)
     public java.util.Optional<PiecePlan> plan(String projectKey) {
         software(projectKey);
-        return plans.find(projectKey);
+        return plans.find(projectKey, subject(projectKey));
     }
 
     /**
@@ -322,7 +322,7 @@ public class ComponentService implements RepositoriesApi {
     @Transactional
     public PiecePlan savePlan(String projectKey, PiecePlan plan, UUID actorId) {
         software(projectKey);
-        if (records.findLink(projectKey).isPresent()) {
+        if (records.findLink(projectKey, subject(projectKey)).isPresent()) {
             throw new ConflictException("El proyecto ya tiene repositorio: suma o ajusta las piezas desde «Piezas y repositorio».");
         }
         String layout = "MULTI_REPO".equals(plan.layout()) ? "MULTI_REPO" : "MONOREPO";
@@ -340,7 +340,7 @@ public class ComponentService implements RepositoriesApi {
                 .map(p -> new PieceSpec(p.name(), blankToNull(p.templateKey()), "MULTI_REPO".equals(layout) ? blankToNull(p.repoName()) : null,
                         p.variables() == null ? Map.of() : p.variables()))
                 .toList());
-        plans.save(projectKey, clean);
+        plans.save(projectKey, subject(projectKey), clean);
         this.stack.refresh(projectKey, actorId);
         return clean;
     }
@@ -360,7 +360,7 @@ public class ComponentService implements RepositoriesApi {
         ComponentTemplate template = spec.templateKey() == null || spec.templateKey().isBlank() ? null
                 : catalog.componentTemplate(spec.templateKey())
                         .orElseThrow(() -> new DomainException("No existe la plantilla de pieza " + spec.templateKey() + " en el catálogo."));
-        Map<String, String> values = TemplateRenderer.values(template, spec.variables(), project.name(), project.key(), spec.name(), folder);
+        Map<String, String> values = TemplateRenderer.values(template, spec.variables(), projects.currentSubjectName(project.key()), project.key(), spec.name(), folder);
         List<File> code = template != null && template.templateRepo() != null && !template.templateRepo().isBlank()
                 ? TemplateRenderer.render(templates.read(installationId, template.templateRepo().strip(), template.templateRef()), values, folder)
                 : List.of();
@@ -371,7 +371,7 @@ public class ComponentService implements RepositoriesApi {
         Prepared draft = new Prepared(spec, template, kind, stack, folder, List.of());
         // El README de la pieza: el de la plantilla si trae uno; si no, uno con su stack y comandos.
         if (code.stream().noneMatch(f -> f.path().equals(readme)) && !folder.isEmpty()) {
-            files.add(new File(readme, RepositoryBase.pieceReadme(catalog.agentPolicy().repo(), project.name(), project.key(), null, draft.line(folder + "/"))));
+            files.add(new File(readme, RepositoryBase.pieceReadme(catalog.agentPolicy().repo(), projects.currentSubjectName(project.key()), project.key(), null, draft.line(folder + "/"))));
         }
         files.addAll(code);
         return new Prepared(spec, template, kind, stack, folder, files);
@@ -379,10 +379,10 @@ public class ComponentService implements RepositoriesApi {
 
     /** Repo propio de una pieza: bases de pieza y, encima, el código de su plantilla (gana la plantilla). */
     private RepositoryCreator.Created createPieceRepo(ProjectView project, Prepared p, long installationId, boolean privateRepo, String projectRepo, String agentsMd) {
-        List<File> files = new ArrayList<>(RepositoryBase.pieceRepoFiles(catalog.agentPolicy().repo(), project.name(), project.key(), agentsMd, projectRepo, p.line(".")));
+        List<File> files = new ArrayList<>(RepositoryBase.pieceRepoFiles(catalog.agentPolicy().repo(), projects.currentSubjectName(project.key()), project.key(), agentsMd, projectRepo, p.line(".")));
         files.addAll(kit(List.of(p)));
         files.addAll(p.files());
-        return creator.create(new RepositoryCreator.NewRepository(installationId, p.spec().repoName().strip(), project.name() + " · " + p.spec().name(),
+        return creator.create(new RepositoryCreator.NewRepository(installationId, p.spec().repoName().strip(), projects.currentSubjectName(project.key()) + " · " + p.spec().name(),
                 privateRepo, checks(List.of(p))), dedupe(files), "chore: pieza " + p.spec().name() + " del proyecto " + project.key() + " desde el tablero");
     }
 
@@ -443,7 +443,7 @@ public class ComponentService implements RepositoriesApi {
                 t == null ? null : t.templateRepo(), t == null ? null : t.templateRef(), p.kind(), p.stack(),
                 t == null ? null : t.commands().build(), t == null ? null : t.commands().test(), t == null ? null : t.commands().run(),
                 repository, p.folder(), installationId, actorId, now, null);
-        components.save(c);
+        components.save(c, subject(projectKey));
         return c;
     }
 
@@ -461,5 +461,10 @@ public class ComponentService implements RepositoriesApi {
         ProjectView project = projects.find(projectKey).orElseThrow(() -> new NotFoundException("No existe el proyecto " + projectKey + "."));
         if (!project.repository()) throw new DomainException("Este tablero no trabaja con un repositorio de código.");
         return project;
+    }
+
+    /** El proyecto del tablero sobre el que opera la petición (el primero, si atiende uno solo o no se eligió). */
+    private String subject(String projectKey) {
+        return projects.currentSubject(projectKey);
     }
 }

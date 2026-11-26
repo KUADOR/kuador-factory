@@ -6,6 +6,7 @@ import ec.kuador.board.docs.DocsApi;
 import ec.kuador.board.project.ProjectApi;
 import ec.kuador.board.shared.error.NotFoundException;
 import ec.kuador.board.shared.tenant.BoardScope;
+import ec.kuador.board.shared.tenant.SubjectScope;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Locale;
@@ -45,8 +46,10 @@ class BoardAccessInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         BoardScope.clear();
+        SubjectScope.clear();
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof AuthenticatedMember who)) return true;
+        chooseSubject(request);
         // Quien administra ve todo; un agente con su token, solo los tableros de su equipo (project_agent); el resto, los suyos.
         if (!who.agent() && who.access().administers()) return true;
         BoardScope.set(who.agent() ? projects.agentBoardsOf(who.memberId()) : projects.boardsOf(who.memberId()));
@@ -60,6 +63,15 @@ class BoardAccessInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         BoardScope.clear();
+        SubjectScope.clear();
+    }
+
+    /**
+     * El proyecto que mira la petición ({@code ?subject=}), para los tableros que atienden varios: su repositorio, sus
+     * piezas, sus documentos y su manual. Uno que el tablero no atiende no se usa: vale el primero del tablero.
+     */
+    private static void chooseSubject(HttpServletRequest request) {
+        SubjectScope.set(request.getParameter("subject"));
     }
 
     /** El tablero al que apunta la ruta, si apunta a uno. */

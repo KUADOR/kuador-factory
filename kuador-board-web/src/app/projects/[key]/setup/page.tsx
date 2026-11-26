@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
+import { workNameOf } from "@/lib/subject-server";
 import { requireEditor } from "@/lib/require-editor";
 import type { GitHubOverview, NotificationView } from "@/lib/types";
 
@@ -51,6 +52,7 @@ export default async function ProjectOnboardingPage({ params, searchParams }: Pa
   return (
     <Onboarding
       project={project}
+      workName={await workNameOf(project)}
       steps={steps}
       done={done}
       current={step === "done" || step === "fin" ? "done" : (requested ?? steps.find((s) => !done[s]) ?? "done")}

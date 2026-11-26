@@ -28,24 +28,28 @@ class CodeReviewServiceTest {
 
     private CodeReviewService service() {
         SyncRecordRepository records = new SyncRecordRepository() {
-            public Optional<RepositoryLink> findLink(String p) {
-                return Optional.of(new RepositoryLink(p, "GITHUB_APP", "acme/med", "main", "42", Instant.now(), null));
+            public Optional<RepositoryLink> findLink(String p, String s) {
+                return findLinks(p).stream().findFirst();
             }
-            public void saveLink(RepositoryLink link) {}
-            public void deleteLink(String p) {}
+            public List<RepositoryLink> findLinks(String p) {
+                return List.of(new RepositoryLink(p, "GITHUB_APP", "acme/med", "main", "42", Instant.now(), null));
+            }
+            public void saveLink(RepositoryLink link, String s) {}
+            public void deleteLink(String p, String s) {}
             public Map<UUID, SyncRecord> findRecords(Iterable<UUID> ids) { return Map.of(); }
             public void saveRecord(SyncRecord r) {}
             public void deleteRecords(Iterable<UUID> ids) {}
-            public List<ExportPullRequest> findOpenPullRequests(String p) { return List.of(); }
-            public void savePullRequest(ExportPullRequest pr) {}
-            public void deletePullRequests(String p) {}
+            public List<ExportPullRequest> findOpenPullRequests(String p, String s) { return List.of(); }
+            public void savePullRequest(ExportPullRequest pr, String s) {}
+            public void deletePullRequests(String p, String s) {}
         };
         ComponentRepository components = new ComponentRepository() {
-            public List<ProjectComponent> findByProject(String p) {
+            public List<ProjectComponent> findByProject(String p, String s) { return findByBoard(p); }
+            public List<ProjectComponent> findByBoard(String p) {
                 return List.of(piece("acme/med"), piece("acme/med-web"), new ProjectComponent(UUID.randomUUID(), p, "local", null, null, null, null,
                         "API", "java", null, null, null, "/tmp/local", "", null, null, Instant.now(), null));
             }
-            public void save(ProjectComponent c) {}
+            public void save(ProjectComponent c, String s) {}
         };
         CodeHost host = new CodeHost() {
             public boolean supports(String kind) { return kind.equals("GITHUB_APP"); }

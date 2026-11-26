@@ -106,6 +106,11 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/agents/runs/*/retry").access(HUMAN_EDITOR)
                         // Crear un tablero: personas que editan. Sumar personas o agentes al equipo, emitir tokens de agentes,
                         // borrar o restaurar un tablero: solo quien administra.
+                        // Los proyectos del espacio: los crea y los suma a un tablero quien edita; borrarlos, quien administra.
+                        .requestMatchers(HttpMethod.DELETE, "/api/subjects/*").access(HUMAN_ADMIN)
+                        .requestMatchers(HttpMethod.POST, "/api/subjects", "/api/projects/*/subjects").access(HUMAN_EDITOR)
+                        .requestMatchers(HttpMethod.PUT, "/api/subjects/*").access(HUMAN_EDITOR)
+                        .requestMatchers(HttpMethod.DELETE, "/api/projects/*/subjects/*").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.POST, "/api/projects").access(HUMAN_EDITOR)
                         .requestMatchers(HttpMethod.POST, "/api/members", "/api/members/*/tokens").access(HUMAN_ADMIN)
                         .requestMatchers(HttpMethod.DELETE, "/api/projects/*").access(HUMAN_ADMIN)

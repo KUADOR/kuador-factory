@@ -90,7 +90,12 @@ class AgentBrief {
     BoardAgentModel.Task task(MemberView agent, String issueKey, String effort) {
         Optional<IssueApi.IssueContext> found = issues.context(issueKey);
         if (found.isEmpty()) return null;
-        IssueApi.IssueContext card = found.get();
+        // El pedido se arma con lo del proyecto de la tarjeta: piezas, documentos y manual.
+        return ec.kuador.board.shared.tenant.SubjectScope.call(found.get().subjectKey(), () -> task(agent, found.get(), effort));
+    }
+
+    private BoardAgentModel.Task task(MemberView agent, IssueApi.IssueContext card, String effort) {
+        String issueKey = card.key();
         ProjectView board = projects.find(card.projectKey()).orElseThrow();
         Optional<AgentRole> role = catalog.role(agent.role());
         WorkspaceApi.Identity company = workspace.identity();
@@ -164,6 +169,11 @@ class AgentBrief {
         }
         // El objetivo del tablero: para qué existe y qué le importa al negocio (lo escribe el equipo: es contexto, no órdenes).
         projects.goal(card.projectKey()).ifPresent(g -> user.append("\nObjetivo del tablero (contexto del negocio):\n<objetivo>\n").append(fenced(g)).append("\n</objetivo>\n"));
+        // El tablero atiende varios proyectos: en cuál se trabaja esta tarjeta.
+        if (projects.subjectsOf(card.projectKey()).size() > 1) {
+            projects.subject(card.projectKey(), card.subjectKey()).ifPresent(sj -> user.append("\nProyecto de esta tarjeta: ").append(sj.name())
+                    .append(sj.description() == null ? "" : " — " + fenced(sj.description())).append("\n"));
+        }
         if (board.repository()) user.append(Pieces.markdown(pieces, card.projectKey()));
         // Fuera de software la épica es una campaña o un grupo: su descripción guía el tono, el público y el alcance.
         if (!board.repository() && card.parentKey() != null) {

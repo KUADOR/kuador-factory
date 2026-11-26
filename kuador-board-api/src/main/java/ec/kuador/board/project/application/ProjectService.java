@@ -43,6 +43,12 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     private final BoardPeople people;
     private final MemberApi members;
     private ProjectGoals goals;
+    private SubjectService subjects;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setSubjects(SubjectService subjects) {
+        this.subjects = subjects;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired
     void setGoals(ProjectGoals goals) {
@@ -81,9 +87,20 @@ public class ProjectService implements ProjectApi, CatalogUsage {
                 .map(p -> new ProjectWithColumns(p, projects.findColumns(p.key()))).toList();
     }
 
+    /** El tablero con el manual de trabajo del proyecto que mira la petición (si atiende varios). */
+    private Project scoped(Project board) {
+        return scoped(board, ec.kuador.board.shared.tenant.SubjectScope.current().orElse(null));
+    }
+
+    private Project scoped(Project board, String subjectKey) {
+        if (subjectKey == null) return board;
+        return subjects.ofBoard(board.key()).stream().filter(s -> s.key().equals(subjectKey)).findFirst()
+                .filter(s -> !java.util.Objects.equals(s.methodology(), board.methodology())).map(s -> board.withMethodology(s.methodology())).orElse(board);
+    }
+
     @Transactional(readOnly = true)
     public ProjectWithColumns get(String key) {
-        return new ProjectWithColumns(load(key), projects.findColumns(key));
+        return new ProjectWithColumns(scoped(load(key)), projects.findColumns(key));
     }
 
     @Override
@@ -95,7 +112,13 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     /** Crea el tablero a pedido de una persona, que queda en él (si no administra, es la única forma de verlo). */
     @Transactional
     public ProjectWithColumns create(String key, String name, String description, String templateKey, UUID creatorId) {
-        ProjectWithColumns created = create(key, name, description, templateKey);
+        return create(key, name, description, templateKey, creatorId, null);
+    }
+
+    /** Igual, eligiendo en qué proyectos del espacio trabaja ({@code subjectKeys} vacío = uno propio, con su nombre). */
+    @Transactional
+    public ProjectWithColumns create(String key, String name, String description, String templateKey, UUID creatorId, List<String> subjectKeys) {
+        ProjectWithColumns created = create(key, name, description, templateKey, subjectKeys);
         if (creatorId != null && members.find(creatorId).filter(m -> !m.agent()).isPresent()) people.add(created.project().key(), creatorId);
         return created;
     }
@@ -103,6 +126,11 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     /** Crea el proyecto copiando la plantilla de flujo del catálogo del espacio. */
     @Transactional
     public ProjectWithColumns create(String key, String name, String description, String templateKey) {
+        return create(key, name, description, templateKey, (List<String>) null);
+    }
+
+    @Transactional
+    public ProjectWithColumns create(String key, String name, String description, String templateKey, List<String> subjectKeys) {
         WorkflowTemplate template = catalog.workflowTemplate(templateKey)
                 .orElseThrow(() -> new NotFoundException("No existe la plantilla de flujo " + templateKey + "."));
         billing.requireRoom(BillingApi.Limit.PROJECTS, projects.findAll().size());
@@ -119,6 +147,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         }
         Project saved = projects.save(project);
         projects.saveColumns(saved.key(), template.columns());
+        if (subjects != null) subjects.assign(saved, subjectKeys);
         events.publishEvent(new ec.kuador.board.project.ProjectCreated(UUID.randomUUID(), TenantContext.require(), saved.key(), catalog.defaultTeam(template.key()),
                 template.can(ec.kuador.board.catalog.Capability.REPOSITORY), clock.instant()));
         return new ProjectWithColumns(saved, template.columns());
@@ -141,8 +170,10 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     /** Nombre y descripción (solo personas). */
     @Transactional
     public ProjectWithColumns updateDetails(String key, String name, String description) {
-        Project updated = load(key).withDetails(name, description); // valida
+        Project before = load(key);
+        Project updated = before.withDetails(name, description); // valida
         projects.updateDetails(key, updated.name(), updated.description());
+        subjects.renameOwn(before, updated);
         return new ProjectWithColumns(updated, projects.findColumns(key));
     }
 
@@ -219,13 +250,13 @@ public class ProjectService implements ProjectApi, CatalogUsage {
         if (methodologyKey != null && catalog.methodology(methodologyKey).isEmpty()) {
             throw new NotFoundException("No existe el manual de trabajo " + methodologyKey + " en el catálogo.");
         }
-        Project current = load(key);
+        Project current = scoped(load(key));
         // El manual de un tablero sin repositorio (una clínica, ventas) no es la fábrica de software.
         if (methodologyKey != null && !FREE_METHODOLOGY.equals(methodologyKey) && current.can(Capability.REPOSITORY)) {
             billing.requireFactory("Trabajar con un manual de trabajo");
         }
         Project updated = current.withMethodology(methodologyKey); // valida que el tablero use documentos
-        projects.updateMethodology(key, methodologyKey);
+        subjects.setMethodology(current, currentSubject(current.key()), methodologyKey);
         return new ProjectWithColumns(updated, projects.findColumns(key));
     }
 
@@ -244,8 +275,20 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Override
     @Transactional(readOnly = true)
     public Optional<ProjectView> find(String projectKey) {
-        return projects.findByKey(projectKey).map(p -> new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(),
+        return find(projectKey, ec.kuador.board.shared.tenant.SubjectScope.current().orElse(null));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ProjectView> find(String projectKey, String subjectKey) {
+        return projects.findByKey(projectKey).map(b -> scoped(b, subjectKey)).map(p -> new ProjectView(p.key(), p.name(), p.kind(), p.templateKey(), p.methodology(),
                 projects.findColumns(p.key()), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.capabilities(), p.estimate()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ec.kuador.board.project.SubjectView> subjectsOf(String projectKey) {
+        return subjects.ofBoard(projectKey);
     }
 
     @Override
@@ -343,7 +386,7 @@ public class ProjectService implements ProjectApi, CatalogUsage {
     @Override
     @Transactional(readOnly = true)
     public long projectsUsingMethodology(String methodologyKey) {
-        return projects.countUsingMethodology(methodologyKey);
+        return subjects.boardsUsingMethodology(methodologyKey);
     }
 
     @Override

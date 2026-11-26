@@ -47,6 +47,25 @@ public class CodeReviewService implements CodeReviewApi {
 
     @Override
     @Transactional(readOnly = true)
+    public List<String> subjectRepositories(String projectKey) {
+        if (projects == null) return repositories(projectKey);
+        String subject = projects.currentSubject(projectKey);
+        java.util.Set<String> own = new java.util.LinkedHashSet<>();
+        records.findLink(projectKey, subject).filter(l -> supported(l.kind())).ifPresent(l -> own.add(l.location()));
+        components.findByProject(projectKey, subject).stream().filter(c -> c.repoLocation() != null && c.installationId() != null)
+                .forEach(c -> own.add(c.repoLocation()));
+        return List.copyOf(own);
+    }
+
+    private ec.kuador.board.project.ProjectApi projects;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setProjects(ec.kuador.board.project.ProjectApi projects) {
+        this.projects = projects;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<PullSummary> pullRequests(String projectKey, String search) {
         String needle = search == null ? "" : search.strip().toLowerCase(Locale.ROOT);
         List<PullSummary> all = new ArrayList<>();
@@ -128,9 +147,10 @@ public class CodeReviewService implements CodeReviewApi {
     /** Repos del proyecto y cómo llegar a cada uno, sin repetir (el nombre en minúsculas es la clave). */
     private Map<String, CodeHost.Access> access(String projectKey) {
         Map<String, CodeHost.Access> out = new LinkedHashMap<>();
-        Optional<RepositoryLink> link = records.findLink(projectKey);
-        link.filter(l -> supported(l.kind())).ifPresent(l -> out.put(l.location(), new CodeHost.Access(l.location(), l.kind(), l.secret())));
-        for (ProjectComponent c : components.findByProject(projectKey)) {
+        // Los de todos los proyectos del tablero: el PR de una tarjeta se busca por su clave en cualquiera de ellos.
+        records.findLinks(projectKey).stream().filter(l -> supported(l.kind()))
+                .forEach(l -> out.putIfAbsent(l.location(), new CodeHost.Access(l.location(), l.kind(), l.secret())));
+        for (ProjectComponent c : components.findByBoard(projectKey)) {
             if (c.repoLocation() == null || c.installationId() == null || out.containsKey(c.repoLocation())) continue;
             out.put(c.repoLocation(), new CodeHost.Access(c.repoLocation(), ComponentService.KIND, String.valueOf(c.installationId())));
         }

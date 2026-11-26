@@ -146,6 +146,11 @@ public class BoardTools {
         if (d == null) throw new ToolException("No existe la herramienta " + name + ".");
         ec.kuador.board.auth.RunScope.current().ifPresent(scope -> enforce(scope, d.tool(), args));
         CLIENT.set(client);
+        // La herramienta trabaja con lo del proyecto de la tarjeta (la que nombra o la de esta ejecución): piezas, documentos, manual.
+        String card = ToolScope.upper(args.get("key"));
+        if (card == null) card = ec.kuador.board.auth.RunScope.current().map(ec.kuador.board.auth.RunScope::issueKey).orElse(null);
+        String previous = ec.kuador.board.shared.tenant.SubjectScope.current().orElse(null);
+        ec.kuador.board.shared.tenant.SubjectScope.set(scope.subjectOf(card));
         try {
             Object result = d.run().apply(args, personId);
             // Con la credencial de una ejecución, la cola muestra solo su tarjeta.
@@ -157,6 +162,7 @@ public class BoardTools {
             }
             return result;
         } finally {
+            ec.kuador.board.shared.tenant.SubjectScope.set(previous);
             CLIENT.remove();
         }
     }

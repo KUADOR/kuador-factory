@@ -42,7 +42,7 @@ final class StageEvidence extends IssueSupport {
         List<String> agentRoles = members.agents().stream().map(MemberView::role).toList();
         for (String role : stage.epicFirst()) {
             if (!agentRoles.contains(role)) continue;
-            boolean done = evidence.stream().map(e -> e.hasDocumentOf(issue.projectKey(), issue.key(), role)).flatMap(Optional::stream)
+            boolean done = evidence.stream().map(e -> ec.kuador.board.shared.tenant.SubjectScope.call(issue.subjectKey(), () -> e.hasDocumentOf(issue.projectKey(), issue.key(), role))).flatMap(Optional::stream)
                     .findFirst().orElse(true); // un rol sin documento propio no tiene cómo marcar su parte: no se le espera
             if (!done) return Optional.of(role);
         }

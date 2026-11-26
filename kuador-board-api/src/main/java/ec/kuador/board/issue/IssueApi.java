@@ -8,8 +8,12 @@ import java.util.UUID;
 /** API pública del módulo para el resto de la aplicación. */
 public interface IssueApi {
 
-    /** Datos mínimos de un issue: clave, proyecto, número y título. */
-    record IssueRef(String key, String projectKey, int number, String title) {}
+    /** Datos mínimos de un issue: clave, tablero, número, título y el proyecto en que se trabaja ({@code subjectKey}). */
+    record IssueRef(String key, String projectKey, int number, String title, String subjectKey) {
+        public IssueRef(String key, String projectKey, int number, String title) {
+            this(key, projectKey, number, title, null);
+        }
+    }
 
     Optional<IssueRef> find(String issueKey);
 
@@ -47,7 +51,13 @@ public interface IssueApi {
     /** Todo lo que un agente necesita saber de un issue. Enums como texto. */
     record IssueContext(
             String key, String projectKey, String title, String description, String type, String status, String priority,
-            Integer storyPoints, List<String> labels, String parentKey, UUID assigneeId, UUID reporterId, List<CommentView> comments) {}
+            Integer storyPoints, List<String> labels, String parentKey, UUID assigneeId, UUID reporterId, List<CommentView> comments,
+            String subjectKey) {
+        public IssueContext(String key, String projectKey, String title, String description, String type, String status, String priority,
+                Integer storyPoints, List<String> labels, String parentKey, UUID assigneeId, UUID reporterId, List<CommentView> comments) {
+            this(key, projectKey, title, description, type, status, priority, storyPoints, labels, parentKey, assigneeId, reporterId, comments, null);
+        }
+    }
 
     Optional<IssueContext> context(String issueKey);
 
@@ -82,7 +92,12 @@ public interface IssueApi {
     /** Un issue que espera a los agentes de una persona. {@code agentRoles}: roles de agente que lo cubren. */
     record QueueItem(
             String key, String projectKey, String title, String type, String priority, String status, String statusName, boolean gate,
-            List<String> agentRoles, UUID assigneeId, String assigneeName, int reworkCount) {}
+            List<String> agentRoles, UUID assigneeId, String assigneeName, int reworkCount, String subjectKey) {
+        public QueueItem(String key, String projectKey, String title, String type, String priority, String status, String statusName, boolean gate,
+                List<String> agentRoles, UUID assigneeId, String assigneeName, int reworkCount) {
+            this(key, projectKey, title, type, priority, status, statusName, gate, agentRoles, assigneeId, assigneeName, reworkCount, null);
+        }
+    }
 
     /** Dónde quedó un issue después de una acción. */
     record Progress(String key, String status, String statusName, UUID assigneeId) {}

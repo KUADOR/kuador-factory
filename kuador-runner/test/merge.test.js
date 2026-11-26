@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { autoSync, isDoc } from "../src/merge.js";
+import { autoSync, isDoc, remoteHead } from "../src/merge.js";
 
 const sh = (cwd, ...args) => {
   const r = spawnSync("git", args, { cwd, encoding: "utf8" });
@@ -52,6 +52,9 @@ test("un conflicto solo en documentación se resuelve sin IA conservando los dos
   const r = autoSync(work, { branch: "feature/KUA-2", baseBranch: "develop" });
   assert.equal(r.handled, true, r.reason);
   assert.deepEqual(r.files.sort(), ["AGENTS.md", "README.md"]);
+  // El tablero juzga el commit que quedó subido, no el que GitHub tenía antes.
+  assert.equal(r.head, sh(remote, "rev-parse", "feature/KUA-2"));
+  assert.equal(remoteHead(work, "feature/KUA-2"), r.head);
   const readme = sh(remote, "show", "feature/KUA-2:README.md");
   assert.match(readme, /línea de la tarjeta/);
   assert.match(readme, /línea de otro PR/);

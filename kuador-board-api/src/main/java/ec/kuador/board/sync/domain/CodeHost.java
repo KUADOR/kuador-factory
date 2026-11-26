@@ -44,6 +44,14 @@ public interface CodeHost {
     }
 
     /**
+     * Como {@link #mergeable(Access, int)}, pero solo responde cuando el último commit del PR ya es {@code head}: justo
+     * después de subir, GitHub puede seguir dando la respuesta del commit anterior. Sin {@code head}, no lo mira.
+     */
+    default Optional<Boolean> mergeable(Access access, int number, String head) {
+        return mergeable(access, number);
+    }
+
+    /**
      * Trae a la rama del PR lo nuevo de su rama destino (un merge commit, como el botón «Update branch» de GitHub). Falso si
      * no se pudo: hay conflictos, no hay nada nuevo que traer o el host no lo permite.
      */

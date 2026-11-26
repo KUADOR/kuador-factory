@@ -1,5 +1,5 @@
 /** Cliente de la API del tablero (rutas del runner). */
-export const VERSION = "0.1.8";
+export const VERSION = "0.1.9";
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -47,8 +47,9 @@ export function api(server, token) {
     completeJob: (machineId, id, text, error) =>
       call("POST", `/api/runner/jobs/${encodeURIComponent(id)}/complete`, { machineId, text: text?.slice(0, 200_000), error: error?.slice(0, 480) }),
     renew: (machineId, key) => call("POST", `/api/runner/leases/${encodeURIComponent(key)}/renew`, { machineId }, { allow: [409] }).then((r) => r.status === 200),
-    release: (machineId, key, outcome, message) =>
-      call("POST", `/api/runner/leases/${encodeURIComponent(key)}/release`, { machineId, outcome, message: message?.slice(0, 480) }),
+    /** {@code head}: al actualizar una rama en conflicto, el commit que quedó en GitHub (el tablero juzga ese, no uno viejo). */
+    release: (machineId, key, outcome, message, head) =>
+      call("POST", `/api/runner/leases/${encodeURIComponent(key)}/release`, { machineId, outcome, message: message?.slice(0, 480), ...(head ? { head } : {}) }),
     /** Avisos en tiempo real: llama a onSignal con cada «trabajo». Termina cuando se corta la conexión. */
     async events(onSignal, signal) {
       const res = await fetch(base + "/api/runner/events", {

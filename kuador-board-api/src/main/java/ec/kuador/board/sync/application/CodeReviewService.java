@@ -93,8 +93,14 @@ public class CodeReviewService implements CodeReviewApi {
     @Override
     @Transactional(readOnly = true)
     public Optional<Boolean> mergeable(String projectKey, String repository, int number) {
+        return mergeable(projectKey, repository, number, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Boolean> mergeable(String projectKey, String repository, int number, String head) {
         CodeHost.Access a = require(projectKey, repository);
-        return host(a).mergeable(a, number);
+        return host(a).mergeable(a, number, head);
     }
 
     @Override

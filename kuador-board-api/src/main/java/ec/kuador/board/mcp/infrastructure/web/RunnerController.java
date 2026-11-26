@@ -4,6 +4,7 @@ import ec.kuador.board.auth.AuthenticatedMember;
 import ec.kuador.board.mcp.application.RunnerHub;
 import ec.kuador.board.mcp.application.RunnerService;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -71,7 +72,7 @@ class RunnerController {
     @PostMapping("/api/runner/leases/{issueKey}/release")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void release(@AuthenticationPrincipal AuthenticatedMember who, @PathVariable String issueKey, @RequestBody ReleaseRequest r) {
-        runners.release(who, r.machineId(), issueKey, r.outcome(), r.message());
+        runners.release(who, r.machineId(), issueKey, r.outcome(), r.message(), r.head());
     }
 
     /** El siguiente trabajo de IA de su persona (p. ej. redactar documentos «en mi computador»); 204 si no hay. */
@@ -90,7 +91,8 @@ class RunnerController {
 
     record MachineRequest(@NotNull UUID machineId) {}
 
-    record ReleaseRequest(@NotNull UUID machineId, String outcome, String message) {}
+    /** {@code head}: el commit que subió el runner al actualizar una rama en conflicto (los runners viejos no lo mandan). */
+    record ReleaseRequest(@NotNull UUID machineId, String outcome, String message, @Size(max = 64) String head) {}
 
     // ---- Personas ----
 

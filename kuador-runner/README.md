@@ -21,6 +21,14 @@ La instalación:
 - Lo que supervisas lo atiende tu máquina; lo libre lo toma la primera máquina del equipo con ese rol. Tres cortes en un día y la tarjeta deja de ofrecerse.
 - Si tu suscripción llega a su límite, se pausa hasta que se renueve.
 
+## Entorno listo
+
+Antes de lanzar al agente, el runner mira qué pide el repo de la tarjeta y lo deja preparado, para que el agente no gaste turnos buscándolo:
+
+- **Java, Flutter y Node:** la versión sale de los archivos del repo y de sus carpetas de primer nivel (`pom.xml`, `build.gradle`, `.sdkmanrc`, `.java-version`, `.tool-versions`, `.fvmrc`, `pubspec.yaml`, `.nvmrc`, `engines` de `package.json`). La busca en esta máquina (SDKMAN, `/Library/Java`, `/usr/lib/jvm`, nvm, fvm y `~/.kuador/tools`) y deja `JAVA_HOME` y el `PATH` apuntando a ella. Si falta, le dice al agente cuál falta y que la instale en `~/.kuador/tools`.
+- **Puertos:** cada tarjeta en curso recibe su propio bloque de 20 puertos desde el 41000 (`KUADOR_PORTS`), para que dos agentes no se pisen un servidor.
+- **Docker:** le dice si responde, para que no intente arrancarlo ni espere pruebas que no van a correr.
+
 ## Disco
 
 Cada tarjeta trabaja en su propia copia del repo (`git worktree`), así varias avanzan en paralelo sin pisarse las ramas. La copia comparte el historial con el repo de origen: no es otro clon.

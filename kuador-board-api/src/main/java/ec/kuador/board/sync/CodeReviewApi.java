@@ -63,6 +63,11 @@ public interface CodeReviewApi {
         return java.util.Optional.empty();
     }
 
+    /** Lo mismo, pero vacío mientras el último commit del PR no sea {@code head} (lo que acaba de subir el runner). */
+    default java.util.Optional<Boolean> mergeable(String projectKey, String repository, int number, String head) {
+        return mergeable(projectKey, repository, number);
+    }
+
     /** Trae a la rama del PR lo nuevo de su rama destino. Falso si no se pudo (conflictos, ya al día). */
     default boolean updateBranch(String projectKey, String repository, int number) {
         return false;

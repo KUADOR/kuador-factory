@@ -43,6 +43,13 @@ final class EpicPlan extends IssueSupport {
         if (promote && !epicTasks.splittable(epic, project)) {
             throw new DomainException(epicKey + " no es una épica: las tareas del plan se crean en una épica (o en una historia sin épica, que pasa a serlo).");
         }
+        // Se reparte en la etapa que planea (en la fábrica, Diseño, con el arquitecto): nunca antes, p. ej. en Refinamiento
+        // o con la épica esperando en Aprobación. Más adelante sí, si la devolvieron o la movieron antes de repartir.
+        Optional<String> at = project.splitColumn();
+        if (at.isPresent() && project.indexOf(epic.status()) < project.indexOf(at.get())) {
+            throw new DomainException("El reparto en tareas se hace en «" + columnName(project, at.get()) + "», no en «"
+                    + columnName(project, epic.status()) + "»: ahí lo hace el rol que planea. Entrega " + epicKey + " sin crear tareas.");
+        }
         if (tasks == null || tasks.isEmpty()) throw new DomainException("Indica al menos una tarea.");
         if (tasks.size() > MAX_TASKS) throw new DomainException("Máximo " + MAX_TASKS + " tareas por épica: agrupa las más pequeñas.");
         if (!project.allows(IssueType.TASK)) throw new DomainException("Este proyecto no usa tareas (TASK).");

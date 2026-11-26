@@ -287,6 +287,19 @@ class ProductOwnerAgentTest {
     }
 
     @Test
+    void anEpicWaitingInApprovalIsNotSplitWhenThePoAnswersAComment() {
+        // Como PLATODO-27: en Aprobación la persona comentó, el PO respondió y el tablero le exigía repartir (después viene Diseño).
+        projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
+        issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "Suscripciones", null, "EPIC", "APPROVAL", "HIGH", null,
+                List.of(), null, PO, PERSON, List.of()));
+
+        agent.onAssigned(assignedBy(PERSON, PO));
+
+        assertThat(seen.getFirst().splitsIntoTasks()).as("Aprobación es una puerta: reparte el arquitecto en Diseño").isFalse();
+        assertThat(planned).isEmpty();
+    }
+
+    @Test
     void aStoryOrAnEpicInRefinementIsNotSplit() {
         projects.add("KUA", "SOFTWARE_FACTORY", "SDD");
         issueStore.put("KUA-8", new IssueApi.IssueContext("KUA-8", "KUA", "CRUD de pacientes", null, "EPIC", "REFINEMENT", "HIGH", null,

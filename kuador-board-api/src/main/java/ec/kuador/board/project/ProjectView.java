@@ -76,11 +76,23 @@ public record ProjectView(
     }
 
     /**
-     * Si una épica en {@code columnKey} se reparte en tareas al entregarla: el tablero reparte y la etapa
-     * siguiente es de trabajo (con roles y sin puerta), p. ej. de Diseño a Desarrollo. De Refinamiento a Aprobación no.
+     * Si una épica en {@code columnKey} se reparte en tareas al entregarla: el tablero reparte, la etapa es de trabajo y la
+     * siguiente también (con roles y sin puerta), p. ej. de Diseño a Desarrollo. De Refinamiento a Aprobación no, y en
+     * Aprobación tampoco: es una puerta, aunque la siga Diseño.
      */
     public boolean epicSplitsInto(String columnKey) {
-        return splits() && nextAfter(columnKey).flatMap(n -> stage(n.key())).map(st -> !st.gate() && !st.roles().isEmpty()).orElse(false);
+        return splits() && stage(columnKey).map(ProjectView::works).orElse(false)
+                && nextAfter(columnKey).flatMap(n -> stage(n.key())).map(ProjectView::works).orElse(false);
+    }
+
+    /** La columna donde se reparten las épicas (en la fábrica, Diseño), si el flujo tiene una. */
+    public Optional<String> splitColumn() {
+        return columns.stream().map(ColumnDef::key).filter(this::epicSplitsInto).findFirst();
+    }
+
+    /** Una etapa de trabajo: la cubren roles y no es una puerta. */
+    private static boolean works(StageDef st) {
+        return !st.gate() && !st.roles().isEmpty();
     }
 
     public Optional<ColumnDef> column(String columnKey) {

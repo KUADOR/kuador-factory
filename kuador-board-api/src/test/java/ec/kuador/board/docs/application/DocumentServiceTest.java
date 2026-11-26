@@ -120,7 +120,7 @@ class DocumentServiceTest {
         assertThat(service.create("ODD", "TRACKING", "ODD-1", PERSON).document().path())
                 .isEqualTo("odd/tasks/odd-1-recuperar-contrasena.md");
         assertThatThrownBy(() -> service.create("NUE", "PRODUCT", null, PERSON))
-                .isInstanceOf(DomainException.class).hasMessageContaining("metodología");
+                .isInstanceOf(DomainException.class).hasMessageContaining("manual de trabajo");
     }
 
     @Test

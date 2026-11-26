@@ -102,7 +102,7 @@ final class EpicTasks extends IssueSupport {
         boolean ready = build.map(b -> project.indexOf(epic.status()) >= project.indexOf(b) && !isDone(project, epic.status()))
                 .orElse(workStage(project, epic.status()));
         if (ready) return Optional.empty();
-        return Optional.of("El reparto se aprueba cuando la épica llega a «" + build.map(b -> columnName(project, b)).orElse("una etapa de trabajo")
+        return Optional.of("El reparto se aprueba cuando la épica llega a «" + build.map(b -> columnName(project, b)).orElse("un paso de trabajo")
                 + "»; ahora está en «" + columnName(project, epic.status()) + "».");
     }
 

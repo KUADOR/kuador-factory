@@ -106,7 +106,7 @@ export default async function ProductPage() {
           </div>
         </section>
 
-        <Chapter id="tablero" index="01" title="Un tablero para todo tu trabajo." lead="Cada área con su propio flujo. Empieza con una plantilla o diseña el de tu operación: columnas, roles y quién aprueba.">
+        <Chapter id="tablero" index="01" title="Un tablero para todo tu trabajo." lead="Cada área con su propio flujo. Empieza con una plantilla o diseña el de tu operación: pasos, roles y quién aprueba.">
           <ul className="grid gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-3">
             {AREAS.map((a) => (
               <li key={a.area} className="flex flex-col gap-6 bg-page p-8">
@@ -129,7 +129,7 @@ export default async function ProductPage() {
           </ul>
         </Chapter>
 
-        <Chapter id="control" index="03" title="Tú tienes la última palabra." lead="Marca las columnas que necesitan tu visto bueno. Ahí el trabajo se detiene hasta que una persona aprueba.">
+        <Chapter id="control" index="03" title="Tú tienes la última palabra." lead="Marca los pasos que necesitan tu visto bueno. Ahí el trabajo se detiene hasta que una persona aprueba.">
           <ol className="flex flex-wrap items-center gap-x-3 gap-y-4">
             {FLOW.map((f, i) => (
               <li key={f.stage} className="flex items-center gap-3">
@@ -161,7 +161,7 @@ export default async function ProductPage() {
                 Si haces software, tienes una fábrica.
               </h2>
               <p className="max-w-[38rem] text-[1.125rem] leading-relaxed text-fg-muted">
-                Siete agentes cubren cada etapa, de la spec al release, sobre tus repos. Tú apruebas la spec, el reparto de tareas y cada PR.
+                Siete agentes cubren cada paso, de la spec al release, sobre tus repos. Tú apruebas la spec, el reparto de tareas y cada PR.
               </p>
             </div>
             <ul className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-4 lg:grid-cols-7">

@@ -65,7 +65,7 @@ export function AiUsageCard({ usage: initial }: { usage: AiUsageReport }) {
       )}
       {usage.unpricedModels.length > 0 && (
         <p className="text-xs text-warn">
-          Falta el precio de {usage.unpricedModels.join(", ")}: para el tope se estima al precio más alto. Cárgalo en Plataforma → IA.
+          Falta el precio de {usage.unpricedModels.join(", ")}: para el tope se estima al precio más alto. El precio lo carga quien administra la plataforma.
         </p>
       )}
       {usage.byAgent.length > 0 && (

@@ -9,6 +9,8 @@ import { FirstSteps } from "@/components/projects/FirstSteps";
 import { canAdminister, canEdit } from "@/lib/access";
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
+
+import { PulseView } from "./pulse/PulseView";
 import type { InsightsCompany, InsightsMine, RunnerMachine } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +22,7 @@ type Props = { searchParams: Promise<{ view?: string; days?: string }> };
 
 /**
  * Inicio: quien administra ve cómo va la empresa (y puede pasar a su propio trabajo); el resto del equipo, su trabajo.
+ * Todos tienen además el pulso del día: las últimas 24 horas.
  */
 export default async function HomePage({ searchParams }: Props) {
   const { view, days: rawDays } = await searchParams;
@@ -31,7 +34,8 @@ export default async function HomePage({ searchParams }: Props) {
   }
   const admin = canAdminister(me);
   // Empresa recién creada: en vez de métricas vacías, por dónde empezar.
-  if (canEdit(me) && view !== "me") {
+  const pulse = view === "pulse";
+  if (canEdit(me) && view !== "me" && !pulse) {
     const boards = await boardApi.projects().catch(() => null);
     if (boards != null && boards.length === 0) {
       return (
@@ -44,14 +48,16 @@ export default async function HomePage({ searchParams }: Props) {
       );
     }
   }
-  const showCompany = admin && view !== "me";
+  const showCompany = admin && view !== "me" && !pulse;
   const days = PERIODS.includes(Number(rawDays)) ? Number(rawDays) : 30;
 
   // Los datos se piden dentro del try; la vista se arma afuera (un error de datos muestra la página de error).
   let company: InsightsCompany | null = null;
   let mine: { data: InsightsMine; decisions: number; machines: RunnerMachine[] } | null = null;
   try {
-    if (showCompany) {
+    if (pulse) {
+      // El pulso pide lo suyo.
+    } else if (showCompany) {
       company = await boardApi.insightsCompany(days);
     } else {
       const [data, decisions, machines] = await Promise.all([
@@ -64,7 +70,9 @@ export default async function HomePage({ searchParams }: Props) {
   } catch (e) {
     return failPage(e);
   }
-  const body = company ? (
+  const body = pulse ? (
+    <PulseView />
+  ) : company ? (
     <CompanyDashboard data={company} canEditSettings={admin} />
   ) : mine ? (
     <MyWork data={mine.data} decisions={mine.decisions} machines={mine.machines} />
@@ -76,18 +84,20 @@ export default async function HomePage({ searchParams }: Props) {
   return (
     <>
       <PageHeader
-        title={showCompany ? "Cómo va la empresa" : `Hola, ${me.name.split(" ")[0]}`}
-        description={showCompany ? "Entregas, tiempos y ahorro en todos tus tableros." : undefined}
+        title={pulse ? "Pulso del día" : showCompany ? "Cómo va la empresa" : `Hola, ${me.name.split(" ")[0]}`}
+        description={pulse ? "Las últimas 24 horas de tus tableros." : showCompany ? "Entregas, tiempos y ahorro en todos tus tableros." : undefined}
       >
-        {admin && (
+        {
           <nav aria-label="Vista" className="-mx-1 flex flex-wrap items-center gap-1 px-1 pb-3">
-            <Link href={`/?days=${days}`} className={tab(showCompany)} aria-current={showCompany ? "page" : undefined}>
-              Empresa
-            </Link>
-            <Link href="/?view=me" className={tab(!showCompany)} aria-current={!showCompany ? "page" : undefined}>
+            {admin && (
+              <Link href={`/?days=${days}`} className={tab(showCompany)} aria-current={showCompany ? "page" : undefined}>
+                Empresa
+              </Link>
+            )}
+            <Link href="/?view=me" className={tab(!showCompany && !pulse)} aria-current={!showCompany && !pulse ? "page" : undefined}>
               Mi trabajo
             </Link>
-            <Link href="/pulse" className={tab(false)}>
+            <Link href="/?view=pulse" className={tab(pulse)} aria-current={pulse ? "page" : undefined}>
               Pulso del día
             </Link>
             {showCompany && (
@@ -100,7 +110,7 @@ export default async function HomePage({ searchParams }: Props) {
               </span>
             )}
           </nav>
-        )}
+        }
       </PageHeader>
       <div className="px-4 py-5 sm:px-6 sm:py-6">{body}</div>
     </>

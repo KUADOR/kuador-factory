@@ -193,11 +193,11 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
       </div>
 
       <Group
-        title="Columnas"
+        title="Pasos"
         description="Empieza en «Por empezar» y termina en «Terminado»."
         actions={
           <Button size="sm" icon={Plus} disabled={value.columns.length >= 12} onClick={() => setColumns([...value.columns, { key: "", name: "", category: "IN_PROGRESS" }])}>
-            Columna
+            Agregar paso
           </Button>
         }
       >
@@ -209,15 +209,15 @@ export function TemplateEditor({ value, onChange, isNew }: { value: WorkflowTemp
                 required
                 maxLength={40}
                 value={c.name}
-                aria-label={`Nombre de la columna ${i + 1}`}
+                aria-label={`Nombre del paso ${i + 1}`}
                 onChange={(e) => setColumns(value.columns.map((x, j) => (j === i ? { ...x, name: e.target.value, key: x.key && !isNew ? x.key : keyFromName(e.target.value) } : x)))}
               />
-              <code className="truncate font-mono text-[11px] text-fg-faint" title="Clave de la columna">
+              <code className="truncate font-mono text-[11px] text-fg-faint" title="Clave del paso">
                 {c.key || "—"}
               </code>
               <SelectInput
                 size="sm"
-                ariaLabel={`Categoría de ${c.name || `la columna ${i + 1}`}`}
+                ariaLabel={`Categoría de ${c.name || `el paso ${i + 1}`}`}
                 options={COLUMN_CATEGORIES.map((k) => ({ value: k, label: CATEGORY_LABEL[k], leading: <span aria-hidden className={`size-2 rounded-full ${CATEGORY_DOT[k]}`} /> }))}
                 value={c.category}
                 onChange={(category) => category && setColumns(value.columns.map((x, j) => (j === i ? { ...x, category } : x)))}

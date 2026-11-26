@@ -174,33 +174,33 @@ export async function revokeRunnerTokenAction(tokenId: string): Promise<ActionRe
 }
 
 export async function saveInboxAction(projectKey: string, id: string | null, input: MailInboxInput): Promise<ActionResult<MailInbox>> {
-  const path = `/projects/${projectKey}/settings/inbox`;
+  const path = `/projects/${projectKey}/settings/intake`;
   return run(() => (id ? boardApi.updateInbox(id, input) : boardApi.createInbox(projectKey, input)), path);
 }
 
 export async function deleteInboxAction(projectKey: string, id: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.deleteInbox(id), `/projects/${projectKey}/settings/inbox`);
+  return run(() => boardApi.deleteInbox(id), `/projects/${projectKey}/settings/intake`);
 }
 
 export async function checkInboxAction(projectKey: string, id: string): Promise<ActionResult<{ created: string[]; error: string | null }>> {
-  return run(() => boardApi.checkInbox(id), `/projects/${projectKey}/settings/inbox`);
+  return run(() => boardApi.checkInbox(id), `/projects/${projectKey}/settings/intake`);
 }
 
 export async function saveRoutineAction(projectKey: string, id: string | null, input: RoutineInput): Promise<ActionResult<Routine>> {
-  const path = `/projects/${projectKey}/settings/routines`;
+  const path = `/projects/${projectKey}/settings/intake`;
   return run(() => (id ? boardApi.updateRoutine(id, input) : boardApi.createRoutine(projectKey, input)), path);
 }
 
 export async function deleteRoutineAction(projectKey: string, id: string): Promise<ActionResult<void>> {
-  return run(() => boardApi.deleteRoutine(id), `/projects/${projectKey}/settings/routines`);
+  return run(() => boardApi.deleteRoutine(id), `/projects/${projectKey}/settings/intake`);
 }
 
 export async function runRoutineAction(projectKey: string, id: string): Promise<ActionResult<{ issueKey: string | null; skipped: string | null }>> {
-  return run(() => boardApi.runRoutine(id), `/projects/${projectKey}/settings/routines`);
+  return run(() => boardApi.runRoutine(id), `/projects/${projectKey}/settings/intake`);
 }
 
 export async function routineWebhookAction(projectKey: string, id: string): Promise<ActionResult<{ secret: string }>> {
-  return run(() => boardApi.routineWebhook(id), `/projects/${projectKey}/settings/routines`);
+  return run(() => boardApi.routineWebhook(id), `/projects/${projectKey}/settings/intake`);
 }
 
 export async function draftAskAction(projectKey: string, step: DraftStep, input: DraftInput, local: boolean): Promise<ActionResult<DraftJob>> {
@@ -771,7 +771,7 @@ export async function setupPiecesAction(projectKey: string, input: PiecesSetup):
 }
 
 export async function updatePieceAction(projectKey: string, name: string, input: PieceUpdate): Promise<ActionResult<ProjectPiece>> {
-  return run(() => boardApi.updatePiece(projectKey, name, input), `/projects/${projectKey}/settings/repository`);
+  return run(() => boardApi.updatePiece(projectKey, name, input), `/projects/${projectKey}/sync/setup`);
 }
 
 export async function addPieceAction(projectKey: string, piece: PieceInput, privateRepo: boolean): Promise<ActionResult<SetupResult>> {

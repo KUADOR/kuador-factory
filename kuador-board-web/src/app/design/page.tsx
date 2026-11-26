@@ -22,7 +22,7 @@ export default async function DesignPage() {
   const [roles, ai, connections] = data;
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <PageHeader title="Armar un tablero" />
+      <PageHeader title="Armar un tablero con IA" crumbs={[{ label: "Tableros", href: "/projects" }]} />
       <BoardDesigner
         roles={roles.map((r) => ({ key: r.key, name: r.name }))}
         systems={connections.map((c) => ({ key: c.key, name: c.name }))}

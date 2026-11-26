@@ -7,5 +7,10 @@ public interface ComponentRepository {
 
     List<ProjectComponent> findByProject(String projectKey);
 
+    /** Cuántas piezas salieron de esta plantilla (para no borrar una en uso). */
+    default long countByTemplate(String templateKey) {
+        return 0;
+    }
+
     void save(ProjectComponent component);
 }

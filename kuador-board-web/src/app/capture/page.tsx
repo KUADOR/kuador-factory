@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
+import { requireEditor } from "@/lib/require-editor";
 
 import { CaptureForm } from "./CaptureForm";
 
@@ -16,6 +17,7 @@ type Props = { searchParams: Promise<{ title?: string; text?: string; url?: stri
  * «Compartir → Kuador» del teléfono (llega con title, text y url).
  */
 export default async function CapturePage({ searchParams }: Props) {
+  await requireEditor();
   const { title, text, url, board } = await searchParams;
   let projects;
   try {

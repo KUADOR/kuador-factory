@@ -32,11 +32,14 @@ export function ProjectTabs({
     // El flujo de un vistazo: de dónde llega el trabajo, quién hace cada paso, a dónde va y qué sale.
     { href: `${base}/flow`, label: "Flujo" },
     ...(capabilities.includes("DOCUMENTS") && (documents || capabilities.includes("REPOSITORY")) ? [{ href: `${base}/docs`, label: "Documentos" }] : []),
-    ...(capabilities.includes("REPOSITORY") && canAdminister ? [{ href: `${base}/sync`, label: "Repositorio" }] : []),
+    // Sincronizar es de quien administra; quien edita entra directo a las piezas y el vínculo.
+    ...(capabilities.includes("REPOSITORY") && canEdit ? [{ href: `${base}/sync${canAdminister ? "" : "/setup"}`, label: "Repositorio", match: `${base}/sync` }] : []),
     // Tableros de ventas: los prospectos con su próxima acción, para el celular.
     ...(templateKey === "SALES" ? [{ href: `${base}/sales`, label: "En movimiento" }] : []),
+    // Quién está trabajando ahora mismo.
+    { href: `${base}/office`, label: "Oficina" },
     { href: `${base}/activity`, label: "Actividad" },
-    ...(canEdit ? [{ href: `${base}/settings`, label: "Ajustes" }] : []),
+    ...(canEdit ? [{ href: `${base}/settings`, label: "Configuración" }] : []),
   ];
   // Celular: la sección actual y, al tocar, todas; pestañas que no caben esconden «Configuración».
   if (variant === "picker")
@@ -48,7 +51,7 @@ export function ProjectTabs({
         className="-mb-px hidden gap-5 overflow-x-auto md:flex"
       >
         {tabs.map((t) => {
-          const active = t.exact ? path === t.href : path.startsWith(t.href);
+          const active = t.exact ? path === t.href : path.startsWith("match" in t && t.match ? t.match : t.href);
           return (
             <Link
               key={t.href}

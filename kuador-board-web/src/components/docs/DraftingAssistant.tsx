@@ -226,7 +226,7 @@ export function DraftingAssistant({
           {plan.repositories.length === 0 ? (
             <p className="text-[13px] text-fg-muted">
               Primero vincula el repositorio en{" "}
-              <Link href={`/projects/${projectKey}/settings/repository`} className="k-link">
+              <Link href={`/projects/${projectKey}/sync/setup`} className="k-link">
                 Piezas y repositorio
               </Link>
               .

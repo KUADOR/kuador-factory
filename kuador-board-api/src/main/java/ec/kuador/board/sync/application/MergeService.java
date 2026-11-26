@@ -70,7 +70,7 @@ public class MergeService {
     public Merged merge(String issueKey, String repository, int number, boolean approve, UUID actorId) {
         IssueApi.IssueContext card = issues.context(issueKey).orElseThrow(() -> new NotFoundException("No existe " + issueKey + "."));
         if (!issues.canApproveGate(issueKey, actorId)) {
-            throw new ForbiddenException("Fusiona quien aprueba la puerta en la que está " + issueKey + ".");
+            throw new ForbiddenException("Fusiona quien aprueba el paso en el que está " + issueKey + ".");
         }
         boolean mentions = code.pullRequests(card.projectKey(), issueKey).stream()
                 .anyMatch(p -> p.repository().equalsIgnoreCase(repository) && p.number() == number);

@@ -5,6 +5,7 @@ import { FileText } from "lucide-react";
 import { CreateDocButton } from "@/components/docs/CreateDocButton";
 import { Button } from "@/components/ui/Button";
 import { Badge, EmptyState, Section } from "@/components/ui/Section";
+import { canAdminister } from "@/lib/access";
 import { boardApi } from "@/lib/api";
 import { documentsOf } from "@/lib/labels";
 import { failPage } from "@/lib/page-errors";
@@ -38,11 +39,13 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
   const projectKey = (await params).key.toUpperCase();
   let data;
   try {
-    data = await Promise.all([boardApi.project(projectKey), boardApi.docsOverview(projectKey), boardApi.issues(projectKey)]);
+    data = await Promise.all([boardApi.project(projectKey), boardApi.docsOverview(projectKey), boardApi.issues(projectKey), boardApi.me().catch(() => null)]);
   } catch (e) {
     return failPage(e);
   }
-  const [project, overview, issues] = data;
+  const [project, overview, issues, me] = data;
+  // Sincronizar es de quien administra y solo existe con repositorio: a los demás el enlace los devolvía sin explicación.
+  const canSync = me != null && canAdminister(me) && project.capabilities.includes("REPOSITORY");
   const { methodology, documents } = overview;
   const settings = `/projects/${project.key}/settings`;
 
@@ -50,8 +53,8 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
         <EmptyState
-          title={project.capabilities.includes("REPOSITORY") ? "Este tablero aún no tiene metodología" : "Este tablero aún no tiene manual de trabajo"}
-          action={<Button href={`${settings}/methodology`} tone="primary" size="sm">{project.capabilities.includes("REPOSITORY") ? "Elegir metodología" : "Elegir manual"}</Button>}
+          title="Este tablero aún no tiene manual de trabajo"
+          action={<Button href={`${settings}/general#manual`} tone="primary" size="sm">Elegir manual de trabajo</Button>}
         />
       </div>
     );
@@ -71,14 +74,18 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
   return (
     <div className="flex flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       <p className="text-[13px] text-fg-muted">
-        Metodología <span className="font-medium text-fg-strong">{methodology.name}</span>.{" "}
-        <Link href={settings} className="k-link">
+        Manual de trabajo <span className="font-medium text-fg-strong">{methodology.name}</span>.{" "}
+        <Link href={`${settings}/general#manual`} className="k-link">
           Cambiar
         </Link>
-        {" · "}
-        <Link href={`/projects/${project.key}/sync`} className="k-link">
-          Sincronizar con el repositorio
-        </Link>
+        {canSync && (
+          <>
+            {" · "}
+            <Link href={`/projects/${project.key}/sync`} className="k-link">
+              Sincronizar con el repositorio
+            </Link>
+          </>
+        )}
       </p>
 
       <Section
@@ -143,7 +150,7 @@ export default async function ProjectDocsPage({ params }: PageProps<"/projects/[
 
       <Section
         title="De las tarjetas"
-        description={issueRules.map((r) => r.label).join(", ") || "Esta metodología no pide documentos por tarjeta."}
+        description={issueRules.map((r) => r.label).join(", ") || "Este manual de trabajo no pide documentos por tarjeta."}
         flush
       >
         {byIssue.size === 0 ? (

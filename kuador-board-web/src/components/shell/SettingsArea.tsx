@@ -40,7 +40,7 @@ export async function SettingsArea({ children }: { children: React.ReactNode }) 
         ...(localAgents.length ? [{ title: "Integraciones", items: localAgents }] : []),
       ];
   return (
-    <SectionLayout title="Configuración" nav={<SectionNav label="Configuración del espacio" pickerLabel="Configuración" groups={groups} />}>
+    <SectionLayout title={admin ? "Configuración" : "Equipo"} nav={<SectionNav label="Configuración del espacio" pickerLabel="Configuración" groups={groups} />}>
       {children}
     </SectionLayout>
   );

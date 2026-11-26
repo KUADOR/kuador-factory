@@ -9,7 +9,7 @@ function fieldLabel(field: string | null, project: Project): string {
     storyPoints: project.estimate === "HOURS" ? "las horas" : "los puntos",
     parent: `la ${parentLabel(project).toLowerCase()}`,
     labels: "las etiquetas",
-    reviewBy: "quién la revisa en las puertas",
+    reviewBy: "quién la revisa en las aprobaciones",
   };
   return labels[field ?? ""] ?? field ?? "";
 }

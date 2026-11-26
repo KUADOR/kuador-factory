@@ -162,6 +162,18 @@ class PlatformCatalogIT {
                 .as("se respeta lo que el espacio editó").isEqualTo("Nuestras reglas de marketing.");
         assertThat(call("GET", "/api/catalog/roles/MARKETING", null, untouched).get("body").get("instructions").asString())
                 .isEqualTo("Manual mejorado de marketing.");
+
+        // Cada espacio ve de dónde viene lo suyo: lo que tocó dejó de recibir actualizaciones y lo dice.
+        JsonNode mine = call("GET", "/api/catalog/roles/status", null, edited).get("body");
+        assertThat(mine.get("MARKETING").get("origin").asString()).isEqualTo("FACTORY_MODIFIED");
+        assertThat(mine.get("ANALYST").get("origin").asString()).isEqualTo("FACTORY");
+        assertThat(mine.get("ANALYST").get("usedBy").asLong()).as("el agente analista del espacio").isGreaterThanOrEqualTo(1);
+        assertThat(call("GET", "/api/catalog/roles/status", null, untouched).get("body").get("MARKETING").get("origin").asString()).isEqualTo("FACTORY");
+
+        // Lo que la plataforma quita queda en el espacio como retirado: ya no hay a qué restaurarlo y se puede eliminar.
+        assertThat(call("DELETE", "/api/platform/catalog/roles/COMMUNITY", null, admin).get("_status").asInt()).isLessThan(300);
+        assertThat(call("GET", "/api/catalog/roles/status", null, untouched).get("body").get("COMMUNITY").get("origin").asString()).isEqualTo("FACTORY_RETIRED");
+        assertThat(call("DELETE", "/api/catalog/roles/COMMUNITY", null, untouched).get("_status").asInt()).isEqualTo(204);
     }
 
     @Test

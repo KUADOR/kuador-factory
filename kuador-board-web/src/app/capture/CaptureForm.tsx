@@ -141,7 +141,7 @@ export function CaptureForm({ projects, initialText, initialBoard }: { projects:
           Mis decisiones
         </Link>
         <Button type="submit" tone="primary" icon={Send} loading={pending} disabled={!text.trim() || !project}>
-          Crear tarjeta
+          Capturar
         </Button>
       </div>
     </form>

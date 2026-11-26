@@ -105,8 +105,8 @@ export function IssueList({
         <div className="min-w-0 basis-[30%] flex-1 md:w-40 md:flex-none md:basis-auto">
           <SelectInput
             size="sm"
-            ariaLabel="Filtrar por columna"
-            placeholder="Todas las columnas"
+            ariaLabel="Filtrar por paso"
+            placeholder="Todos los pasos"
             options={project.columns.map((c) => ({ value: c.key, label: c.name }))}
             value={query.status ?? null}
             onChange={(v) => go({ status: v ?? undefined })}
@@ -152,7 +152,7 @@ export function IssueList({
             <tr>
               {sortable("key", "Clave", "w-24")}
               {sortable("title", "Título")}
-              {sortable("status", "Columna", "w-40")}
+              {sortable("status", "Paso", "w-40")}
               <th scope="col" className="w-44 px-3 py-2 font-medium">Responsable</th>
               {sortable("priority", "Prioridad", "w-28")}
               {sortable("updated", "Actualizada", "w-32")}

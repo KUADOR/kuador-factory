@@ -249,7 +249,7 @@ export function PiecesSetupForm({
   if (orgs.length === 0) {
     return (
       <p className="text-[13px] text-fg-muted">
-        Para crear repos, conecta una organización de GitHub en <a href="/connections" className="k-link">Conexiones</a>.
+        Para crear repos, conecta una organización de GitHub en <a href="/connections?ver=github" className="k-link">Conexiones</a>.
       </p>
     );
   }

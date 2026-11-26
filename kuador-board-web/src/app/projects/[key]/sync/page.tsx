@@ -20,7 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SyncPage({ params }: Props) {
   const projectKey = (await params).key.toUpperCase();
-  await requireAdmin(`/projects/${projectKey}`);
+  // Quien edita sin administrar no sincroniza, pero sí ve las piezas y el vínculo.
+  await requireAdmin(`/projects/${projectKey}/sync/setup`);
   let project, link;
   try {
     [project, link] = await Promise.all([boardApi.project(projectKey), boardApi.repository(projectKey)]);
@@ -28,11 +29,11 @@ export default async function SyncPage({ params }: Props) {
     return failPage(e);
   }
   const where = link.linked ? `github.com/${link.location} · rama ${link.branch}` : null;
-  const notReady = !link.linked ? "Vincula primero el repositorio" : !project.methodology ? "Elige primero la metodología" : null;
+  const notReady = !link.linked ? "Vincula primero el repositorio" : !project.methodology ? "Elige primero el manual de trabajo" : null;
   if (notReady) {
     return (
       <div className="max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
-        <EmptyState title={notReady} action={<Button href={`/projects/${project.key}/settings`} tone="primary" size="sm">Ir a configuración</Button>} />
+        <EmptyState title={notReady} action={<Button href={link.linked ? `/projects/${project.key}/settings/general#manual` : `/projects/${project.key}/sync/setup`} tone="primary" size="sm">{link.linked ? "Elegir manual de trabajo" : "Vincular repositorio"}</Button>} />
       </div>
     );
   }

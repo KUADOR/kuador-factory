@@ -47,7 +47,7 @@ final class StageWork extends IssueSupport {
         }
         List<String> pending = tasks.pendingDependencies(issue, project);
         if (!pending.isEmpty()) {
-            throw new ConflictException(issue.key() + " depende de " + String.join(", ", pending) + ", que todavía no pasó su revisión (llega a la última puerta del flujo).");
+            throw new ConflictException(issue.key() + " depende de " + String.join(", ", pending) + ", que todavía no pasó su revisión (llega a la última aprobación del flujo).");
         }
         Optional<StageDef> stage = project.stage(issue.status());
         if (tasks.inWorkColumn(issue)) {
@@ -83,7 +83,7 @@ final class StageWork extends IssueSupport {
         MemberView actor = requireMember(actorId);
         Optional<StageDef> stage = project.stage(issue.status());
         if (stage.isPresent() && stage.get().gate()) {
-            throw new DomainException("«" + columnName(project, issue.status()) + "» es una puerta: se aprueba o se rechaza.");
+            throw new DomainException("«" + columnName(project, issue.status()) + "» es un paso de aprobación: se aprueba o se rechaza.");
         }
         if (actor.agent() && !actorId.equals(issue.assigneeId())) {
             throw new ForbiddenException("Un agente solo entrega los issues que tomó.");
@@ -92,7 +92,7 @@ final class StageWork extends IssueSupport {
             return handOverInStage(issue, project, comment, actorId);
         }
         ColumnDef next = column != null ? requireColumn(project, column) : project.nextAfter(issue.status())
-                .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay una etapa siguiente permitida."));
+                .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay un paso siguiente permitido."));
         if (column != null && project.indexOf(next.key()) <= project.indexOf(issue.status())) {
             throw new DomainException("«" + next.name() + "» no está después de «" + columnName(project, issue.status()) + "».");
         }
@@ -116,18 +116,18 @@ final class StageWork extends IssueSupport {
         Issue issue = load(key);
         ProjectView project = project(issue.projectKey());
         StageDef gate = project.stage(issue.status()).filter(StageDef::gate)
-                .orElseThrow(() -> new DomainException("«" + columnName(project, issue.status()) + "» no es una puerta de aprobación."));
+                .orElseThrow(() -> new DomainException("«" + columnName(project, issue.status()) + "» no es un paso de aprobación."));
         MemberView person = gates.requireApprover(project, gate, actorId, issue);
         String target;
         if (approve) {
             evidence.requireEvidence(project, gate, issue);
             target = project.nextAfter(issue.status()).map(ColumnDef::key)
-                    .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay una etapa siguiente permitida."));
+                    .orElseThrow(() -> new DomainException("Desde «" + columnName(project, issue.status()) + "» no hay un paso siguiente permitido."));
             saveComment(issue, actorId, "**Aprobado** por " + person.name() + "." + (comment == null || comment.isBlank() ? "" : "\n\n" + comment.strip()), now());
         } else {
             if (comment == null || comment.isBlank()) throw new DomainException("Para rechazar, explica qué hay que corregir.");
             target = gate.rejectTo() != null ? gate.rejectTo() : previousColumn(project, issue.status())
-                    .orElseThrow(() -> new DomainException("No hay a qué etapa devolver el issue: configura «Rechazar a» en la puerta."));
+                    .orElseThrow(() -> new DomainException("No hay a qué paso devolver el issue: configura «Rechazar a» en el paso de aprobación."));
             saveComment(issue, actorId, "**Rechazado** por " + person.name() + ": " + comment.strip(), now());
         }
         return mover.move(key, target, Integer.MAX_VALUE, actorId);
@@ -188,7 +188,7 @@ final class StageWork extends IssueSupport {
         Issue issue = load(issueKey);
         ProjectView project = project(issue.projectKey());
         StageDef gate = project.stage(issue.status()).filter(StageDef::gate)
-                .orElseThrow(() -> new DomainException("«" + columnName(project, issue.status()) + "» no es una puerta de aprobación."));
+                .orElseThrow(() -> new DomainException("«" + columnName(project, issue.status()) + "» no es un paso de aprobación."));
         Instant now = now();
         MemberView person = gates.approverFor(issue, gate);
         saveComment(issue, agentId, "🔎 **Revisión para una persona** — " + person.name() + ", esta la decides tú:\n\n" + analysis.strip(), now);

@@ -71,7 +71,7 @@ public final class CatalogRules {
         text(m.summary(), "El resumen");
         if (m.agentRules() == null || m.agentRules().size() > 30) throw new DomainException("Indica hasta 30 reglas para agentes.");
         m.agentRules().forEach(r -> text(r, "Cada regla"));
-        if (m.documents() == null) throw new DomainException("Indica los documentos de la metodología (puede ser una lista vacía).");
+        if (m.documents() == null) throw new DomainException("Indica los documentos del manual de trabajo (puede ser una lista vacía).");
         Set<String> kinds = new HashSet<>();
         Set<String> paths = new HashSet<>();
         for (DocumentDef d : m.documents()) {

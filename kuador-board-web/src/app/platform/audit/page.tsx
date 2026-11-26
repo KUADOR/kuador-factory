@@ -7,7 +7,7 @@ import { boardApi } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Auditoría de la plataforma" };
+export const metadata: Metadata = { title: "Auditoría global" };
 
 /** Toda la plataforma: también los intentos sin espacio (logins fallidos) y lo que hace quien administra. */
 export default async function PlatformAuditPage({ searchParams }: { searchParams: Promise<{ ver?: string; q?: string; desde?: string; espacio?: string }> }) {
@@ -24,7 +24,7 @@ export default async function PlatformAuditPage({ searchParams }: { searchParams
   }
   return (
     <>
-      <PageHeader title="Auditoría" description="Lo que pasa en toda la plataforma, incluidos los intentos de acceso fallidos." />
+      <PageHeader title="Auditoría global" description="Lo que pasa en toda la plataforma, incluidos los intentos de acceso fallidos." />
       <PageBody>
         <AuditView key={JSON.stringify(params)} page={data.page} scope="platform" workspaces={data.names} />
       </PageBody>

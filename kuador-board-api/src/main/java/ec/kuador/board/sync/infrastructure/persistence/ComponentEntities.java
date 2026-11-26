@@ -86,6 +86,8 @@ class ComponentEntity {
 interface SpringDataComponents extends JpaRepository<ComponentEntity, UUID> {
 
     List<ComponentEntity> findByProjectKeyOrderByCreatedAtAsc(String projectKey);
+
+    long countByTemplateKey(String templateKey);
 }
 
 @Repository
@@ -100,6 +102,11 @@ class JpaComponentRepository implements ComponentRepository {
     @Override
     public List<ProjectComponent> findByProject(String projectKey) {
         return jpa.findByProjectKeyOrderByCreatedAtAsc(projectKey).stream().map(ComponentEntity::toDomain).toList();
+    }
+
+    @Override
+    public long countByTemplate(String templateKey) {
+        return jpa.countByTemplateKey(templateKey);
     }
 
     @Override

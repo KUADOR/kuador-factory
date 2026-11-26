@@ -66,5 +66,5 @@ final class Flow {
 
     static ColumnDef requireColumn(ProjectView project, String columnKey) {
         return project.column(columnKey).orElseThrow(() -> new DomainException(
-                "La columna " + columnKey + " no existe en el flujo de " + project.key() + "."));
+                "El paso " + columnKey + " no existe en el flujo de " + project.key() + "."));
     }}

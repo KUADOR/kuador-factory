@@ -118,7 +118,7 @@ final class EpicPlan extends IssueSupport {
         }
         if (comment == null || comment.isBlank()) throw new DomainException("Para pedir cambios al reparto, explica qué hay que cambiar.");
         String back = previousColumn(project, epic.status())
-                .orElseThrow(() -> new DomainException("No hay a qué etapa devolver la épica: revisa las transiciones del flujo."));
+                .orElseThrow(() -> new DomainException("No hay a qué paso devolver la épica: revisa las transiciones del flujo."));
         saveComment(epic, actorId, "**Cambios al reparto** pedidos por " + person.name() + ": " + comment.strip(), now());
         Issue moved = mover.move(epicKey, back, Integer.MAX_VALUE, actorId);
         // Vuelve a quien hizo el reparto (el agente que creó las tareas), si esa etapa la cubre su rol.

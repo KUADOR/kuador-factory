@@ -36,7 +36,7 @@ import { PiecesPlanForm, PiecesSetupForm } from "../settings/repository/Pieces";
 
 const STEPS: Record<StepId, { title: string; description: string }> = {
   ai: { title: "IA de la empresa", description: "El proveedor y la clave con la que trabajan tus agentes. El consumo va a tu cuenta." },
-  methodology: { title: "Metodología", description: "Qué documentos pide el proyecto y qué escribe cada agente." },
+  methodology: { title: "Manual de trabajo", description: "Qué documentos pide el proyecto y qué escribe cada agente." },
   pieces: { title: "Piezas", description: "De qué está hecho el proyecto: es la única fuente del stack." },
   docs: { title: "Documentos base", description: "Guían a los agentes desde el primer commit. Obligatorio antes del repo." },
   repository: { title: "Repositorio y piezas", description: "El tablero crea los repos con sus bases, o vinculas uno que ya existe." },
@@ -204,7 +204,7 @@ function RepositoryStep({
         <p className="text-[13px] text-fg">
           Vinculado a <code className="font-mono text-xs">{link.location}</code>
           {link.branch ? ` · rama ${link.branch}` : ""}.{" "}
-          <Link href={`/projects/${project.key}/settings/repository`} className="k-link">
+          <Link href={`/projects/${project.key}/sync/setup`} className="k-link">
             Piezas y repositorio
           </Link>
         </p>
@@ -221,7 +221,7 @@ function RepositoryStep({
         {github.connections.length === 0 && (
           <p className="text-xs text-fg-faint">
             Sin la app de GitHub en{" "}
-            <Link href="/connections" className="k-link">
+            <Link href="/connections?ver=github" className="k-link">
               Conexiones
             </Link>{" "}
             no llega el kit de agentes por PR.
@@ -237,7 +237,7 @@ function RepositoryStep({
       ) : (
         <p className="text-[13px] text-fg-muted">
           Conecta primero tu organización de GitHub en{" "}
-          <Link href="/connections" className="k-link">
+          <Link href="/connections?ver=github" className="k-link">
             Conexiones
           </Link>
           .
@@ -276,7 +276,7 @@ function DocsStep({ project, draft }: { project: Project; draft: DraftPlan | nul
           ))}
         </ul>
       ) : (
-        <p className="text-[13px] text-fg">{draft.goal ? draft.goal : "Sin metodología basta con el objetivo del tablero."}</p>
+        <p className="text-[13px] text-fg">{draft.goal ? draft.goal : "Sin manual de trabajo basta con el objetivo del tablero."}</p>
       )}
       {deployment && (
         <p className="flex items-center gap-2.5 text-[13px]">
@@ -321,7 +321,7 @@ function PiecesStep({
     return (
       <p className="text-[13px] text-fg">
         {existing && !linked ? "Las propone el agente al leer el repo." : "Ya están en el repo."}{" "}
-        <Link href={`/projects/${project.key}/${existing && !linked ? "setup?step=repository&origen=existente" : "settings/repository"}`} className="k-link">
+        <Link href={`/projects/${project.key}/${existing && !linked ? "setup?step=repository&origen=existente" : "sync/setup"}`} className="k-link">
           {existing && !linked ? "Vincular el repo" : "Piezas y repositorio"}
         </Link>
       </p>
@@ -466,7 +466,7 @@ function FirstRequest({ project, agents, aiReady }: { project: Project; agents: 
     return (
       <p className="text-[13px] text-fg-muted">
         Este tablero no tiene agentes.{" "}
-        <Link href={`/projects/${project.key}/settings/agents`} className="k-link">
+        <Link href={`/projects/${project.key}/settings/people#agentes`} className="k-link">
           Súmalos en Configuración → Equipo de agentes
         </Link>
         .

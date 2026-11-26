@@ -27,7 +27,7 @@ public final class Workflow {
      */
     public static List<ColumnDef> replace(List<ColumnDef> current, List<Draft> drafts, ToLongFunction<String> issuesIn) {
         if (drafts == null || drafts.isEmpty()) {
-            throw new DomainException("El flujo necesita al menos una columna.");
+            throw new DomainException("El flujo necesita al menos un paso.");
         }
         Set<String> currentKeys = new HashSet<>(current.stream().map(ColumnDef::key).toList());
         Set<String> used = new HashSet<>();
@@ -37,7 +37,7 @@ public final class Workflow {
             String key;
             if (d.key() != null) {
                 if (!currentKeys.contains(d.key())) {
-                    throw new DomainException("La columna " + d.key() + " no existe en este proyecto.");
+                    throw new DomainException("El paso " + d.key() + " no existe en este proyecto.");
                 }
                 key = d.key();
             } else {
@@ -52,7 +52,7 @@ public final class Workflow {
                 long count = issuesIn.applyAsLong(removed.key());
                 if (count > 0) {
                     throw new ConflictException("No se puede quitar «" + removed.name() + "»: tiene " + count
-                            + (count == 1 ? " issue. Muévelo" : " issues. Muévelos") + " primero a otra columna.");
+                            + (count == 1 ? " issue. Muévelo" : " issues. Muévelos") + " primero a otro paso.");
                 }
             }
         }

@@ -1,21 +1,24 @@
 "use client";
 
-import { ArrowDown, ArrowRight, CalendarClock, Lock, Mail, Pencil, Plug, Settings2, User, Webhook } from "lucide-react";
+import { ArrowDown, ArrowRight, CalendarClock, ListOrdered, Lock, Mail, Pencil, Plug, User, Webhook } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { clsx } from "clsx";
 
-import { setStagesAction, setTransitionsAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
-import { ChipPicker } from "@/components/ui/ChipPicker";
-import { Field, SelectInput, Switch, TextArea, TextInput } from "@/components/ui/Field";
 import { SidePanel } from "@/components/ui/SidePanel";
-import { notify } from "@/components/ui/Toaster";
-import type { MailInbox, Project, Routine, StageDef } from "@/lib/types";
+import type { MailInbox, Project, Routine } from "@/lib/types";
 
-type Option = { value: string; label: string };
+import { LoopBrake } from "./LoopBrake";
+import { MoveRules } from "./MoveRules";
+import { StepEditor, type Option } from "./StepEditor";
+import { StepsEditor } from "./StepsEditor";
 
+/**
+ * El flujo del tablero y el único lugar donde se cambia: los pasos (agregar, ordenar, quitar), cada paso (quién lo
+ * hace, quién aprueba, qué exige) y, al final, por dónde puede moverse una tarjeta.
+ */
 export function FlowView({
   project,
   counts,
@@ -24,6 +27,8 @@ export function FlowView({
   routines,
   connections,
   roleOptions,
+  humanRoleOptions,
+  documentOptions,
   roleName,
   canEdit,
 }: {
@@ -34,10 +39,14 @@ export function FlowView({
   routines: Routine[];
   connections: { key: string; name: string; roles: string[]; writes: string[] }[];
   roleOptions: Option[];
+  humanRoleOptions: Option[];
+  documentOptions: Option[];
   roleName: Record<string, string>;
   canEdit: boolean;
 }) {
+  const router = useRouter();
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingSteps, setEditingSteps] = useState(false);
   const columns = project.columns;
   const stageOf = (key: string) => project.stages.find((s) => s.column === key);
   const base = `/projects/${project.key}`;
@@ -61,8 +70,8 @@ export function FlowView({
   };
 
   const entries = [
-    ...inboxes.map((b) => ({ icon: Mail, title: b.connectionName, detail: [b.enabled ? null : "en pausa", b.fromFilter ? `de ${b.fromFilter}` : null, b.onlyAttachments ? "con adjuntos" : null].filter(Boolean).join(" · ") || "cada correo nuevo", href: `${base}/settings/inbox` })),
-    ...routines.map((r) => ({ icon: r.webhook ? Webhook : CalendarClock, title: r.title, detail: r.enabled ? r.schedule : "en pausa", href: `${base}/settings/routines` })),
+    ...inboxes.map((b) => ({ icon: Mail, title: b.connectionName, detail: [b.enabled ? null : "en pausa", b.fromFilter ? `de ${b.fromFilter}` : null, b.onlyAttachments ? "con adjuntos" : null].filter(Boolean).join(" · ") || "cada correo nuevo", href: `${base}/settings/intake#correo` })),
+    ...routines.map((r) => ({ icon: r.webhook ? Webhook : CalendarClock, title: r.title, detail: r.enabled ? r.schedule : "en pausa", href: `${base}/settings/intake#rutinas` })),
   ];
   const outputs = connections.flatMap((c) => c.writes.map((w) => ({ name: w, system: c.name })));
 
@@ -74,7 +83,7 @@ export function FlowView({
           <p className="text-[13px] text-fg-faint">
             El trabajo entra a mano.{" "}
             {canEdit && (
-              <Link href={`${base}/settings/inbox`} className="k-link">
+              <Link href={`${base}/settings/intake#correo`} className="k-link">
                 Recibir correos como tarjetas
               </Link>
             )}
@@ -95,7 +104,14 @@ export function FlowView({
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-xs font-medium text-fg-muted">Pasos</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xs font-medium text-fg-muted">Pasos</h2>
+          {canEdit && (
+            <Button size="sm" tone="ghost" icon={ListOrdered} onClick={() => setEditingSteps(true)}>
+              Agregar, ordenar o quitar pasos
+            </Button>
+          )}
+        </div>
         <ol className="flex flex-col gap-1 lg:flex-row lg:items-stretch lg:gap-0 lg:overflow-x-auto lg:pb-2">
           {columns.map((c, i) => {
             const st = stageOf(c.key);
@@ -188,14 +204,18 @@ export function FlowView({
       </section>
 
       {canEdit && (
-        <p className="text-xs text-fg-faint">
-          Para agregar, quitar u ordenar pasos:{" "}
-          <Link href={`${base}/settings/columns`} className="k-link">
-            <Settings2 className="mr-0.5 inline size-3" aria-hidden />
-            Pasos y responsables
-          </Link>
-          .
-        </p>
+        <section className="flex flex-col gap-2">
+          <h2 className="text-xs font-medium text-fg-muted">Reglas de movimiento</h2>
+          <details className="group">
+            <summary className="cursor-pointer text-[13px] text-fg-muted hover:text-fg-strong">
+              {project.transitions.restricted ? "Las tarjetas solo se mueven por los caminos fijados." : "Las tarjetas se mueven libremente entre pasos."} <span className="k-link">Cambiar</span>
+            </summary>
+            <div className="mt-3 flex max-w-4xl flex-col gap-4">
+              <MoveRules project={project} />
+              <LoopBrake project={project} />
+            </div>
+          </details>
+        </section>
       )}
 
       <SidePanel open={editing != null} onClose={() => setEditing(null)} width="narrow" title={columns.find((c) => c.key === editing)?.name ?? "Paso"}>
@@ -205,121 +225,24 @@ export function FlowView({
             project={project}
             column={editing}
             roleOptions={roleOptions}
+            humanRoleOptions={humanRoleOptions}
+            documentOptions={documentOptions}
             onDone={() => setEditing(null)}
           />
         )}
       </SidePanel>
+      <SidePanel open={editingSteps} onClose={() => setEditingSteps(false)} title="Pasos del tablero">
+        {editingSteps && (
+          <StepsEditor
+            project={project}
+            counts={counts}
+            onSaved={() => {
+              setEditingSteps(false);
+              router.refresh();
+            }}
+          />
+        )}
+      </SidePanel>
     </div>
-  );
-}
-
-/** Editar un paso desde el flujo: quién lo hace, si es una aprobación, qué hace el agente y qué se comprueba. */
-function StepEditor({ project, column, roleOptions, onDone }: { project: Project; column: string; roleOptions: Option[]; onDone: () => void }) {
-  const router = useRouter();
-  const current = project.stages.find((s) => s.column === column);
-  const [roles, setRoles] = useState<string[]>(current?.roles ?? []);
-  const [gate, setGate] = useState(current?.gate ?? false);
-  const [instructions, setInstructions] = useState(current?.instructions ?? "");
-  const [checklist, setChecklist] = useState((current?.checklist ?? []).join("\n"));
-  // Las decisiones del paso: «si …» → otro paso (adelante o atrás).
-  const [paths, setPaths] = useState<{ when: string; to: string }[]>(
-    project.transitions.allowed.filter((t) => t.from === column && t.when).map((t) => ({ when: t.when ?? "", to: t.to })),
-  );
-  const [pending, start] = useTransition();
-  const targets = project.columns.filter((c) => c.key !== column).map((c) => ({ value: c.key, label: c.name }));
-
-  const save = () =>
-    start(async () => {
-      const edited: StageDef = {
-        column,
-        roles: gate ? [] : roles,
-        gate,
-        approvers: current?.approvers ?? [],
-        rejectTo: current?.rejectTo ?? null,
-        review: gate ? (current?.review ?? null) : null,
-        autoPlan: gate ? false : (current?.autoPlan ?? false),
-        checklist: checklist.split("\n").map((x) => x.trim()).filter(Boolean),
-        requires: gate ? [] : (current?.requires ?? []),
-        instructions: gate || roles.length === 0 ? null : instructions.trim() || null,
-        epicFirst: gate ? [] : (current?.epicFirst ?? []),
-      };
-      const others = project.stages.filter((s) => s.column !== column);
-      const meaningful = edited.gate || edited.roles.length > 0 || (edited.checklist ?? []).length > 0 || (edited.requires ?? []).length > 0;
-      const r = await setStagesAction(project.key, meaningful ? [...others, edited] : others, project.maxRework);
-      if (!r.ok) {
-        notify.error("No se pudo guardar", r.error);
-        return;
-      }
-      // Los caminos de este paso: se reemplazan las decisiones que salen de aquí; lo demás queda igual.
-      const clean = paths.map((p) => ({ from: column, to: p.to, when: p.when.trim() })).filter((p) => p.to && p.when);
-      const before = project.transitions.allowed;
-      const changed = JSON.stringify(before.filter((t) => t.from === column && t.when).map((t) => [t.to, t.when])) !== JSON.stringify(clean.map((p) => [p.to, p.when]));
-      if (changed) {
-        const kept = before.filter((t) => !(t.from === column && (t.when || clean.some((p) => p.to === t.to))));
-        const t = await setTransitionsAction(project.key, { restricted: project.transitions.restricted, allowed: [...kept, ...clean] });
-        if (!t.ok) {
-          notify.error("No se pudieron guardar los caminos", t.error);
-          return;
-        }
-      }
-      notify.ok("Paso guardado");
-      onDone();
-      router.refresh();
-    });
-
-  return (
-    <form className="flex flex-col gap-4 p-5" onSubmit={(e) => { e.preventDefault(); save(); }}>
-      <Switch checked={gate} onChange={setGate} label="Aquí aprueba una persona antes de seguir" />
-      {!gate && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-fg-muted">Quién lo hace</span>
-          <ChipPicker value={roles} options={roleOptions} onChange={setRoles} placeholder="Agregar responsable…" ariaLabel="Quién hace este paso" empty="una persona del equipo" />
-        </div>
-      )}
-      {!gate && roles.length > 0 && (
-        <Field label="Qué hace el agente en este paso" hint="Qué mirar, qué sistema usar y con qué criterio decide. A dónde va según el resultado se define abajo, en los caminos.">
-          {(id) => <TextArea id={id} rows={7} maxLength={3000} value={instructions} onChange={(e) => setInstructions(e.target.value)} />}
-        </Field>
-      )}
-      {!gate && (
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium text-fg-muted">Caminos según el resultado</span>
-          <span className="text-xs text-fg-faint">Si no se cumple ninguno, sigue al paso siguiente. Puede ir a un paso posterior o volver a uno anterior.</span>
-          {paths.map((p, idx) => (
-            <div key={idx} className="flex flex-wrap items-center gap-2">
-              <TextInput
-                aria-label="Condición"
-                className="min-w-40 flex-1"
-                maxLength={200}
-                placeholder="si algo no coincide"
-                value={p.when}
-                onChange={(e) => setPaths((all) => all.map((x, j) => (j === idx ? { ...x, when: e.target.value } : x)))}
-              />
-              <span className="text-xs text-fg-muted">→</span>
-              <div className="w-44">
-                <SelectInput ariaLabel="A qué paso va" value={p.to || null} options={targets} placeholder="Elige el paso"
-                  onChange={(to) => setPaths((all) => all.map((x, j) => (j === idx ? { ...x, to: to ?? "" } : x)))} />
-              </div>
-              <Button size="sm" tone="ghost" onClick={() => setPaths((all) => all.filter((_, j) => j !== idx))}>
-                Quitar
-              </Button>
-            </div>
-          ))}
-          <div>
-            <Button size="sm" onClick={() => setPaths((all) => [...all, { when: "", to: "" }])}>
-              Agregar camino
-            </Button>
-          </div>
-        </div>
-      )}
-      <Field label={gate ? "Qué comprueba quien aprueba (uno por línea)" : "Qué se comprueba antes de entregar (uno por línea)"}>
-        {(id) => <TextArea id={id} rows={3} value={checklist} onChange={(e) => setChecklist(e.target.value)} />}
-      </Field>
-      <div className="flex justify-end">
-        <Button type="submit" tone="primary" loading={pending}>
-          Guardar paso
-        </Button>
-      </div>
-    </form>
   );
 }

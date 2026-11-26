@@ -50,7 +50,7 @@ final class IssueMover extends IssueSupport {
             List<String> targets = project.transitions().targets(from, project.columns()).stream()
                     .map(k -> project.column(k).map(ColumnDef::name).orElse(k)).toList();
             throw new DomainException("El flujo no permite pasar de «" + fromName + "» a «" + to.name() + "»."
-                    + (targets.isEmpty() ? " Desde esa columna no hay salidas configuradas." : " Desde ahí se puede ir a: " + String.join(", ", targets) + "."));
+                    + (targets.isEmpty() ? " Desde ese paso no hay salidas configuradas." : " Desde ahí se puede ir a: " + String.join(", ", targets) + "."));
         }
         Optional<StageDef> fromStage = from.equals(target) ? Optional.empty() : project.stage(from);
         if (fromStage.isPresent() && fromStage.get().gate() && !byRule) {

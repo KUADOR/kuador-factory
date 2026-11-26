@@ -15,6 +15,14 @@ test("un proyecto se configura una vez en Organización y su tablero lo usa", as
   await expect(page.getByRole("heading", { name: `Reservas ${letters}` })).toBeVisible();
   await expect(page.getByText("Ningún tablero lo trabaja todavía.")).toBeVisible();
 
+  // Sin tableros ya se elige su manual; sus documentos esperan a un tablero que los use (sin error).
+  await page.getByText("ODD", { exact: true }).click();
+  await page.getByRole("button", { name: "Guardar metodología" }).click();
+  await expect(page.getByRole("button", { name: "Guardar metodología" })).toBeDisabled();
+  await expect(page.getByRole("link", { name: "Ir a los documentos" })).toHaveCount(0);
+  await page.goto(`${new URL(page.url()).pathname}/docs`);
+  await expect(page.getByText("Ningún tablero trabaja este proyecto con sus documentos todavía.")).toBeVisible();
+
   // El manual se elige en el proyecto y vale en su tablero.
   await page.goto(`/org/projects/${gym.key}`);
   await expect(page.getByText("Lo usan Desarrollo gimnasio.")).toBeVisible();

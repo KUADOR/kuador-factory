@@ -4,6 +4,8 @@ import { DraftingAssistant } from "@/components/docs/DraftingAssistant";
 import { PageBody } from "@/components/shell/PageHeader";
 import { boardApi, projectScope } from "@/lib/api";
 import { failPage } from "@/lib/page-errors";
+import { NoDocumentsBoard } from "@/components/org/NoDocumentsBoard";
+import { subjectHosts } from "@/lib/subject-hosts";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Redactar con IA" };
@@ -12,6 +14,8 @@ export const metadata: Metadata = { title: "Redactar con IA" };
 export default async function OrgProjectDraftPage({ params, searchParams }: PageProps<"/org/projects/[key]/docs/draft">) {
   const key = (await params).key.toUpperCase();
   const { origen } = await searchParams;
+  const [subjectInfo, boards] = await Promise.all([boardApi.subject(key), boardApi.projects()]).catch(() => [null, []] as const);
+  if (subjectInfo && subjectHosts(subjectInfo, [...boards]).documents.length === 0) return <NoDocumentsBoard />;
   let data;
   try {
     data = await Promise.all([boardApi.draftPlan(projectScope(key)), boardApi.runnerMachines().catch(() => []), boardApi.me()]);

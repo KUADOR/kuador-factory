@@ -11,5 +11,7 @@ export function failPage(error: unknown): React.ReactElement {
   if (error instanceof ApiError && error.status === 401) redirect("/login");
   // Una ruta que la API todavía no tiene (web más nueva que la API) no es «no encontrado»: se explica.
   if (error instanceof ApiError && error.status === 404 && !error.message.startsWith("Esta función todavía no está")) notFound();
-  return <ApiDown message={error instanceof Error ? error.message : String(error)} />;
+  // La API respondió con una regla (409, 422…): se explica sin culpar a la conexión.
+  const refused = error instanceof ApiError && error.status >= 400 && error.status < 500;
+  return <ApiDown message={error instanceof Error ? error.message : String(error)} refused={refused} />;
 }

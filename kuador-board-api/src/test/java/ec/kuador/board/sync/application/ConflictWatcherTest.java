@@ -39,16 +39,17 @@ class ConflictWatcherTest {
         return new CodeReviewApi.PullSummary("acme/kua", n, title, branch, base, state, false, "agente", null, null, null);
     }
 
-    private final List<CodeReviewApi.PullSummary> pulls = List.of(
+    private final List<CodeReviewApi.PullSummary> pulls = new ArrayList<>(List.of(
             pr(7, "KUA-1 Login", "feature/KUA-1-login", "develop", "closed"),
             pr(8, "Pantalla de pagos", "feature/kua-2-pagos", "develop", "open"),
             pr(9, "KUA-3 Reportes", "feature/KUA-3-reportes", "develop", "open"),
             pr(10, "KUA-4 Hotfix", "hotfix/KUA-4", "main", "open"),
-            pr(11, "OTRO-5 De otro tablero", "feature/OTRO-5", "develop", "open"));
+            pr(11, "OTRO-5 De otro tablero", "feature/OTRO-5", "develop", "open")));
 
     private ConflictWatcher watcher() {
         CodeReviewApi code = new CodeReviewApi() {
-            public List<String> repositories(String p) { return List.of("acme/kua"); }
+            // SOP trabaja el mismo proyecto (comparte el repositorio); OTRO, otro proyecto con otro repositorio.
+            public List<String> repositories(String p) { return List.of(p.equals("OTRO") ? "acme/otro" : "acme/kua"); }
 
             public List<PullSummary> pullRequests(String p, String search) { return pulls; }
 
@@ -128,6 +129,19 @@ class ConflictWatcherTest {
         assertThat(returned).singleElement().satisfies(r -> {
             assertThat(r).startsWith("KUA-2|").contains("acme/kua #8", "«develop»", "#7");
         });
+    }
+
+    @Test
+    void unTableroQueComparteProyectoYRepositorioTambienRecibeSusConflictos() {
+        pulls.add(pr(12, "SOP-6 Desde soporte", "feature/SOP-6", "develop", "open"));
+        mergeable.put(8, new ArrayDeque<>(List.of(Optional.of(true))));
+        mergeable.put(9, new ArrayDeque<>(List.of(Optional.of(true))));
+        mergeable.put(11, new ArrayDeque<>(List.of(Optional.of(true))));
+        mergeable.put(12, new ArrayDeque<>(List.of(Optional.of(false))));
+
+        watcher().check(new PullMerged(TestTenant.WORKSPACE, "KUA", "acme/kua", 7, OWNER));
+
+        assertThat(returned).singleElement().satisfies(r -> assertThat(r).startsWith("SOP-6|").contains("acme/kua #12"));
     }
 
     @Test

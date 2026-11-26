@@ -6,10 +6,11 @@ export const PROJECT_KINDS = ["SOFTWARE", "GENERAL"] as const;
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
 
 /**
- * Lo que un tablero sabe hacer además del flujo: DOCUMENTS (manual de trabajo y documentos con versiones), REPOSITORY
- * (repositorio de código: piezas, PR, CI) y SPLIT (repartir una tarjeta grande en tareas).
+ * Lo que un tablero sabe hacer además del flujo: DOCUMENTS (documentos con versiones), PROJECT_DOCS (usa el manual y los
+ * documentos base de sus proyectos), REPOSITORY (repositorio de código: piezas, PR, CI) y SPLIT (repartir una tarjeta grande
+ * en tareas).
  */
-export const CAPABILITIES = ["DOCUMENTS", "REPOSITORY", "SPLIT"] as const;
+export const CAPABILITIES = ["DOCUMENTS", "PROJECT_DOCS", "REPOSITORY", "SPLIT"] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
 export const COLUMN_CATEGORIES = ["TODO", "IN_PROGRESS", "DONE"] as const;
@@ -414,6 +415,32 @@ export interface Project {
   estimate: EstimateUnit;
   /** Los proyectos que atiende el tablero, en su orden (con una API anterior a esta web no viene). */
   subjects?: Subject[];
+  /** El equipo que atiende el tablero (con una API anterior a esta web no viene). */
+  team?: TeamRef | null;
+}
+
+export interface TeamRef {
+  id: string;
+  name: string;
+}
+
+/** Alguien de un equipo: una persona o un agente. */
+export interface TeamPerson {
+  id: string;
+  name: string;
+  role: string;
+  avatarColor: string;
+  agent: boolean;
+}
+
+/** Un equipo del espacio: las personas y los agentes que atienden uno o varios tableros. */
+export interface Team {
+  id: string;
+  name: string;
+  createdAt: string;
+  members: TeamPerson[];
+  /** Los tableros que atiende (solo los que puede ver quien pide). */
+  boards: string[];
 }
 
 /**
@@ -434,6 +461,8 @@ export interface SubjectListing {
   description: string | null;
   createdAt: string;
   boards: string[];
+  /** Su manual de trabajo (vale en los tableros que usan los documentos del proyecto). */
+  methodology?: string | null;
 }
 
 /**

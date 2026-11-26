@@ -15,18 +15,24 @@ import org.springframework.stereotype.Repository;
 
 interface SpringDataRepositoryLinks extends JpaRepository<RepositoryLinkEntity, UUID> {
 
-    Optional<RepositoryLinkEntity> findByProjectKeyAndSubjectKey(String projectKey, String subjectKey);
+    Optional<RepositoryLinkEntity> findBySubjectKey(String subjectKey);
 
-    List<RepositoryLinkEntity> findByProjectKeyOrderByLinkedAt(String projectKey);
+    /** Los repositorios de los proyectos que atiende un tablero (el espacio lo filtra la consulta: es SQL directo). */
+    @org.springframework.data.jpa.repository.Query(nativeQuery = true, value = """
+            select r.* from project_repository r
+              join board_subject b on b.workspace_id = r.workspace_id and b.subject_key = r.subject_key
+             where r.workspace_id = :workspaceId and b.project_key = :projectKey
+             order by b.position, b.added_at, r.linked_at""")
+    List<RepositoryLinkEntity> findOfBoard(UUID workspaceId, String projectKey);
 }
 
 interface SpringDataSyncRecords extends JpaRepository<SyncRecordEntity, UUID> {}
 
 interface SpringDataPullRequests extends JpaRepository<PullRequestEntity, UUID> {
 
-    List<PullRequestEntity> findByProjectKeyAndSubjectKeyAndStateOrderByCreatedAtDesc(String projectKey, String subjectKey, PullRequestState state);
+    List<PullRequestEntity> findBySubjectKeyAndStateOrderByCreatedAtDesc(String subjectKey, PullRequestState state);
 
-    void deleteByProjectKeyAndSubjectKey(String projectKey, String subjectKey);
+    void deleteBySubjectKey(String subjectKey);
 }
 
 @Repository
@@ -44,7 +50,7 @@ class JpaSyncRecordRepository implements SyncRecordRepository {
 
     @Override
     public List<ExportPullRequest> findOpenPullRequests(String projectKey, String subjectKey) {
-        return pullRequests.findByProjectKeyAndSubjectKeyAndStateOrderByCreatedAtDesc(projectKey, subjectKey, PullRequestState.OPEN).stream()
+        return pullRequests.findBySubjectKeyAndStateOrderByCreatedAtDesc(subjectKey, PullRequestState.OPEN).stream()
                 .map(PullRequestEntity::toDomain).toList();
     }
 
@@ -55,23 +61,23 @@ class JpaSyncRecordRepository implements SyncRecordRepository {
 
     @Override
     public void deletePullRequests(String projectKey, String subjectKey) {
-        pullRequests.deleteByProjectKeyAndSubjectKey(projectKey, subjectKey);
+        pullRequests.deleteBySubjectKey(subjectKey);
     }
 
     @Override
     public Optional<RepositoryLink> findLink(String projectKey, String subjectKey) {
-        return links.findByProjectKeyAndSubjectKey(projectKey, subjectKey).map(RepositoryLinkEntity::toDomain);
+        return links.findBySubjectKey(subjectKey).map(RepositoryLinkEntity::toDomain);
     }
 
     @Override
     public List<RepositoryLink> findLinks(String projectKey) {
-        return links.findByProjectKeyOrderByLinkedAt(projectKey).stream().map(RepositoryLinkEntity::toDomain).toList();
+        return links.findOfBoard(ec.kuador.board.shared.tenant.TenantContext.require(), projectKey).stream().map(RepositoryLinkEntity::toDomain).toList();
     }
 
-    // Un vínculo por proyecto del tablero: guardar reemplaza al anterior.
+    // Un vínculo por proyecto (lo comparten sus tableros): guardar reemplaza al anterior.
     @Override
     public void saveLink(RepositoryLink link, String subjectKey) {
-        links.findByProjectKeyAndSubjectKey(link.projectKey(), subjectKey).ifPresent(existing -> {
+        links.findBySubjectKey(subjectKey).ifPresent(existing -> {
             links.delete(existing);
             links.flush();
         });
@@ -80,7 +86,7 @@ class JpaSyncRecordRepository implements SyncRecordRepository {
 
     @Override
     public void deleteLink(String projectKey, String subjectKey) {
-        links.findByProjectKeyAndSubjectKey(projectKey, subjectKey).ifPresent(links::delete);
+        links.findBySubjectKey(subjectKey).ifPresent(links::delete);
     }
 
     @Override

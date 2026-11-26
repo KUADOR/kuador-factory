@@ -34,7 +34,7 @@ type Props = {
   projects: Project[];
 };
 
-/** Equipo del espacio: personas y agentes en listas; el detalle de cada uno se abre al costado. */
+/** Miembros del espacio: personas y agentes en listas; el detalle de cada uno se abre al costado. */
 export function TeamView({ members, accounts, tokens, status, runs, roles, invitations, projects }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -50,7 +50,7 @@ export function TeamView({ members, accounts, tokens, status, runs, roles, invit
   return (
     <>
       <PageHeader
-        title="Equipo"
+        title="Miembros"
         actions={
           canAdminister && (
             <Button tone="primary" size="sm" icon={Plus} onClick={() => setAdding(true)}>

@@ -122,6 +122,17 @@ class BoardTeamController {
         return team.remove(key.toUpperCase(), memberId);
     }
 
+    /** Los agentes del espacio y si están en el equipo (Organización → Equipos). */
+    @GetMapping("/api/teams/{teamId}/agents")
+    List<BoardTeam.TeamAgent> teamAgents(@PathVariable UUID teamId) {
+        return team.teamAgents(teamId);
+    }
+
+    @PostMapping("/api/teams/{teamId}/agents")
+    List<BoardTeam.TeamAgent> createInTeam(@PathVariable UUID teamId, @Valid @RequestBody CreateRequest r) {
+        return team.createInTeam(teamId, r.name(), r.role(), r.description(), r.mode(), r.model());
+    }
+
     @PutMapping("/api/agents/{memberId}/profile")
     BoardTeam.TeamAgent profile(@PathVariable UUID memberId, @Valid @RequestBody ProfileRequest r) {
         return team.setProfile(memberId, r.mode(), r.model(), r.effort());

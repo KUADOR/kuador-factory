@@ -54,6 +54,13 @@ class BoardAccessInterceptor implements HandlerInterceptor {
         if (!who.agent() && who.access().administers()) return true;
         BoardScope.set(who.agent() ? projects.agentBoardsOf(who.memberId()) : projects.boardsOf(who.memberId()));
         String path = request.getRequestURI().substring(request.getContextPath().length());
+        // Un documento base es del proyecto: se llega a él por cualquiera de los tableros que lo trabajan con documentos.
+        Matcher doc = DOC.matcher(path);
+        if (doc.matches()) {
+            java.util.List<String> boards = uuid(doc.group(1)).map(docs::accessBoards).orElse(java.util.List.of());
+            if (boards.stream().noneMatch(BoardScope::allows)) throw new NotFoundException("No existe el documento.");
+            return true;
+        }
         target(path).ifPresent(key -> {
             if (!BoardScope.allows(key)) throw new NotFoundException("No existe el proyecto " + key + ".");
         });

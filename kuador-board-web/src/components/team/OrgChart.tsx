@@ -277,8 +277,8 @@ function BoardFlows({ projects, agents, roleNames }: { projects: Project[]; agen
           Flujo
         </Link>{" "}
         y{" "}
-        <Link href={`/projects/${project.key}/settings/people#agentes`} className="k-link">
-          Equipo de agentes
+        <Link href={project.team ? `/org/teams?equipo=${project.team.id}` : "/org/teams"} className="k-link">
+          su equipo
         </Link>
         .
       </p>

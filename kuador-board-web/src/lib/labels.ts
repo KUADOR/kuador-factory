@@ -103,7 +103,8 @@ export const MODEL_LABEL: Record<string, string> = {
 
 /** Lo que un tablero puede usar, con palabras de quien lo configura. */
 export const CAPABILITY_LABEL: Record<Capability, { label: string; hint: string }> = {
-  DOCUMENTS: { label: "Documentos", hint: "Manual de trabajo y documentos con versiones." },
+  DOCUMENTS: { label: "Documentos", hint: "Documentos con versiones en cada tarjeta." },
+  PROJECT_DOCS: { label: "Documentos del proyecto", hint: "Usa el manual de trabajo y los documentos base de sus proyectos." },
   REPOSITORY: { label: "Repositorio de código", hint: "Piezas, Pull Requests y CI en GitHub." },
   SPLIT: { label: "Reparto en tareas", hint: "Un trabajo grande se divide en tareas con responsable." },
 };

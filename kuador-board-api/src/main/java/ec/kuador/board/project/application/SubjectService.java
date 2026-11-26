@@ -36,12 +36,17 @@ public class SubjectService {
         this.clock = clock;
     }
 
-    /** Un proyecto y los tableros que lo atienden (solo los que puede ver quien pide). */
-    public record SubjectWithBoards(Subject subject, List<String> boards) {}
+    /** Un proyecto, su manual de trabajo y los tableros que lo atienden (solo los que puede ver quien pide). */
+    public record SubjectWithBoards(Subject subject, List<String> boards, String methodology) {}
 
     @Transactional(readOnly = true)
     public List<SubjectWithBoards> list() {
         return subjects.findAll().stream().map(this::withBoards).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public SubjectWithBoards get(String key) {
+        return withBoards(load(key));
     }
 
     @Transactional
@@ -82,7 +87,7 @@ public class SubjectService {
     public List<SubjectView> addToBoard(String projectKey, String subjectKey) {
         Project board = board(projectKey);
         ensureOwn(board);
-        subjects.link(board.key(), load(subjectKey).key(), board.methodology());
+        subjects.link(board.key(), load(subjectKey).key());
         return ofBoard(board.key());
     }
 
@@ -91,7 +96,7 @@ public class SubjectService {
     public List<SubjectView> createInBoard(String projectKey, String key, String name, String description) {
         Project board = board(projectKey);
         ensureOwn(board);
-        subjects.link(board.key(), insert(key, name, description).key(), board.methodology());
+        subjects.link(board.key(), insert(key, name, description).key());
         return ofBoard(board.key());
     }
 
@@ -111,6 +116,7 @@ public class SubjectService {
         subjects.unlink(board.key(), subject.key());
         // El manual del tablero es el de su primer proyecto: si se fue el primero, vale el del que queda.
         String first = subjects.ofBoard(board.key()).getFirst().methodology();
+        if (!board.can(ec.kuador.board.catalog.Capability.PROJECT_DOCS)) first = null;
         if (!java.util.Objects.equals(first, board.methodology())) projects.updateMethodology(board.key(), first);
         return ofBoard(board.key());
     }
@@ -126,7 +132,7 @@ public class SubjectService {
             ensureOwn(board);
             return;
         }
-        for (String k : wanted) subjects.link(board.key(), load(k).key(), board.methodology());
+        for (String k : wanted) subjects.link(board.key(), load(k).key());
     }
 
     /** Un tablero sin proyectos guardados queda con el suyo antes de sumarle otro. */
@@ -134,20 +140,54 @@ public class SubjectService {
         if (!subjects.ofBoard(board.key()).isEmpty()) return;
         if (subjects.findByKey(board.key()).isEmpty()) {
             subjects.insert(new Subject(java.util.UUID.randomUUID(), board.key(), board.name(), clip(board.description()), clock.instant()));
+            if (board.methodology() != null) subjects.setMethodology(board.key(), board.methodology());
         }
-        subjects.link(board.key(), board.key(), board.methodology());
+        subjects.link(board.key(), board.key());
     }
 
     /**
-     * Elige el manual de trabajo con que el tablero trabaja un proyecto. El del primer proyecto es también el del tablero
-     * (el que reciben los proyectos que se sumen después).
+     * El manual de trabajo de un proyecto: es del proyecto y vale en todos los tableros que lo trabajan. El tablero guarda
+     * una copia del de su primer proyecto (datos viejos y quien aún la lea).
      */
     void setMethodology(Project board, String subjectKey, String methodology) {
         ensureOwn(board);
         List<Linked> linked = subjects.ofBoard(board.key());
         String target = linked.stream().map(l -> l.subject().key()).filter(k -> k.equals(subjectKey)).findFirst().orElse(linked.getFirst().subject().key());
-        subjects.setMethodology(board.key(), target, methodology);
-        if (target.equals(linked.getFirst().subject().key())) projects.updateMethodology(board.key(), methodology);
+        setMethodology(target, methodology);
+    }
+
+    /** Igual, desde el proyecto (Organización → Proyectos). */
+    @Transactional
+    public void setMethodology(String subjectKey, String methodology) {
+        Subject subject = load(subjectKey);
+        subjects.setMethodology(subject.key(), methodology);
+        for (String board : subjects.boardsOf(subject.key())) {
+            List<Linked> linked = subjects.ofBoard(board);
+            if (linked.isEmpty() || !linked.getFirst().subject().key().equals(subject.key())) continue;
+            boolean documents = projects.findByKey(board).map(p -> p.can(ec.kuador.board.catalog.Capability.PROJECT_DOCS)).orElse(false);
+            projects.updateMethodology(board, documents ? methodology : null);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Optional<String> methodology(String subjectKey) {
+        return subjects.methodology(load(subjectKey).key());
+    }
+
+    /**
+     * Un tablero que trabaja el proyecto con {@code capability} en su flujo (repositorio o documentos): por él se atiende lo
+     * que se pide desde el proyecto. Vacío si ninguno.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<String> hostBoard(String subjectKey, ec.kuador.board.catalog.Capability capability) {
+        return subjects.boardsOf(load(subjectKey).key()).stream()
+                .filter(b -> projects.findByKey(b).map(p -> p.can(capability)).orElse(false)).findFirst();
+    }
+
+    /** Los tableros que trabajan el proyecto. */
+    @Transactional(readOnly = true)
+    public List<String> boardsOf(String subjectKey) {
+        return subjects.boardsOf(subjectKey.toUpperCase(Locale.ROOT));
     }
 
     /**
@@ -177,7 +217,7 @@ public class SubjectService {
     }
 
     private SubjectWithBoards withBoards(Subject s) {
-        return new SubjectWithBoards(s, subjects.boardsOf(s.key()).stream().filter(BoardScope::allows).toList());
+        return new SubjectWithBoards(s, subjects.boardsOf(s.key()).stream().filter(BoardScope::allows).toList(), subjects.methodology(s.key()).orElse(null));
     }
 
     private Project board(String projectKey) {

@@ -24,8 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Equipo de agentes de cada tablero. Un tablero nuevo trae el equipo de su plantilla; después cada tablero suma,
- * crea o quita los suyos. Cada agente trabaja en la PC de una persona (LOCAL, por MCP) o en el tablero con la
+ * Los agentes del equipo de cada tablero. Un tablero nuevo suma al equipo los roles de su plantilla que le falten;
+ * después el equipo se arma en Organización → Equipos. Cada agente trabaja en la PC de una persona (LOCAL, por MCP) o en el tablero con la
  * clave de IA de la empresa (SERVER).
  */
 @Service
@@ -103,14 +103,46 @@ public class BoardTeam extends TenantAwareListener {
     @Transactional
     public List<TeamAgent> create(String projectKey, String name, String roleKey, String description, AgentMode mode, String model) {
         requireBoard(projectKey);
+        MemberView agent = newAgent(name, roleKey, description, mode, model);
+        store.addToTeam(TenantContext.require(), projectKey, agent.id());
+        return team(projectKey);
+    }
+
+    /** Los agentes del espacio y si están en el equipo (Organización → Equipos); los del equipo primero. */
+    @Transactional(readOnly = true)
+    public List<TeamAgent> teamAgents(UUID teamId) {
         UUID ws = TenantContext.require();
+        requireTeam(teamId);
+        List<UUID> team = store.teamAgents(ws, teamId);
+        Map<UUID, AgentTeamStore.Profile> profiles = store.profiles(ws);
+        AgentPolicy policy = catalog.agentPolicy();
+        return members.agents().stream()
+                .map(m -> view(m, profiles.get(m.id()), team.contains(m.id()), policy))
+                .sorted(java.util.Comparator.comparing((TeamAgent a) -> !a.inTeam()).thenComparing(a -> team.indexOf(a.id())))
+                .toList();
+    }
+
+    /** Crea un agente (con un rol del catálogo y su especialidad) dentro de un equipo. */
+    @Transactional
+    public List<TeamAgent> createInTeam(UUID teamId, String name, String roleKey, String description, AgentMode mode, String model) {
+        requireTeam(teamId);
+        UUID ws = TenantContext.require();
+        MemberView agent = newAgent(name, roleKey, description, mode, model);
+        store.addToTeamById(ws, teamId, agent.id());
+        return teamAgents(teamId);
+    }
+
+    private MemberView newAgent(String name, String roleKey, String description, AgentMode mode, String model) {
         AgentRole role = catalog.role(roleKey).orElseThrow(() -> new DomainException("Elige un rol del catálogo (o créalo en Catálogo → Roles)."));
         String agentName = name == null || name.isBlank() ? "Agente " + role.name() : name.strip();
         MemberView agent = members.createAgent(role.key(), agentName, description == null || description.isBlank() ? role.description() : description.strip(),
                 COLORS[(int) (Math.abs(agentName.hashCode()) % COLORS.length)]);
-        store.saveProfile(ws, new AgentTeamStore.Profile(agent.id(), allowedMode(role, mode), cleanModel(model)), clock.instant());
-        store.addToTeam(ws, projectKey, agent.id());
-        return team(projectKey);
+        store.saveProfile(TenantContext.require(), new AgentTeamStore.Profile(agent.id(), allowedMode(role, mode), cleanModel(model)), clock.instant());
+        return agent;
+    }
+
+    private void requireTeam(UUID teamId) {
+        if (!projects.teamExists(teamId)) throw new NotFoundException("No existe ese equipo.");
     }
 
     /** Dónde trabaja el agente y con qué modelo ({@code null} = el del espacio). */
@@ -172,7 +204,10 @@ public class BoardTeam extends TenantAwareListener {
                     members.createAgent(role.key(), seed.memberName(), role.description(), seed.color());
                 });
             }
-            members.agents().stream().filter(m -> event.teamRoles().contains(m.role())).forEach(m -> {
+            // Un equipo que ya atiende otros tableros suma solo los roles que le faltan.
+            java.util.Set<String> covered = store.team(event.workspaceId(), event.projectKey()).stream().map(members::find)
+                    .flatMap(Optional::stream).map(MemberView::role).collect(java.util.stream.Collectors.toSet());
+            members.agents().stream().filter(m -> event.teamRoles().contains(m.role()) && !covered.contains(m.role())).forEach(m -> {
                 store.addToTeam(event.workspaceId(), event.projectKey(), m.id());
                 // Fuera de software nadie tiene un Claude Code abierto: el agente trabaja en el tablero (si nadie eligió otra cosa).
                 if (!event.software() && !profiles.containsKey(m.id()) && !worksOnCode(m.role())) {

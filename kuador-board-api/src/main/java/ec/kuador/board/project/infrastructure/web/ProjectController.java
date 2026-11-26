@@ -34,15 +34,19 @@ class ProjectController {
 
     private final ProjectService service;
     private final ec.kuador.board.project.application.SubjectService subjects;
+    private final ec.kuador.board.project.application.TeamService teams;
 
-    ProjectController(ProjectService service, ec.kuador.board.project.application.SubjectService subjects) {
+    ProjectController(ProjectService service, ec.kuador.board.project.application.SubjectService subjects,
+            ec.kuador.board.project.application.TeamService teams) {
         this.service = service;
         this.subjects = subjects;
+        this.teams = teams;
     }
 
-    /** El tablero con los proyectos que atiende (para elegir uno al crear una tarjeta, filtrar y rotular). */
+    /** El tablero con su equipo y los proyectos que atiende (para elegir uno al crear una tarjeta, filtrar y rotular). */
     private ProjectResponse response(ProjectWithColumns pc) {
-        return ProjectResponse.from(pc, subjects.ofBoard(pc.project().key()));
+        String key = pc.project().key();
+        return ProjectResponse.from(pc, subjects.ofBoard(key), teams.teamOf(key).orElse(null));
     }
 
     @GetMapping
@@ -59,7 +63,7 @@ class ProjectController {
     @ResponseStatus(HttpStatus.CREATED)
     ProjectResponse create(@org.springframework.security.core.annotation.AuthenticationPrincipal(expression = "memberId()") UUID actorId,
             @Valid @RequestBody CreateProjectRequest r) {
-        return response(service.create(r.key(), r.name(), r.description(), r.templateKey(), actorId, r.subjects()));
+        return response(service.create(r.key(), r.name(), r.description(), r.templateKey(), actorId, r.subjects(), r.teamId()));
     }
 
     /** El objetivo del tablero: lo leen los agentes con cada tarjeta. */
@@ -166,7 +170,8 @@ class ProjectController {
             @NotBlank @Size(max = 120) String name,
             @Size(max = 4000) String description,
             @NotBlank @Size(max = 40) String templateKey,
-            @Size(max = 30) List<@Size(max = 10) String> subjects) {}
+            @Size(max = 30) List<@Size(max = 10) String> subjects,
+            UUID teamId) {}
 
     record ColumnRequest(String key, String name, ColumnCategory category) {}
 
@@ -178,12 +183,13 @@ class ProjectController {
             UUID id, String key, String name, String description, ProjectKind kind, String templateKey, String methodology,
             List<ColumnDef> columns, List<IssueTypeDef> issueTypes, Transitions transitions, List<StageDef> stages, int maxRework,
             Instant createdAt, List<ec.kuador.board.catalog.Capability> capabilities, ec.kuador.board.catalog.EstimateUnit estimate,
-            List<ec.kuador.board.project.SubjectView> subjects) {
+            List<ec.kuador.board.project.SubjectView> subjects, ec.kuador.board.project.application.TeamService.TeamRef team) {
 
-        static ProjectResponse from(ProjectWithColumns pc, List<ec.kuador.board.project.SubjectView> subjects) {
+        static ProjectResponse from(ProjectWithColumns pc, List<ec.kuador.board.project.SubjectView> subjects,
+                ec.kuador.board.project.application.TeamService.TeamRef team) {
             var p = pc.project();
             return new ProjectResponse(p.id(), p.key(), p.name(), p.description(), p.kind(), p.templateKey(), p.methodology(),
-                    pc.columns(), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.createdAt(), p.capabilities(), p.estimate(), subjects);
+                    pc.columns(), p.issueTypes(), p.transitions(), p.stages(), p.maxRework(), p.createdAt(), p.capabilities(), p.estimate(), subjects, team);
         }
     }
 }

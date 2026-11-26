@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { setMethodologyAction } from "@/app/actions";
+import { setMethodologyAction, setSubjectMethodologyAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { ChoiceCards } from "@/components/ui/ChoiceCards";
 import { Badge } from "@/components/ui/Section";
@@ -16,13 +16,26 @@ import type { Methodology, Project } from "@/lib/types";
 const readablePath = (path: string) => path.replace("{feature}", "NNN-nombre").replace("{task}", "clave-nombre");
 const NONE = "__none";
 
-/** Las metodologías salen del catálogo del espacio (de fábrica o creadas por el equipo). */
-export function MethodologyPicker({ project, methodologies }: { project: Project; methodologies: Methodology[] }) {
+/**
+ * Las metodologías salen del catálogo del espacio (de fábrica o creadas por el equipo). El manual es del proyecto: se
+ * elige desde el proyecto (`subject`) o, en el asistente de un tablero, para el proyecto que mira (`project`).
+ */
+export function MethodologyPicker({
+  project,
+  subject,
+  methodologies,
+}: {
+  project?: Project;
+  subject?: { key: string; methodology: string | null };
+  methodologies: Methodology[];
+}) {
   const router = useRouter();
-  const [selected, setSelected] = useState<string>(project.methodology ?? NONE);
+  const current = (subject ? subject.methodology : project?.methodology) ?? null;
+  const [selected, setSelected] = useState<string>(current ?? NONE);
   const [pending, startTransition] = useTransition();
   const guide = methodologies.find((m) => m.key === selected);
-  const dirty = selected !== (project.methodology ?? NONE);
+  const dirty = selected !== (current ?? NONE);
+  const docsHref = subject ? `/org/projects/${subject.key}/docs` : `/projects/${project?.key}/docs`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -81,8 +94,8 @@ export function MethodologyPicker({ project, methodologies }: { project: Project
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        {project.methodology && !dirty && (
-          <Link href={`/projects/${project.key}/docs`} className="k-link text-[13px]">
+        {current && !dirty && (
+          <Link href={docsHref} className="k-link text-[13px]">
             Ir a los documentos
           </Link>
         )}
@@ -94,7 +107,8 @@ export function MethodologyPicker({ project, methodologies }: { project: Project
           loading={pending}
           onClick={() =>
             startTransition(async () => {
-              const result = await setMethodologyAction(project.key, selected === NONE ? null : selected);
+              const chosen = selected === NONE ? null : selected;
+              const result = subject ? await setSubjectMethodologyAction(subject.key, chosen) : await setMethodologyAction(project?.key ?? "", chosen);
               if (result.ok) {
                 notify.ok("Metodología guardada", "Los documentos que ya existen se conservan.");
                 router.refresh();

@@ -40,6 +40,7 @@ public class IssueService extends IssueSupport implements IssueApi {
     private final Gates gates;
     private final EpicTasks tasks;
     private final IssueEditor editor;
+    private final IssueDeletion deletion;
     private final IssueMover mover;
     private final EpicPlan plan;
     private final StageWork work;
@@ -56,6 +57,7 @@ public class IssueService extends IssueSupport implements IssueApi {
         this.gates = new Gates(ports);
         this.tasks = new EpicTasks(ports);
         this.editor = new IssueEditor(ports, gates, supervision);
+        this.deletion = new IssueDeletion(ports, this.evidence);
         this.mover = new IssueMover(ports, gates, supervision, tasks);
         this.plan = new EpicPlan(ports, editor, mover, tasks);
         this.work = new StageWork(ports, gates, evidence, mover, tasks);
@@ -336,9 +338,29 @@ public class IssueService extends IssueSupport implements IssueApi {
         return editor.assign(key, memberId, actorId);
     }
 
+    /** Borra una tarjeta, salvo que la trabaje un agente, sea una épica con tareas en marcha u otra tarea dependa de ella. */
     @Transactional
     public void delete(String key, UUID actorId) {
-        editor.delete(key, actorId);
+        deletion.deleteOne(key, actorId);
+    }
+
+    /** Lo que pasaría al borrar varias tarjetas juntas, sin borrar nada (para la confirmación). */
+    @Transactional(readOnly = true)
+    public DeletePlan planDelete(List<String> keys) {
+        return DeletePlan.of(deletion.plan(keys));
+    }
+
+    /** Borra juntas las que se puedan de {@code keys}, en una sola transacción; las demás vuelven con su motivo. */
+    @Transactional
+    public DeletePlan deleteMany(List<String> keys, UUID actorId) {
+        return DeletePlan.of(deletion.delete(keys, actorId));
+    }
+
+    /** {@code deleted}: las pedidas que se borran; {@code withEpics}: tareas en espera que se van con su épica; {@code blocked}: clave → motivo. */
+    public record DeletePlan(List<String> deleted, List<String> withEpics, java.util.Map<String, String> blocked) {
+        static DeletePlan of(IssueDeletion.Plan p) {
+            return new DeletePlan(p.deleted(), p.withEpics(), p.blocked());
+        }
     }
 
     /** Mueve el issue a {@code target} en la posición {@code index} (0 = arriba) y reordena la columna. */

@@ -386,6 +386,13 @@ export type Priority = (typeof PRIORITIES)[number];
 
 export type MemberKind = "HUMAN" | "AGENT";
 
+/** Al borrar varias tarjetas: las que se borran, las tareas en espera que se van con su épica y las que no (clave → motivo). */
+export interface DeletePlan {
+  deleted: string[];
+  withEpics: string[];
+  blocked: Record<string, string>;
+}
+
 export interface Project {
   id: string;
   key: string;

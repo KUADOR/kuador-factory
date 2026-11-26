@@ -174,6 +174,14 @@ class IssueController {
 
     record ReviewRequest(boolean approve, @Size(max = 10_000) String comment) {}
 
+    record BulkDeleteRequest(@jakarta.validation.constraints.NotEmpty @Size(max = 200) List<@Size(max = 40) String> keys, boolean preview) {}
+
+    /** Varias tarjetas juntas. Con {@code preview}, solo dice qué se borraría y qué no (con el motivo), sin borrar. */
+    @PostMapping("/api/issues/bulk-delete")
+    IssueService.DeletePlan bulkDelete(@Valid @RequestBody BulkDeleteRequest r, @AuthenticationPrincipal AuthenticatedMember who) {
+        return r.preview() ? service.planDelete(r.keys()) : service.deleteMany(r.keys(), who.memberId());
+    }
+
     @DeleteMapping("/api/issues/{key}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@PathVariable String key, @AuthenticationPrincipal AuthenticatedMember who) {

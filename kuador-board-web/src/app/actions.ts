@@ -9,6 +9,7 @@ import { clearSessionToken, safeNext, setSessionToken } from "@/lib/session";
 import { THEME_COOKIE, parseTheme, type ThemeMode } from "@/theme/theme";
 import type {
   BoardDesign,
+  DeletePlan,
   DesignQuestion,
   DesignRequest,
   BusinessConnection,
@@ -307,6 +308,11 @@ export async function moveIssueAction(
 
 export async function deleteIssueAction(projectKey: string, key: string): Promise<ActionResult<void>> {
   return run(() => boardApi.deleteIssue(key), boardPath(projectKey));
+}
+
+/** Borrar varias tarjetas juntas; con {@code preview}, solo qué se borraría (para la confirmación). */
+export async function deleteIssuesAction(projectKey: string, keys: string[], preview: boolean): Promise<ActionResult<DeletePlan>> {
+  return preview ? run(() => boardApi.deleteIssues(keys, true)) : run(() => boardApi.deleteIssues(keys, false), boardPath(projectKey));
 }
 
 export async function listAgentRunsAction(issueKey: string): Promise<ActionResult<AgentRun[]>> {

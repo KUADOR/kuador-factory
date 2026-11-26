@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { beforeEach, test } from "node:test";
 
 import { _test, environment, freePorts, jdks, requirements, takePorts } from "../src/toolchain.js";
@@ -48,8 +48,9 @@ test("deja Java, Flutter y Node listos y se lo dice al agente", () => {
   const dir = repo({ "api/pom.xml": POM, "movil/pubspec.yaml": "dependencies:\n  flutter:\n", ".nvmrc": "22" });
   const r = environment(dir, "MED-1", { found, docker: true, path: "/usr/bin" });
   assert.equal(r.env.JAVA_HOME, "/jdk/25");
-  assert.equal(r.env.PATH.split(":")[0], "/jdk/25/bin");
-  assert.ok(r.env.PATH.includes("/tools/flutter-3.50.1/bin") && r.env.PATH.endsWith("/usr/bin"));
+  const path = r.env.PATH.split(delimiter);
+  assert.equal(path[0], join("/jdk/25", "bin"));
+  assert.ok(path.includes("/tools/flutter-3.50.1/bin") && path.at(-1) === "/usr/bin");
   assert.match(r.notes, /Java 25 \(25\.0\.2\): JAVA_HOME ya apunta a \/jdk\/25/);
   assert.match(r.notes, /Flutter 3\.50\.1/);
   assert.match(r.notes, /Docker responde/);

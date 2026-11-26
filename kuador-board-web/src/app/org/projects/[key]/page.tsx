@@ -30,10 +30,10 @@ export default async function OrgProjectPage({ params }: PageProps<"/org/project
             <p className="mt-1 text-[13px] text-fg-muted">
               {hosts.documents.length > 0
                 ? `Lo usan ${hosts.documents.map((b) => b.name).join(", ")}.`
-                : "Lo usan los tableros con documentos del proyecto; ninguno trabaja este proyecto todavía."}
+                : "Lo usarán los tableros que trabajen este proyecto con sus documentos; todavía no hay ninguno."}
             </p>
           </header>
-          <MethodologyPicker subject={{ key: subject.key, methodology: subject.methodology ?? null }} methodologies={methodologies} />
+          <MethodologyPicker subject={{ key: subject.key, methodology: subject.methodology ?? null, withDocuments: hosts.documents.length > 0 }} methodologies={methodologies} />
         </section>
       </div>
     </PageBody>

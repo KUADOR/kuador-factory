@@ -2,6 +2,7 @@
 // Arma el espacio de demostración «Kuador Demo» con 10 tableros, todo por la API (las mismas reglas que la web).
 //
 //   KUADOR_API=https://go-api.kuador.com \
+//   KUADOR_WEB_SECRET=<BOARD_WEB_SECRET de la API en Dokploy> \
 //   PLATFORM_EMAIL=tu@correo PLATFORM_PASSWORD=... DEMO_PASSWORD=... \
 //   node scripts/demo/armar-demo.mjs
 //
@@ -13,6 +14,7 @@
 // Se puede volver a correr: lo que ya existe se salta (un tablero que ya existe no se vuelve a llenar).
 
 import { boards } from "./tableros.mjs";
+import { examples } from "./ejemplos.mjs";
 
 const API = (process.env.KUADOR_API ?? "http://127.0.0.1:8080").replace(/\/+$/, "");
 const DEMO = {
@@ -25,16 +27,25 @@ const DEMO = {
   brandColor: "#6d28d9",
   plan: "FACTORY",
 };
+const WEB_SECRET = process.env.KUADOR_WEB_SECRET?.trim();
 const TIMEZONE = process.env.DEMO_TIMEZONE ?? "America/Guayaquil";
 
 async function call(token, method, path, body, { allow = [] } = {}) {
   const res = await fetch(API + path, {
     method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Con el dominio público protegido, la API solo atiende a la web: el script se presenta con su mismo secreto.
+      ...(WEB_SECRET ? { "X-Kuador-Web-Secret": WEB_SECRET } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
   const data = text ? safeJson(text) : undefined;
+  if (res.status === 404 && path === "/api/auth/login" && !WEB_SECRET) {
+    throw new Error("La API respondió 404: en producción solo atiende a la web. Agrega KUADOR_WEB_SECRET con el BOARD_WEB_SECRET de la API (Dokploy).");
+  }
   if (!res.ok && !allow.includes(res.status)) throw new Error(`${method} ${path} → ${res.status} ${text.slice(0, 400)}`);
   return { status: res.status, data };
 }
@@ -122,6 +133,53 @@ async function buildBoard(token, b, teams, subjects) {
   log(`✓ ${b.name}: ${b.roles.length} agente(s), ${b.routines.length} rutina(s) apagada(s), ${count} tarjeta(s).`);
 }
 
+/**
+ * El contenido de cada tarjeta: el pedido (descripción) y el rastro del trabajo (comentarios de cada agente y de la
+ * persona). Para comentar como un agente se le da un token un momento y se revoca al terminar. Solo llena lo vacío:
+ * una tarjeta que ya tiene descripción o comentarios no se toca.
+ */
+async function enrich(token, b) {
+  const cards = examples[b.key];
+  if (!cards) return;
+  const issues = (await call(token, "GET", `/api/projects/${b.key}/issues`)).data;
+  const team = (await call(token, "GET", `/api/projects/${b.key}/team`)).data;
+  const agentTokens = new Map();
+  const tokenOf = async (roleKey) => {
+    if (!agentTokens.has(roleKey)) {
+      const agent = team.find((a) => a.role === roleKey);
+      if (!agent) throw new Error(`${b.name}: no hay agente con el rol ${roleKey}.`);
+      const issued = (await call(token, "POST", `/api/members/${agent.id}/tokens`, { name: "demo (temporal)" })).data;
+      agentTokens.set(roleKey, issued);
+    }
+    return agentTokens.get(roleKey).token;
+  };
+  let filled = 0;
+  try {
+    for (const [title, ex] of Object.entries(cards)) {
+      const issue = issues.find((i) => i.title === title);
+      if (!issue) continue;
+      // Vacía o la corta de la primera versión del script: se pone la completa. Si alguien la cambió, se respeta.
+      const seeded = b.cards.find((c) => c.title === title)?.description;
+      if (ex.description && (!issue.description || issue.description === seeded) && issue.description !== ex.description) {
+        await call(token, "PUT", `/api/issues/${issue.key}`, {
+          title: issue.title, description: ex.description, type: issue.type, priority: issue.priority, storyPoints: issue.storyPoints,
+          assigneeId: issue.assigneeId, parentKey: issue.parentKey, labels: issue.labels, fields: issue.fields, subjectKey: issue.subjectKey,
+        });
+      }
+      const comments = (await call(token, "GET", `/api/issues/${issue.key}/comments`)).data;
+      if (comments.length === 0) {
+        for (const c of ex.trail) {
+          await call(c.by === "PERSONA" ? token : await tokenOf(c.by), "POST", `/api/issues/${issue.key}/comments`, { body: c.text });
+        }
+      }
+      filled++;
+    }
+  } finally {
+    for (const t of agentTokens.values()) await call(token, "DELETE", `/api/auth/tokens/${t.info.id}`, undefined, { allow: [404] });
+  }
+  log(`  ↳ ${b.name}: contenido en ${filled} tarjeta(s).`);
+}
+
 async function main() {
   if (!DEMO.password) throw new Error("Falta DEMO_PASSWORD: la clave con la que entrará la cuenta de demostración.");
   log(`API: ${API}`);
@@ -138,6 +196,7 @@ async function main() {
   for (const b of boards) {
     if (only && !only.includes(b.key)) continue;
     await buildBoard(token, b, teams, subjects);
+    await enrich(token, b);
   }
   log(`\nListo. Entra con ${DEMO.email} en la web.`);
 }

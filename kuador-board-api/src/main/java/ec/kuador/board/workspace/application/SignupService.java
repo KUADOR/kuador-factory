@@ -145,6 +145,25 @@ public class SignupService {
         return workspace;
     }
 
+    /**
+     * Un espacio que arma quien administra la plataforma (p. ej. uno de demostración), sin código al correo: el correo de la
+     * dueña puede no existir. Solo lo llama la plataforma (la seguridad lo fija en {@code /api/platform/**}).
+     */
+    public Workspace provisionByPlatform(Company company, String ownerName, String rawEmail, String password, String planCode) {
+        String email = normalize(rawEmail);
+        if (root(() -> auth.emailInUse(email))) throw new AccountExistsException();
+        String base = company.slug() == null || company.slug().isBlank() ? Workspace.slugOf(company.name()) : company.slug().strip();
+        if (root(() -> workspaces.slugTaken(base))) throw new DomainException("Ya existe un espacio «" + base + "».");
+        Workspace workspace = workspaces.provision(
+                new WorkspaceService.Brand(base, company.name(), company.description(), company.brandColor(), company.brandOnColor(), company.logo()),
+                new WorkspaceService.Owner(ownerName, email, password));
+        root(() -> {
+            billing.subscribe(workspace.id(), planCode);
+            return null;
+        });
+        return workspace;
+    }
+
     /** El paquete elegido y su tablero inicial. Si el tablero no se puede crear (p. ej. el plan no lo permite), el alta sigue igual. */
     private void starter(Workspace workspace, String packageCode) {
         if (packageCode == null || packageCode.isBlank()) return;

@@ -13,6 +13,8 @@ FROM node:22-slim
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3600 HOSTNAME=0.0.0.0
 # La web corre con node server.js: npm, npx y corepack no hacen falta en producción y traen sus propias fallas.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+# Los parches de seguridad del sistema que salieron después de la imagen base (p. ej. libpam, CVE-2025-6020).
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static

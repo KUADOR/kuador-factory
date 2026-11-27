@@ -9,6 +9,8 @@ import { decisionsChanged } from "@/components/shell/useDecisionsCount";
 import { notify } from "@/components/ui/Toaster";
 import type { CardPull } from "@/lib/types";
 
+const isOpen = (p: CardPull) => !p.merged && p.state.toLowerCase() === "open";
+
 const CI: Record<CardPull["ci"], { label: string; tone: string }> = {
   GREEN: { label: "CI en verde", tone: "text-ok" },
   RED: { label: "CI en rojo", tone: "text-danger" },
@@ -21,7 +23,16 @@ const CI: Record<CardPull["ci"], { label: string; tone: string }> = {
  * Los PRs de la tarjeta en su puerta, con «Aprobar y fusionar» si el CI está en verde: quien aprueba cierra el ciclo sin
  * abrir GitHub (también desde el celular). Si la tarjeta no tiene PRs, no se muestra.
  */
-export function PullMerge({ projectKey, issueKey, onLoaded }: { projectKey: string; issueKey: string; onLoaded?: () => void }) {
+export function PullMerge({
+  projectKey,
+  issueKey,
+  onLoaded,
+}: {
+  projectKey: string;
+  issueKey: string;
+  /** Llegó el estado de GitHub: cuántos PRs de la tarjeta siguen abiertos (con alguno, la puerta se pasa fusionando). */
+  onLoaded?: (open: number) => void;
+}) {
   const [pulls, setPulls] = useState<CardPull[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -31,7 +42,7 @@ export function PullMerge({ projectKey, issueKey, onLoaded }: { projectKey: stri
     let alive = true;
     const load = () =>
       cardPullsAction(issueKey).then((r) => {
-        onLoaded?.();
+        onLoaded?.(r.ok ? r.data.filter(isOpen).length : 0);
         if (!alive) return;
         setPulls(r.ok ? r.data : []);
         setFailed(r.ok ? null : r.error);
@@ -54,13 +65,16 @@ export function PullMerge({ projectKey, issueKey, onLoaded }: { projectKey: stri
   }
   if (failed) return <p className="text-xs text-warn">No se pudo leer GitHub: {failed}</p>;
 
-  const open = (pulls ?? []).filter((p) => !p.merged && p.state.toLowerCase() === "open");
+  const open = (pulls ?? []).filter(isOpen);
   if (open.length === 0) return null;
 
   return (
     <ul className="flex flex-col gap-2">
       {open.map((p) => (
-        <li key={`${p.repository}#${p.number}`} className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <li
+          key={`${p.repository}#${p.number}`}
+          className="flex flex-wrap items-center gap-x-3 gap-y-2"
+        >
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] text-fg-strong" title={p.title}>
               {p.repository} #{p.number} · {p.title}
@@ -75,7 +89,14 @@ export function PullMerge({ projectKey, issueKey, onLoaded }: { projectKey: stri
               </p>
             )}
           </div>
-          <Button size="sm" tone="ghost" icon={ExternalLink} href={p.url} label="Ver en GitHub" iconOnly />
+          <Button
+            size="sm"
+            tone="ghost"
+            icon={ExternalLink}
+            href={p.url}
+            label="Ver en GitHub"
+            iconOnly
+          />
           <Button
             size="sm"
             tone="primary"
@@ -91,7 +112,9 @@ export function PullMerge({ projectKey, issueKey, onLoaded }: { projectKey: stri
                 }
                 notify.ok(`Fusionado ${p.repository} #${p.number}`, `${issueKey} avanzó.`);
                 decisionsChanged();
-                setPulls((all) => (all ?? []).map((x) => (x === p ? { ...x, merged: true } : x)));
+                const next = (pulls ?? []).map((x) => (x === p ? { ...x, merged: true } : x));
+                setPulls(next);
+                onLoaded?.(next.filter(isOpen).length);
               })
             }
           >

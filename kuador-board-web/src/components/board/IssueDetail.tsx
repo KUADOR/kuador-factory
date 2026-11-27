@@ -34,7 +34,18 @@ import { Tabs } from "@/components/ui/Tabs";
 import { notify } from "@/components/ui/Toaster";
 import { useLiveVersion } from "@/components/live/LiveUpdates";
 import { parentLabel, documentsOf } from "@/lib/labels";
-import type { Activity, AgentRun, Comment, DocumentMeta, Issue, Me, Member, Methodology, Project, AgentMode } from "@/lib/types";
+import type {
+  Activity,
+  AgentRun,
+  Comment,
+  DocumentMeta,
+  Issue,
+  Me,
+  Member,
+  Methodology,
+  Project,
+  AgentMode,
+} from "@/lib/types";
 
 import { EpicPlan } from "./EpicPlan";
 import { IssueAttachments } from "./IssueAttachments";
@@ -93,11 +104,26 @@ export function IssueDetail({
   // Lo que el detalle carga aparte (comentarios, PRs y CI en GitHub, reparto de la épica). Hasta que llega todo, los
   // botones de la tarjeta no actúan: aprobar o entregar sin ver los comentarios o el CI llevaba a errores.
   const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
-  const markLoaded = useCallback((part: string) => setLoaded((prev) => (prev.has(part) ? prev : new Set(prev).add(part))), []);
+  const markLoaded = useCallback(
+    (part: string) => setLoaded((prev) => (prev.has(part) ? prev : new Set(prev).add(part))),
+    [],
+  );
   const commentsLoaded = useCallback(() => markLoaded("comments"), [markLoaded]);
-  const pullsLoaded = useCallback(() => markLoaded("pulls"), [markLoaded]);
+  // Con un PR abierto, la puerta se pasa fusionándolo: «Aprobar y pasar» no aparece (avanzaría sin el código).
+  const [openPulls, setOpenPulls] = useState(0);
+  const pullsLoaded = useCallback(
+    (open: number) => {
+      setOpenPulls(open);
+      markLoaded("pulls");
+    },
+    [markLoaded],
+  );
   const planLoaded = useCallback(() => markLoaded("plan"), [markLoaded]);
-  const needs = ["comments", ...(showsPulls({ issue, project, me, canEdit }) ? ["pulls"] : []), ...(issue.type === "EPIC" ? ["plan"] : [])];
+  const needs = [
+    "comments",
+    ...(showsPulls({ issue, project, me, canEdit }) ? ["pulls"] : []),
+    ...(issue.type === "EPIC" ? ["plan"] : []),
+  ];
   const ready = needs.every((part) => loaded.has(part));
 
   return (
@@ -107,13 +133,17 @@ export function IssueDetail({
       title={
         <span className="flex items-center gap-2">
           <TypeIcon type={issue.type} projectType={project} />
-          <span className="tabular font-mono text-xs whitespace-nowrap text-fg-muted">{issue.key}</span>
+          <span className="tabular font-mono text-xs whitespace-nowrap text-fg-muted">
+            {issue.key}
+          </span>
           {issue.parentKey && (
             <span className="hidden truncate text-xs font-normal text-fg-faint sm:inline">
               en {parentLabel(project).toLowerCase()} {issue.parentKey}
             </span>
           )}
-          {workingAgent && <WorkingLine agent={workingAgent} className="ml-2 font-normal whitespace-nowrap" />}
+          {workingAgent && (
+            <WorkingLine agent={workingAgent} className="ml-2 font-normal whitespace-nowrap" />
+          )}
         </span>
       }
       headerExtra={
@@ -124,11 +154,23 @@ export function IssueDetail({
               label: "Copiar enlace",
               icon: Link2,
               onSelect: () => {
-                void navigator.clipboard.writeText(`${window.location.origin}/projects/${project.key}?issue=${issue.key}`);
+                void navigator.clipboard.writeText(
+                  `${window.location.origin}/projects/${project.key}?issue=${issue.key}`,
+                );
                 notify.ok("Enlace copiado");
               },
             },
-            ...(canEdit ? (["separator", { label: "Eliminar tarjeta", icon: Trash, danger: true, onSelect: () => setConfirming(true) }] as const) : []),
+            ...(canEdit
+              ? ([
+                  "separator",
+                  {
+                    label: "Eliminar tarjeta",
+                    icon: Trash,
+                    danger: true,
+                    onSelect: () => setConfirming(true),
+                  },
+                ] as const)
+              : []),
           ]}
         />
       }
@@ -144,6 +186,7 @@ export function IssueDetail({
         workingAgent={workingAgent}
         ready={ready}
         onPullsLoaded={pullsLoaded}
+        mergeOnly={openPulls > 0}
       />
       {issue.type === "EPIC" && (
         <EpicPlan
@@ -183,7 +226,8 @@ export function IssueDetail({
             <dd className="flex min-w-0 items-center gap-1.5 text-fg">
               {reporter ? (
                 <>
-                  <Avatar member={reporter} size="xs" /> <span className="truncate">{reporter.name}</span>
+                  <Avatar member={reporter} size="xs" />{" "}
+                  <span className="truncate">{reporter.name}</span>
                 </>
               ) : (
                 "—"
@@ -200,7 +244,14 @@ export function IssueDetail({
             issueKey={issue.key}
             members={known}
             project={project}
-            actions={quickActions({ issue, project, me, canEdit, workingAgent })}
+            actions={quickActions({
+              issue,
+              project,
+              me,
+              canEdit,
+              workingAgent,
+              mergeOnly: openPulls > 0,
+            })}
             ready={ready}
             onCommentsLoaded={commentsLoaded}
           />
@@ -210,11 +261,7 @@ export function IssueDetail({
         open={confirming}
         onCancel={() => setConfirming(false)}
         title={`¿Eliminar ${issue.key}?`}
-        message={
-          <>
-            Se borra «{issue.title}» con sus comentarios. No se puede deshacer.
-          </>
-        }
+        message={<>Se borra «{issue.title}» con sus comentarios. No se puede deshacer.</>}
         confirmLabel="Eliminar tarjeta"
         pending={pending}
         onConfirm={() =>
@@ -257,10 +304,38 @@ function IssueTabs({
         value={tab}
         onChange={setTab}
         items={[
-          { value: "comments", label: "Comentarios", content: <Comments issueKey={issueKey} members={members} actions={actions} ready={ready} onLoaded={onCommentsLoaded} /> },
-          { value: "files", label: "Adjuntos", content: <IssueAttachments issueKey={issueKey} members={members} /> },
-          { value: "history", label: "Historial", content: <IssueHistory issueKey={issueKey} members={members} project={project} /> },
-          ...(withDocs ? [{ value: "docs" as const, label: "Documentos", content: <IssueDocs issueKey={issueKey} project={project} /> }] : []),
+          {
+            value: "comments",
+            label: "Comentarios",
+            content: (
+              <Comments
+                issueKey={issueKey}
+                members={members}
+                actions={actions}
+                ready={ready}
+                onLoaded={onCommentsLoaded}
+              />
+            ),
+          },
+          {
+            value: "files",
+            label: "Adjuntos",
+            content: <IssueAttachments issueKey={issueKey} members={members} />,
+          },
+          {
+            value: "history",
+            label: "Historial",
+            content: <IssueHistory issueKey={issueKey} members={members} project={project} />,
+          },
+          ...(withDocs
+            ? [
+                {
+                  value: "docs" as const,
+                  label: "Documentos",
+                  content: <IssueDocs issueKey={issueKey} project={project} />,
+                },
+              ]
+            : []),
         ]}
       />
     </div>
@@ -303,7 +378,9 @@ function IssueDocs({ issueKey, project }: { issueKey: string; project: Project }
             >
               <FileText className="size-3.5 shrink-0 text-fg-faint" aria-hidden />
               <span className="min-w-0 flex-1 truncate text-fg-strong">{d.title}</span>
-              <span className="tabular font-mono text-[11px] text-fg-faint">v{d.currentVersion}</span>
+              <span className="tabular font-mono text-[11px] text-fg-faint">
+                v{d.currentVersion}
+              </span>
             </Link>
           </li>
         ))}
@@ -311,7 +388,14 @@ function IssueDocs({ issueKey, project }: { issueKey: string; project: Project }
       {missing.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {missing.map((r) => (
-            <CreateDocButton key={r.kind} projectKey={project.key} kind={r.kind} issueKey={issueKey} label={r.label} compact />
+            <CreateDocButton
+              key={r.kind}
+              projectKey={project.key}
+              kind={r.kind}
+              issueKey={issueKey}
+              label={r.label}
+              compact
+            />
           ))}
         </div>
       )}
@@ -333,7 +417,15 @@ async function fetchGuide(project: Project): Promise<Methodology | null> {
   return (await guides).find((m) => m.key === project.methodology) ?? null;
 }
 
-function IssueHistory({ issueKey, members, project }: { issueKey: string; members: Member[]; project: Project }) {
+function IssueHistory({
+  issueKey,
+  members,
+  project,
+}: {
+  issueKey: string;
+  members: Member[];
+  project: Project;
+}) {
   const live = useLiveVersion(issueKey);
   const byId = new Map(members.map((m) => [m.id, m]));
   const [entries, setEntries] = useState<Activity[] | null>(null);
@@ -364,7 +456,10 @@ function IssueHistory({ issueKey, members, project }: { issueKey: string; member
           <h4 className="flex flex-wrap items-baseline justify-between gap-2 text-xs font-medium text-fg-muted">
             Ejecuciones de agentes
             {runs.some((r) => r.costUsd != null) && (
-              <span className="tabular font-normal text-fg-faint" title="Lo que costó la IA del servidor en esta tarjeta (las últimas ejecuciones).">
+              <span
+                className="tabular font-normal text-fg-faint"
+                title="Lo que costó la IA del servidor en esta tarjeta (las últimas ejecuciones)."
+              >
                 IA en esta tarjeta: {usd(runs.reduce((t, r) => t + (r.costUsd ?? 0), 0))}
               </span>
             )}
@@ -466,7 +561,9 @@ function Comments({
             comment={c}
             author={byId.get(c.authorId)}
             members={members}
-            onChange={(next) => setComments((prev) => (prev ?? []).map((x) => (x.id === next.id ? next : x)))}
+            onChange={(next) =>
+              setComments((prev) => (prev ?? []).map((x) => (x.id === next.id ? next : x)))
+            }
             onDelete={() => setComments((prev) => (prev ?? []).filter((x) => x.id !== c.id))}
           />
         ))}
@@ -488,7 +585,13 @@ function Comments({
         />
         <div className="flex flex-wrap items-center justify-end gap-2">
           {error && <p className="mr-auto text-xs text-danger">{error}</p>}
-          <Button size="sm" tone={actions.length > 0 ? "secondary" : "primary"} onClick={send} loading={pending} disabled={!body.trim() || (comments === null && !loadError)}>
+          <Button
+            size="sm"
+            tone={actions.length > 0 ? "secondary" : "primary"}
+            onClick={send}
+            loading={pending}
+            disabled={!body.trim() || (comments === null && !loadError)}
+          >
             Comentar
           </Button>
           {actions.map((a) => (
@@ -562,7 +665,13 @@ function CommentItem({
     });
 
   return (
-    <li className={forMe ? "group -mx-2 flex gap-2.5 rounded-md border-l-2 border-sol bg-sol/10 px-2 py-1.5" : "group flex gap-2.5"}>
+    <li
+      className={
+        forMe
+          ? "group -mx-2 flex gap-2.5 rounded-md border-l-2 border-sol bg-sol/10 px-2 py-1.5"
+          : "group flex gap-2.5"
+      }
+    >
       <Avatar member={author} size="md" />
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
@@ -574,14 +683,23 @@ function CommentItem({
           {!editing && (mine || canAdminister) && (
             <span className="ml-auto flex gap-1 text-xs opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
               {mine && (
-                <button type="button" className="k-link" onClick={() => (setDraft(c.body), setEditing(true))}>
+                <button
+                  type="button"
+                  className="k-link"
+                  onClick={() => (setDraft(c.body), setEditing(true))}
+                >
                   Editar
                 </button>
               )}
               {confirming ? (
                 <>
                   <span className="text-fg-faint">¿Borrar?</span>
-                  <button type="button" className="text-danger underline" disabled={pending} onClick={remove}>
+                  <button
+                    type="button"
+                    className="text-danger underline"
+                    disabled={pending}
+                    onClick={remove}
+                  >
                     Sí
                   </button>
                   <button type="button" className="k-link" onClick={() => setConfirming(false)}>
@@ -598,12 +716,24 @@ function CommentItem({
         </p>
         {editing ? (
           <div className="mt-1 flex flex-col gap-2">
-            <MentionTextArea rows={4} value={draft} onValueChange={setDraft} members={members} aria-label="Editar comentario" />
+            <MentionTextArea
+              rows={4}
+              value={draft}
+              onValueChange={setDraft}
+              members={members}
+              aria-label="Editar comentario"
+            />
             <div className="flex justify-end gap-2">
               <Button size="sm" tone="ghost" onClick={() => setEditing(false)}>
                 Cancelar
               </Button>
-              <Button size="sm" tone="primary" onClick={save} loading={pending} disabled={!draft.trim() || draft.trim() === c.body}>
+              <Button
+                size="sm"
+                tone="primary"
+                onClick={save}
+                loading={pending}
+                disabled={!draft.trim() || draft.trim() === c.body}
+              >
                 Guardar
               </Button>
             </div>

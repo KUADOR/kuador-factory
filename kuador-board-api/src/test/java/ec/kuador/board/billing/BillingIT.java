@@ -120,7 +120,7 @@ class BillingIT {
         assertThat(call("GET", "/api/platform/plans", null, someone).status()).isEqualTo(403);
         assertThat(call("GET", "/api/auth/me", null, someone).body().get("platformAdmin").asBoolean()).isFalse();
 
-        String admin = newWorkspace("pia@plataforma.test", "Plataforma", null);
+        String admin = loginOrCreatePlatform();
         assertThat(call("GET", "/api/auth/me", null, admin).body().get("platformAdmin").asBoolean()).isTrue();
 
         Map<String, Object> team = new LinkedHashMap<>();
@@ -154,5 +154,30 @@ class BillingIT {
                 Map.of("plan", "TEAM", "status", "ACTIVE", "paidUntil", "2099-01-01T00:00:00Z"), admin);
         assertThat(paid.body().get("status").asString()).isEqualTo("ACTIVE");
         assertThat(call("GET", "/api/workspace/plan", null, someone).body().get("paidUntil").asString()).startsWith("2099-01-01");
+    }
+
+    @Test
+    void thePlatformCreatesAWorkspaceWhoseMailboxDoesNotExist() throws Exception {
+        // Un espacio de demostración: la dueña entra con un correo que no recibe nada, así que no hay código que verificar.
+        String someone = newWorkspace("ana@otro.test", "Otro", "TEAM");
+        Map<String, Object> demo = Map.of("companyName", "Kuador Demo", "slug", "kuador-demo", "ownerName", "Demo",
+                "email", "info-demo@demo.test", "password", "clave-larga-de-prueba-1", "plan", "FACTORY");
+        assertThat(call("POST", "/api/platform/workspaces", demo, someone).status()).as("solo la plataforma").isEqualTo(403);
+
+        String admin = loginOrCreatePlatform();
+        Reply created = call("POST", "/api/platform/workspaces", demo, admin);
+        assertThat(created.status()).isEqualTo(201);
+        assertThat(created.body().get("slug").asString()).isEqualTo("kuador-demo");
+        String owner = auth.login("info-demo@demo.test", "clave-larga-de-prueba-1").token();
+        assertThat(call("GET", "/api/workspace/plan", null, owner).body().get("plan").get("code").asString()).isEqualTo("FACTORY");
+        assertThat(call("POST", "/api/platform/workspaces", demo, admin).status()).as("el correo ya tiene cuenta").isEqualTo(409);
+    }
+
+    private String loginOrCreatePlatform() {
+        try {
+            return auth.login("pia@plataforma.test", "clave-larga-de-prueba-1").token();
+        } catch (RuntimeException e) {
+            return newWorkspace("pia@plataforma.test", "Plataforma", null);
+        }
     }
 }

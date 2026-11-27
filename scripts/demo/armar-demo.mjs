@@ -2,6 +2,7 @@
 // Arma el espacio de demostración «Kuador Demo» con 10 tableros, todo por la API (las mismas reglas que la web).
 //
 //   KUADOR_API=https://go-api.kuador.com \
+//   KUADOR_WEB_SECRET=<BOARD_WEB_SECRET de la API en Dokploy> \
 //   PLATFORM_EMAIL=tu@correo PLATFORM_PASSWORD=... DEMO_PASSWORD=... \
 //   node scripts/demo/armar-demo.mjs
 //
@@ -25,16 +26,25 @@ const DEMO = {
   brandColor: "#6d28d9",
   plan: "FACTORY",
 };
+const WEB_SECRET = process.env.KUADOR_WEB_SECRET?.trim();
 const TIMEZONE = process.env.DEMO_TIMEZONE ?? "America/Guayaquil";
 
 async function call(token, method, path, body, { allow = [] } = {}) {
   const res = await fetch(API + path, {
     method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Con el dominio público protegido, la API solo atiende a la web: el script se presenta con su mismo secreto.
+      ...(WEB_SECRET ? { "X-Kuador-Web-Secret": WEB_SECRET } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
   const data = text ? safeJson(text) : undefined;
+  if (res.status === 404 && path === "/api/auth/login" && !WEB_SECRET) {
+    throw new Error("La API respondió 404: en producción solo atiende a la web. Agrega KUADOR_WEB_SECRET con el BOARD_WEB_SECRET de la API (Dokploy).");
+  }
   if (!res.ok && !allow.includes(res.status)) throw new Error(`${method} ${path} → ${res.status} ${text.slice(0, 400)}`);
   return { status: res.status, data };
 }
